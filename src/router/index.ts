@@ -13,15 +13,18 @@ import Profile from "../pages/Profile.vue";
 import UploadBook from "../pages/UploadBook.vue";
 
 import AdminDashboard from "../pages/admin/Dashboard.vue";
+import AdminBooks from "../pages/admin/Books.vue";
 import AdminEditBook from "../pages/admin/EditBook.vue";
 import AdminUsers from "../pages/admin/AdminUsers.vue";
 import AdminCategories from "../pages/admin/Categories.vue";
 import AdminMembers from "../pages/admin/Members.vue";
+import SuperRoles from "../pages/superadmin/Roles.vue";
 import SuperSettings from "../pages/superadmin/Settings.vue";
 
 import WriterDashboard from "../pages/writer/Dashboard.vue";
 import WriterUpload from "../pages/writer/Upload.vue";
 import WriterMyBooks from "../pages/writer/MyBooks.vue";
+import WriterEditBook from "../pages/writer/EditBook.vue";
 import WriterStats from "../pages/writer/Stats.vue";
 
 type UserRole = "guest" | "user" | "writer" | "admin" | "superadmin";
@@ -103,6 +106,13 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, allowedRoles: ["writer"] },
   },
   {
+    path: "/writer/book/:id/edit",
+    name: "WriterEditBook",
+    component: WriterEditBook,
+    props: true,
+    meta: { requiresAuth: true, allowedRoles: ["writer"] },
+  },
+  {
     path: "/writer/stats",
     name: "WriterStats",
     component: WriterStats,
@@ -112,6 +122,12 @@ const routes: RouteRecordRaw[] = [
     path: "/admin",
     name: "AdminDashboard",
     component: AdminDashboard,
+    meta: { requiresAuth: true, allowedRoles: adminRoles },
+  },
+  {
+    path: "/admin/books",
+    name: "AdminBooks",
+    component: AdminBooks,
     meta: { requiresAuth: true, allowedRoles: adminRoles },
   },
   {
@@ -149,6 +165,12 @@ const routes: RouteRecordRaw[] = [
     path: "/superadmin/settings",
     name: "SuperSettings",
     component: SuperSettings,
+    meta: { requiresAuth: true, allowedRoles: ["superadmin"] },
+  },
+  {
+    path: "/superadmin/roles",
+    name: "SuperRoles",
+    component: SuperRoles,
     meta: { requiresAuth: true, allowedRoles: ["superadmin"] },
   },
   {

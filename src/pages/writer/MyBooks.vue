@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import axios from "axios";
+import { useRouter } from "vue-router";
 
 type Book = {
   id: number;
@@ -12,6 +13,7 @@ type Book = {
 
 const books = ref<Book[]>([]);
 const loading = ref(true);
+const router = useRouter();
 
 const user = computed(() => {
   try {
@@ -50,6 +52,9 @@ onMounted(async () => {
             <h2>{{ book.title }}</h2>
             <p>{{ book.author }} <span v-if="book.category_name">/ {{ book.category_name }}</span></p>
           </div>
+          <button type="button" @click="router.push(`/writer/book/${book.id}/edit`)">
+            แก้ไข
+          </button>
         </article>
       </div>
     </section>
@@ -98,11 +103,33 @@ h2 {
 }
 
 .book-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
   padding: 16px;
 }
 
 .book-item h2 {
   margin: 0 0 6px;
   font-size: 18px;
+}
+
+.book-item button {
+  min-height: 38px;
+  border: 1px solid #2ec4b6;
+  border-radius: 8px;
+  background: #2ec4b6;
+  color: white;
+  cursor: pointer;
+  font-weight: 900;
+  padding: 8px 12px;
+}
+
+@media (max-width: 640px) {
+  .book-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 </style>

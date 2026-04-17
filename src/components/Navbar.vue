@@ -2,7 +2,12 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import logoUrl from "../assets/Logo-transparent.png";
-import { AUTH_CHANGED_EVENT, getToken, getUser, logout as clearAuth } from "../utils/auth";
+import {
+  AUTH_CHANGED_EVENT,
+  getToken,
+  getUser,
+  logout as clearAuth,
+} from "../utils/auth";
 
 type ThemeMode = "normal" | "dark" | "reading";
 type UserRole = "guest" | "user" | "writer" | "admin" | "superadmin";
@@ -37,8 +42,8 @@ const router = useRouter();
 const isMenuOpen = ref(false);
 const isSearchOpen = ref(false);
 const search = ref("");
-
 const authVersion = ref(0);
+
 const refreshAuth = () => {
   authVersion.value += 1;
 };
@@ -47,10 +52,12 @@ const user = computed<StoredUser>(() => {
   authVersion.value;
   return getUser() as StoredUser;
 });
+
 const isLoggedIn = computed(() => {
   authVersion.value;
   return !!getToken() && !!user.value;
 });
+
 const currentRole = computed<UserRole>(() => {
   return isLoggedIn.value ? user.value?.role || "user" : "guest";
 });
@@ -61,67 +68,13 @@ const themeOptions: { label: string; value: ThemeMode }[] = [
   { label: "อ่าน", value: "reading" },
 ];
 
-const navGroups: NavGroup[] = [
-  {
-    title: "สาธารณะ",
-    items: [
-      { label: "หน้าแรก", to: "/", roles: ["guest", "user", "writer", "admin", "superadmin"] },
-      { label: "ร้านหนังสือ", to: "/store", roles: ["guest", "user", "writer", "admin", "superadmin"] },
-    ],
-  },
-  {
-    title: "สมาชิก",
-    items: [
-      { label: "ชั้นหนังสือของฉัน", to: "/my-library", roles: ["user", "writer"] },
-      { label: "รายการถูกใจ", to: "/wishlist", roles: ["user", "writer"] },
-      { label: "ตะกร้า", to: "/cart", roles: ["user", "writer"] },
-      { label: "ประวัติคำสั่งซื้อ", to: "/orders/history", roles: ["user", "writer"] },
-      { label: "โปรไฟล์", to: "/profile", roles: ["user", "writer"] },
-    ],
-  },
-  {
-    title: "นักเขียน",
-    items: [
-      { label: "แดชบอร์ดนักเขียน", to: "/writer", roles: ["writer"] },
-      { label: "อัปโหลดหนังสือของตัวเอง", to: "/writer/upload", roles: ["writer"] },
-      { label: "จัดการหนังสือของตัวเอง", to: "/writer/books", roles: ["writer"] },
-      { label: "สถิติหนังสือตัวเอง", to: "/writer/stats", roles: ["writer"] },
-    ],
-  },
-  {
-    title: "ผู้ดูแล",
-    items: [
-      { label: "หน้า admin dashboard", to: "/admin", roles: ["admin", "superadmin"] },
-      { label: "จัดการหมวดหมู่", to: "/admin/categories", roles: ["admin", "superadmin"] },
-      { label: "อัปโหลดหนังสือ", to: "/upload-book", roles: ["admin", "superadmin"] },
-      { label: "จัดการสมาชิกบางส่วน", to: "/admin/members", roles: ["admin", "superadmin"] },
-      { label: "โปรไฟล์", to: "/profile", roles: ["admin", "superadmin"] },
-    ],
-  },
-  {
-    title: "ผู้ดูแลสูงสุด",
-    items: [
-      { label: "จัดการผู้ใช้ / เปลี่ยน role / ระงับผู้ใช้", to: "/admin/users", roles: ["superadmin"] },
-      { label: "ตั้งค่าระบบ", to: "/superadmin/settings", roles: ["superadmin"] },
-    ],
-  },
+const publicNavItems: NavItem[] = [
+  { label: "หน้าแรก", to: "/", roles: ["guest", "user", "writer", "admin", "superadmin"] },
+  { label: "ร้านหนังสือ", to: "/store", roles: ["guest", "user", "writer", "admin", "superadmin"] },
 ];
 
-const visibleGroups = computed(() => {
-  return navGroups
-    .map((group) => ({
-      ...group,
-      items: group.items.filter((item) => item.roles.includes(currentRole.value)),
-    }))
-    .filter((group) => group.items.length > 0);
-});
-
 const mainNavItems = computed(() => {
-  return navGroups[0].items.filter((item) => item.roles.includes(currentRole.value));
-});
-
-const roleNavGroups = computed(() => {
-  return visibleGroups.value.filter((group) => group.title !== navGroups[0].title);
+  return publicNavItems.filter((item) => item.roles.includes(currentRole.value));
 });
 
 const accountGroups = computed<NavGroup[]>(() => {
@@ -148,20 +101,24 @@ const accountGroups = computed<NavGroup[]>(() => {
         { label: "แดชบอร์ดนักเขียน", to: "/writer", roles: ["writer"] },
         { label: "หนังสือของฉัน", to: "/writer/books", roles: ["writer"] },
         { label: "อัปโหลดหนังสือ", to: "/writer/upload", roles: ["writer"] },
+        { label: "สถิติหนังสือ", to: "/writer/stats", roles: ["writer"] },
       ],
     },
     {
       title: "จัดการระบบ",
       items: [
         { label: "แดชบอร์ด", to: "/admin", roles: ["admin", "superadmin"] },
-        { label: "จัดการหนังสือ", to: "/admin", roles: ["admin", "superadmin"] },
+        { label: "จัดการหนังสือ", to: "/admin/books", roles: ["admin", "superadmin"] },
         { label: "จัดการหมวดหมู่", to: "/admin/categories", roles: ["admin", "superadmin"] },
+        { label: "อัปโหลดหนังสือ", to: "/upload-book", roles: ["admin", "superadmin"] },
+        { label: "จัดการสมาชิกบางส่วน", to: "/admin/members", roles: ["admin", "superadmin"] },
       ],
     },
     {
       title: "สิทธิ์ขั้นสูง",
       items: [
         { label: "จัดการผู้ใช้", to: "/admin/users", roles: ["superadmin"] },
+        { label: "เปลี่ยน role / ระงับผู้ใช้", to: "/superadmin/roles", roles: ["superadmin"] },
         { label: "ตั้งค่าระบบ", to: "/superadmin/settings", roles: ["superadmin"] },
       ],
     },
@@ -218,6 +175,17 @@ onUnmounted(() => {
         <img class="brand-logo" :src="logoUrl" alt="Read and Voice" />
       </router-link>
 
+      <nav class="desktop-public-nav" aria-label="เมนูหลัก">
+        <router-link
+          v-for="item in mainNavItems"
+          :key="item.to"
+          :to="item.to"
+          @click="closeMenu"
+        >
+          {{ item.label }}
+        </router-link>
+      </nav>
+
       <div class="top-actions">
         <button class="icon-button" type="button" aria-label="ค้นหาหนังสือ" @click="openSearch">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -250,6 +218,7 @@ onUnmounted(() => {
               <path d="M12 12a4.4 4.4 0 1 0 0-8.8 4.4 4.4 0 0 0 0 8.8Zm0 2c-4.2 0-7.6 2.2-7.6 5v1.2h15.2V19c0-2.8-3.4-5-7.6-5Z" />
             </svg>
           </summary>
+
           <div class="dropdown-panel account-panel">
             <template v-if="isLoggedIn">
               <section
@@ -267,18 +236,18 @@ onUnmounted(() => {
                   {{ item.label }}
                 </router-link>
               </section>
+
+              <button class="account-btn" type="button" @click="logout">
+                ออกจากระบบ
+              </button>
             </template>
-            <button
-              v-if="isLoggedIn"
-              class="account-btn"
-              type="button"
-              @click="logout"
-            >
-              ออกจากระบบ
-            </button>
+
             <template v-else>
-              <router-link class="account-btn ghost" to="/login">เข้าสู่ระบบ</router-link>
-              <router-link class="account-btn" to="/register">สมัครสมาชิก</router-link>
+              <section class="account-section">
+                <h3>บัญชีของฉัน</h3>
+                <router-link class="account-link" to="/login">เข้าสู่ระบบ</router-link>
+                <router-link class="account-link" to="/register">สมัครสมาชิก</router-link>
+              </section>
             </template>
           </div>
         </details>
@@ -321,48 +290,15 @@ onUnmounted(() => {
       </div>
     </form>
 
-    <nav class="nav-strip" aria-label="เมนูหลัก">
-      <section class="nav-group primary-group">
-        <router-link
-          v-for="item in mainNavItems"
-          :key="item.to"
-          :to="item.to"
-          @click="closeMenu"
-        >
-          {{ item.label }}
-        </router-link>
-      </section>
-
-      <section
-        v-for="group in roleNavGroups"
-        :key="group.title"
-        class="nav-dropdown"
-      >
-        <details>
-          <summary>{{ group.title }}</summary>
-          <div class="dropdown-menu">
-            <router-link
-              v-for="item in group.items"
-              :key="item.to"
-              :to="item.to"
-              @click="closeMenu"
-            >
-              {{ item.label }}
-            </router-link>
-          </div>
-        </details>
-      </section>
-    </nav>
-
     <div id="mobile-menu" class="mobile-panel" :class="{ open: isMenuOpen }">
       <form class="mobile-search" role="search" @submit.prevent="submitSearch">
         <input v-model="search" type="search" placeholder="ค้นหาหนังสือ" />
       </form>
 
-      <section v-for="group in visibleGroups" :key="group.title" class="mobile-group">
-        <h3>{{ group.title }}</h3>
+      <section class="mobile-group">
+        <h3>เมนูหลัก</h3>
         <router-link
-          v-for="item in group.items"
+          v-for="item in mainNavItems"
           :key="item.to"
           :to="item.to"
           @click="closeMenu"
@@ -374,18 +310,11 @@ onUnmounted(() => {
       <section class="mobile-group">
         <h3>บัญชี</h3>
         <template v-if="!isLoggedIn">
-          <router-link to="/login" @click="closeMenu">
-            เข้าสู่ระบบ
-          </router-link>
-          <router-link to="/register" @click="closeMenu">
-            สมัครสมาชิก
-          </router-link>
+          <router-link to="/login" @click="closeMenu">เข้าสู่ระบบ</router-link>
+          <router-link to="/register" @click="closeMenu">สมัครสมาชิก</router-link>
         </template>
         <template v-else>
-          <template
-            v-for="group in accountGroups"
-            :key="group.title"
-          >
+          <template v-for="group in accountGroups" :key="group.title">
             <h3 class="mobile-subtitle">{{ group.title }}</h3>
             <router-link
               v-for="item in group.items"
@@ -433,26 +362,52 @@ onUnmounted(() => {
 .top-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 14px;
+  gap: 18px;
   min-height: 76px;
   padding: 8px clamp(14px, 3vw, 52px);
+}
+
+.brand,
+.desktop-public-nav a,
+.account-link {
+  text-decoration: none;
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
-  min-width: 0;
-  color: #0f766e;
-  text-decoration: none;
 }
 
 .brand-logo {
   width: clamp(118px, 10vw, 166px);
   height: 58px;
-  flex: 0 0 auto;
   object-fit: contain;
+}
+
+.desktop-public-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.desktop-public-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  border-radius: 8px;
+  color: #244b47;
+  font-size: 14px;
+  font-weight: 900;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+.desktop-public-nav a:hover,
+.desktop-public-nav a.router-link-active {
+  color: #0f766e;
+  background: #dff8f3;
 }
 
 .top-actions {
@@ -505,8 +460,7 @@ onUnmounted(() => {
   color: white;
 }
 
-.dropdown-panel,
-.dropdown-menu {
+.dropdown-panel {
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
@@ -520,20 +474,90 @@ onUnmounted(() => {
   padding: 8px;
 }
 
-.mobile-search input {
-  width: 100%;
-  min-height: 42px;
-  border: 1px solid rgba(17, 156, 145, 0.22);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.82);
-  color: #244b47;
-  outline: none;
-  padding: 0 14px;
+.theme-panel,
+.account-panel {
+  gap: 8px;
 }
 
-.mobile-search input:focus {
-  border-color: #2ec4b6;
-  box-shadow: 0 0 0 3px rgba(46, 196, 182, 0.18);
+.account-panel {
+  min-width: 300px;
+  max-width: min(360px, calc(100vw - 24px));
+}
+
+.account-section {
+  display: grid;
+  gap: 4px;
+  border-bottom: 1px solid rgba(17, 156, 145, 0.14);
+  padding: 4px 0 8px;
+}
+
+.account-section:last-of-type {
+  border-bottom: 0;
+}
+
+.account-section h3 {
+  margin: 0;
+  color: #0b5f59;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.account-link {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  border-radius: 8px;
+  color: #244b47;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 7px 10px;
+}
+
+.account-link:hover,
+.account-link.router-link-active {
+  background: #dff8f3;
+  color: #0f766e;
+}
+
+.theme-panel button,
+.theme-switcher button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #244b47;
+  cursor: pointer;
+  font-weight: 900;
+  padding: 8px 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.theme-panel button:hover,
+.theme-panel button.active,
+.theme-switcher button.active {
+  color: #0f766e;
+  background: #dff8f3;
+}
+
+.account-btn,
+.mobile-group button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  border: 1px solid #2ec4b6;
+  border-radius: 8px;
+  background: #2ec4b6;
+  color: white;
+  cursor: pointer;
+  font-weight: 900;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+.menu-toggle {
+  display: none;
 }
 
 .search-overlay {
@@ -608,186 +632,24 @@ onUnmounted(() => {
   fill: currentColor;
 }
 
-.theme-panel,
-.account-panel {
-  gap: 8px;
-}
-
-.account-panel {
-  min-width: 280px;
-}
-
-.account-section {
-  display: grid;
-  gap: 4px;
-  border-bottom: 1px solid rgba(17, 156, 145, 0.14);
-  padding: 4px 0 8px;
-}
-
-.account-section:last-of-type {
-  border-bottom: 0;
-}
-
-.account-section h3 {
-  margin: 0;
-  color: #0b5f59;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.account-link {
-  display: flex;
-  align-items: center;
-  min-height: 34px;
-  border-radius: 8px;
-  color: #244b47;
-  font-size: 14px;
-  font-weight: 800;
-  padding: 7px 10px;
-  text-decoration: none;
-}
-
-.account-link:hover,
-.account-link.router-link-active {
-  background: #dff8f3;
-  color: #0f766e;
-}
-
-.theme-panel button,
-.theme-switcher button {
-  min-height: 38px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: #244b47;
-  cursor: pointer;
-  font-weight: 900;
-  padding: 8px 12px;
-  text-align: left;
-  white-space: nowrap;
-}
-
-.theme-panel button:hover,
-.theme-panel button.active,
-.theme-switcher button.active {
-  color: #0f766e;
-  background: #dff8f3;
-}
-
-.role-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 34px;
-  border-radius: 8px;
-  background: #d5f6ef;
-  color: #0b5f59;
-  font-size: 13px;
-  font-weight: 900;
-  padding: 7px 10px;
-  white-space: nowrap;
-}
-
-.account-btn,
-.menu-toggle,
-.mobile-group button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 38px;
-  border: 1px solid #2ec4b6;
-  border-radius: 8px;
-  background: #2ec4b6;
-  color: white;
-  cursor: pointer;
-  text-decoration: none;
-  font-weight: 900;
-  padding: 8px 12px;
-  white-space: nowrap;
-}
-
-.account-btn.ghost {
-  background: rgba(255, 255, 255, 0.78);
-  color: #0f766e;
-}
-
-.menu-toggle {
-  display: none;
-  border-radius: 50%;
-  padding: 0;
-}
-
-.nav-strip {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 50px;
-  padding: 0 clamp(14px, 3vw, 52px);
-  background: rgba(255, 255, 255, 0.74);
-}
-
-.nav-group {
-  display: inline-flex;
-  align-items: center;
-  flex: 0 0 auto;
-  gap: 6px;
-}
-
-.primary-group {
-  margin-right: auto;
-}
-
-.nav-strip a,
-.nav-dropdown summary {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  min-height: 38px;
-  border-radius: 8px;
-  color: #244b47;
-  font-size: 14px;
-  font-weight: 900;
-  padding: 8px 10px;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.nav-strip a:hover,
-.nav-strip a.router-link-active,
-.nav-dropdown summary:hover {
-  color: #0f766e;
-  background: #dff8f3;
-}
-
-.nav-dropdown {
-  position: relative;
-  flex: 0 0 auto;
-}
-
-.nav-dropdown details {
-  position: relative;
-}
-
-.nav-dropdown summary {
-  cursor: pointer;
-  list-style: none;
-}
-
-.nav-dropdown summary::-webkit-details-marker {
-  display: none;
-}
-
-.nav-dropdown summary::after {
-  margin-left: 7px;
-  content: "v";
-  font-size: 11px;
-}
-
-.dropdown-menu a {
-  justify-content: flex-start;
-}
-
 .mobile-panel {
   display: none;
+}
+
+.mobile-search input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(17, 156, 145, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #244b47;
+  outline: none;
+  padding: 0 14px;
+}
+
+.mobile-search input:focus {
+  border-color: #2ec4b6;
+  box-shadow: 0 0 0 3px rgba(46, 196, 182, 0.18);
 }
 
 @media (max-width: 720px) {
@@ -801,7 +663,7 @@ onUnmounted(() => {
     height: 54px;
   }
 
-  .nav-strip {
+  .desktop-public-nav {
     display: none;
   }
 
