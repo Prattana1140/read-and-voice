@@ -55,9 +55,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import axios from "axios";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
 type Book = {
   id: number;
@@ -70,9 +70,10 @@ type Book = {
 };
 
 const router = useRouter();
+const route = useRoute();
 
 const books = ref<Book[]>([]);
-const search = ref("");
+const search = ref(String(route.query.q || ""));
 
 const getBookCover = (book: Book) => {
   const cover = book.cover_url || book.cover_image;
@@ -154,6 +155,13 @@ onMounted(async () => {
     console.error("โหลดหนังสือไม่สำเร็จ", error);
   }
 });
+
+watch(
+  () => route.query.q,
+  (keyword) => {
+    search.value = String(keyword || "");
+  },
+);
 
 const filteredBooks = computed(() => {
   if (!search.value.trim()) return books.value;
