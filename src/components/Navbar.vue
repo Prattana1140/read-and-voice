@@ -222,20 +222,22 @@ const logout = () => {
       role="search"
       @submit.prevent="submitSearch"
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M10.8 4.2a6.6 6.6 0 1 1 0 13.2 6.6 6.6 0 0 1 0-13.2Zm0 2a4.6 4.6 0 1 0 0 9.2 4.6 4.6 0 0 0 0-9.2Zm5.4 9 4 4-1.4 1.4-4-4 1.4-1.4Z" />
-      </svg>
-      <input
-        v-model="search"
-        type="search"
-        placeholder="ค้นหา"
-        aria-label="ค้นหาหนังสือ"
-      />
-      <button class="search-close" type="button" aria-label="ปิดค้นหา" @click="closeSearch">
+      <div class="search-box">
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z" />
+          <path d="M10.8 4.2a6.6 6.6 0 1 1 0 13.2 6.6 6.6 0 0 1 0-13.2Zm0 2a4.6 4.6 0 1 0 0 9.2 4.6 4.6 0 0 0 0-9.2Zm5.4 9 4 4-1.4 1.4-4-4 1.4-1.4Z" />
         </svg>
-      </button>
+        <input
+          v-model="search"
+          type="search"
+          placeholder="ค้นหา"
+          aria-label="ค้นหาหนังสือ"
+        />
+        <button class="search-close" type="button" aria-label="ปิดค้นหา" @click="closeSearch">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z" />
+          </svg>
+        </button>
+      </div>
     </form>
 
     <nav class="nav-strip" aria-label="เมนูหลัก">
@@ -450,43 +452,51 @@ const logout = () => {
 }
 
 .search-overlay {
-  position: absolute;
-  top: 8px;
-  left: 50%;
-  z-index: 90;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
   display: none;
-  align-items: center;
-  width: min(800px, calc(100vw - 28px));
-  min-height: 42px;
-  padding: 0 6px 0 14px;
-  border-radius: 999px;
-  background: #f2f2f3;
+  justify-content: center;
+  width: 100vw;
+  min-height: 52px;
+  padding: 8px 14px;
+  background: #ffffff;
   color: #111827;
-  transform: translateX(-50%);
-  box-shadow: 0 8px 20px rgba(17, 24, 39, 0.12);
+  box-shadow: 0 1px 0 rgba(17, 24, 39, 0.08);
 }
 
 .search-overlay.open {
   display: flex;
 }
 
-.search-overlay > svg {
+.search-box {
+  display: flex;
+  align-items: center;
+  width: min(800px, calc(100vw - 28px));
+  min-height: 36px;
+  border-radius: 999px;
+  background: #f2f2f3;
+  padding: 0 4px 0 10px;
+}
+
+.search-box > svg {
   width: 24px;
   height: 24px;
   flex: 0 0 auto;
   fill: currentColor;
 }
 
-.search-overlay input {
+.search-box input {
   flex: 1 1 auto;
   min-width: 0;
-  min-height: 38px;
+  min-height: 34px;
   border: 0;
   background: transparent;
   color: #111827;
-  font-size: 16px;
+  font-size: 15px;
   outline: none;
-  padding: 0 8px;
+  padding: 0 6px;
 }
 
 .search-close {
@@ -508,8 +518,8 @@ const logout = () => {
 }
 
 .search-close svg {
-  width: 25px;
-  height: 25px;
+  width: 24px;
+  height: 24px;
   fill: currentColor;
 }
 
