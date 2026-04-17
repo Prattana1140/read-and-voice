@@ -1,15 +1,28 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import axios from "axios";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import axios from "axios";
 
 type StoredUser = {
   id?: number;
   name?: string;
-  role?: string;
+};
+
+type Book = {
+  id: number;
+  title: string;
+  author?: string;
+  category_name?: string;
+  cover_image?: string;
+  is_published?: number;
+  created_by?: number;
+  total_pages?: number;
 };
 
 const router = useRouter();
+const loading = ref(true);
+const books = ref<Book[]>([]);
+
 const user = computed<StoredUser>(() => {
   try {
     return JSON.parse(localStorage.getItem("user") || "{}");
@@ -18,232 +31,321 @@ const user = computed<StoredUser>(() => {
   }
 });
 
-const title = ref("");
-const author = ref("");
-const description = ref("");
-const coverImage = ref("");
-const bookFile = ref<File | null>(null);
-const loading = ref(false);
-const message = ref("");
-const error = ref("");
+const myBooks = computed(() => {
+  if (!user.value.id) return books.value;
+  const owned = books.value.filter((book) => Number(book.created_by) === Number(user.value.id));
+  return owned.length ? owned : books.value;
+});
 
-const onFileChange = (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  bookFile.value = target.files?.[0] || null;
+const publishedBooks = computed(() => {
+  return myBooks.value.filter((book) => Number(book.is_published) === 1);
+});
+
+const draftBooks = computed(() => {
+  return myBooks.value.filter((book) => Number(book.is_published) !== 1);
+});
+
+const bestBook = computed(() => {
+  return publishedBooks.value[0]?.title || "ยังไม่มีข้อมูล";
+});
+
+const getCoverUrl = (cover?: string) => {
+  if (!cover) return "/no-cover.png";
+  if (cover.startsWith("http://") || cover.startsWith("https://")) return cover;
+  return `http://localhost:3000/${cover.replace(/^\/+/, "")}`;
 };
 
-const uploadBook = async () => {
-  if (!title.value || !author.value || !bookFile.value) {
-    error.value = "Please fill in title, author, and choose a file.";
-    message.value = "";
-    return;
-  }
-
+const fetchBooks = async () => {
   loading.value = true;
-  error.value = "";
-  message.value = "";
 
   try {
-    const formData = new FormData();
-    formData.append("title", title.value);
-    formData.append("author", author.value);
-    formData.append("description", description.value);
-    formData.append("cover_image", coverImage.value);
-    formData.append("created_by", String(user.value.id || ""));
-    formData.append("book_file", bookFile.value);
-
-    const res = await axios.post(
-      "http://localhost:3000/api/books/upload",
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
-    );
-
-    message.value = `Uploaded successfully. Book #${res.data.book_id} with ${res.data.total_pages} page chunks (${res.data.parse_method}).`;
-    title.value = "";
-    author.value = "";
-    description.value = "";
-    coverImage.value = "";
-    bookFile.value = null;
-  } catch (err: any) {
-    error.value =
-      err.response?.data?.error ||
-      err.response?.data?.message ||
-      "Upload failed.";
+    const res = await axios.get("http://localhost:3000/api/books");
+    books.value = Array.isArray(res.data) ? res.data : [];
   } finally {
     loading.value = false;
   }
 };
 
-const logout = () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
-  router.push("/login");
-};
+onMounted(fetchBooks);
 </script>
 
 <template>
-  <div class="writer-page">
-    <section class="hero-card">
+  <main class="writer-page">
+    <section class="page-header">
       <div>
-        <h1>Writer Dashboard</h1>
-        <p>Welcome {{ user.name || "writer" }}</p>
-        <p>Role: {{ user.role || "unknown" }}</p>
+        <p class="eyebrow">Creator Dashboard</p>
+        <h1>แดชบอร์ดนักเขียน</h1>
+        <p>ติดตามผลงาน หนังสือที่กำลังตรวจ และหนังสือที่เผยแพร่แล้ว</p>
       </div>
 
-      <button class="ghost-btn" @click="logout">Logout</button>
-    </section>
-
-    <section class="upload-card">
-      <h2>Upload book file</h2>
-      <p class="hint">
-        PDF, TXT, and JSON are supported. Scanned PDFs need OCR tooling installed on this machine.
-      </p>
-
-      <div class="form-grid">
-        <label class="field">
-          <span>Title</span>
-          <input v-model="title" type="text" placeholder="Book title" />
-        </label>
-
-        <label class="field">
-          <span>Author</span>
-          <input v-model="author" type="text" placeholder="Author name" />
-        </label>
-
-        <label class="field field-full">
-          <span>Description</span>
-          <textarea
-            v-model="description"
-            rows="4"
-            placeholder="Short description"
-          />
-        </label>
-
-        <label class="field field-full">
-          <span>Cover image URL</span>
-          <input
-            v-model="coverImage"
-            type="text"
-            placeholder="https://example.com/cover.jpg"
-          />
-        </label>
-
-        <label class="field field-full">
-          <span>Book file</span>
-          <input type="file" accept=".pdf,.txt,.json" @change="onFileChange" />
-        </label>
-      </div>
-
-      <button class="primary-btn" :disabled="loading" @click="uploadBook">
-        {{ loading ? "Uploading..." : "Upload book" }}
+      <button type="button" class="primary-btn" @click="router.push('/writer/upload')">
+        อัปโหลดหนังสือใหม่
       </button>
-
-      <p v-if="message" class="success-text">{{ message }}</p>
-      <p v-if="error" class="error-text">{{ error }}</p>
     </section>
-  </div>
+
+    <section class="stats-grid">
+      <article>
+        <span>หนังสือทั้งหมด</span>
+        <strong>{{ myBooks.length }}</strong>
+      </article>
+      <article>
+        <span>เผยแพร่แล้ว</span>
+        <strong>{{ publishedBooks.length }}</strong>
+      </article>
+      <article>
+        <span>Draft / Pending</span>
+        <strong>{{ draftBooks.length }}</strong>
+      </article>
+      <article>
+        <span>ขายดีที่สุด</span>
+        <strong class="small-value">{{ bestBook }}</strong>
+      </article>
+    </section>
+
+    <section class="content-grid">
+      <article class="panel">
+        <div class="panel-head">
+          <h2>หนังสือของฉัน</h2>
+          <button type="button" class="link-btn" @click="router.push('/writer/books')">
+            ดูทั้งหมด
+          </button>
+        </div>
+
+        <div v-if="loading" class="state-box">กำลังโหลดข้อมูล...</div>
+        <div v-else-if="myBooks.length === 0" class="state-box">ยังไม่มีหนังสือในบัญชีนี้</div>
+
+        <div v-else class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ปก</th>
+                <th>ชื่อ</th>
+                <th>หมวดหมู่</th>
+                <th>สถานะ</th>
+                <th>ยอดอ่าน</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="book in myBooks.slice(0, 6)" :key="book.id">
+                <td>
+                  <img :src="getCoverUrl(book.cover_image)" :alt="book.title" />
+                </td>
+                <td>
+                  <strong>{{ book.title }}</strong>
+                  <small>{{ book.author || "ไม่ระบุผู้เขียน" }}</small>
+                </td>
+                <td>{{ book.category_name || "-" }}</td>
+                <td>
+                  <span class="badge" :class="{ active: Number(book.is_published) === 1 }">
+                    {{ Number(book.is_published) === 1 ? "published" : "pending" }}
+                  </span>
+                </td>
+                <td>{{ book.total_pages || 0 }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <aside class="panel side-panel">
+        <h2>ทางลัดนักเขียน</h2>
+        <button type="button" @click="router.push('/writer/upload')">อัปโหลดหนังสือ</button>
+        <button type="button" @click="router.push('/writer/books')">หนังสือของฉัน</button>
+        <button type="button" @click="router.push('/writer/stats')">สถิติหนังสือ</button>
+      </aside>
+    </section>
+  </main>
 </template>
 
 <style scoped>
 .writer-page {
-  max-width: 960px;
+  width: min(1240px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 24px;
-  display: grid;
-  gap: 20px;
+  padding: 32px 0 52px;
 }
 
-.hero-card,
-.upload-card {
-  background: white;
-  border-radius: 18px;
-  padding: 24px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+.page-header,
+.panel,
+.stats-grid article {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
-.hero-card {
+.page-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 24px;
 }
 
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  margin: 20px 0;
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--primary-strong);
+  font-weight: 900;
 }
 
-.field {
-  display: grid;
-  gap: 8px;
+h1,
+h2 {
+  margin: 0;
+  color: var(--text-strong);
 }
 
-.field-full {
-  grid-column: 1 / -1;
-}
-
-.field input,
-.field textarea {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid #d7dce8;
-  border-radius: 12px;
-  box-sizing: border-box;
-  font: inherit;
+.page-header p:not(.eyebrow),
+.stats-grid span,
+small,
+.state-box {
+  color: var(--text-muted);
 }
 
 .primary-btn,
-.ghost-btn {
-  border: none;
-  border-radius: 12px;
-  padding: 12px 18px;
+.link-btn,
+.side-panel button {
+  min-height: 40px;
+  border: 1px solid #2ec4b6;
+  border-radius: 8px;
   cursor: pointer;
-  font-weight: 700;
+  font-weight: 900;
+  padding: 10px 14px;
 }
 
 .primary-btn {
-  background: #276ef1;
+  background: #2ec4b6;
   color: white;
 }
 
-.ghost-btn {
-  background: #eef2fb;
-  color: #1d2a44;
+.link-btn,
+.side-panel button {
+  background: #f2fffc;
+  color: #0b5f59;
 }
 
-.primary-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
 }
 
-.hint,
-.success-text,
-.error-text {
-  margin-top: 12px;
+.stats-grid article {
+  padding: 18px;
 }
 
-.success-text {
-  color: #087443;
+.stats-grid span,
+.stats-grid strong {
+  display: block;
 }
 
-.error-text {
-  color: #b00020;
+.stats-grid strong {
+  margin-top: 8px;
+  color: var(--text-strong);
+  font-size: 34px;
 }
 
-@media (max-width: 700px) {
-  .hero-card {
-    flex-direction: column;
-    align-items: flex-start;
+.small-value {
+  font-size: 18px !important;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.panel {
+  padding: 20px;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--border);
+  padding: 12px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+th {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+td img {
+  width: 48px;
+  height: 64px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+td strong,
+td small {
+  display: block;
+}
+
+.badge {
+  display: inline-flex;
+  border-radius: 999px;
+  background: #fff3d8;
+  color: #876000;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 6px 9px;
+}
+
+.badge.active {
+  background: #dff8f3;
+  color: #0b5f59;
+}
+
+.side-panel {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .page-header,
+  .content-grid {
+    grid-template-columns: 1fr;
   }
 
-  .form-grid {
+  .page-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .stats-grid {
     grid-template-columns: 1fr;
+  }
+
+  .primary-btn {
+    width: 100%;
   }
 }
 </style>

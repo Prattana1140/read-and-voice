@@ -51,18 +51,6 @@ const currentRole = computed<UserRole>(() => {
   return isLoggedIn.value ? user.value?.role || "user" : "guest";
 });
 
-const roleLabel = computed(() => {
-  const labels: Record<UserRole, string> = {
-    guest: "ผู้เยี่ยมชม",
-    user: "สมาชิก",
-    writer: "นักเขียน",
-    admin: "ผู้ดูแล",
-    superadmin: "ผู้ดูแลสูงสุด",
-  };
-
-  return labels[currentRole.value];
-});
-
 const themeOptions: { label: string; value: ThemeMode }[] = [
   { label: "ปกติ", value: "normal" },
   { label: "มืด", value: "dark" },
@@ -132,6 +120,57 @@ const roleNavGroups = computed(() => {
   return visibleGroups.value.filter((group) => group.title !== navGroups[0].title);
 });
 
+const accountGroups = computed<NavGroup[]>(() => {
+  const role = currentRole.value;
+  const groups: NavGroup[] = [
+    {
+      title: "บัญชีของฉัน",
+      items: [
+        { label: "โปรไฟล์", to: "/profile", roles: ["user", "writer", "admin", "superadmin"] },
+        { label: "ประวัติคำสั่งซื้อ", to: "/orders/history", roles: ["user", "writer"] },
+      ],
+    },
+    {
+      title: "การใช้งาน",
+      items: [
+        { label: "ชั้นหนังสือของฉัน", to: "/my-library", roles: ["user", "writer"] },
+        { label: "รายการโปรด", to: "/wishlist", roles: ["user", "writer"] },
+        { label: "ตะกร้า", to: "/cart", roles: ["user", "writer"] },
+      ],
+    },
+    {
+      title: "นักเขียน",
+      items: [
+        { label: "แดชบอร์ดนักเขียน", to: "/writer", roles: ["writer"] },
+        { label: "หนังสือของฉัน", to: "/writer/books", roles: ["writer"] },
+        { label: "อัปโหลดหนังสือ", to: "/writer/upload", roles: ["writer"] },
+      ],
+    },
+    {
+      title: "จัดการระบบ",
+      items: [
+        { label: "แดชบอร์ด", to: "/admin", roles: ["admin", "superadmin"] },
+        { label: "จัดการหนังสือ", to: "/admin", roles: ["admin", "superadmin"] },
+        { label: "จัดการหมวดหมู่", to: "/admin/categories", roles: ["admin", "superadmin"] },
+      ],
+    },
+    {
+      title: "สิทธิ์ขั้นสูง",
+      items: [
+        { label: "จัดการผู้ใช้", to: "/admin/users", roles: ["superadmin"] },
+        { label: "ตั้งค่าระบบ", to: "/superadmin/settings", roles: ["superadmin"] },
+      ],
+    },
+  ];
+
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => item.roles.includes(role)),
+    }))
+    .filter((group) => group.items.length > 0);
+});
+
 const closeMenu = () => {
   isMenuOpen.value = false;
 };
@@ -199,14 +238,23 @@ const logout = () => {
             </svg>
           </summary>
           <div class="dropdown-panel account-panel">
-            <span class="role-chip">{{ roleLabel }}</span>
-            <router-link
-              v-if="isLoggedIn"
-              class="account-btn ghost"
-              to="/profile"
-            >
-              โปรไฟล์
-            </router-link>
+            <template v-if="isLoggedIn">
+              <section
+                v-for="group in accountGroups"
+                :key="group.title"
+                class="account-section"
+              >
+                <h3>{{ group.title }}</h3>
+                <router-link
+                  v-for="item in group.items"
+                  :key="item.to + item.label"
+                  class="account-link"
+                  :to="item.to"
+                >
+                  {{ item.label }}
+                </router-link>
+              </section>
+            </template>
             <button
               v-if="isLoggedIn"
               class="account-btn"
@@ -312,7 +360,6 @@ const logout = () => {
 
       <section class="mobile-group">
         <h3>บัญชี</h3>
-        <span class="mobile-role">{{ roleLabel }}</span>
         <template v-if="!isLoggedIn">
           <router-link to="/login" @click="closeMenu">
             เข้าสู่ระบบ
@@ -322,9 +369,20 @@ const logout = () => {
           </router-link>
         </template>
         <template v-else>
-          <router-link to="/profile" @click="closeMenu">
-            โปรไฟล์
-          </router-link>
+          <template
+            v-for="group in accountGroups"
+            :key="group.title"
+          >
+            <h3 class="mobile-subtitle">{{ group.title }}</h3>
+            <router-link
+              v-for="item in group.items"
+              :key="item.to + item.label"
+              :to="item.to"
+              @click="closeMenu"
+            >
+              {{ item.label }}
+            </router-link>
+          </template>
           <button type="button" @click="logout">ออกจากระบบ</button>
         </template>
       </section>
@@ -542,6 +600,46 @@ const logout = () => {
   gap: 8px;
 }
 
+.account-panel {
+  min-width: 280px;
+}
+
+.account-section {
+  display: grid;
+  gap: 4px;
+  border-bottom: 1px solid rgba(17, 156, 145, 0.14);
+  padding: 4px 0 8px;
+}
+
+.account-section:last-of-type {
+  border-bottom: 0;
+}
+
+.account-section h3 {
+  margin: 0;
+  color: #0b5f59;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.account-link {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  border-radius: 8px;
+  color: #244b47;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 7px 10px;
+  text-decoration: none;
+}
+
+.account-link:hover,
+.account-link.router-link-active {
+  background: #dff8f3;
+  color: #0f766e;
+}
+
 .theme-panel button,
 .theme-switcher button {
   min-height: 38px;
@@ -563,8 +661,7 @@ const logout = () => {
   background: #dff8f3;
 }
 
-.role-chip,
-.mobile-role {
+.role-chip {
   display: inline-flex;
   align-items: center;
   min-height: 34px;
@@ -717,6 +814,12 @@ const logout = () => {
     margin: 0;
     color: #0b5f59;
     font-size: 13px;
+  }
+
+  .mobile-subtitle {
+    margin-top: 8px !important;
+    color: #4a716d !important;
+    font-size: 12px !important;
   }
 
   .mobile-group a,
