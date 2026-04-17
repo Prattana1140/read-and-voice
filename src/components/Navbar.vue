@@ -141,60 +141,79 @@ const logout = () => {
     <div class="top-bar">
       <router-link class="brand" to="/" @click="closeMenu">
         <img class="brand-logo" :src="logoUrl" alt="Read and Voice" />
-        <span class="brand-text">
-          <strong>Read and Voice</strong>
-          <small>อ่านง่าย ฟังสบาย</small>
-        </span>
       </router-link>
 
-      <form class="search-form" role="search" @submit.prevent="submitSearch">
-        <input
-          v-model="search"
-          type="search"
-          placeholder="ค้นหาหนังสือ"
-          aria-label="ค้นหาหนังสือ"
-        />
-      </form>
+      <div class="top-actions">
+        <details class="icon-dropdown search-dropdown">
+          <summary class="icon-button" aria-label="ค้นหาหนังสือ">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M10.8 4.2a6.6 6.6 0 1 1 0 13.2 6.6 6.6 0 0 1 0-13.2Zm0 2a4.6 4.6 0 1 0 0 9.2 4.6 4.6 0 0 0 0-9.2Zm5.4 9 4 4-1.4 1.4-4-4 1.4-1.4Z" />
+            </svg>
+          </summary>
+          <form class="dropdown-panel search-panel" role="search" @submit.prevent="submitSearch">
+            <input
+              v-model="search"
+              type="search"
+              placeholder="ค้นหาหนังสือ"
+              aria-label="ค้นหาหนังสือ"
+            />
+          </form>
+        </details>
 
-      <div class="desktop-actions">
-        <div class="theme-switcher" aria-label="เปลี่ยนโหมดสี">
-          <button
-            v-for="option in themeOptions"
-            :key="option.value"
-            type="button"
-            :class="{ active: props.theme === option.value }"
-            @click="emit('change-theme', option.value)"
-          >
-            {{ option.label }}
-          </button>
-        </div>
+        <details class="icon-dropdown">
+          <summary class="icon-button" aria-label="เปลี่ยนโหมดสี">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3a9 9 0 0 0 0 18h.4a3.1 3.1 0 0 0 2.2-5.3 1.1 1.1 0 0 1 .8-1.9H17a4 4 0 0 0 0-8h-.5A8.9 8.9 0 0 0 12 3Zm-5 9.2a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8Zm3.1-4.1a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8Zm4.6.1a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8Z" />
+            </svg>
+          </summary>
+          <div class="dropdown-panel theme-panel">
+            <button
+              v-for="option in themeOptions"
+              :key="option.value"
+              type="button"
+              :class="{ active: props.theme === option.value }"
+              @click="emit('change-theme', option.value)"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+        </details>
 
-        <span class="role-chip">{{ roleLabel }}</span>
+        <details class="icon-dropdown account-dropdown">
+          <summary class="avatar-button" aria-label="บัญชีผู้ใช้">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 12a4.4 4.4 0 1 0 0-8.8 4.4 4.4 0 0 0 0 8.8Zm0 2c-4.2 0-7.6 2.2-7.6 5v1.2h15.2V19c0-2.8-3.4-5-7.6-5Z" />
+            </svg>
+          </summary>
+          <div class="dropdown-panel account-panel">
+            <span class="role-chip">{{ roleLabel }}</span>
+            <button
+              v-if="isLoggedIn"
+              class="account-btn"
+              type="button"
+              @click="logout"
+            >
+              ออกจากระบบ
+            </button>
+            <template v-else>
+              <router-link class="account-btn ghost" to="/login">เข้าสู่ระบบ</router-link>
+              <router-link class="account-btn" to="/register">สมัครสมาชิก</router-link>
+            </template>
+          </div>
+        </details>
 
         <button
-          v-if="isLoggedIn"
-          class="account-btn"
+          class="menu-toggle icon-button"
           type="button"
-          @click="logout"
+          :aria-expanded="isMenuOpen"
+          aria-controls="mobile-menu"
+          @click="isMenuOpen = !isMenuOpen"
         >
-          ออกจากระบบ
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h16v2H4V7Zm0 4h16v2H4v-2Zm0 4h16v2H4v-2Z" />
+          </svg>
         </button>
-
-        <template v-else>
-          <router-link class="account-btn ghost" to="/login">เข้าสู่ระบบ</router-link>
-          <router-link class="account-btn" to="/register">สมัครสมาชิก</router-link>
-        </template>
       </div>
-
-      <button
-        class="menu-toggle"
-        type="button"
-        :aria-expanded="isMenuOpen"
-        aria-controls="mobile-menu"
-        @click="isMenuOpen = !isMenuOpen"
-      >
-        เมนู
-      </button>
     </div>
 
     <nav class="nav-strip" aria-label="เมนูหลัก">
@@ -290,59 +309,100 @@ const logout = () => {
 }
 
 .top-bar {
-  display: grid;
-  grid-template-columns: minmax(230px, 320px) minmax(220px, 520px) auto;
+  display: flex;
   align-items: center;
-  gap: clamp(12px, 2vw, 28px);
-  min-height: 86px;
-  padding: 10px clamp(14px, 3vw, 52px);
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 76px;
+  padding: 8px clamp(14px, 3vw, 52px);
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  flex: 0 0 auto;
   min-width: 0;
   color: #0f766e;
   text-decoration: none;
 }
 
 .brand-logo {
-  width: clamp(116px, 10vw, 170px);
-  height: 62px;
+  width: clamp(118px, 10vw, 166px);
+  height: 58px;
   flex: 0 0 auto;
   object-fit: contain;
 }
 
-.brand-text {
-  min-width: 0;
+.top-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-left: auto;
 }
 
-.brand strong,
-.brand small {
-  display: block;
-  line-height: 1.15;
+.icon-dropdown {
+  position: relative;
 }
 
-.brand strong {
-  color: #0b5f59;
-  font-size: 18px;
-  font-weight: 900;
-  white-space: nowrap;
+.icon-button,
+.avatar-button {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.76);
+  color: #082f2b;
+  cursor: pointer;
+  list-style: none;
 }
 
-.brand small {
-  margin-top: 4px;
-  color: #4f8f88;
-  font-size: 12px;
+.icon-button::-webkit-details-marker,
+.avatar-button::-webkit-details-marker {
+  display: none;
 }
 
-.search-form,
-.mobile-search {
-  min-width: 0;
+.icon-button svg,
+.avatar-button svg {
+  width: 25px;
+  height: 25px;
+  fill: currentColor;
 }
 
-.search-form input,
+.icon-button:hover,
+.avatar-button:hover,
+.icon-dropdown[open] > summary {
+  background: #d5f6ef;
+  color: #0f766e;
+}
+
+.avatar-button {
+  background: #2ec4b6;
+  color: white;
+}
+
+.dropdown-panel,
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 70;
+  display: grid;
+  min-width: 210px;
+  border: 1px solid rgba(17, 156, 145, 0.18);
+  border-radius: 8px;
+  background: #f8fffd;
+  box-shadow: 0 12px 28px rgba(17, 156, 145, 0.14);
+  padding: 8px;
+}
+
+.search-panel {
+  width: min(340px, calc(100vw - 28px));
+}
+
+.search-panel input,
 .mobile-search input {
   width: 100%;
   min-height: 42px;
@@ -354,44 +414,39 @@ const logout = () => {
   padding: 0 14px;
 }
 
-.search-form input:focus,
+.search-panel input:focus,
 .mobile-search input:focus {
   border-color: #2ec4b6;
   box-shadow: 0 0 0 3px rgba(46, 196, 182, 0.18);
 }
 
-.desktop-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  min-width: 0;
+.theme-panel {
+  gap: 6px;
 }
 
-.theme-switcher {
-  display: inline-flex;
-  flex: 0 0 auto;
-  padding: 3px;
-  border: 1px solid rgba(17, 156, 145, 0.18);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.72);
-}
-
+.theme-panel button,
 .theme-switcher button {
+  min-height: 38px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
-  color: #4f8f88;
+  color: #244b47;
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 800;
-  padding: 7px 9px;
+  font-weight: 900;
+  padding: 8px 12px;
+  text-align: left;
   white-space: nowrap;
 }
 
+.theme-panel button:hover,
+.theme-panel button.active,
 .theme-switcher button.active {
-  color: white;
-  background: #2ec4b6;
+  color: #0f766e;
+  background: #dff8f3;
+}
+
+.account-panel {
+  gap: 8px;
 }
 
 .role-chip,
@@ -433,7 +488,8 @@ const logout = () => {
 
 .menu-toggle {
   display: none;
-  justify-self: end;
+  border-radius: 50%;
+  padding: 0;
 }
 
 .nav-strip {
@@ -502,20 +558,6 @@ const logout = () => {
   font-size: 11px;
 }
 
-.dropdown-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 60;
-  display: grid;
-  min-width: 210px;
-  border: 1px solid rgba(17, 156, 145, 0.18);
-  border-radius: 8px;
-  background: #f8fffd;
-  box-shadow: 0 12px 28px rgba(17, 156, 145, 0.14);
-  padding: 8px;
-}
-
 .dropdown-menu a {
   justify-content: flex-start;
 }
@@ -524,41 +566,9 @@ const logout = () => {
   display: none;
 }
 
-@media (max-width: 1160px) {
-  .top-bar {
-    grid-template-columns: minmax(210px, 280px) minmax(180px, 1fr) auto;
-  }
-
-  .brand-text {
-    display: none;
-  }
-}
-
-@media (max-width: 900px) {
-  .top-bar {
-    grid-template-columns: auto 1fr auto;
-    min-height: 78px;
-  }
-
-  .desktop-actions {
-    gap: 6px;
-  }
-
-  .role-chip,
-  .theme-switcher {
-    display: none;
-  }
-
-  .brand-logo {
-    width: 128px;
-  }
-}
-
 @media (max-width: 720px) {
   .top-bar {
-    grid-template-columns: 1fr auto;
-    gap: 10px;
-    min-height: 72px;
+    min-height: 70px;
     padding: 8px 12px;
   }
 
@@ -567,14 +577,12 @@ const logout = () => {
     height: 54px;
   }
 
-  .search-form,
-  .desktop-actions,
   .nav-strip {
     display: none;
   }
 
   .menu-toggle {
-    display: inline-flex;
+    display: inline-grid;
   }
 
   .mobile-panel.open {
@@ -623,6 +631,24 @@ const logout = () => {
 
   .mobile-theme button {
     flex: 1;
+  }
+}
+
+@media (max-width: 420px) {
+  .top-actions {
+    gap: 8px;
+  }
+
+  .icon-button,
+  .avatar-button {
+    width: 40px;
+    height: 40px;
+  }
+
+  .icon-button svg,
+  .avatar-button svg {
+    width: 22px;
+    height: 22px;
   }
 }
 </style>
