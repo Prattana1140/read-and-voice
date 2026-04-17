@@ -55,7 +55,7 @@ function applyPoolOptions(config) {
     waitForConnections: true,
     connectionLimit: Number(process.env.DB_CONNECTION_LIMIT) || 10,
     queueLimit: 0,
-    connectTimeout: Number(process.env.DB_CONNECT_TIMEOUT_MS) || 15000,
+    connectTimeout: Number(process.env.DB_CONNECT_TIMEOUT_MS) || 8000,
   };
 }
 
