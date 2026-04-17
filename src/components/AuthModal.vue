@@ -1,9 +1,12 @@
 <script setup>
 import { ref } from "vue";
+import { useRouter } from "vue-router";
 import { api } from "../utils/api";
 import { saveAuth } from "../utils/auth";
+import { loginWithSocialProvider } from "../utils/socialLogin";
 
 const emit = defineEmits(["close"]);
+const router = useRouter();
 
 const mode = ref("login"); // login | register
 
@@ -23,6 +26,10 @@ const close = () => emit("close");
 
 const switchMode = (m) => {
   mode.value = m;
+};
+
+const socialLogin = async (provider) => {
+  await loginWithSocialProvider(router, provider);
 };
 
 const login = async () => {
@@ -85,10 +92,8 @@ const register = async () => {
 
         <!-- LOGIN -->
         <div v-if="mode === 'login'">
-          <button class="btn fb">Facebook</button>
-          <button class="btn line">LINE</button>
-          <button class="btn apple">Apple</button>
-          <button class="btn google">Google</button>
+          <button class="btn line" @click="socialLogin('line')">LINE Login</button>
+          <button class="btn fb" @click="socialLogin('facebook')">Facebook Login</button>
 
           <div class="form">
             <input v-model="email" placeholder="Email" />
@@ -177,8 +182,6 @@ const register = async () => {
 
 .fb { background:#3b5998; color:white }
 .line { background:#00c300; color:white }
-.apple { background:black; color:white }
-.google { background:#eee }
 
 .form input {
   width: 100%;

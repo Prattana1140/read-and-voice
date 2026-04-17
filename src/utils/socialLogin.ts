@@ -1,7 +1,7 @@
 import type { Router } from "vue-router";
 import { API_BASE_URL } from "./api";
 
-export type SocialProvider = "facebook" | "line" | "apple" | "google";
+export type SocialProvider = "facebook" | "line";
 
 export const loginWithSocialProvider = async (
   _router: Router,

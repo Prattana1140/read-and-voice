@@ -192,18 +192,6 @@ const routes: RouteRecordRaw[] = [
     meta: { guestOnly: true },
   },
   {
-    path: "/login/apple",
-    name: "AppleLogin",
-    component: () => import("../pages/AppleLogin.vue"),
-    meta: { guestOnly: true },
-  },
-  {
-    path: "/login/google",
-    name: "GoogleLogin",
-    component: () => import("../pages/GoogleLogin.vue"),
-    meta: { guestOnly: true },
-  },
-  {
     path: "/login/account",
     name: "AccountLogin",
     component: () => import("../pages/AccountLogin.vue"),

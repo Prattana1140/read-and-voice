@@ -7,7 +7,7 @@ const crypto = require("crypto");
 require("dotenv").config();
 
 const ALLOWED_ROLES = ["user", "writer", "admin", "superadmin"];
-const SOCIAL_PROVIDERS = ["facebook", "line", "apple", "google"];
+const SOCIAL_PROVIDERS = ["facebook", "line"];
 
 function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
@@ -86,14 +86,6 @@ function getProviderConfig(provider) {
       profileUrl: "https://graph.facebook.com/me",
       scope: "email,public_profile",
     },
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      authUrl: "https://accounts.google.com/o/oauth2/v2/auth",
-      tokenUrl: "https://oauth2.googleapis.com/token",
-      profileUrl: "https://openidconnect.googleapis.com/v1/userinfo",
-      scope: "openid email profile",
-    },
     line: {
       clientId: process.env.LINE_CLIENT_ID,
       clientSecret: process.env.LINE_CLIENT_SECRET,
@@ -101,13 +93,6 @@ function getProviderConfig(provider) {
       tokenUrl: "https://api.line.me/oauth2/v2.1/token",
       profileUrl: "https://api.line.me/oauth2/v2.1/userinfo",
       scope: "openid profile email",
-    },
-    apple: {
-      clientId: process.env.APPLE_CLIENT_ID,
-      clientSecret: getAppleClientSecret(),
-      authUrl: "https://appleid.apple.com/auth/authorize",
-      tokenUrl: "https://appleid.apple.com/auth/token",
-      scope: "name email",
     },
   };
 
@@ -122,27 +107,6 @@ function getProviderConfig(provider) {
 function getProviderSetupStatus(provider) {
   const key = provider.toUpperCase();
 
-  if (provider === "apple") {
-    const hasGeneratedSecretInputs =
-      !!process.env.APPLE_TEAM_ID &&
-      !!process.env.APPLE_KEY_ID &&
-      !!process.env.APPLE_PRIVATE_KEY;
-
-    return {
-      provider,
-      configured:
-        !!process.env.APPLE_CLIENT_ID &&
-        (!!process.env.APPLE_CLIENT_SECRET || hasGeneratedSecretInputs),
-      requiredEnv: [
-        "APPLE_CLIENT_ID",
-        "APPLE_TEAM_ID",
-        "APPLE_KEY_ID",
-        "APPLE_PRIVATE_KEY",
-      ],
-      callbackUrl: getOAuthRedirectUri(provider),
-    };
-  }
-
   return {
     provider,
     configured:
@@ -151,57 +115,6 @@ function getProviderSetupStatus(provider) {
     requiredEnv: [`${key}_CLIENT_ID`, `${key}_CLIENT_SECRET`],
     callbackUrl: getOAuthRedirectUri(provider),
   };
-}
-
-function getAppleClientSecret() {
-  if (process.env.APPLE_CLIENT_SECRET) {
-    return process.env.APPLE_CLIENT_SECRET;
-  }
-
-  const teamId = process.env.APPLE_TEAM_ID;
-  const keyId = process.env.APPLE_KEY_ID;
-  const clientId = process.env.APPLE_CLIENT_ID;
-  const privateKey = (process.env.APPLE_PRIVATE_KEY || "").replace(/\\n/g, "\n");
-
-  if (!teamId || !keyId || !clientId || !privateKey) {
-    return "";
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  const header = { alg: "ES256", kid: keyId, typ: "JWT" };
-  const payload = {
-    iss: teamId,
-    iat: now,
-    exp: now + 60 * 60 * 24 * 180,
-    aud: "https://appleid.apple.com",
-    sub: clientId,
-  };
-
-  const unsigned = `${base64Url(JSON.stringify(header))}.${base64Url(JSON.stringify(payload))}`;
-  const signature = crypto.sign("sha256", Buffer.from(unsigned), {
-    key: privateKey,
-    dsaEncoding: "ieee-p1363",
-  });
-  return `${unsigned}.${base64Url(signature)}`;
-}
-
-function base64Url(value) {
-  return Buffer.from(value)
-    .toString("base64")
-    .replace(/=/g, "")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_");
-}
-
-function decodeJwtPayload(token) {
-  const payload = String(token || "").split(".")[1];
-  if (!payload) return {};
-
-  try {
-    return JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
-  } catch {
-    return {};
-  }
 }
 
 async function fetchJson(url, options) {
@@ -238,15 +151,6 @@ async function exchangeOAuthCode(provider, code) {
     body: tokenBody,
   });
 
-  if (provider === "apple") {
-    const payload = decodeJwtPayload(tokenData.id_token);
-    return {
-      providerId: payload.sub,
-      name: payload.email?.split("@")[0] || "Apple User",
-      email: payload.email || `apple.${payload.sub}@read-and-voice.local`,
-    };
-  }
-
   if (provider === "facebook") {
     const profile = await fetchJson(
       `${config.profileUrl}?${encodeQuery({
@@ -265,14 +169,6 @@ async function exchangeOAuthCode(provider, code) {
   const profile = await fetchJson(config.profileUrl, {
     headers: { Authorization: `Bearer ${tokenData.access_token}` },
   });
-
-  if (provider === "google") {
-    return {
-      providerId: profile.sub,
-      name: profile.name || "Google User",
-      email: profile.email || `google.${profile.sub}@read-and-voice.local`,
-    };
-  }
 
   return {
     providerId: profile.sub,
@@ -487,15 +383,6 @@ router.get("/oauth/:provider/start", (req, res) => {
       scope: config.scope,
       state,
     };
-
-    if (provider === "google") {
-      params.access_type = "offline";
-      params.prompt = "select_account";
-    }
-
-    if (provider === "apple") {
-      params.response_mode = "form_post";
-    }
 
     return res.redirect(`${config.authUrl}?${encodeQuery(params)}`);
   } catch (error) {
