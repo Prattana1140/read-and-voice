@@ -65,16 +65,35 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = Number(process.env.PORT) || 3000;
+const EXTRA_PORT = Number(process.env.APP_PORT || process.env.PUBLIC_PORT || 3000);
 const REQUEST_TIMEOUT_MS = 30 * 60 * 1000;
 
 const HOST = process.env.HOST || "0.0.0.0";
 
-const server = app.listen(PORT, HOST, () => {
-  console.log("==================================");
-  console.log(`Server running on ${HOST}:${PORT}`);
-  console.log(`http://localhost:${PORT}`);
-  console.log("==================================");
-});
+function configureTimeouts(server) {
+  server.requestTimeout = REQUEST_TIMEOUT_MS;
+  server.headersTimeout = REQUEST_TIMEOUT_MS + 5000;
+}
 
-server.requestTimeout = REQUEST_TIMEOUT_MS;
-server.headersTimeout = REQUEST_TIMEOUT_MS + 5000;
+function listen(port, label) {
+  const server = app.listen(port, HOST, () => {
+    console.log("==================================");
+    console.log(`Server ${label} running on ${HOST}:${port}`);
+    console.log(`http://localhost:${port}`);
+    console.log("==================================");
+  });
+
+  configureTimeouts(server);
+
+  server.on("error", (error) => {
+    console.error(`Server ${label} failed on ${HOST}:${port}`, error.message);
+  });
+
+  return server;
+}
+
+const server = listen(PORT, "primary");
+
+if (EXTRA_PORT && EXTRA_PORT !== PORT) {
+  listen(EXTRA_PORT, "secondary");
+}
