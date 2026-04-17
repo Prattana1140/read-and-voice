@@ -5,7 +5,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const fetch = global.fetch || require("node-fetch");
-require("dotenv").config();
+require("dotenv").config({ quiet: true });
 
 const ALLOWED_ROLES = ["user", "writer", "admin", "superadmin"];
 const SOCIAL_PROVIDERS = ["facebook", "line"];

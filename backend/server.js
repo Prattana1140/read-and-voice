@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
-require("dotenv").config();
+require("dotenv").config({ quiet: true });
 
 const authRoutes = require("./routes/auth");
 const booksRoutes = require("./routes/books");

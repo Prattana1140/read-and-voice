@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
+    "db:test": "node services/scripts/testDbConnection.js",
     "create:superadmin": "node services/scripts/createSuperAdmin.js"
   },
   "dependencies": {
