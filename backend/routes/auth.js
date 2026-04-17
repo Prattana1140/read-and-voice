@@ -4,6 +4,7 @@ const db = require("../config/db");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const fetch = global.fetch || require("node-fetch");
 require("dotenv").config();
 
 const ALLOWED_ROLES = ["user", "writer", "admin", "superadmin"];
@@ -122,7 +123,11 @@ async function fetchJson(url, options) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const message = data.error_description || data.error?.message || data.error || "OAuth request failed";
+    const message =
+      data.error_description ||
+      data.error?.message ||
+      data.error ||
+      "OAuth request failed";
     throw new Error(message);
   }
 
@@ -133,7 +138,9 @@ async function exchangeOAuthCode(provider, code) {
   const config = getProviderConfig(provider);
   if (!config) {
     const envPrefix = provider.toUpperCase();
-    throw new Error(`ยังไม่ได้ตั้งค่า ${envPrefix}_CLIENT_ID และ ${envPrefix}_CLIENT_SECRET ใน backend/.env`);
+    throw new Error(
+      `ยังไม่ได้ตั้งค่า ${envPrefix}_CLIENT_ID และ ${envPrefix}_CLIENT_SECRET ใน backend/.env`
+    );
   }
 
   const redirectUri = getOAuthRedirectUri(provider);
@@ -162,7 +169,7 @@ async function exchangeOAuthCode(provider, code) {
     return {
       providerId: profile.id,
       name: profile.name || "Facebook User",
-      email: profile.email || `facebook.${profile.id}@read-and-voice.local`,
+      email: profile.email || `facebook_${profile.id}@rv.local`,
     };
   }
 
@@ -173,7 +180,7 @@ async function exchangeOAuthCode(provider, code) {
   return {
     providerId: profile.sub,
     name: profile.name || "LINE User",
-    email: profile.email || `line.${profile.sub}@read-and-voice.local`,
+    email: profile.email || `line_${profile.sub}@rv.local`,
   };
 }
 

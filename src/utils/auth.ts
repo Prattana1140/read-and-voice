@@ -15,7 +15,7 @@ const notifyAuthChanged = () => {
   window.dispatchEvent(new CustomEvent(AUTH_CHANGED_EVENT));
 };
 
-export const getToken = () => {
+export const getToken = (): string => {
   return localStorage.getItem("token") || "";
 };
 
@@ -30,7 +30,15 @@ export const getUser = (): AuthUser | null => {
   }
 };
 
-export const getAuthHeaders = () => {
+export const getAuthUser = (): AuthUser | null => {
+  return getUser();
+};
+
+export const isAuthenticated = (): boolean => {
+  return !!getToken();
+};
+
+export const getAuthHeaders = (): Record<string, string> => {
   const token = getToken();
   return token
     ? {

@@ -30,6 +30,7 @@ const login = async () => {
       <button class="btn primary" type="button" :disabled="loading" @click="login">
         {{ loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบด้วย LINE" }}
       </button>
+
       <button class="btn" type="button" @click="router.push('/login')">
         กลับหน้า Login
       </button>
@@ -47,6 +48,7 @@ const login = async () => {
   background: var(--bg);
   padding: 24px;
 }
+
 .card {
   display: grid;
   gap: 14px;
@@ -57,14 +59,17 @@ const login = async () => {
   box-shadow: var(--shadow);
   padding: 28px;
 }
+
 h1 {
   margin: 0;
   color: var(--text-strong);
 }
+
 p {
   margin: 0;
   color: var(--text-muted);
 }
+
 .btn {
   min-height: 44px;
   border: 0;
@@ -75,14 +80,17 @@ p {
   font-weight: 900;
   padding: 10px 14px;
 }
+
 .btn.primary {
   background: #06c755;
   color: white;
 }
+
 .btn:disabled {
   cursor: not-allowed;
   opacity: 0.7;
 }
+
 .error {
   color: var(--danger);
   font-weight: 800;

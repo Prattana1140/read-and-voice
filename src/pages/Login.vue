@@ -2,21 +2,36 @@
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { api } from "../utils/api";
+import { saveAuth } from "../utils/auth";
+import { redirectAfterLogin } from "../utils/loginRedirect";
 import { loginWithSocialProvider } from "../utils/socialLogin";
+import logoUrl from "../assets/Logo-transparent.png";
 
 const router = useRouter();
+
+const email = ref(localStorage.getItem("rememberedEmail") || "");
+const password = ref("");
+const rememberMe = ref(!!localStorage.getItem("rememberedEmail"));
+const showPassword = ref(false);
+
+const loading = ref(false);
 const socialLoading = ref("");
 const statusLoading = ref(true);
 const error = ref("");
 const oauthStatus = ref({});
 
 const socialProviders = [
-  { id: "line", label: "LINE Login", subtitle: "เข้าสู่ระบบด้วยบัญชี LINE", className: "line" },
   {
     id: "facebook",
-    label: "Facebook Login",
-    subtitle: "เข้าสู่ระบบด้วยบัญชี Facebook",
+    label: "Facebook",
+    icon: "f",
     className: "facebook",
+  },
+  {
+    id: "line",
+    label: "LINE",
+    icon: "LINE",
+    className: "line",
   },
 ];
 
@@ -47,6 +62,40 @@ const loadOAuthStatus = async () => {
   }
 };
 
+const handleLogin = async () => {
+  error.value = "";
+
+  if (!email.value.trim() || !password.value.trim()) {
+    error.value = "กรุณากรอกอีเมลและรหัสผ่าน";
+    return;
+  }
+
+  loading.value = true;
+
+  try {
+    const res = await api.post("/api/auth/login", {
+      email: email.value,
+      password: password.value,
+    });
+
+    const { token, user } = res.data;
+    saveAuth(token, user);
+
+    if (rememberMe.value) {
+      localStorage.setItem("rememberedEmail", email.value);
+    } else {
+      localStorage.removeItem("rememberedEmail");
+    }
+
+    await redirectAfterLogin(router, user);
+  } catch (err) {
+    error.value =
+      err?.response?.data?.message || "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่";
+  } finally {
+    loading.value = false;
+  }
+};
+
 const socialLogin = async (provider) => {
   error.value = "";
 
@@ -69,261 +118,388 @@ const socialLogin = async (provider) => {
   }
 };
 
-const goToAccountLogin = () => {
-  router.push("/login/account");
-};
-
 const goToRegister = () => {
   router.push("/register");
+};
+
+const goToForgotPassword = () => {
+  router.push("/forgot-password");
+};
+
+const goToTerms = () => {
+  router.push("/terms");
+};
+
+const goToPrivacyPolicy = () => {
+  router.push("/privacy-policy");
 };
 
 onMounted(loadOAuthStatus);
 </script>
 
 <template>
-  <div class="login-page">
+  <main class="login-page">
     <section class="login-card">
-      <div class="login-head">
-        <p class="eyebrow">Read and Voice</p>
-        <h1>เข้าสู่ระบบ</h1>
-        <p>เลือกช่องทางที่ต้องการเพื่อเข้าใช้งานคลังหนังสือของคุณ</p>
+      <div class="login-brand">
+        <img :src="logoUrl" alt="Read and Voice Logo" class="brand-logo" />
       </div>
 
-      <div class="social-list">
+      <h1 class="login-title">เข้าสู่ระบบ</h1>
+
+      <form class="login-form" @submit.prevent="handleLogin">
+        <input
+          v-model="email"
+          type="email"
+          placeholder="อีเมลของฉัน"
+          class="login-input"
+          autocomplete="email"
+        />
+
+        <div class="password-field">
+          <input
+            v-model="password"
+            :type="showPassword ? 'text' : 'password'"
+            placeholder="รหัสผ่าน"
+            class="login-input"
+            autocomplete="current-password"
+          />
+          <button
+            type="button"
+            class="toggle-password"
+            :aria-label="showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'"
+            @click="showPassword = !showPassword"
+          >
+            {{ showPassword ? "🙈" : "👁" }}
+          </button>
+        </div>
+
+        <div class="login-options">
+          <label class="remember-me">
+            <input v-model="rememberMe" type="checkbox" />
+            <span>จำและลงชื่อเข้าใช้</span>
+          </label>
+
+          <button type="button" class="forgot-link" @click="goToForgotPassword">
+            ลืมรหัสผ่าน
+          </button>
+        </div>
+
+        <button class="login-submit" type="submit" :disabled="loading || !!socialLoading">
+          {{ loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ" }}
+        </button>
+      </form>
+
+      <div class="social-divider">
+        <span>เข้าสู่ระบบ / สมัครสมาชิก ผ่าน social network</span>
+      </div>
+
+      <div class="social-buttons">
         <button
           v-for="provider in socialProviders"
           :key="provider.id"
           class="social-btn"
-          :class="[
-            provider.className,
-            { unconfigured: !providerStatus[provider.id]?.configured && !statusLoading },
-          ]"
-          :disabled="!!socialLoading || statusLoading"
+          :class="provider.className"
+          type="button"
+          :disabled="loading || !!socialLoading || statusLoading"
+          :aria-label="`เข้าสู่ระบบด้วย ${provider.label}`"
           @click="socialLogin(provider.id)"
         >
-          <span class="provider-mark">
-            {{ provider.id === "line" ? "LINE" : "f" }}
-          </span>
-          <span class="provider-copy">
-            <strong>
-              {{
-                socialLoading === provider.id
-                  ? "กำลังพาไปเข้าสู่ระบบ..."
-                  : provider.label
-              }}
-            </strong>
-            <small>
-              {{
-                !providerStatus[provider.id]?.configured && !statusLoading
-                  ? "ยังไม่ได้ตั้งค่าใน backend/.env"
-                  : provider.subtitle
-              }}
-            </small>
+          <span class="social-icon" :class="provider.className">
+            {{ provider.icon }}
           </span>
         </button>
       </div>
 
-      <div class="divider">
-        <span>หรือ</span>
-      </div>
-
-      <button class="account-btn" @click="goToAccountLogin">
-        เข้าสู่ระบบด้วย Read and Voice Account
-      </button>
+      <p class="login-policy">
+        เมื่อคุณสมัครสมาชิกถือว่ายอมรับ
+        <button type="button" class="policy-link" @click="goToTerms">
+          ข้อตกลงในการใช้งาน
+        </button>
+        และ
+        <button type="button" class="policy-link" @click="goToPrivacyPolicy">
+          นโยบายความเป็นส่วนตัว
+        </button>
+      </p>
 
       <p class="register-text">
         ยังไม่มีบัญชี?
         <button type="button" @click="goToRegister">สมัครสมาชิก</button>
       </p>
 
-      <p v-if="error" class="error-text">{{ error }}</p>
+      <p v-if="error" class="login-error">{{ error }}</p>
     </section>
-  </div>
+  </main>
 </template>
 
 <style scoped>
 .login-page {
   min-height: calc(100vh - 140px);
+  display: grid;
+  place-items: center;
   background: var(--bg);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 28px 16px 40px;
+  padding: 32px 24px;
   box-sizing: border-box;
 }
 
 .login-card {
-  width: 100%;
-  max-width: 460px;
+  width: min(460px, 100%);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 22px;
   box-shadow: var(--shadow);
-  padding: 28px;
-}
-
-.login-head {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.eyebrow {
-  margin: 0 0 6px;
-  color: var(--primary-strong);
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: 0;
-}
-
-.login-head h1 {
-  margin: 0;
-  color: var(--text-strong);
-  font-size: 28px;
-  font-weight: 900;
-}
-
-.login-head p:not(.eyebrow) {
-  margin: 8px 0 0;
-  color: var(--text-muted);
-  font-size: 14px;
-  line-height: 1.7;
-}
-
-.social-list {
+  padding: 30px 26px 24px;
   display: grid;
+  gap: 16px;
+}
+
+.login-brand {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.brand-logo {
+  width: min(150px, 52%);
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.login-title {
+  margin: 0;
+  text-align: center;
+  color: var(--text-strong);
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.login-form {
+  display: grid;
+  gap: 14px;
+}
+
+.login-input {
+  width: 100%;
+  min-height: 54px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  color: var(--text-strong);
+  padding: 0 16px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+  font-size: 15px;
+}
+
+.login-input::placeholder {
+  color: var(--text-muted);
+}
+
+.login-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-field .login-input {
+  padding-right: 52px;
+}
+
+.toggle-password {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+}
+
+.login-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
+  font-size: 14px;
+}
+
+.remember-me {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.remember-me input {
+  accent-color: var(--primary);
+}
+
+.forgot-link {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0;
+}
+
+.login-submit {
+  min-height: 52px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 900;
+  font-size: 16px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.login-submit:hover:not(:disabled) {
+  opacity: 0.95;
+}
+
+.login-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.social-divider {
+  position: relative;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.social-divider::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--border);
+  z-index: 0;
+}
+
+.social-divider span {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  padding: 0 10px;
+}
+
+.social-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
 }
 
 .social-btn {
-  width: 100%;
-  min-height: 58px;
+  width: 50px;
+  height: 50px;
+  border-radius: 999px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  display: grid;
-  grid-template-columns: 46px 1fr;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
+  background: var(--surface-soft);
   cursor: pointer;
-  text-align: left;
-  transition: 0.2s ease;
+  display: grid;
+  place-items: center;
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
-.social-btn:hover {
+.social-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: var(--shadow);
 }
 
 .social-btn:disabled {
   cursor: not-allowed;
-  opacity: 0.72;
-  transform: none;
-  box-shadow: none;
+  opacity: 0.7;
 }
 
-.provider-mark {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
-  background: rgba(255, 255, 255, 0.86);
-  font-size: 14px;
+.social-icon {
   font-weight: 900;
+  line-height: 1;
 }
 
-.provider-copy {
-  display: grid;
-  gap: 2px;
+.social-icon.facebook {
+  color: #1877f2;
+  font-size: 20px;
 }
 
-.provider-copy strong {
-  color: inherit;
-  font-size: 16px;
-  font-weight: 900;
+.social-icon.line {
+  color: #06c755;
+  font-size: 11px;
+  letter-spacing: 0.3px;
 }
 
-.provider-copy small {
-  color: inherit;
-  opacity: 0.88;
+.login-policy {
+  margin: 0;
+  text-align: center;
   font-size: 12px;
-  font-weight: 700;
-}
-
-.line {
-  background: var(--primary);
-  color: var(--on-primary);
-}
-
-.facebook {
-  background: var(--secondary);
-  color: white;
-}
-
-.unconfigured {
-  filter: grayscale(0.25);
-}
-
-.divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 20px 0;
   color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 800;
+  line-height: 1.8;
 }
 
-.divider::before,
-.divider::after {
-  content: "";
-  height: 1px;
-  flex: 1;
-  background: var(--border);
-}
-
-.account-btn {
-  width: 100%;
-  min-height: 52px;
-  border-radius: 8px;
-  border: 2px solid var(--border);
-  background: var(--surface-soft);
-  color: var(--text-strong);
-  font-size: 15px;
-  font-weight: 900;
+.policy-link {
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-weight: 700;
   cursor: pointer;
+  padding: 0 2px;
 }
 
 .register-text {
   text-align: center;
   color: var(--text-muted);
   font-size: 14px;
-  margin: 18px 0 0;
+  margin: 0;
 }
 
 .register-text button {
   border: 0;
   background: transparent;
-  color: var(--primary-strong);
+  color: var(--primary-strong, var(--primary));
   font-weight: 900;
   cursor: pointer;
   padding: 0 0 0 4px;
 }
 
-.error-text {
+.login-error {
+  margin: 0;
+  text-align: center;
   color: var(--danger);
-  background: rgba(220, 38, 38, 0.08);
-  border: 1px solid rgba(220, 38, 38, 0.22);
-  border-radius: 8px;
   font-weight: 800;
-  margin: 14px 0 0;
-  padding: 10px 12px;
-  line-height: 1.6;
+  font-size: 14px;
 }
 
-@media (max-width: 520px) {
+@media (max-width: 480px) {
   .login-card {
-    padding: 22px 16px;
+    width: 100%;
+    padding: 24px 18px 20px;
+    border-radius: 18px;
+  }
+
+  .brand-logo {
+    width: min(130px, 58%);
+  }
+
+  .login-title {
+    font-size: 30px;
+  }
+
+  .login-options {
+    font-size: 12px;
   }
 }
 </style>
