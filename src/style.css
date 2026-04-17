@@ -1,0 +1,137 @@
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --surface-soft: #eef3f8;
+  --text: #344054;
+  --text-strong: #101828;
+  --text-muted: #667085;
+  --border: #d8e0ea;
+  --primary: #07998f;
+  --primary-strong: #067d75;
+  --primary-soft: #dff8f5;
+  --secondary: #4f68d7;
+  --danger: #b42318;
+  --shadow: 0 12px 32px rgba(16, 24, 40, 0.1);
+  --hero-start: #21b9c5;
+  --hero-mid: #4c7ee8;
+  --hero-end: #7562d8;
+  --on-primary: #ffffff;
+  --radius: 8px;
+  --content-width: 1200px;
+  --sans: system-ui, "Segoe UI", Roboto, sans-serif;
+
+  color: var(--text);
+  background: var(--bg);
+  font-family: var(--sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root[data-theme="dark"] {
+  --bg: #12151b;
+  --surface: #1c222b;
+  --surface-soft: #252d38;
+  --text: #cbd5e1;
+  --text-strong: #f8fafc;
+  --text-muted: #a8b3c3;
+  --border: #364153;
+  --primary: #2dd4bf;
+  --primary-strong: #5eead4;
+  --primary-soft: #143c38;
+  --secondary: #93a4ff;
+  --danger: #fca5a5;
+  --shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
+  --hero-start: #0f766e;
+  --hero-mid: #1d4ed8;
+  --hero-end: #5b21b6;
+  --on-primary: #061312;
+}
+
+:root[data-theme="reading"] {
+  --bg: #fbf6e8;
+  --surface: #fffdf5;
+  --surface-soft: #f3ead5;
+  --text: #4f4637;
+  --text-strong: #241c12;
+  --text-muted: #746853;
+  --border: #dacdb5;
+  --primary: #2f7d69;
+  --primary-strong: #245f50;
+  --primary-soft: #e3f0e9;
+  --secondary: #7a6040;
+  --danger: #9f2d20;
+  --shadow: 0 12px 28px rgba(63, 49, 28, 0.12);
+  --hero-start: #d7c49b;
+  --hero-mid: #77a38f;
+  --hero-end: #3f7f70;
+  --on-primary: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+  color: var(--text);
+  background: var(--bg);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  letter-spacing: 0;
+}
+
+a {
+  color: inherit;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin-top: 0;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.app-main {
+  flex: 1;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition:
+    background-color 0.22s ease,
+    border-color 0.22s ease,
+    color 0.22s ease,
+    box-shadow 0.22s ease;
+}
