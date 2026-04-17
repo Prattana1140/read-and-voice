@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { API_BASE_URL } from "../../utils/api";
 import { computed, onMounted, ref } from "vue";
 import axios from "axios";
 import { useRouter } from "vue-router";
@@ -30,7 +31,7 @@ const myBooks = computed(() => {
 
 onMounted(async () => {
   try {
-    const res = await axios.get("http://localhost:3000/api/books");
+    const res = await axios.get(`${API_BASE_URL}/api/books`);
     books.value = Array.isArray(res.data) ? res.data : [];
   } finally {
     loading.value = false;

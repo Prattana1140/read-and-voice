@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { API_BASE_URL } from "../../utils/api";
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
@@ -25,7 +26,7 @@ const fetchBook = async () => {
 
   try {
     const id = route.params.id;
-    const res = await axios.get(`http://localhost:3000/api/books/${id}`);
+    const res = await axios.get(`${API_BASE_URL}/api/books/${id}`);
     const book = res.data;
 
     form.value = {
@@ -49,7 +50,7 @@ const saveBook = async () => {
     saving.value = true;
     const id = route.params.id;
 
-    await axios.put(`http://localhost:3000/api/books/${id}`, {
+    await axios.put(`${API_BASE_URL}/api/books/${id}`, {
       ...form.value,
       category_id: form.value.category_id || null,
       is_published: Number(form.value.is_published),

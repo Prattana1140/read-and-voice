@@ -65,6 +65,7 @@
 </template>
 
 <script setup lang="ts">
+import { API_BASE_URL } from "../utils/api";
 import axios from "axios";
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -187,7 +188,7 @@ const getBookCover = (book: Book) => {
   if (!cover) return "/no-cover.png";
   if (cover.startsWith("http://") || cover.startsWith("https://")) return cover;
 
-  return `http://localhost:3000/${cover.replace(/^\/+/, "")}`;
+  return `${API_BASE_URL}/${cover.replace(/^\/+/, "")}`;
 };
 
 const handleImgError = (event: Event) => {
@@ -202,7 +203,7 @@ const goToBook = (id: number) => {
 
 onMounted(async () => {
   try {
-    const res = await axios.get("http://localhost:3000/api/books");
+    const res = await axios.get(`${API_BASE_URL}/api/books`);
     books.value = Array.isArray(res.data) ? res.data : [];
   } catch (error) {
     console.error("โหลดหนังสือไม่สำเร็จ", error);

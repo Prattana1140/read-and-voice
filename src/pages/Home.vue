@@ -118,6 +118,7 @@
 </template>
 
 <script setup lang="ts">
+import { API_BASE_URL } from "../utils/api";
 import { computed, ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 
@@ -147,7 +148,7 @@ const getBookCover = (book: Book) => {
     return cover;
   }
 
-  return `http://localhost:3000/${cover.replace(/^\/+/, "")}`;
+  return `${API_BASE_URL}/${cover.replace(/^\/+/, "")}`;
 };
 
 const handleImgError = (event: Event) => {
@@ -174,7 +175,7 @@ const goToBook = (id: number) => {
 
 onMounted(async () => {
   try {
-    const res = await fetch("http://localhost:3000/api/books");
+    const res = await fetch(`${API_BASE_URL}/api/books`);
     const data = await res.json();
     books.value = Array.isArray(data) ? data.slice(0, 12) : [];
   } catch (error) {

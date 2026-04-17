@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { API_BASE_URL } from "../../utils/api";
 import { onMounted, ref } from "vue";
 import axios from "axios";
 
@@ -12,7 +13,7 @@ const loading = ref(true);
 
 onMounted(async () => {
   try {
-    const res = await axios.get("http://localhost:3000/api/categories");
+    const res = await axios.get(`${API_BASE_URL}/api/categories`);
     categories.value = Array.isArray(res.data) ? res.data : [];
   } finally {
     loading.value = false;

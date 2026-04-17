@@ -1,4 +1,5 @@
 <script setup>
+import { API_BASE_URL } from "../utils/api";
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
@@ -30,7 +31,7 @@ const loadCart = async () => {
       return;
     }
 
-    const res = await axios.get("http://localhost:3000/api/cart", {
+    const res = await axios.get(`${API_BASE_URL}/api/cart`, {
       headers: getHeaders(),
     });
 
@@ -45,7 +46,7 @@ const loadCart = async () => {
 
 const removeItem = async (id) => {
   try {
-    await axios.delete(`http://localhost:3000/api/cart/${id}`, {
+    await axios.delete(`${API_BASE_URL}/api/cart/${id}`, {
       headers: getHeaders(),
     });
 
@@ -66,7 +67,7 @@ const checkout = async () => {
     checkingOut.value = true;
 
     const res = await axios.post(
-      "http://localhost:3000/api/orders/checkout",
+      `${API_BASE_URL}/api/orders/checkout`,
       { payment_method: "mock" },
       { headers: getHeaders() },
     );

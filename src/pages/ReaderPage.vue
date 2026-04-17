@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { API_BASE_URL } from "../utils/api";
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
@@ -272,11 +273,11 @@ const fetchBook = async () => {
   try {
     const id = Number(route.params.id);
 
-    const bookRes = await axios.get(`http://localhost:3000/api/books/${id}`);
+    const bookRes = await axios.get(`${API_BASE_URL}/api/books/${id}`);
     book.value = bookRes.data;
 
     const contentRes = await axios.get(
-      `http://localhost:3000/api/books/${id}/content`
+      `${API_BASE_URL}/api/books/${id}/content`
     );
 
     const fullText = contentRes.data.map((p: any) => p.content || "").join(" ");
@@ -300,7 +301,7 @@ const loadProgressFromDB = async () => {
     if (!user) return;
 
     const res = await axios.get<ProgressResponse>(
-      `http://localhost:3000/api/progress/${book.value.id}`,
+      `${API_BASE_URL}/api/progress/${book.value.id}`,
       {
         headers: getAuthHeaders(),
       }
@@ -359,7 +360,7 @@ const saveProgressToDB = async () => {
         : 0;
 
     await axios.post(
-      "http://localhost:3000/api/progress",
+      `${API_BASE_URL}/api/progress`,
       {
         book_id: book.value.id,
         current_page: currentPage.value,

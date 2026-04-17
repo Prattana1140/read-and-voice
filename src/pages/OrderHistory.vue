@@ -1,4 +1,5 @@
 <script setup>
+import { API_BASE_URL } from "../utils/api";
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
@@ -21,7 +22,7 @@ const loadOrders = async () => {
       return;
     }
 
-    const res = await axios.get("http://localhost:3000/api/orders/history", {
+    const res = await axios.get(`${API_BASE_URL}/api/orders/history`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

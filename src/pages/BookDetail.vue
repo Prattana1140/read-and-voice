@@ -166,6 +166,7 @@
 </template>
 
 <script setup lang="ts">
+import { API_BASE_URL } from "../utils/api";
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
@@ -219,7 +220,7 @@ const bookCover = computed(() => {
   if (!cover) return "/no-cover.png";
   if (cover.startsWith("http://") || cover.startsWith("https://")) return cover;
 
-  return `http://localhost:3000/${cover.replace(/^\/+/, "")}`;
+  return `${API_BASE_URL}/${cover.replace(/^\/+/, "")}`;
 });
 
 const progressKey = computed(() => {
@@ -379,11 +380,11 @@ const fetchBook = async () => {
   try {
     const id = Number(route.params.id);
 
-    const bookRes = await axios.get(`http://localhost:3000/api/books/${id}`);
+    const bookRes = await axios.get(`${API_BASE_URL}/api/books/${id}`);
     book.value = bookRes.data;
 
     const contentRes = await axios.get(
-      `http://localhost:3000/api/books/${id}/content`
+      `${API_BASE_URL}/api/books/${id}/content`
     );
 
     const fullText = contentRes.data.map((p: any) => p.content || "").join(" ");
@@ -521,7 +522,7 @@ const addToLibrary = async () => {
     if (!book.value) return;
 
     const res = await axios.post(
-      "http://localhost:3000/api/library",
+      `${API_BASE_URL}/api/library`,
       { book_id: book.value.id },
       { headers: getAuthHeaders() }
     );
@@ -570,7 +571,7 @@ const addToCart = async () => {
 
   try {
     await axios.post(
-      "http://localhost:3000/api/cart",
+      `${API_BASE_URL}/api/cart`,
       { book_id: book.value.id },
       {
         headers: {

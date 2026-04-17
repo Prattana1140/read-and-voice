@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { API_BASE_URL } from "../../utils/api";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
@@ -52,14 +53,14 @@ const bestBook = computed(() => {
 const getCoverUrl = (cover?: string) => {
   if (!cover) return "/no-cover.png";
   if (cover.startsWith("http://") || cover.startsWith("https://")) return cover;
-  return `http://localhost:3000/${cover.replace(/^\/+/, "")}`;
+  return `${API_BASE_URL}/${cover.replace(/^\/+/, "")}`;
 };
 
 const fetchBooks = async () => {
   loading.value = true;
 
   try {
-    const res = await axios.get("http://localhost:3000/api/books");
+    const res = await axios.get(`${API_BASE_URL}/api/books`);
     books.value = Array.isArray(res.data) ? res.data : [];
   } finally {
     loading.value = false;

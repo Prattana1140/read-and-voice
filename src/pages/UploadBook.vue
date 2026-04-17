@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { API_BASE_URL } from "../utils/api";
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
@@ -24,7 +25,7 @@ const loading = ref(false);
 const successMessage = ref("");
 const errorMessage = ref("");
 
-const API_BASE = "http://localhost:3000/api";
+const API_BASE = `${API_BASE_URL}/api`;
 
 const fetchCategories = async () => {
   try {

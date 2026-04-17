@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { API_BASE_URL } from "../../utils/api";
 import { ref } from "vue";
 import axios from "axios";
 import { getAuthHeaders } from "../../utils/auth";
@@ -51,7 +52,7 @@ const uploadBook = async () => {
     formData.append("created_by", String(user.id || ""));
     formData.append("book_file", bookFile.value);
 
-    const res = await axios.post("http://localhost:3000/api/books/upload", formData, {
+    const res = await axios.post(`${API_BASE_URL}/api/books/upload`, formData, {
       headers: {
         ...getAuthHeaders(),
         "Content-Type": "multipart/form-data",

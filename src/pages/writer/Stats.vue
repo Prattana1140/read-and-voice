@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { API_BASE_URL } from "../../utils/api";
 import { onMounted, ref } from "vue";
 import axios from "axios";
 
@@ -10,7 +11,7 @@ type Book = {
 const books = ref<Book[]>([]);
 
 onMounted(async () => {
-  const res = await axios.get("http://localhost:3000/api/books");
+  const res = await axios.get(`${API_BASE_URL}/api/books`);
   books.value = Array.isArray(res.data) ? res.data : [];
 });
 </script>

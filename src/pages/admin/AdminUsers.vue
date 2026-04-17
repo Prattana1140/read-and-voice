@@ -125,6 +125,7 @@
 </template>
 
 <script setup lang="ts">
+import { API_BASE_URL } from "../../utils/api";
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
@@ -139,7 +140,7 @@ type UserItem = {
 };
 
 const router = useRouter();
-const API_BASE = "http://localhost:3000/api/admin";
+const API_BASE = `${API_BASE_URL}/api/admin`;
 
 const users = ref<UserItem[]>([]);
 const loading = ref(false);
