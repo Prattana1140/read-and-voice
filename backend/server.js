@@ -67,9 +67,11 @@ app.use((err, req, res, next) => {
 const PORT = Number(process.env.PORT) || 3000;
 const REQUEST_TIMEOUT_MS = 30 * 60 * 1000;
 
-const server = app.listen(PORT, () => {
+const HOST = process.env.HOST || "0.0.0.0";
+
+const server = app.listen(PORT, HOST, () => {
   console.log("==================================");
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on ${HOST}:${PORT}`);
   console.log(`http://localhost:${PORT}`);
   console.log("==================================");
 });
