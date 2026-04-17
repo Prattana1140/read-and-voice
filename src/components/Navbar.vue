@@ -34,6 +34,7 @@ const emit = defineEmits<{
 
 const router = useRouter();
 const isMenuOpen = ref(false);
+const isSearchOpen = ref(false);
 const search = ref("");
 
 const getStoredUser = (): StoredUser => {
@@ -122,9 +123,18 @@ const closeMenu = () => {
   isMenuOpen.value = false;
 };
 
+const openSearch = () => {
+  isSearchOpen.value = true;
+};
+
+const closeSearch = () => {
+  isSearchOpen.value = false;
+};
+
 const submitSearch = () => {
   const keyword = search.value.trim();
   closeMenu();
+  closeSearch();
   router.push(keyword ? { name: "Store", query: { q: keyword } } : { name: "Store" });
 };
 
@@ -144,21 +154,11 @@ const logout = () => {
       </router-link>
 
       <div class="top-actions">
-        <details class="icon-dropdown search-dropdown">
-          <summary class="icon-button" aria-label="ค้นหาหนังสือ">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M10.8 4.2a6.6 6.6 0 1 1 0 13.2 6.6 6.6 0 0 1 0-13.2Zm0 2a4.6 4.6 0 1 0 0 9.2 4.6 4.6 0 0 0 0-9.2Zm5.4 9 4 4-1.4 1.4-4-4 1.4-1.4Z" />
-            </svg>
-          </summary>
-          <form class="dropdown-panel search-panel" role="search" @submit.prevent="submitSearch">
-            <input
-              v-model="search"
-              type="search"
-              placeholder="ค้นหาหนังสือ"
-              aria-label="ค้นหาหนังสือ"
-            />
-          </form>
-        </details>
+        <button class="icon-button" type="button" aria-label="ค้นหาหนังสือ" @click="openSearch">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M10.8 4.2a6.6 6.6 0 1 1 0 13.2 6.6 6.6 0 0 1 0-13.2Zm0 2a4.6 4.6 0 1 0 0 9.2 4.6 4.6 0 0 0 0-9.2Zm5.4 9 4 4-1.4 1.4-4-4 1.4-1.4Z" />
+          </svg>
+        </button>
 
         <details class="icon-dropdown">
           <summary class="icon-button" aria-label="เปลี่ยนโหมดสี">
@@ -215,6 +215,28 @@ const logout = () => {
         </button>
       </div>
     </div>
+
+    <form
+      class="search-overlay"
+      :class="{ open: isSearchOpen }"
+      role="search"
+      @submit.prevent="submitSearch"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M10.8 4.2a6.6 6.6 0 1 1 0 13.2 6.6 6.6 0 0 1 0-13.2Zm0 2a4.6 4.6 0 1 0 0 9.2 4.6 4.6 0 0 0 0-9.2Zm5.4 9 4 4-1.4 1.4-4-4 1.4-1.4Z" />
+      </svg>
+      <input
+        v-model="search"
+        type="search"
+        placeholder="ค้นหา"
+        aria-label="ค้นหาหนังสือ"
+      />
+      <button class="search-close" type="button" aria-label="ปิดค้นหา" @click="closeSearch">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z" />
+        </svg>
+      </button>
+    </form>
 
     <nav class="nav-strip" aria-label="เมนูหลัก">
       <section class="nav-group primary-group">
@@ -383,7 +405,6 @@ const logout = () => {
   color: white;
 }
 
-.dropdown-panel,
 .dropdown-menu {
   position: absolute;
   top: calc(100% + 10px);
@@ -398,11 +419,20 @@ const logout = () => {
   padding: 8px;
 }
 
-.search-panel {
-  width: min(340px, calc(100vw - 28px));
+.dropdown-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 70;
+  display: grid;
+  min-width: 210px;
+  border: 1px solid rgba(17, 156, 145, 0.18);
+  border-radius: 8px;
+  background: #f8fffd;
+  box-shadow: 0 12px 28px rgba(17, 156, 145, 0.14);
+  padding: 8px;
 }
 
-.search-panel input,
 .mobile-search input {
   width: 100%;
   min-height: 42px;
@@ -414,10 +444,73 @@ const logout = () => {
   padding: 0 14px;
 }
 
-.search-panel input:focus,
 .mobile-search input:focus {
   border-color: #2ec4b6;
   box-shadow: 0 0 0 3px rgba(46, 196, 182, 0.18);
+}
+
+.search-overlay {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  z-index: 90;
+  display: none;
+  align-items: center;
+  width: min(800px, calc(100vw - 28px));
+  min-height: 42px;
+  padding: 0 6px 0 14px;
+  border-radius: 999px;
+  background: #f2f2f3;
+  color: #111827;
+  transform: translateX(-50%);
+  box-shadow: 0 8px 20px rgba(17, 24, 39, 0.12);
+}
+
+.search-overlay.open {
+  display: flex;
+}
+
+.search-overlay > svg {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  fill: currentColor;
+}
+
+.search-overlay input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 38px;
+  border: 0;
+  background: transparent;
+  color: #111827;
+  font-size: 16px;
+  outline: none;
+  padding: 0 8px;
+}
+
+.search-close {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #7b8087;
+  cursor: pointer;
+  padding: 0;
+}
+
+.search-close:hover {
+  background: rgba(17, 24, 39, 0.08);
+  color: #111827;
+}
+
+.search-close svg {
+  width: 25px;
+  height: 25px;
+  fill: currentColor;
 }
 
 .theme-panel {
