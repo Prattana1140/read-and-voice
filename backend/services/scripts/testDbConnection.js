@@ -1,30 +1,49 @@
 const mysql = require("mysql2/promise");
 const {
   describeDbConfig,
-  getDbConfig,
+  getDbConfigCandidates,
+  toMysqlConfig,
   validateDbConfig,
 } = require("../../config/dbSettings");
 
 async function main() {
-  const dbConfig = getDbConfig();
-  const missingConfig = validateDbConfig(dbConfig);
+  const candidates = getDbConfigCandidates();
 
-  console.log("Database config:", describeDbConfig(dbConfig));
-
-  if (missingConfig.length > 0) {
-    throw new Error(`Missing database config: ${missingConfig.join(", ")}`);
+  if (candidates.length === 0) {
+    throw new Error("Missing database config");
   }
 
-  const conn = await mysql.createConnection(dbConfig);
-  const [rows] = await conn.query("SELECT 1 AS ok");
-  await conn.end();
+  let lastError;
 
-  console.log("Database connection OK:", rows);
+  for (const dbConfig of candidates) {
+    const missingConfig = validateDbConfig(dbConfig);
+
+    console.log("Trying database config:", describeDbConfig(dbConfig));
+
+    if (missingConfig.length > 0) {
+      lastError = new Error(`Missing database config: ${missingConfig.join(", ")}`);
+      continue;
+    }
+
+    try {
+      const conn = await mysql.createConnection(toMysqlConfig(dbConfig));
+      const [rows] = await conn.query("SELECT 1 AS ok");
+      await conn.end();
+
+      console.log("Database connection OK:", rows);
+      return;
+    } catch (error) {
+      lastError = error;
+      console.error("Database candidate failed:", error.message);
+      console.error("code:", error.code);
+    }
+  }
+
+  throw lastError;
 }
 
 main().catch((error) => {
-  console.error("Database connection failed:");
-  console.error("message:", error.message);
+  console.error("Database connection failed:", error.message);
   console.error("code:", error.code);
   process.exit(1);
 });

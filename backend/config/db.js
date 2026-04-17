@@ -1,7 +1,9 @@
 const mysql = require("mysql2/promise");
 const {
   describeDbConfig,
+  getDbConfigCandidates,
   getDbConfig,
+  toMysqlConfig,
   validateDbConfig,
 } = require("./dbSettings");
 
@@ -16,18 +18,29 @@ if (missingConfig.length > 0) {
   process.exit(1);
 }
 
-const db = mysql.createPool(dbConfig);
+const db = mysql.createPool(toMysqlConfig(dbConfig));
 
 (async () => {
-  try {
-    const conn = await db.getConnection();
-    console.log("Connected to MySQL", describeDbConfig(dbConfig));
-    conn.release();
-  } catch (err) {
-    console.error("Database connection failed:");
-    console.error("message:", err.message);
-    console.error("code:", err.code);
-    console.error("config:", describeDbConfig(dbConfig));
+  const candidates = getDbConfigCandidates();
+
+  for (const config of candidates) {
+    try {
+      const testPool = mysql.createPool(toMysqlConfig(config));
+      const conn = await testPool.getConnection();
+
+      console.log("Connected to MySQL", describeDbConfig(config));
+      conn.release();
+
+      if (config !== dbConfig) {
+        await testPool.end();
+      }
+
+      return;
+    } catch (err) {
+      console.error("Database connection failed:", err.message);
+      console.error("code:", err.code);
+      console.error("config:", describeDbConfig(config));
+    }
   }
 })();
 
