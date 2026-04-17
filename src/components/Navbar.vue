@@ -71,7 +71,7 @@ const themeOptions: { label: string; value: ThemeMode }[] = [
 
 const navGroups: NavGroup[] = [
   {
-    title: "ทั่วไป",
+    title: "สาธารณะ",
     items: [
       { label: "หน้าแรก", to: "/", roles: ["guest", "user", "writer", "admin", "superadmin"] },
       { label: "ร้านหนังสือ", to: "/store", roles: ["guest", "user", "writer", "admin", "superadmin"] },
@@ -80,24 +80,37 @@ const navGroups: NavGroup[] = [
   {
     title: "สมาชิก",
     items: [
-      { label: "ชั้นหนังสือ", to: "/my-library", roles: ["user", "writer", "admin", "superadmin"] },
-      { label: "รายการถูกใจ", to: "/wishlist", roles: ["user", "writer", "admin", "superadmin"] },
-      { label: "ตะกร้า", to: "/cart", roles: ["user", "writer", "admin", "superadmin"] },
-      { label: "ประวัติคำสั่งซื้อ", to: "/orders/history", roles: ["user", "writer", "admin", "superadmin"] },
+      { label: "ชั้นหนังสือของฉัน", to: "/my-library", roles: ["user", "writer"] },
+      { label: "รายการถูกใจ", to: "/wishlist", roles: ["user", "writer"] },
+      { label: "ตะกร้า", to: "/cart", roles: ["user", "writer"] },
+      { label: "ประวัติคำสั่งซื้อ", to: "/orders/history", roles: ["user", "writer"] },
+      { label: "โปรไฟล์", to: "/profile", roles: ["user", "writer"] },
     ],
   },
   {
     title: "นักเขียน",
     items: [
-      { label: "แดชบอร์ดนักเขียน", to: "/writer", roles: ["writer", "admin", "superadmin"] },
+      { label: "แดชบอร์ดนักเขียน", to: "/writer", roles: ["writer"] },
+      { label: "อัปโหลดหนังสือของตัวเอง", to: "/writer/upload", roles: ["writer"] },
+      { label: "จัดการหนังสือของตัวเอง", to: "/writer/books", roles: ["writer"] },
+      { label: "สถิติหนังสือตัวเอง", to: "/writer/stats", roles: ["writer"] },
     ],
   },
   {
     title: "ผู้ดูแล",
     items: [
-      { label: "จัดการหนังสือ", to: "/admin", roles: ["admin", "superadmin"] },
+      { label: "หน้า admin dashboard", to: "/admin", roles: ["admin", "superadmin"] },
+      { label: "จัดการหมวดหมู่", to: "/admin/categories", roles: ["admin", "superadmin"] },
       { label: "อัปโหลดหนังสือ", to: "/upload-book", roles: ["admin", "superadmin"] },
-      { label: "จัดการผู้ใช้", to: "/admin/users", roles: ["superadmin"] },
+      { label: "จัดการสมาชิกบางส่วน", to: "/admin/members", roles: ["admin", "superadmin"] },
+      { label: "โปรไฟล์", to: "/profile", roles: ["admin", "superadmin"] },
+    ],
+  },
+  {
+    title: "ผู้ดูแลสูงสุด",
+    items: [
+      { label: "จัดการผู้ใช้ / เปลี่ยน role / ระงับผู้ใช้", to: "/admin/users", roles: ["superadmin"] },
+      { label: "ตั้งค่าระบบ", to: "/superadmin/settings", roles: ["superadmin"] },
     ],
   },
 ];
@@ -187,6 +200,13 @@ const logout = () => {
           </summary>
           <div class="dropdown-panel account-panel">
             <span class="role-chip">{{ roleLabel }}</span>
+            <router-link
+              v-if="isLoggedIn"
+              class="account-btn ghost"
+              to="/profile"
+            >
+              โปรไฟล์
+            </router-link>
             <button
               v-if="isLoggedIn"
               class="account-btn"
@@ -293,13 +313,20 @@ const logout = () => {
       <section class="mobile-group">
         <h3>บัญชี</h3>
         <span class="mobile-role">{{ roleLabel }}</span>
-        <router-link v-if="!isLoggedIn" to="/login" @click="closeMenu">
-          เข้าสู่ระบบ
-        </router-link>
-        <router-link v-if="!isLoggedIn" to="/register" @click="closeMenu">
-          สมัครสมาชิก
-        </router-link>
-        <button v-else type="button" @click="logout">ออกจากระบบ</button>
+        <template v-if="!isLoggedIn">
+          <router-link to="/login" @click="closeMenu">
+            เข้าสู่ระบบ
+          </router-link>
+          <router-link to="/register" @click="closeMenu">
+            สมัครสมาชิก
+          </router-link>
+        </template>
+        <template v-else>
+          <router-link to="/profile" @click="closeMenu">
+            โปรไฟล์
+          </router-link>
+          <button type="button" @click="logout">ออกจากระบบ</button>
+        </template>
       </section>
 
       <section class="mobile-group">
@@ -407,21 +434,8 @@ const logout = () => {
   color: white;
 }
 
+.dropdown-panel,
 .dropdown-menu {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  z-index: 70;
-  display: grid;
-  min-width: 210px;
-  border: 1px solid rgba(17, 156, 145, 0.18);
-  border-radius: 8px;
-  background: #f8fffd;
-  box-shadow: 0 12px 28px rgba(17, 156, 145, 0.14);
-  padding: 8px;
-}
-
-.dropdown-panel {
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
@@ -523,8 +537,9 @@ const logout = () => {
   fill: currentColor;
 }
 
-.theme-panel {
-  gap: 6px;
+.theme-panel,
+.account-panel {
+  gap: 8px;
 }
 
 .theme-panel button,
@@ -546,10 +561,6 @@ const logout = () => {
 .theme-switcher button.active {
   color: #0f766e;
   background: #dff8f3;
-}
-
-.account-panel {
-  gap: 8px;
 }
 
 .role-chip,
