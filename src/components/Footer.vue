@@ -38,9 +38,10 @@
 <style scoped>
 .footer {
   margin-top: auto;
-  background: var(--surface);
-  color: var(--text);
-  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, #e7fbf7 88%, white);
+  color: #244b47;
+  border-top: 1px solid rgba(17, 156, 145, 0.16);
+  box-shadow: 0 -10px 28px rgba(17, 156, 145, 0.08);
 }
 
 .footer-inner {
@@ -54,7 +55,7 @@
 
 .footer-brand h2,
 h3 {
-  color: var(--text-strong);
+  color: #0b5f59;
 }
 
 .footer-brand h2 {
@@ -64,7 +65,7 @@ h3 {
 
 .footer-brand p {
   margin: 0;
-  color: var(--text-muted);
+  color: #4f8f88;
   line-height: 1.7;
 }
 
@@ -77,12 +78,12 @@ a {
   display: block;
   width: fit-content;
   margin: 8px 0;
-  color: var(--text-muted);
+  color: #244b47;
   text-decoration: none;
 }
 
 a:hover {
-  color: var(--primary-strong);
+  color: #0f766e;
 }
 
 .footer-bottom {
@@ -92,8 +93,8 @@ a:hover {
   justify-content: space-between;
   gap: 14px;
   padding: 16px 20px 24px;
-  border-top: 1px solid var(--border);
-  color: var(--text-muted);
+  border-top: 1px solid rgba(17, 156, 145, 0.16);
+  color: #4f8f88;
   font-size: 14px;
 }
 

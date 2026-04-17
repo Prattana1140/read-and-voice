@@ -183,7 +183,12 @@ onMounted(async () => {
 .page {
   min-height: 100%;
   padding-bottom: clamp(28px, 4vw, 56px);
-  background: linear-gradient(180deg, #ecfffb 0, #f8fffd 340px, var(--bg) 100%);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--primary-soft) 66%, var(--bg)) 0,
+    var(--bg) 340px,
+    var(--bg) 100%
+  );
 }
 
 .category-bar {
@@ -193,8 +198,8 @@ onMounted(async () => {
   min-height: 54px;
   padding: 10px clamp(12px, 3vw, 48px);
   overflow-x: auto;
-  background: rgba(255, 255, 255, 0.76);
-  border-bottom: 1px solid rgba(17, 156, 145, 0.12);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  border-bottom: 1px solid var(--border);
   scrollbar-width: thin;
 }
 
@@ -203,7 +208,7 @@ onMounted(async () => {
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #3c615e;
+  color: var(--text);
   cursor: pointer;
   font-weight: 900;
   padding: 9px 12px;
@@ -211,8 +216,8 @@ onMounted(async () => {
 
 .category-bar button.active,
 .category-bar button:hover {
-  background: #dff8f3;
-  color: #0f766e;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
 }
 
 .hero {
@@ -238,9 +243,13 @@ onMounted(async () => {
   justify-content: center;
   align-items: flex-start;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.18)),
-    #b9f3e9;
-  color: #103f3b;
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--surface) 78%, transparent),
+      color-mix(in srgb, var(--surface) 18%, transparent)
+    ),
+    linear-gradient(135deg, var(--hero-start), var(--hero-mid), var(--hero-end));
+  color: var(--on-primary);
   padding: clamp(26px, 5vw, 72px);
 }
 
@@ -249,21 +258,21 @@ onMounted(async () => {
   grid-template-columns: repeat(3, minmax(170px, 1fr));
   gap: 12px;
   overflow: hidden;
-  background: #f3fffc;
-  border: 1px solid rgba(17, 156, 145, 0.14);
+  background: var(--surface);
+  border: 1px solid var(--border);
   padding: 12px;
 }
 
 .eyebrow {
   margin: 0 0 10px;
-  color: #0f766e;
+  color: var(--on-primary);
   font-weight: 900;
   letter-spacing: 0;
 }
 
 .hero-copy h1 {
   margin: 0 0 14px;
-  color: #0b5f59;
+  color: var(--on-primary);
   font-size: clamp(28px, 3.4vw, 56px);
   line-height: 1.2;
   font-weight: 900;
@@ -274,7 +283,7 @@ onMounted(async () => {
 .hero-copy p {
   margin: 0 0 24px;
   max-width: 680px;
-  color: #244b47;
+  color: var(--on-primary);
   font-size: clamp(16px, 1.2vw, 20px);
   line-height: 1.7;
 }
@@ -300,14 +309,14 @@ onMounted(async () => {
 }
 
 .banner-btn.primary {
-  background: #0f766e;
-  color: white;
+  background: var(--surface);
+  color: var(--primary-strong);
 }
 
 .banner-btn.secondary {
-  border: 1px solid rgba(15, 118, 110, 0.24);
-  background: rgba(255, 255, 255, 0.62);
-  color: #0f766e;
+  border: 1px solid color-mix(in srgb, var(--on-primary) 42%, transparent);
+  background: color-mix(in srgb, var(--on-primary) 16%, transparent);
+  color: var(--on-primary);
 }
 
 .feature-card {
@@ -317,7 +326,7 @@ onMounted(async () => {
   min-height: 100%;
   overflow: hidden;
   border-radius: 8px;
-  background: #dff8f3;
+  background: var(--surface-soft);
   cursor: pointer;
   isolation: isolate;
 }
@@ -348,8 +357,8 @@ onMounted(async () => {
   display: inline-flex;
   margin-bottom: 8px;
   border-radius: 8px;
-  background: rgba(223, 248, 243, 0.92);
-  color: #0f766e;
+  background: color-mix(in srgb, var(--primary-soft) 92%, white);
+  color: var(--primary-strong);
   font-size: 12px;
   font-weight: 900;
   padding: 5px 8px;
@@ -376,7 +385,7 @@ onMounted(async () => {
   grid-column: 1 / -1;
   min-height: 100%;
   place-content: center;
-  color: #0b5f59;
+  color: var(--text-strong);
   text-align: center;
   padding: 24px;
 }
@@ -402,12 +411,12 @@ onMounted(async () => {
 }
 
 .action.read {
-  background: #7be0d4;
-  color: #103f3b;
+  background: var(--secondary);
+  color: var(--on-primary);
 }
 
 .action.library {
-  background: #2ec4b6;
+  background: var(--primary);
 }
 
 .section {
@@ -430,7 +439,7 @@ onMounted(async () => {
 }
 
 .section-head a {
-  color: #0f766e;
+  color: var(--primary-strong);
   font-weight: 900;
   text-decoration: none;
 }

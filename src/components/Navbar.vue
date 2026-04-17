@@ -322,7 +322,7 @@ const logout = () => {
   border: 1px solid rgba(17, 156, 145, 0.22);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.82);
-  color: var(--text-strong);
+  color: #244b47;
   outline: none;
   padding: 0 14px;
 }
