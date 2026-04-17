@@ -1,72 +1,90 @@
-<template>
-  <div class="social-page">
-    <div class="card">
-      <h1>Apple Login</h1>
-      <p>หน้านี้เตรียมไว้สำหรับเชื่อมระบบเข้าสู่ระบบด้วย Apple</p>
-
-      <div class="actions">
-        <button class="btn primary" @click="goMockLogin">
-          ทดลองเข้าสู่ระบบแบบจำลอง
-        </button>
-        <button class="btn" @click="goBack">กลับหน้า Login</button>
-      </div>
-    </div>
-  </div>
-</template>
-
-<script setup>
+<script setup lang="ts">
+import { ref } from "vue";
 import { useRouter } from "vue-router";
+import { loginWithSocialProvider } from "../utils/socialLogin";
 
 const router = useRouter();
+const loading = ref(false);
+const error = ref("");
 
-const goMockLogin = () => {
-  alert("ตอนนี้ยังไม่ได้เชื่อม Apple Sign In จริง");
-};
+const login = async () => {
+  error.value = "";
+  loading.value = true;
 
-const goBack = () => {
-  router.push({ name: "Login" });
+  try {
+    await loginWithSocialProvider(router, "apple");
+  } catch (err: any) {
+    error.value = err.response?.data?.message || "เข้าสู่ระบบด้วย Apple ไม่สำเร็จ";
+  } finally {
+    loading.value = false;
+  }
 };
 </script>
 
+<template>
+  <main class="social-page">
+    <section class="card">
+      <h1>Apple Login</h1>
+      <p>เชื่อมบัญชี Apple เพื่อเข้าใช้งาน Read and Voice</p>
+
+      <button class="btn primary" type="button" :disabled="loading" @click="login">
+        {{ loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบด้วย Apple" }}
+      </button>
+      <button class="btn" type="button" @click="router.push('/login')">
+        กลับหน้า Login
+      </button>
+
+      <p v-if="error" class="error">{{ error }}</p>
+    </section>
+  </main>
+</template>
+
 <style scoped>
 .social-page {
-  min-height: 100vh;
+  min-height: calc(100vh - 140px);
   display: grid;
   place-items: center;
-  background: #f3f5f9;
+  background: var(--bg);
   padding: 24px;
 }
 .card {
-  width: 100%;
-  max-width: 520px;
-  background: white;
-  border-radius: 20px;
+  display: grid;
+  gap: 14px;
+  width: min(520px, 100%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
   padding: 28px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
 }
 h1 {
-  margin: 0 0 12px;
+  margin: 0;
+  color: var(--text-strong);
 }
 p {
-  color: #667085;
-  line-height: 1.7;
-}
-.actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 20px;
+  margin: 0;
+  color: var(--text-muted);
 }
 .btn {
-  border: none;
-  border-radius: 12px;
-  padding: 12px 16px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--text-strong);
   cursor: pointer;
-  font-weight: 700;
-  background: #e9edf7;
+  font-weight: 900;
+  padding: 10px 14px;
 }
 .btn.primary {
-  background: #000;
+  background: #111111;
   color: white;
+}
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+.error {
+  color: var(--danger);
+  font-weight: 800;
 }
 </style>

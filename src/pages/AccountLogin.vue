@@ -1,7 +1,9 @@
 <script setup>
 import { ref } from "vue";
-import axios from "axios";
 import { useRouter } from "vue-router";
+import { api } from "../utils/api";
+import { saveAuth } from "../utils/auth";
+import { redirectAfterLogin } from "../utils/loginRedirect";
 
 const router = useRouter();
 
@@ -26,25 +28,10 @@ const login = async () => {
   loading.value = true;
 
   try {
-    const res = await axios.post(
-      "http://localhost:3000/api/auth/login",
-      payload
-    );
+    const res = await api.post("/api/auth/login", payload);
 
-    console.log("LOGIN SUCCESS:", res.data);
-
-    localStorage.setItem("token", res.data.token);
-    localStorage.setItem("user", JSON.stringify(res.data.user));
-
-    const role = res.data?.user?.role;
-
-    if (role === "admin" || role === "superadmin") {
-      router.push("/admin");
-    } else if (role === "writer") {
-      router.push("/writer");
-    } else {
-      router.push("/");
-    }
+    saveAuth(res.data.token, res.data.user);
+    redirectAfterLogin(router, res.data.user);
   } catch (err) {
     console.error("LOGIN ERROR:", err.response?.data || err);
 

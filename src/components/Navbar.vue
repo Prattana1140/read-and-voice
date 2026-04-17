@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import logoUrl from "../assets/Logo-transparent.png";
+import { AUTH_CHANGED_EVENT, getToken, getUser, logout as clearAuth } from "../utils/auth";
 
 type ThemeMode = "normal" | "dark" | "reading";
 type UserRole = "guest" | "user" | "writer" | "admin" | "superadmin";
@@ -37,16 +38,19 @@ const isMenuOpen = ref(false);
 const isSearchOpen = ref(false);
 const search = ref("");
 
-const getStoredUser = (): StoredUser => {
-  try {
-    return JSON.parse(localStorage.getItem("user") || "null");
-  } catch {
-    return null;
-  }
+const authVersion = ref(0);
+const refreshAuth = () => {
+  authVersion.value += 1;
 };
 
-const user = computed(() => getStoredUser());
-const isLoggedIn = computed(() => !!localStorage.getItem("token") && !!user.value);
+const user = computed<StoredUser>(() => {
+  authVersion.value;
+  return getUser() as StoredUser;
+});
+const isLoggedIn = computed(() => {
+  authVersion.value;
+  return !!getToken() && !!user.value;
+});
 const currentRole = computed<UserRole>(() => {
   return isLoggedIn.value ? user.value?.role || "user" : "guest";
 });
@@ -191,11 +195,20 @@ const submitSearch = () => {
 };
 
 const logout = () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
+  clearAuth();
   closeMenu();
   router.push("/login");
 };
+
+onMounted(() => {
+  window.addEventListener(AUTH_CHANGED_EVENT, refreshAuth);
+  window.addEventListener("storage", refreshAuth);
+});
+
+onUnmounted(() => {
+  window.removeEventListener(AUTH_CHANGED_EVENT, refreshAuth);
+  window.removeEventListener("storage", refreshAuth);
+});
 </script>
 
 <template>

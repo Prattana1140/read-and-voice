@@ -1,22 +1,24 @@
 <script setup>
+import { ref } from "vue";
 import { useRouter } from "vue-router";
+import { loginWithSocialProvider } from "../utils/socialLogin";
 
 const router = useRouter();
+const socialLoading = ref("");
+const error = ref("");
 
-const goToFacebookLogin = () => {
-  router.push("/login/facebook");
-};
+const socialLogin = async (provider) => {
+  error.value = "";
+  socialLoading.value = provider;
 
-const goToLineLogin = () => {
-  router.push("/login/line");
-};
-
-const goToAppleLogin = () => {
-  router.push("/login/apple");
-};
-
-const goToGoogleLogin = () => {
-  router.push("/login/google");
+  try {
+    await loginWithSocialProvider(router, provider);
+  } catch (err) {
+    error.value =
+      err?.response?.data?.message || "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่";
+  } finally {
+    socialLoading.value = "";
+  }
 };
 
 const goToAccountLogin = () => {
@@ -33,21 +35,21 @@ const goToRegister = () => {
     <div class="login-box">
       <h1 class="title">เข้าสู่ระบบ</h1>
 
-      <button class="social-btn facebook" @click="goToFacebookLogin">
-        เข้าสู่ระบบด้วย Facebook
+      <button class="social-btn facebook" :disabled="!!socialLoading" @click="socialLogin('facebook')">
+        {{ socialLoading === "facebook" ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบด้วย Facebook" }}
       </button>
 
-      <button class="social-btn line" @click="goToLineLogin">
-        เข้าสู่ระบบด้วย LINE
+      <button class="social-btn line" :disabled="!!socialLoading" @click="socialLogin('line')">
+        {{ socialLoading === "line" ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบด้วย LINE" }}
       </button>
 
-      <button class="social-btn apple" @click="goToAppleLogin">
-        เข้าสู่ระบบด้วย Apple
+      <button class="social-btn apple" :disabled="!!socialLoading" @click="socialLogin('apple')">
+        {{ socialLoading === "apple" ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบด้วย Apple" }}
       </button>
 
-      <button class="social-btn google" @click="goToGoogleLogin">
+      <button class="social-btn google" :disabled="!!socialLoading" @click="socialLogin('google')">
         <span class="google-icon">G</span>
-        เข้าสู่ระบบด้วย Google
+        {{ socialLoading === "google" ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบด้วย Google" }}
       </button>
 
       <button class="social-btn account" @click="goToAccountLogin">
@@ -58,6 +60,8 @@ const goToRegister = () => {
         ยังไม่มีบัญชี?
         <span class="register-link" @click="goToRegister">สมัครสมาชิก</span>
       </p>
+
+      <p v-if="error" class="error-text">{{ error }}</p>
     </div>
   </div>
 </template>
@@ -103,6 +107,12 @@ const goToRegister = () => {
   transform: translateY(-1px);
 }
 
+.social-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+  transform: none;
+}
+
 .facebook {
   background: var(--secondary);
   color: white;
@@ -144,5 +154,11 @@ const goToRegister = () => {
   font-weight: 800;
   cursor: pointer;
   margin-left: 4px;
+}
+
+.error-text {
+  color: var(--danger);
+  font-weight: 800;
+  margin-top: 12px;
 }
 </style>

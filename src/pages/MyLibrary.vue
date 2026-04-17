@@ -1,303 +1,268 @@
-<script setup>
-import { ref } from "vue";
-import axios from "axios";
+<script setup lang="ts">
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import { api, API_BASE_URL } from "../utils/api";
+import { getAuthHeaders } from "../utils/auth";
+
+type LibraryBook = {
+  library_id: number;
+  id: number;
+  title: string;
+  author: string;
+  description?: string;
+  cover_image?: string;
+  total_pages?: number;
+  category_name?: string;
+};
 
 const router = useRouter();
+const loading = ref(true);
+const error = ref("");
+const books = ref<LibraryBook[]>([]);
+const search = ref("");
 
-const email = ref("");
-const password = ref("");
-const loading = ref(false);
-const showMebForm = ref(false);
+const filteredBooks = computed(() => {
+  const keyword = search.value.trim().toLowerCase();
+  if (!keyword) return books.value;
 
-const login = async () => {
-  if (!email.value || !password.value) {
-    alert("กรอกอีเมลและรหัสผ่าน");
-    return;
-  }
+  return books.value.filter((book) => {
+    return (
+      book.title.toLowerCase().includes(keyword) ||
+      book.author.toLowerCase().includes(keyword) ||
+      (book.category_name || "").toLowerCase().includes(keyword)
+    );
+  });
+});
 
+const getCoverUrl = (cover?: string) => {
+  if (!cover) return "/no-cover.png";
+  if (cover.startsWith("http://") || cover.startsWith("https://")) return cover;
+  return `${API_BASE_URL}/${cover.replace(/^\/+/, "")}`;
+};
+
+const fetchLibrary = async () => {
   loading.value = true;
+  error.value = "";
 
   try {
-    const res = await axios.post("http://localhost:3000/api/auth/login", {
-      email: email.value,
-      password: password.value,
+    const res = await api.get("/api/library/me", {
+      headers: getAuthHeaders(),
     });
-
-    localStorage.setItem("token", res.data.token);
-    localStorage.setItem("user", JSON.stringify(res.data.user));
-
-    alert("เข้าสู่ระบบสำเร็จ");
-    router.push("/");
-  } catch (err) {
-    alert(err?.response?.data?.message || "เข้าสู่ระบบไม่สำเร็จ");
+    books.value = Array.isArray(res.data) ? res.data : [];
+  } catch (err: any) {
+    error.value =
+      err.response?.data?.message || "โหลดชั้นหนังสือของฉันไม่สำเร็จ";
   } finally {
     loading.value = false;
   }
 };
 
-const goToFacebookLogin = () => {
-  router.push("/login/facebook");
+const removeFromLibrary = async (bookId: number) => {
+  const confirmed = window.confirm("ต้องการลบหนังสือออกจากชั้นใช่ไหม?");
+  if (!confirmed) return;
+
+  try {
+    await api.delete(`/api/library/${bookId}`, {
+      headers: getAuthHeaders(),
+    });
+    books.value = books.value.filter((book) => book.id !== bookId);
+  } catch (err: any) {
+    alert(err.response?.data?.message || "ลบหนังสือไม่สำเร็จ");
+  }
 };
 
-const goToLineLogin = () => {
-  router.push("/login/line");
-};
-
-const goToAppleLogin = () => {
-  router.push("/login/apple");
-};
-
-const goToGoogleLogin = () => {
-  router.push("/login/google");
-};
-
-const goToRegister = () => {
-  router.push("/register");
-};
-
-const closeLogin = () => {
-  router.push("/");
-};
-
-const openMebForm = () => {
-  showMebForm.value = !showMebForm.value;
-};
+onMounted(fetchLibrary);
 </script>
 
 <template>
-  <div class="login-page">
-    <div class="login-modal">
-      <button class="close-btn" @click="closeLogin">×</button>
-
-      <div class="login-left"></div>
-
-      <div class="login-right">
-        <h1 class="title">เข้าสู่ระบบ</h1>
-
-        <button class="social-btn facebook" @click="goToFacebookLogin">
-          เข้าสู่ระบบด้วย Facebook
-        </button>
-
-        <button class="social-btn line" @click="goToLineLogin">
-          เข้าสู่ระบบด้วย LINE
-        </button>
-
-        <button class="social-btn apple" @click="goToAppleLogin">
-          <span class="icon"></span>
-          เข้าสู่ระบบด้วย Apple
-        </button>
-
-        <button class="social-btn google" @click="goToGoogleLogin">
-          <span class="google-icon">G</span>
-          เข้าสู่ระบบด้วย Google
-        </button>
-
-        <button class="social-btn meb" @click="openMebForm">
-          เข้าสู่ระบบด้วย MEB Account
-        </button>
-
-        <div v-if="showMebForm" class="form-box">
-          <input v-model="email" type="email" placeholder="Email" />
-          <input v-model="password" type="password" placeholder="Password" />
-
-          <button class="login-btn" @click="login" :disabled="loading">
-            {{ loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ" }}
-          </button>
-        </div>
-
-        <p class="register-text">
-          หากยังไม่มีสมัครบัญชี meb โปรด
-          <span class="register-link" @click="goToRegister">สมัครสมาชิก</span>
-        </p>
+  <main class="library-page">
+    <section class="page-head">
+      <div>
+        <p class="eyebrow">My Library</p>
+        <h1>ชั้นหนังสือของฉัน</h1>
+        <p>กลับมาอ่านหรือฟังหนังสือที่คุณเก็บไว้ได้จากหน้านี้</p>
       </div>
-    </div>
-  </div>
+
+      <button class="primary-btn" type="button" @click="router.push('/store')">
+        ไปที่ร้านหนังสือ
+      </button>
+    </section>
+
+    <section class="toolbar">
+      <input
+        v-model="search"
+        type="search"
+        placeholder="ค้นหาในชั้นหนังสือ"
+      />
+      <span>{{ filteredBooks.length }} รายการ</span>
+    </section>
+
+    <section v-if="loading" class="state-card">กำลังโหลดชั้นหนังสือ...</section>
+    <section v-else-if="error" class="state-card error">{{ error }}</section>
+    <section v-else-if="filteredBooks.length === 0" class="state-card">
+      ยังไม่มีหนังสือในชั้น ลองเพิ่มหนังสือจากร้านหนังสือก่อนค่ะ
+    </section>
+
+    <section v-else class="book-grid">
+      <article v-for="book in filteredBooks" :key="book.library_id" class="book-card">
+        <img :src="getCoverUrl(book.cover_image)" :alt="book.title" />
+        <div class="book-info">
+          <span>{{ book.category_name || "หนังสือ" }}</span>
+          <h2>{{ book.title }}</h2>
+          <p>{{ book.author }}</p>
+          <div class="actions">
+            <button type="button" @click="router.push(`/reader/${book.id}`)">
+              อ่านต่อ
+            </button>
+            <button class="ghost" type="button" @click="removeFromLibrary(book.id)">
+              ลบออก
+            </button>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
 </template>
 
 <style scoped>
-.login-page {
-  min-height: 100vh;
-  background: rgba(0, 0, 0, 0.18);
+.library-page {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 52px;
+}
+
+.page-head,
+.toolbar,
+.state-card,
+.book-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.page-head {
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: space-between;
+  gap: 18px;
   padding: 24px;
-  box-sizing: border-box;
 }
 
-.login-modal {
-  width: 100%;
-  max-width: 980px;
-  min-height: 610px;
-  background: #fff;
-  border-radius: 18px;
-  overflow: hidden;
-  display: grid;
-  grid-template-columns: 1fr 1.15fr;
-  position: relative;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--primary-strong);
+  font-weight: 900;
 }
 
-.close-btn {
-  position: absolute;
-  top: 14px;
-  right: 16px;
-  border: none;
-  background: transparent;
-  font-size: 38px;
-  line-height: 1;
-  color: #c8c8c8;
+h1,
+h2 {
+  margin: 0;
+  color: var(--text-strong);
+}
+
+.page-head p:not(.eyebrow),
+.toolbar span,
+.book-card p,
+.book-card span {
+  color: var(--text-muted);
+}
+
+.primary-btn,
+.actions button {
+  min-height: 40px;
+  border: 1px solid #2ec4b6;
+  border-radius: 8px;
+  background: #2ec4b6;
+  color: white;
   cursor: pointer;
-  z-index: 5;
+  font-weight: 900;
+  padding: 10px 14px;
 }
 
-.login-left {
-  background:
-    linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
-  border-right: 2px solid #d9d9d9;
-}
-
-.login-right {
+.toolbar {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 74px 54px 48px;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 14px;
 }
 
-.title {
-  margin: 0 0 28px;
-  font-size: 28px;
-  font-weight: 800;
-  color: #111;
-}
-
-.social-btn {
-  width: 100%;
-  max-width: 420px;
-  height: 56px;
-  border: none;
-  border-radius: 28px;
-  font-size: 16px;
-  font-weight: 700;
-  margin-bottom: 16px;
-  cursor: pointer;
-  transition: transform 0.15s ease;
-}
-
-.social-btn:hover {
-  transform: translateY(-1px);
-}
-
-.facebook {
-  background: #5579c7;
-  color: white;
-}
-
-.line {
-  background: #07c700;
-  color: white;
-}
-
-.apple {
-  background: #000;
-  color: white;
-}
-
-.google,
-.meb {
-  background: white;
-  color: #4a4a4a;
-  border: 3px solid #d9d9d9;
-  font-weight: 500;
-}
-
-.icon {
-  margin-right: 8px;
-  font-size: 20px;
-}
-
-.google-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  margin-right: 10px;
-  font-weight: 800;
-  font-size: 22px;
-  color: #ea4335;
-}
-
-.form-box {
-  width: 100%;
-  max-width: 420px;
-  margin-top: 8px;
-  padding: 18px;
-  border-radius: 18px;
-  background: #fafbff;
-  border: 1px solid #eceff6;
-}
-
-.form-box input {
-  width: 100%;
-  box-sizing: border-box;
-  margin-bottom: 12px;
-  padding: 12px 14px;
-  border: 1px solid #d8dce5;
-  border-radius: 12px;
-  font-size: 15px;
+.toolbar input {
+  flex: 1;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-strong);
   outline: none;
-  background: white;
+  padding: 0 14px;
 }
 
-.login-btn {
-  width: 100%;
-  border: none;
-  border-radius: 12px;
-  background: #6c63ff;
-  color: white;
-  padding: 12px;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
+.state-card {
+  margin-top: 18px;
+  padding: 24px;
+  color: var(--text-muted);
 }
 
-.login-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+.state-card.error {
+  color: var(--danger);
 }
 
-.register-text {
-  margin-top: 20px;
-  font-size: 14px;
-  color: #8c8c8c;
-  text-align: center;
+.book-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 18px;
 }
 
-.register-link {
-  color: #1cc7c9;
-  font-weight: 700;
-  cursor: pointer;
-  text-decoration: underline;
-  margin-left: 4px;
+.book-card {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px;
 }
 
-@media (max-width: 900px) {
-  .login-modal {
-    grid-template-columns: 1fr;
-    min-height: auto;
+.book-card img {
+  width: 92px;
+  height: 124px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--surface-soft);
+}
+
+.book-info {
+  min-width: 0;
+}
+
+.book-card h2 {
+  margin-top: 6px;
+  font-size: 18px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.actions .ghost {
+  background: var(--surface-soft);
+  color: var(--text-strong);
+  border-color: var(--border);
+}
+
+@media (max-width: 680px) {
+  .page-head,
+  .toolbar {
+    align-items: stretch;
+    flex-direction: column;
   }
 
-  .login-left {
-    display: none;
-  }
-
-  .login-right {
-    padding: 64px 24px 32px;
-  }
-
-  .title {
-    font-size: 24px;
+  .primary-btn {
+    width: 100%;
   }
 }
 </style>

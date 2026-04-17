@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import axios from "axios";
 import { useRouter } from "vue-router";
+import { api } from "../../utils/api";
 
 const props = defineProps<{
   onClose: () => void;
@@ -44,7 +44,7 @@ const submitForm = async () => {
   try {
     loading.value = true;
 
-    await axios.post("http://localhost:3000/api/auth/register", {
+    await api.post("/api/auth/register", {
       name: trimmedDisplayName,
       email: normalizedEmail,
       password: password.value,
