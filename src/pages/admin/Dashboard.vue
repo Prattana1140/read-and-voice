@@ -85,7 +85,7 @@ const goToEdit = (id: number) => {
 };
 
 const goToAdminUsers = () => {
-  router.push({ name: "AdminUsers" });
+  router.push({ name: "SuperAdminUsers" });
 };
 
 const deleteBook = async (id: number, title: string) => {

@@ -1,55 +1,51 @@
 <template>
   <div class="page">
     <section class="category-bar" aria-label="หมวดหนังสือ">
-      <button type="button" class="active">ทั้งหมด</button>
-      <button type="button">นิยาย</button>
-      <button type="button">ความรู้</button>
-      <button type="button">เสียงอ่าน</button>
-      <button type="button">มาใหม่</button>
-      <button type="button">แนะนำ</button>
+      <button type="button" class="active" @click="goToStore">ทั้งหมด</button>
+      <button type="button" @click="goToShelf('BestSellers')">ขายดี</button>
+      <button type="button" @click="goToShelf('NewReleases')">มาใหม่</button>
+      <button type="button" @click="goToShelf('Promotions')">โปรโมชั่น</button>
+      <button type="button" @click="goToShelf('FreeBooks')">ฟรีกระจาย</button>
+      <button type="button" @click="goToShelf('HallOfFame')">ฮิตขึ้นหิ้ง</button>
+      <button type="button" @click="goToShelf('Recommended')">แนะนำ</button>
     </section>
 
-    <section class="hero">
-      <div class="hero-copy">
-        <p class="eyebrow">READ AND VOICE</p>
-        <h1>อ่านและฟัง E-Book ได้ทุกที่</h1>
-        <p>
-          เลือกหนังสือที่ชอบ เก็บไว้ในชั้นหนังสือ แล้วกลับมาอ่านหรือฟังเสียงต่อได้ทันที
-        </p>
-
-        <div class="banner-actions">
-          <button class="banner-btn primary" @click="goToStore">
-            เข้าร้านหนังสือ
-          </button>
-          <button class="banner-btn secondary" @click="goToMyLibrary">
-            ชั้นหนังสือของฉัน
-          </button>
+    <section class="hero-strip" aria-label="แบนเนอร์แนะนำ">
+      <article
+        v-for="(book, index) in bannerBooks"
+        :key="book.id"
+        class="promo-banner"
+        :class="`tone-${index + 1}`"
+        @click="goToBook(book.id)"
+      >
+        <div class="promo-copy">
+          <span>{{ index === 0 ? "อ่านและฟัง" : index === 1 ? "มาใหม่" : "แนะนำ" }}</span>
+          <h1>{{ book.title }}</h1>
+          <p>{{ book.author }}</p>
+          <button type="button">ดูรายละเอียด</button>
         </div>
-      </div>
+        <img
+          :src="getBookCover(book)"
+          :alt="book.title"
+          @error="handleImgError"
+        />
+      </article>
 
-      <div class="hero-stage" aria-label="หนังสือแนะนำ">
-        <article
-          v-for="book in featuredBooks"
-          :key="book.id"
-          class="feature-card"
-          @click="goToBook(book.id)"
-        >
-          <img
-            :src="getBookCover(book)"
-            :alt="book.title"
-            @error="handleImgError"
-          />
-          <div>
-            <span>แนะนำ</span>
-            <h2>{{ book.title }}</h2>
-            <p>{{ book.author }}</p>
-          </div>
-        </article>
-
-        <div v-if="featuredBooks.length === 0" class="feature-empty">
-          <h2>พื้นที่อ่านหนังสือของคุณ</h2>
-          <p>เพิ่มหนังสือเล่มแรกเพื่อเริ่มต้นชั้นหนังสือและระบบอ่านออกเสียง</p>
+      <article v-if="bannerBooks.length === 0" class="promo-banner tone-1 empty-banner">
+        <div class="promo-copy">
+          <span>Read and Voice</span>
+          <h1>อ่านและฟัง E-Book ได้ทุกที่</h1>
+          <p>เพิ่มหนังสือเล่มแรกเพื่อเริ่มต้นพื้นที่อ่านหนังสือของคุณ</p>
+          <button type="button" @click="goToStore">เข้าร้านหนังสือ</button>
         </div>
+      </article>
+
+      <div class="hero-dots" aria-hidden="true">
+        <span class="active"></span>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
       </div>
     </section>
 
@@ -64,7 +60,7 @@
 
     <section class="section">
       <div class="section-head">
-        <h2>หนังสือแนะนำ</h2>
+        <h2>มาใหม่</h2>
         <router-link to="/store">ดูทั้งหมด</router-link>
       </div>
 
@@ -84,15 +80,18 @@
             :alt="book.title"
             @error="handleImgError"
           />
-          <p>{{ book.title }}</p>
-          <small>{{ book.author }}</small>
+          <div class="book-info">
+            <p>{{ book.title }}</p>
+            <small>{{ book.author }}</small>
+            <strong>อ่านเลย</strong>
+          </div>
         </article>
       </div>
     </section>
 
     <section v-if="newBooks.length > 0" class="section compact-section">
       <div class="section-head">
-        <h2>มาใหม่</h2>
+        <h2>ฟรีกระจาย</h2>
         <router-link to="/store">ดูทั้งหมด</router-link>
       </div>
 
@@ -133,7 +132,7 @@ type Book = {
 const router = useRouter();
 const books = ref<Book[]>([]);
 
-const featuredBooks = computed(() => books.value.slice(0, 3));
+const bannerBooks = computed(() => books.value.slice(0, 3));
 const recommendedBooks = computed(() => books.value.slice(0, 8));
 const newBooks = computed(() => books.value.slice(4, 12));
 
@@ -153,11 +152,16 @@ const getBookCover = (book: Book) => {
 
 const handleImgError = (event: Event) => {
   const target = event.target as HTMLImageElement;
+  if (target.src.endsWith("/no-cover.png")) return;
   target.src = "/no-cover.png";
 };
 
 const goToStore = () => {
   router.push({ name: "Store" });
+};
+
+const goToShelf = (name: string) => {
+  router.push({ name });
 };
 
 const goToMyLibrary = () => {
@@ -211,8 +215,143 @@ onMounted(async () => {
 
 .category-bar button.active,
 .category-bar button:hover {
-  background: var(--primary-soft);
+  background: transparent;
   color: var(--primary-strong);
+  box-shadow: inset 0 -3px 0 var(--primary);
+}
+
+.hero-strip {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(360px, 1fr));
+  gap: 6px;
+  width: 100%;
+  overflow-x: auto;
+  background: #f3f5f6;
+  padding: 14px 0 26px;
+  scrollbar-width: none;
+}
+
+.hero-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.promo-banner {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  align-items: center;
+  min-height: 284px;
+  overflow: hidden;
+  border: 0;
+  background:
+    radial-gradient(circle at 82% 28%, rgba(255, 255, 255, 0.62), transparent 28%),
+    linear-gradient(130deg, #b6f3e7, #fff7c8 52%, #ffcad4);
+  color: #163b37;
+  cursor: pointer;
+  padding: clamp(22px, 3vw, 44px);
+}
+
+.promo-banner::before {
+  content: "";
+  position: absolute;
+  inset: auto -10% -45% 36%;
+  z-index: -1;
+  height: 78%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.34);
+  transform: rotate(-12deg);
+}
+
+.promo-banner.tone-2 {
+  background:
+    radial-gradient(circle at 76% 24%, rgba(255, 255, 255, 0.66), transparent 26%),
+    linear-gradient(135deg, #bde9ff, #d8f7ff 48%, #ffe5a8);
+}
+
+.promo-banner.tone-3 {
+  background:
+    radial-gradient(circle at 76% 24%, rgba(255, 255, 255, 0.62), transparent 26%),
+    linear-gradient(135deg, #b5f7bc, #f0ffd9 48%, #fff2a8);
+}
+
+.promo-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 430px;
+}
+
+.promo-copy span {
+  display: inline-flex;
+  margin-bottom: 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  color: #078367;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 6px 12px;
+}
+
+.promo-copy h1 {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: #0b2f2b;
+  font-size: clamp(26px, 3.6vw, 54px);
+  font-weight: 900;
+  line-height: 1.08;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.promo-copy p {
+  margin: 12px 0 22px;
+  color: rgba(11, 47, 43, 0.72);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.promo-copy button {
+  border: 0;
+  border-radius: 999px;
+  background: #05b87a;
+  color: white;
+  cursor: pointer;
+  font-weight: 900;
+  padding: 11px 18px;
+}
+
+.promo-banner img {
+  position: relative;
+  z-index: 1;
+  justify-self: end;
+  width: min(160px, 30vw);
+  aspect-ratio: 3 / 4;
+  border-radius: 8px;
+  object-fit: cover;
+  box-shadow: 0 18px 34px rgba(8, 47, 43, 0.22);
+  transform: rotate(2deg);
+}
+
+.hero-dots {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  display: flex;
+  gap: 9px;
+  transform: translateX(-50%);
+}
+
+.hero-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #d7dddd;
+}
+
+.hero-dots .active {
+  background: #00b36f;
 }
 
 .hero {
@@ -402,7 +541,9 @@ onMounted(async () => {
 .section {
   width: 100%;
   margin: 0;
-  padding: clamp(10px, 1.4vw, 18px) clamp(12px, 3vw, 48px);
+  max-width: 1120px;
+  margin-inline: auto;
+  padding: clamp(28px, 4vw, 54px) 20px 0;
 }
 
 .section-head {
@@ -415,7 +556,7 @@ onMounted(async () => {
 .section-head h2 {
   margin: 0;
   color: var(--text-strong);
-  font-size: 28px;
+  font-size: clamp(22px, 2.1vw, 30px);
 }
 
 .section-head a {
@@ -440,14 +581,14 @@ onMounted(async () => {
 
 .book-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: clamp(14px, 2vw, 28px);
-  margin-top: 18px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 22px;
+  margin-top: 20px;
 }
 
 .book-card {
   overflow: hidden;
-  border-radius: var(--radius);
+  border-radius: 4px;
   cursor: pointer;
   transition:
     transform 0.2s ease,
@@ -467,16 +608,34 @@ onMounted(async () => {
   background: var(--surface-soft);
 }
 
-.book-card p {
-  margin: 12px 12px 6px;
-  color: var(--text-strong);
-  font-weight: 900;
+.book-info {
+  padding: 12px 12px 14px;
 }
 
-.book-card small {
+.book-info p {
+  display: -webkit-box;
+  margin: 0 0 5px;
+  overflow: hidden;
+  color: var(--text-strong);
+  font-weight: 900;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.book-info small {
   display: block;
-  margin: 0 12px 14px;
   color: var(--text-muted);
+}
+
+.book-info strong {
+  display: inline-flex;
+  margin-top: 10px;
+  border-radius: 4px;
+  background: #00b36f;
+  color: white;
+  font-size: 13px;
+  padding: 5px 10px;
 }
 
 .compact-section {
@@ -528,6 +687,10 @@ onMounted(async () => {
 }
 
 @media (max-width: 900px) {
+  .hero-strip {
+    grid-template-columns: repeat(3, minmax(300px, 86vw));
+  }
+
   .hero {
     grid-template-columns: 1fr;
   }
@@ -543,15 +706,33 @@ onMounted(async () => {
 
 @media (max-width: 640px) {
   .book-grid {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .category-bar,
-  .hero,
   .action-row,
   .section {
     padding-left: 10px;
     padding-right: 10px;
+  }
+
+  .hero-strip {
+    grid-template-columns: repeat(3, minmax(280px, 88vw));
+    padding-top: 8px;
+  }
+
+  .promo-banner {
+    grid-template-columns: 1fr 104px;
+    min-height: 220px;
+    padding: 20px;
+  }
+
+  .promo-copy h1 {
+    font-size: 24px;
+  }
+
+  .promo-copy p {
+    font-size: 14px;
   }
 
   .hero-copy {

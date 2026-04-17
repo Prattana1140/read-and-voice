@@ -228,6 +228,7 @@ const progressKey = computed(() => {
 
 const handleImgError = (event: Event) => {
   const target = event.target as HTMLImageElement;
+  if (target.src.endsWith("/no-cover.png")) return;
   target.src = "/no-cover.png";
 };
 
@@ -586,7 +587,7 @@ const addToCart = async () => {
 };
 
 const goToWishlist = () => {
-  router.push({ name: "Wishlist" });
+  router.push({ name: "WishList" });
 };
 
 const goToCart = () => {

@@ -11,6 +11,76 @@ function normalizeText(text) {
     .trim();
 }
 
+function cleanOcrText(text) {
+  const cleanedText = String(text || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .map((line) => line.replace(/[A-Za-z@#$%^*_+=<>\\/|~`{}\[\]]+/g, " "))
+    .map((line) => line.replace(/["'“”.,;:!?()\-]{2,}/g, " "))
+    .map((line) => line.replace(/\s{2,}/g, " ").trim())
+    .filter((line) => {
+      if (!line) return false;
+
+      const thaiCount = (line.match(/[\u0E00-\u0E7F]/g) || []).length;
+      const digitCount = (line.match(/[0-9๐-๙]/g) || []).length;
+      const visibleCount = line.replace(/\s/g, "").length;
+
+      if (thaiCount === 0) return false;
+      if (thaiCount < 5) return false;
+      if (thaiCount < 10 && digitCount > 0) return false;
+      if (visibleCount > 0 && thaiCount / visibleCount < 0.55) return false;
+
+      return true;
+    })
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return polishThaiOcrText(cleanedText);
+}
+
+function polishThaiOcrText(text) {
+  const phraseReplacements = [
+    ["กําลัง", "กำลัง"],
+    ["สํานัก", "สำนัก"],
+    ["สําเร็จ", "สำเร็จ"],
+    ["สําคัญ", "สำคัญ"],
+    ["สําหรับ", "สำหรับ"],
+    ["นํ้า", "น้ำ"],
+    ["นํา", "นำ"],
+    ["นัน", "นั้น"],
+    ["นี", "นี้"],
+    ["ทัง", "ทั้ง"],
+    ["ซึง", "ซึ่ง"],
+    ["ขึน", "ขึ้น"],
+    ["ตัง", "ตั้ง"],
+    ["นัง", "นั่ง"],
+    ["ครึง", "ครึ่ง"],
+    ["หนึง", "หนึ่ง"],
+    ["ชัว", "ชั่ว"],
+    ["เรือง", "เรื่อง"],
+    ["เมือ", "เมื่อ"],
+    ["ตืน", "ตื่น"],
+    ["ดืม", "ดื่ม"],
+    ["สูดท้าย", "สุดท้าย"],
+    ["ฮองเต้", "ฮ่องเต้"],
+    ["ฟาน", "ฟ่าน"],
+    ["นี้่", "นี่"],
+    ["นี้้", "นี้"],
+    ["เมื่อง", "เมือง"],
+    ["หนั่ง", "หนัง"],
+    ["นำชา", "น้ำชา"],
+    ["กําหนด", "กำหนด"],
+  ];
+
+  return phraseReplacements.reduce(
+    (value, [findText, replaceText]) =>
+      value.replace(new RegExp(findText, "g"), replaceText),
+    text
+  );
+}
+
 function splitTextToPages(text, chunkSize = 1800) {
   const cleanText = normalizeText(text);
   if (!cleanText) return [];
@@ -131,10 +201,10 @@ async function parsePdfFile(filePath) {
     const ocrResult = await runPdfOCR(filePath);
 
     const ocrPages = Array.isArray(ocrResult?.pages)
-      ? ocrResult.pages.map((p) => normalizeText(p)).filter(Boolean)
-      : splitTextToPages(ocrResult?.text || "");
+      ? ocrResult.pages.map((p) => cleanOcrText(p)).filter(Boolean)
+      : splitTextToPages(cleanOcrText(ocrResult?.text || ""));
 
-    const fullText = normalizeText(
+    const fullText = cleanOcrText(
       Array.isArray(ocrResult?.pages)
         ? ocrResult.pages.join("\n\n")
         : ocrResult?.text || ""

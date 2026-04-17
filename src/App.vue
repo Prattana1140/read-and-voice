@@ -6,9 +6,13 @@ import Navbar from "./components/Navbar.vue";
 type ThemeMode = "normal" | "dark" | "reading";
 
 const theme = ref<ThemeMode>("normal");
+const skipNextThemeWatch = ref(false);
 
-const applyTheme = (mode: ThemeMode) => {
+const applyTheme = (mode: ThemeMode, withTransition = true) => {
   document.documentElement.dataset.theme = mode === "normal" ? "" : mode;
+
+  if (!withTransition) return;
+
   document.documentElement.classList.add("theme-transition");
   window.setTimeout(() => {
     document.documentElement.classList.remove("theme-transition");
@@ -21,19 +25,28 @@ const changeTheme = (mode: ThemeMode) => {
 
 onMounted(() => {
   const savedTheme = localStorage.getItem("read-voice-theme");
+  let initialTheme: ThemeMode = "normal";
 
   if (
     savedTheme === "normal" ||
     savedTheme === "dark" ||
     savedTheme === "reading"
   ) {
-    theme.value = savedTheme;
+    initialTheme = savedTheme;
   }
 
-  applyTheme(theme.value);
+  skipNextThemeWatch.value = initialTheme !== theme.value;
+  theme.value = initialTheme;
+  applyTheme(initialTheme, false);
 });
 
 watch(theme, (mode) => {
+  if (skipNextThemeWatch.value) {
+    skipNextThemeWatch.value = false;
+    localStorage.setItem("read-voice-theme", mode);
+    return;
+  }
+
   localStorage.setItem("read-voice-theme", mode);
   applyTheme(mode);
 });

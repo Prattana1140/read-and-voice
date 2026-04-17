@@ -59,7 +59,7 @@ const logout = () => {
 
       <button class="icon-btn" @click="props.onToggleSearch">ค้นหา</button>
       <button class="icon-btn" @click="props.onToggleAccount">บัญชี</button>
-      <router-link class="icon-btn link-btn" to="/upload-book">
+      <router-link class="icon-btn link-btn" to="/writer/upload">
         อัปโหลด
       </router-link>
     </div>

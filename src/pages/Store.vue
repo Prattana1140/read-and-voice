@@ -91,6 +91,7 @@ const getBookCover = (book: Book) => {
 
 const handleImgError = (event: Event) => {
   const target = event.target as HTMLImageElement;
+  if (target.src.endsWith("/no-cover.png")) return;
   target.src = "/no-cover.png";
 };
 
@@ -184,7 +185,7 @@ const goToMyLibrary = () => {
 };
 
 const goToWishlist = () => {
-  router.push({ name: "Wishlist" });
+  router.push({ name: "WishList" });
 };
 
 const goToCart = () => {

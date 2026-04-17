@@ -22,7 +22,7 @@
 
       <section>
         <h3>ผู้เขียน</h3>
-        <router-link to="/upload-book">อัปโหลดหนังสือ</router-link>
+        <router-link to="/writer/upload">อัปโหลดหนังสือ</router-link>
         <router-link to="/writer">แดชบอร์ดนักเขียน</router-link>
         <router-link to="/admin">ผู้ดูแลระบบ</router-link>
       </section>

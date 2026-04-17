@@ -45,6 +45,36 @@ const routes: RouteRecordRaw[] = [
     component: Store,
   },
   {
+    path: "/best-sellers",
+    name: "BestSellers",
+    component: () => import("../pages/ShelfPage.vue"),
+  },
+  {
+    path: "/new-releases",
+    name: "NewReleases",
+    component: () => import("../pages/ShelfPage.vue"),
+  },
+  {
+    path: "/promotions",
+    name: "Promotions",
+    component: () => import("../pages/ShelfPage.vue"),
+  },
+  {
+    path: "/free-books",
+    name: "FreeBooks",
+    component: () => import("../pages/ShelfPage.vue"),
+  },
+  {
+    path: "/hall-of-fame",
+    name: "HallOfFame",
+    component: () => import("../pages/ShelfPage.vue"),
+  },
+  {
+    path: "/recommended",
+    name: "Recommended",
+    component: () => import("../pages/ShelfPage.vue"),
+  },
+  {
     path: "/book/:id",
     name: "BookDetail",
     component: BookDetail,
@@ -154,6 +184,12 @@ const routes: RouteRecordRaw[] = [
     path: "/writer/upload",
     name: "WriterUpload",
     component: () => import("../pages/writer/Upload.vue"),
+    meta: { requiresAuth: true, allowedRoles: writerRoles },
+  },
+  {
+    path: "/writer/books/:id/edit",
+    name: "WriterEditBook",
+    component: () => import("../pages/writer/EditBook.vue"),
     meta: { requiresAuth: true, allowedRoles: writerRoles },
   },
   {

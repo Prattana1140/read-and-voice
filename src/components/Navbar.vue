@@ -41,8 +41,16 @@ const emit = defineEmits<{
 const router = useRouter();
 const isMenuOpen = ref(false);
 const isSearchOpen = ref(false);
+const isNotificationsOpen = ref(false);
 const search = ref("");
 const authVersion = ref(0);
+const notificationCount = ref(49);
+
+const notifications = [
+  "หนังสือใหม่พร้อมให้อ่านแล้ว",
+  "ระบบบันทึกความคืบหน้าการอ่านล่าสุด",
+  "มีรายการแนะนำใหม่สำหรับคุณ",
+];
 
 const refreshAuth = () => {
   authVersion.value += 1;
@@ -70,7 +78,12 @@ const themeOptions: { label: string; value: ThemeMode }[] = [
 
 const publicNavItems: NavItem[] = [
   { label: "หน้าแรก", to: "/", roles: ["guest", "user", "writer", "admin", "superadmin"] },
-  { label: "ร้านหนังสือ", to: "/store", roles: ["guest", "user", "writer", "admin", "superadmin"] },
+  { label: "ขายดี", to: "/best-sellers", roles: ["guest", "user", "writer", "admin", "superadmin"] },
+  { label: "มาใหม่", to: "/new-releases", roles: ["guest", "user", "writer", "admin", "superadmin"] },
+  { label: "โปรโมชั่น", to: "/promotions", roles: ["guest", "user", "writer", "admin", "superadmin"] },
+  { label: "ฟรีกระจาย", to: "/free-books", roles: ["guest", "user", "writer", "admin", "superadmin"] },
+  { label: "ฮิตขึ้นหิ้ง", to: "/hall-of-fame", roles: ["guest", "user", "writer", "admin", "superadmin"] },
+  { label: "แนะนำ", to: "/recommended", roles: ["guest", "user", "writer", "admin", "superadmin"] },
 ];
 
 const mainNavItems = computed(() => {
@@ -144,6 +157,10 @@ const closeSearch = () => {
   isSearchOpen.value = false;
 };
 
+const toggleNotifications = () => {
+  isNotificationsOpen.value = !isNotificationsOpen.value;
+};
+
 const submitSearch = () => {
   const keyword = search.value.trim();
   closeMenu();
@@ -171,7 +188,7 @@ onUnmounted(() => {
 <template>
   <header class="navbar">
     <div class="top-bar">
-      <router-link class="brand" to="/" @click="closeMenu">
+      <router-link class="brand" to="/" aria-label="กลับหน้าแรก" @click="closeMenu">
         <img class="brand-logo" :src="logoUrl" alt="Read and Voice" />
       </router-link>
 
@@ -211,6 +228,28 @@ onUnmounted(() => {
             </button>
           </div>
         </details>
+
+        <div class="notification-wrapper">
+          <button
+            class="notification-button"
+            type="button"
+            aria-label="แจ้งเตือน"
+            :aria-expanded="isNotificationsOpen"
+            @click="toggleNotifications"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 22a2.7 2.7 0 0 0 2.6-2h-5.2A2.7 2.7 0 0 0 12 22Zm7-5-1.8-2.2V10a5.2 5.2 0 0 0-4-5.1V3a1.2 1.2 0 0 0-2.4 0v1.9a5.2 5.2 0 0 0-4 5.1v4.8L5 17v1h14v-1Z" />
+            </svg>
+            <span v-if="notificationCount" class="notification-badge">
+              {{ notificationCount > 99 ? "99+" : notificationCount }}
+            </span>
+          </button>
+
+          <div v-if="isNotificationsOpen" class="notification-panel">
+            <h3>แจ้งเตือน</h3>
+            <p v-for="item in notifications" :key="item">{{ item }}</p>
+          </div>
+        </div>
 
         <details class="icon-dropdown account-dropdown">
           <summary class="avatar-button" aria-label="บัญชีผู้ใช้">
@@ -360,11 +399,13 @@ onUnmounted(() => {
 }
 
 .top-bar {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 18px;
-  min-height: 76px;
-  padding: 8px clamp(14px, 3vw, 52px);
+  justify-content: center;
+  gap: 0;
+  min-height: 82px;
+  padding: 10px clamp(14px, 3vw, 52px);
 }
 
 .brand,
@@ -374,15 +415,37 @@ onUnmounted(() => {
 }
 
 .brand {
+  position: absolute;
+  left: clamp(14px, 3vw, 52px);
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
+  border-radius: 12px;
+  transition:
+    filter 0.18s ease,
+    background 0.18s ease;
+}
+
+.brand:hover {
+  background: rgba(46, 196, 182, 0.12);
+  filter: drop-shadow(0 6px 10px rgba(17, 156, 145, 0.18));
+}
+
+.brand:hover .brand-logo {
+  transform: translateY(-1px) scale(1.04);
+}
+
+.brand:active .brand-logo {
+  transform: translateY(1px) scale(0.96);
 }
 
 .brand-logo {
-  width: clamp(118px, 10vw, 166px);
+  width: clamp(128px, 11vw, 180px);
   height: 58px;
   object-fit: contain;
+  transform-origin: center;
+  transition: transform 0.18s ease;
+  will-change: transform;
 }
 
 .desktop-public-nav {
@@ -390,12 +453,16 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   min-width: 0;
+  justify-content: center;
+  margin: 0;
+  transform: translateY(8px);
 }
 
 .desktop-public-nav a {
   display: inline-flex;
   align-items: center;
   min-height: 38px;
+  border: 1px solid transparent;
   border-radius: 8px;
   color: #244b47;
   font-size: 14px;
@@ -405,17 +472,19 @@ onUnmounted(() => {
 }
 
 .desktop-public-nav a:hover,
-.desktop-public-nav a.router-link-active {
+.desktop-public-nav a.router-link-exact-active {
   color: #0f766e;
-  background: #dff8f3;
+  background: rgba(255, 255, 255, 0.68);
+  border-color: #082f2b;
 }
 
 .top-actions {
+  position: absolute;
+  right: clamp(14px, 3vw, 52px);
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  margin-left: auto;
 }
 
 .icon-dropdown {
@@ -423,7 +492,8 @@ onUnmounted(() => {
 }
 
 .icon-button,
-.avatar-button {
+.avatar-button,
+.notification-button {
   display: inline-grid;
   place-items: center;
   width: 46px;
@@ -442,7 +512,8 @@ onUnmounted(() => {
 }
 
 .icon-button svg,
-.avatar-button svg {
+.avatar-button svg,
+.notification-button svg {
   width: 25px;
   height: 25px;
   fill: currentColor;
@@ -450,6 +521,7 @@ onUnmounted(() => {
 
 .icon-button:hover,
 .avatar-button:hover,
+.notification-button:hover,
 .icon-dropdown[open] > summary {
   background: #d5f6ef;
   color: #0f766e;
@@ -458,6 +530,66 @@ onUnmounted(() => {
 .avatar-button {
   background: #2ec4b6;
   color: white;
+}
+
+.notification-wrapper {
+  position: relative;
+}
+
+.notification-button {
+  position: relative;
+  background: rgba(255, 255, 255, 0.76);
+  color: #111827;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -8px;
+  right: -6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 22px;
+  border-radius: 999px;
+  background: #ef3f7a;
+  color: white;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 0 7px;
+  box-shadow: 0 4px 10px rgba(239, 63, 122, 0.28);
+}
+
+.notification-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 72;
+  display: grid;
+  gap: 8px;
+  width: min(300px, calc(100vw - 24px));
+  border: 1px solid rgba(17, 156, 145, 0.18);
+  border-radius: 12px;
+  background: #f8fffd;
+  box-shadow: 0 12px 28px rgba(17, 156, 145, 0.14);
+  padding: 14px;
+}
+
+.notification-panel h3 {
+  margin: 0 0 4px;
+  color: #0b5f59;
+  font-size: 15px;
+}
+
+.notification-panel p {
+  margin: 0;
+  border-radius: 8px;
+  background: #eefbf8;
+  color: #244b47;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px;
 }
 
 .dropdown-panel {
@@ -654,13 +786,13 @@ onUnmounted(() => {
 
 @media (max-width: 720px) {
   .top-bar {
-    min-height: 70px;
+    min-height: 74px;
     padding: 8px 12px;
   }
 
   .brand-logo {
     width: 132px;
-    height: 54px;
+    height: 52px;
   }
 
   .desktop-public-nav {
@@ -732,15 +864,23 @@ onUnmounted(() => {
   }
 
   .icon-button,
-  .avatar-button {
+  .avatar-button,
+  .notification-button {
     width: 40px;
     height: 40px;
   }
 
   .icon-button svg,
-  .avatar-button svg {
+  .avatar-button svg,
+  .notification-button svg {
     width: 22px;
     height: 22px;
+  }
+
+  .notification-badge {
+    min-width: 25px;
+    height: 20px;
+    font-size: 11px;
   }
 }
 </style>

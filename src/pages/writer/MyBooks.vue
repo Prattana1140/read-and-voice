@@ -52,7 +52,7 @@ onMounted(async () => {
             <h2>{{ book.title }}</h2>
             <p>{{ book.author }} <span v-if="book.category_name">/ {{ book.category_name }}</span></p>
           </div>
-          <button type="button" @click="router.push(`/writer/book/${book.id}/edit`)">
+          <button type="button" @click="router.push(`/writer/books/${book.id}/edit`)">
             แก้ไข
           </button>
         </article>
