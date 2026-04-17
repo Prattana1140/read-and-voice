@@ -426,7 +426,7 @@ router.delete("/:id", verifyToken, requireAdmin, async (req, res) => {
     await connection.query("DELETE FROM book_pages WHERE book_id = ?", [id]);
     await connection.query("DELETE FROM book_files WHERE book_id = ?", [id]);
     await connection.query("DELETE FROM reading_progress WHERE book_id = ?", [id]);
-    await connection.query("DELETE FROM library WHERE book_id = ?", [id]);
+    await connection.query("DELETE FROM `library` WHERE book_id = ?", [id]);
     await connection.query("DELETE FROM cart WHERE book_id = ?", [id]);
     await connection.query("DELETE FROM cart_items WHERE book_id = ?", [id]);
 

@@ -14,7 +14,7 @@ router.post("/", verifyToken, async (req, res) => {
     }
 
     const [exists] = await db.query(
-      "SELECT id FROM library WHERE user_id = ? AND book_id = ?",
+      "SELECT id FROM `library` WHERE user_id = ? AND book_id = ?",
       [user_id, book_id]
     );
 
@@ -23,7 +23,7 @@ router.post("/", verifyToken, async (req, res) => {
     }
 
     await db.query(
-      "INSERT INTO library (user_id, book_id) VALUES (?, ?)",
+      "INSERT INTO `library` (user_id, book_id) VALUES (?, ?)",
       [user_id, book_id]
     );
 
@@ -52,7 +52,7 @@ router.get("/me", verifyToken, async (req, res) => {
         b.cover_image,
         b.total_pages,
         c.name AS category_name
-      FROM library l
+      FROM \`library\` l
       JOIN books b ON l.book_id = b.id
       LEFT JOIN categories c ON b.category_id = c.id
       WHERE l.user_id = ?
@@ -75,7 +75,7 @@ router.delete("/:bookId", verifyToken, async (req, res) => {
     const { bookId } = req.params;
 
     await db.query(
-      "DELETE FROM library WHERE user_id = ? AND book_id = ?",
+      "DELETE FROM `library` WHERE user_id = ? AND book_id = ?",
       [userId, bookId]
     );
 

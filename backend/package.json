@@ -6,6 +6,7 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "db:test": "node services/scripts/testDbConnection.js",
+    "db:init": "node services/scripts/initDatabase.js",
     "create:superadmin": "node services/scripts/createSuperAdmin.js"
   },
   "dependencies": {
