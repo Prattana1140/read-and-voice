@@ -188,6 +188,11 @@ const routes: RouteRecordRaw[] = [
     meta: { guestOnly: true },
   },
   {
+    path: "/oauth/callback",
+    name: "OAuthCallback",
+    component: () => import("../pages/OAuthCallback.vue"),
+  },
+  {
     path: "/register",
     name: "Register",
     component: () => import("../pages/Register.vue"),

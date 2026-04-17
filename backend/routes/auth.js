@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require("../config/db");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 require("dotenv").config();
 
 const ALLOWED_ROLES = ["user", "writer", "admin", "superadmin"];
@@ -41,6 +42,266 @@ function sanitizeUser(user, provider) {
     status: user.status || "active",
     provider,
   };
+}
+
+function getPublicApiUrl() {
+  return process.env.API_PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`;
+}
+
+function getFrontendUrl() {
+  return process.env.FRONTEND_URL || "http://localhost:5173";
+}
+
+function encodeQuery(params) {
+  return new URLSearchParams(params).toString();
+}
+
+function getOAuthRedirectUri(provider) {
+  return `${getPublicApiUrl()}/api/auth/oauth/${provider}/callback`;
+}
+
+function createOAuthState(provider) {
+  return jwt.sign(
+    {
+      provider,
+      nonce: crypto.randomBytes(12).toString("hex"),
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "10m" }
+  );
+}
+
+function verifyOAuthState(state, provider) {
+  const decoded = jwt.verify(state, process.env.JWT_SECRET);
+  return decoded.provider === provider;
+}
+
+function getProviderConfig(provider) {
+  const configs = {
+    facebook: {
+      clientId: process.env.FACEBOOK_CLIENT_ID,
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+      authUrl: "https://www.facebook.com/v19.0/dialog/oauth",
+      tokenUrl: "https://graph.facebook.com/v19.0/oauth/access_token",
+      profileUrl: "https://graph.facebook.com/me",
+      scope: "email,public_profile",
+    },
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      authUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+      tokenUrl: "https://oauth2.googleapis.com/token",
+      profileUrl: "https://openidconnect.googleapis.com/v1/userinfo",
+      scope: "openid email profile",
+    },
+    line: {
+      clientId: process.env.LINE_CLIENT_ID,
+      clientSecret: process.env.LINE_CLIENT_SECRET,
+      authUrl: "https://access.line.me/oauth2/v2.1/authorize",
+      tokenUrl: "https://api.line.me/oauth2/v2.1/token",
+      profileUrl: "https://api.line.me/oauth2/v2.1/userinfo",
+      scope: "openid profile email",
+    },
+    apple: {
+      clientId: process.env.APPLE_CLIENT_ID,
+      clientSecret: getAppleClientSecret(),
+      authUrl: "https://appleid.apple.com/auth/authorize",
+      tokenUrl: "https://appleid.apple.com/auth/token",
+      scope: "name email",
+    },
+  };
+
+  const config = configs[provider];
+  if (!config?.clientId || !config?.clientSecret) {
+    return null;
+  }
+
+  return config;
+}
+
+function getAppleClientSecret() {
+  if (process.env.APPLE_CLIENT_SECRET) {
+    return process.env.APPLE_CLIENT_SECRET;
+  }
+
+  const teamId = process.env.APPLE_TEAM_ID;
+  const keyId = process.env.APPLE_KEY_ID;
+  const clientId = process.env.APPLE_CLIENT_ID;
+  const privateKey = (process.env.APPLE_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+
+  if (!teamId || !keyId || !clientId || !privateKey) {
+    return "";
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "ES256", kid: keyId, typ: "JWT" };
+  const payload = {
+    iss: teamId,
+    iat: now,
+    exp: now + 60 * 60 * 24 * 180,
+    aud: "https://appleid.apple.com",
+    sub: clientId,
+  };
+
+  const unsigned = `${base64Url(JSON.stringify(header))}.${base64Url(JSON.stringify(payload))}`;
+  const signature = crypto.sign("sha256", Buffer.from(unsigned), {
+    key: privateKey,
+    dsaEncoding: "ieee-p1363",
+  });
+  return `${unsigned}.${base64Url(signature)}`;
+}
+
+function base64Url(value) {
+  return Buffer.from(value)
+    .toString("base64")
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+}
+
+function decodeJwtPayload(token) {
+  const payload = String(token || "").split(".")[1];
+  if (!payload) return {};
+
+  try {
+    return JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+  } catch {
+    return {};
+  }
+}
+
+async function fetchJson(url, options) {
+  const response = await fetch(url, options);
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message = data.error_description || data.error?.message || data.error || "OAuth request failed";
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+async function exchangeOAuthCode(provider, code) {
+  const config = getProviderConfig(provider);
+  if (!config) {
+    const envPrefix = provider.toUpperCase();
+    throw new Error(`ยังไม่ได้ตั้งค่า ${envPrefix}_CLIENT_ID และ ${envPrefix}_CLIENT_SECRET ใน backend/.env`);
+  }
+
+  const redirectUri = getOAuthRedirectUri(provider);
+  const tokenBody = new URLSearchParams({
+    code,
+    client_id: config.clientId,
+    client_secret: config.clientSecret,
+    redirect_uri: redirectUri,
+    grant_type: "authorization_code",
+  });
+
+  const tokenData = await fetchJson(config.tokenUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: tokenBody,
+  });
+
+  if (provider === "apple") {
+    const payload = decodeJwtPayload(tokenData.id_token);
+    return {
+      providerId: payload.sub,
+      name: payload.email?.split("@")[0] || "Apple User",
+      email: payload.email || `apple.${payload.sub}@read-and-voice.local`,
+    };
+  }
+
+  if (provider === "facebook") {
+    const profile = await fetchJson(
+      `${config.profileUrl}?${encodeQuery({
+        fields: "id,name,email",
+        access_token: tokenData.access_token,
+      })}`
+    );
+
+    return {
+      providerId: profile.id,
+      name: profile.name || "Facebook User",
+      email: profile.email || `facebook.${profile.id}@read-and-voice.local`,
+    };
+  }
+
+  const profile = await fetchJson(config.profileUrl, {
+    headers: { Authorization: `Bearer ${tokenData.access_token}` },
+  });
+
+  if (provider === "google") {
+    return {
+      providerId: profile.sub,
+      name: profile.name || "Google User",
+      email: profile.email || `google.${profile.sub}@read-and-voice.local`,
+    };
+  }
+
+  return {
+    providerId: profile.sub,
+    name: profile.name || "LINE User",
+    email: profile.email || `line.${profile.sub}@read-and-voice.local`,
+  };
+}
+
+async function findOrCreateSocialUser(profile, provider) {
+  const email = normalizeEmail(profile.email);
+  const [existingUsers] = await db.query(
+    `
+    SELECT id, name, email, role, status, created_at, updated_at
+    FROM users
+    WHERE LOWER(TRIM(email)) = ?
+    LIMIT 1
+    `,
+    [email]
+  );
+
+  if (existingUsers[0]) {
+    return existingUsers[0];
+  }
+
+  const randomPassword = await bcrypt.hash(
+    `${provider}:${profile.providerId}:${Date.now()}`,
+    10
+  );
+
+  const [result] = await db.query(
+    `
+    INSERT INTO users (name, email, password, role, status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+    `,
+    [profile.name, email, randomPassword, "user", "active"]
+  );
+
+  const [createdUsers] = await db.query(
+    `
+    SELECT id, name, email, role, status, created_at, updated_at
+    FROM users
+    WHERE id = ?
+    LIMIT 1
+    `,
+    [result.insertId]
+  );
+
+  return createdUsers[0];
+}
+
+function redirectOAuthResult(res, payload) {
+  const params = encodeQuery({
+    token: payload.token,
+    user: Buffer.from(JSON.stringify(payload.user), "utf8").toString("base64url"),
+  });
+
+  return res.redirect(`${getFrontendUrl()}/oauth/callback#${params}`);
+}
+
+function redirectOAuthError(res, message) {
+  return res.redirect(
+    `${getFrontendUrl()}/oauth/callback?${encodeQuery({ error: message })}`
+  );
 }
 
 router.post("/register", async (req, res) => {
@@ -154,6 +415,99 @@ router.post("/login", async (req, res) => {
     return res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
   }
 });
+
+router.get("/oauth/:provider/start", (req, res) => {
+  try {
+    const provider = String(req.params.provider || "").toLowerCase();
+
+    if (!SOCIAL_PROVIDERS.includes(provider)) {
+      return res.status(400).json({ message: "provider ไม่ถูกต้อง" });
+    }
+
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({ message: "ระบบยังไม่ได้ตั้งค่า JWT_SECRET" });
+    }
+
+    const config = getProviderConfig(provider);
+    if (!config) {
+      const envPrefix = provider.toUpperCase();
+      return redirectOAuthError(
+        res,
+        `ยังไม่ได้ตั้งค่า ${envPrefix}_CLIENT_ID และ ${envPrefix}_CLIENT_SECRET`
+      );
+    }
+
+    const state = createOAuthState(provider);
+    const params = {
+      client_id: config.clientId,
+      redirect_uri: getOAuthRedirectUri(provider),
+      response_type: "code",
+      scope: config.scope,
+      state,
+    };
+
+    if (provider === "google") {
+      params.access_type = "offline";
+      params.prompt = "select_account";
+    }
+
+    if (provider === "apple") {
+      params.response_mode = "form_post";
+    }
+
+    return res.redirect(`${config.authUrl}?${encodeQuery(params)}`);
+  } catch (error) {
+    console.error("OAUTH START ERROR:", error);
+    return redirectOAuthError(res, "เริ่มเข้าสู่ระบบด้วย social network ไม่สำเร็จ");
+  }
+});
+
+const handleOAuthCallback = async (req, res) => {
+  const provider = String(req.params.provider || "").toLowerCase();
+  const code = req.query.code || req.body.code;
+  const state = req.query.state || req.body.state;
+  const providerError = req.query.error || req.body.error;
+
+  try {
+    if (!SOCIAL_PROVIDERS.includes(provider)) {
+      return redirectOAuthError(res, "provider ไม่ถูกต้อง");
+    }
+
+    if (providerError) {
+      return redirectOAuthError(res, String(providerError));
+    }
+
+    if (!code || !state || !verifyOAuthState(state, provider)) {
+      return redirectOAuthError(res, "ข้อมูล callback ไม่ถูกต้อง");
+    }
+
+    const profile = await exchangeOAuthCode(provider, String(code));
+    const user = await findOrCreateSocialUser(profile, provider);
+
+    if (!ALLOWED_ROLES.includes(user.role)) {
+      return redirectOAuthError(res, "role นี้ไม่ได้รับอนุญาตให้ใช้งานระบบ");
+    }
+
+    if (user.status && user.status !== "active") {
+      return redirectOAuthError(res, "บัญชีนี้ถูกระงับการใช้งาน");
+    }
+
+    const token = createToken(user);
+    return redirectOAuthResult(res, {
+      token,
+      user: sanitizeUser(user, provider),
+    });
+  } catch (error) {
+    console.error("OAUTH CALLBACK ERROR:", error);
+    return redirectOAuthError(
+      res,
+      error.message || "เข้าสู่ระบบด้วย social network ไม่สำเร็จ"
+    );
+  }
+};
+
+router.get("/oauth/:provider/callback", handleOAuthCallback);
+router.post("/oauth/:provider/callback", handleOAuthCallback);
 
 router.post("/social-login", async (req, res) => {
   try {
