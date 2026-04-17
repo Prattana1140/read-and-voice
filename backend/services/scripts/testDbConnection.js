@@ -1,5 +1,6 @@
 const mysql = require("mysql2/promise");
 const {
+  describeDbEnvironment,
   describeDbConfig,
   getDbConfigCandidates,
   toMysqlConfig,
@@ -8,6 +9,8 @@ const {
 
 async function main() {
   const candidates = getDbConfigCandidates();
+
+  console.log("Database environment:", describeDbEnvironment());
 
   if (candidates.length === 0) {
     throw new Error("Missing database config");

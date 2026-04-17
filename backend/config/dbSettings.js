@@ -40,6 +40,10 @@ function normalizePort(value) {
   return Number.isInteger(port) && port > 0 ? port : undefined;
 }
 
+function unique(values) {
+  return [...new Set(values.filter((value) => value !== undefined && value !== ""))];
+}
+
 function isRailway() {
   return Boolean(
     process.env.RAILWAY_ENVIRONMENT ||
@@ -69,6 +73,25 @@ function fixRailwayPort(host, port) {
   }
 
   return port;
+}
+
+function getBestPortsForHost(host, ports) {
+  const validPorts = unique(ports.map(normalizePort));
+
+  if (!host) {
+    return validPorts.length > 0 ? validPorts : [3306];
+  }
+
+  if (host.endsWith(".railway.internal")) {
+    return [3306];
+  }
+
+  if (host.endsWith(".proxy.rlwy.net")) {
+    const publicPorts = validPorts.filter((port) => port !== 3306);
+    return publicPorts.length > 0 ? publicPorts : validPorts;
+  }
+
+  return validPorts.length > 0 ? validPorts : [3306];
 }
 
 function getConfigFromDbEnv() {
@@ -110,6 +133,31 @@ function getConfigFromUrl() {
   };
 }
 
+function getExpandedConfigs(configs) {
+  const hosts = unique(configs.map((config) => config.host));
+  const ports = unique(configs.map((config) => config.port));
+  const expanded = [];
+
+  for (const config of configs) {
+    if (!config.user || !config.database) {
+      continue;
+    }
+
+    for (const host of hosts) {
+      for (const port of getBestPortsForHost(host, ports)) {
+        expanded.push({
+          ...config,
+          source: `${config.source}+expanded`,
+          host,
+          port,
+        });
+      }
+    }
+  }
+
+  return expanded;
+}
+
 function finalizeConfig(config) {
   const port = fixRailwayPort(config.host, normalizePort(config.port) || 3306);
 
@@ -128,10 +176,11 @@ function getDbConfigCandidates() {
   const orderedConfigs = isRailway()
     ? [configs[1], configs[2], configs[0]]
     : [configs[0], configs[1], configs[2]];
+  const expandedConfigs = isRailway() ? getExpandedConfigs(configs) : [];
 
   const seen = new Set();
 
-  return orderedConfigs
+  return [...orderedConfigs, ...expandedConfigs]
     .map(finalizeConfig)
     .filter(configHasDatabaseIdentity)
     .filter((config) => {
@@ -144,6 +193,29 @@ function getDbConfigCandidates() {
       seen.add(key);
       return true;
     });
+}
+
+function describeDbEnvironment() {
+  return {
+    railway: isRailway(),
+    hasDbHost: Boolean(process.env.DB_HOST),
+    hasDbPort: Boolean(process.env.DB_PORT),
+    hasDbUser: Boolean(process.env.DB_USER),
+    hasDbPassword: process.env.DB_PASSWORD !== undefined,
+    hasDbName: Boolean(process.env.DB_NAME),
+    hasMysqlHost: Boolean(process.env.MYSQLHOST || process.env.MYSQL_HOST),
+    hasMysqlPort: Boolean(process.env.MYSQLPORT || process.env.MYSQL_PORT),
+    hasMysqlUser: Boolean(process.env.MYSQLUSER || process.env.MYSQL_USER),
+    hasMysqlPassword:
+      process.env.MYSQLPASSWORD !== undefined ||
+      process.env.MYSQL_PASSWORD !== undefined,
+    hasMysqlDatabase: Boolean(
+      process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE
+    ),
+    hasDatabaseUrl: Boolean(
+      process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.MYSQL_PUBLIC_URL
+    ),
+  };
 }
 
 function getDbConfig() {
@@ -180,6 +252,7 @@ function describeDbConfig(config) {
 }
 
 module.exports = {
+  describeDbEnvironment,
   describeDbConfig,
   getDbConfigCandidates,
   getDbConfig,
