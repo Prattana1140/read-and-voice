@@ -8,6 +8,7 @@ const booksRoutes = require("./routes/books");
 const cartRoutes = require("./routes/cart");
 const categoriesRoutes = require("./routes/categories");
 const libraryRoutes = require("./routes/library");
+const ordersRoutes = require("./routes/orders");
 const progressRoutes = require("./routes/progress");
 const adminUsersRoutes = require("./routes/adminUsers");
 
@@ -45,6 +46,7 @@ app.use("/api/books", booksRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/categories", categoriesRoutes);
 app.use("/api/library", libraryRoutes);
+app.use("/api/orders", ordersRoutes);
 app.use("/api/progress", progressRoutes);
 app.use("/api/admin", adminUsersRoutes);
 
@@ -63,10 +65,14 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = Number(process.env.PORT) || 3000;
+const REQUEST_TIMEOUT_MS = 30 * 60 * 1000;
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log("==================================");
   console.log(`Server running on port ${PORT}`);
   console.log(`http://localhost:${PORT}`);
   console.log("==================================");
 });
+
+server.requestTimeout = REQUEST_TIMEOUT_MS;
+server.headersTimeout = REQUEST_TIMEOUT_MS + 5000;

@@ -5,7 +5,7 @@ const path = require("path");
 const fs = require("fs");
 const db = require("../config/db");
 const { parseBookFile } = require("../services/fileParser");
-const { verifyToken } = require("../middleware/auth");
+const { verifyToken, allowRoles } = require("../middleware/auth");
 const { requireAdmin } = require("../middleware/admin");
 
 // ensure upload dir exists
@@ -26,7 +26,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: {
-    fileSize: 20 * 1024 * 1024,
+    fileSize: 1024 * 1024 * 1024,
   },
   fileFilter: function (_req, file, cb) {
     const ext = path.extname(file.originalname).toLowerCase();
@@ -46,7 +46,7 @@ async function replaceBookPages(bookId, pages = [], connection = db) {
   for (let i = 0; i < pages.length; i++) {
     await connection.query(
       `
-      INSERT INTO book_pages (book_id, page_number, content)
+      INSERT INTO book_pages (book_id, page_number, page_text)
       VALUES (?, ?, ?)
       `,
       [bookId, i + 1, pages[i] || ""]
@@ -54,13 +54,51 @@ async function replaceBookPages(bookId, pages = [], connection = db) {
   }
 }
 
+async function saveBookFile(bookId, file, connection = db) {
+  const normalizedFilePath = file.path.replace(/\\/g, "/");
+  const fileExt = path.extname(file.originalname || file.filename).toLowerCase();
+
+  await connection.query("UPDATE book_files SET is_primary = 0 WHERE book_id = ?", [
+    bookId,
+  ]);
+
+  await connection.query(
+    `
+    INSERT INTO book_files
+    (
+      book_id,
+      original_filename,
+      stored_filename,
+      file_path,
+      file_ext,
+      mime_type,
+      file_size,
+      is_primary,
+      uploaded_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW())
+    `,
+    [
+      bookId,
+      file.originalname || file.filename,
+      file.filename,
+      normalizedFilePath,
+      fileExt,
+      file.mimetype || "application/octet-stream",
+      file.size || 0,
+    ]
+  );
+}
+
 // upload + create book
 router.post(
   "/upload",
   verifyToken,
-  requireAdmin,
+  allowRoles("writer", "admin", "superadmin"),
   upload.single("book_file"),
   async (req, res) => {
+    const connection = await db.getConnection();
+
     try {
       if (!req.file) {
         return res.status(400).json({ message: "กรุณาอัปโหลดไฟล์หนังสือ" });
@@ -72,12 +110,17 @@ router.post(
         return res.status(400).json({ message: "กรอกข้อมูลหนังสือไม่ครบ" });
       }
 
-      const parsed = await parseBookFile(req.file.path);
+      const parsed = await parseBookFile(
+        req.file.path,
+        req.file.mimetype,
+        req.file.originalname
+      );
       const pages = Array.isArray(parsed.pages) ? parsed.pages : [];
       const totalPages = pages.length;
-      const normalizedFilePath = req.file.path.replace(/\\/g, "/");
 
-      const [bookResult] = await db.query(
+      await connection.beginTransaction();
+
+      const [bookResult] = await connection.query(
         `
         INSERT INTO books
         (
@@ -86,13 +129,16 @@ router.post(
           description,
           category_id,
           cover_image,
+          source_type,
+          process_status,
+          full_text,
           total_pages,
-          file_path,
           is_published,
+          created_by,
           created_at,
           updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())
+        VALUES (?, ?, ?, ?, ?, ?, 'completed', ?, ?, 1, ?, NOW(), NOW())
         `,
         [
           title,
@@ -100,13 +146,17 @@ router.post(
           description || "",
           category_id || null,
           cover_image || "",
+          parsed.sourceType || path.extname(req.file.originalname).replace(".", "") || "file",
+          parsed.fullText || pages.join("\n\n"),
           totalPages,
-          normalizedFilePath,
+          req.user.id,
         ]
       );
 
       const bookId = bookResult.insertId;
-      await replaceBookPages(bookId, pages);
+      await saveBookFile(bookId, req.file, connection);
+      await replaceBookPages(bookId, pages, connection);
+      await connection.commit();
 
       res.json({
         message: "อัปโหลดหนังสือสำเร็จ",
@@ -114,11 +164,14 @@ router.post(
         total_pages: totalPages,
       });
     } catch (error) {
+      await connection.rollback();
       console.error("POST /books/upload error:", error);
       res.status(500).json({
         message: "อัปโหลดหนังสือไม่สำเร็จ",
         error: error.message,
       });
+    } finally {
+      connection.release();
     }
   }
 );
@@ -136,6 +189,8 @@ router.get("/", async (_req, res) => {
         b.category_id,
         b.total_pages,
         b.is_published,
+        b.created_by,
+        b.price,
         b.created_at,
         c.name AS category_name
       FROM books b
@@ -166,6 +221,8 @@ router.get("/:id", async (req, res) => {
         b.category_id,
         b.total_pages,
         b.is_published,
+        b.created_by,
+        b.price,
         b.created_at,
         c.name AS category_name
       FROM books b
@@ -203,7 +260,7 @@ router.get("/:id/content", async (req, res) => {
 
     const [pages] = await db.query(
       `
-      SELECT id, book_id, page_number, content
+      SELECT id, book_id, page_number, page_text AS content
       FROM book_pages
       WHERE book_id = ?
       ORDER BY page_number ASC
@@ -292,7 +349,7 @@ router.put(
       }
 
       const [bookRows] = await connection.query(
-        "SELECT id, file_path FROM books WHERE id = ? LIMIT 1",
+        "SELECT id FROM books WHERE id = ? LIMIT 1",
         [id]
       );
 
@@ -300,22 +357,36 @@ router.put(
         return res.status(404).json({ message: "ไม่พบหนังสือเล่มนี้" });
       }
 
-      const parsed = await parseBookFile(req.file.path);
+      const parsed = await parseBookFile(
+        req.file.path,
+        req.file.mimetype,
+        req.file.originalname
+      );
       const pages = Array.isArray(parsed.pages) ? parsed.pages : [];
       const totalPages = pages.length;
-      const normalizedFilePath = req.file.path.replace(/\\/g, "/");
 
       await connection.beginTransaction();
 
+      await saveBookFile(id, req.file, connection);
       await replaceBookPages(id, pages, connection);
 
       await connection.query(
         `
         UPDATE books
-        SET total_pages = ?, file_path = ?, updated_at = NOW()
+        SET
+          source_type = ?,
+          process_status = 'completed',
+          full_text = ?,
+          total_pages = ?,
+          updated_at = NOW()
         WHERE id = ?
         `,
-        [totalPages, normalizedFilePath, id]
+        [
+          parsed.sourceType || path.extname(req.file.originalname).replace(".", "") || "file",
+          parsed.fullText || pages.join("\n\n"),
+          totalPages,
+          id,
+        ]
       );
 
       await connection.commit();
@@ -353,8 +424,10 @@ router.delete("/:id", verifyToken, requireAdmin, async (req, res) => {
     await connection.beginTransaction();
 
     await connection.query("DELETE FROM book_pages WHERE book_id = ?", [id]);
+    await connection.query("DELETE FROM book_files WHERE book_id = ?", [id]);
     await connection.query("DELETE FROM reading_progress WHERE book_id = ?", [id]);
     await connection.query("DELETE FROM library WHERE book_id = ?", [id]);
+    await connection.query("DELETE FROM cart WHERE book_id = ?", [id]);
     await connection.query("DELETE FROM cart_items WHERE book_id = ?", [id]);
 
     try {

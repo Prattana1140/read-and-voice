@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import axios from "axios";
+import { getAuthHeaders } from "../../utils/auth";
 
 type StoredUser = {
   id?: number;
@@ -51,7 +52,11 @@ const uploadBook = async () => {
     formData.append("book_file", bookFile.value);
 
     const res = await axios.post("http://localhost:3000/api/books/upload", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "multipart/form-data",
+      },
+      timeout: 30 * 60 * 1000,
     });
 
     message.value = `อัปโหลดสำเร็จ: Book #${res.data.book_id}`;

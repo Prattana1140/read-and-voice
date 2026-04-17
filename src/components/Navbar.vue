@@ -110,14 +110,14 @@ const accountGroups = computed<NavGroup[]>(() => {
         { label: "แดชบอร์ด", to: "/admin", roles: ["admin", "superadmin"] },
         { label: "จัดการหนังสือ", to: "/admin/books", roles: ["admin", "superadmin"] },
         { label: "จัดการหมวดหมู่", to: "/admin/categories", roles: ["admin", "superadmin"] },
-        { label: "อัปโหลดหนังสือ", to: "/upload-book", roles: ["admin", "superadmin"] },
+        { label: "อัปโหลดหนังสือ", to: "/admin/upload-book", roles: ["admin", "superadmin"] },
         { label: "จัดการสมาชิกบางส่วน", to: "/admin/members", roles: ["admin", "superadmin"] },
       ],
     },
     {
       title: "สิทธิ์ขั้นสูง",
       items: [
-        { label: "จัดการผู้ใช้", to: "/admin/users", roles: ["superadmin"] },
+        { label: "จัดการผู้ใช้", to: "/superadmin/users", roles: ["superadmin"] },
         { label: "เปลี่ยน role / ระงับผู้ใช้", to: "/superadmin/roles", roles: ["superadmin"] },
         { label: "ตั้งค่าระบบ", to: "/superadmin/settings", roles: ["superadmin"] },
       ],

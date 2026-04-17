@@ -156,12 +156,24 @@ const routes: RouteRecordRaw[] = [
     component: () => import("../pages/writer/Upload.vue"),
     meta: { requiresAuth: true, allowedRoles: writerRoles },
   },
+  {
+    path: "/writer/stats",
+    name: "WriterStats",
+    component: () => import("../pages/writer/Stats.vue"),
+    meta: { requiresAuth: true, allowedRoles: writerRoles },
+  },
 
   // admin
   {
     path: "/admin",
     name: "AdminDashboard",
     component: AdminDashboard,
+    meta: { requiresAuth: true, allowedRoles: adminRoles },
+  },
+  {
+    path: "/admin/books",
+    name: "AdminBooks",
+    component: () => import("../pages/admin/Books.vue"),
     meta: { requiresAuth: true, allowedRoles: adminRoles },
   },
   {
@@ -183,6 +195,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import("../pages/admin/Categories.vue"),
     meta: { requiresAuth: true, allowedRoles: adminRoles },
   },
+  {
+    path: "/admin/members",
+    name: "AdminMembers",
+    component: () => import("../pages/admin/Members.vue"),
+    meta: { requiresAuth: true, allowedRoles: adminRoles },
+  },
 
   // superadmin
   {
@@ -195,6 +213,12 @@ const routes: RouteRecordRaw[] = [
     path: "/superadmin/users",
     name: "SuperAdminUsers",
     component: () => import("../pages/superadmin/Users.vue"),
+    meta: { requiresAuth: true, allowedRoles: ["superadmin"] },
+  },
+  {
+    path: "/superadmin/settings",
+    name: "SuperAdminSettings",
+    component: () => import("../pages/superadmin/Settings.vue"),
     meta: { requiresAuth: true, allowedRoles: ["superadmin"] },
   },
 

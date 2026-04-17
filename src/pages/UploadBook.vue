@@ -130,7 +130,7 @@ const uploadBook = async () => {
         ...getAuthHeaders(),
         "Content-Type": "multipart/form-data",
       },
-      timeout: 300000,
+      timeout: 30 * 60 * 1000,
     });
 
     successMessage.value =

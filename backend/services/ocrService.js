@@ -1,51 +1,150 @@
 const { execFile } = require("child_process");
+const fs = require("fs");
 const path = require("path");
 
-function runPdfOCR(filePath) {
+const DEFAULT_TESSERACT_COMMAND =
+  process.env.TESSERACT_COMMAND || "C:\\Program Files\\Tesseract-OCR\\tesseract.exe";
+const DEFAULT_OCR_LANG = process.env.OCR_LANG || "tha+eng";
+
+function normalizeOcrText(text) {
+  return String(text || "").replace(/\r\n/g, "\n").trim();
+}
+
+function execFileAsync(command, args, options = {}) {
   return new Promise((resolve, reject) => {
-    const scriptPath = path.join(__dirname, "..", "ocr_pdf.py");
+    execFile(command, args, options, (error, stdout, stderr) => {
+      if (error) {
+        error.stderr = stderr;
+        return reject(error);
+      }
 
-    execFile(
-      "python",
-      [scriptPath, filePath],
+      resolve({
+        stdout: String(stdout || ""),
+        stderr: String(stderr || ""),
+      });
+    });
+  });
+}
+
+async function renderPdfToPngPages(filePath) {
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const { createCanvas } = require("@napi-rs/canvas");
+
+  const tempDir = path.join(__dirname, "..", "uploads", "ocr-temp");
+  fs.mkdirSync(tempDir, { recursive: true });
+
+  const data = new Uint8Array(fs.readFileSync(filePath));
+  const loadingTask = getDocument({
+    data,
+    useWorkerFetch: false,
+    isEvalSupported: false,
+    useSystemFonts: true,
+  });
+
+  const pdf = await loadingTask.promise;
+  const imagePaths = [];
+
+  try {
+    for (let pageNo = 1; pageNo <= pdf.numPages; pageNo++) {
+      const page = await pdf.getPage(pageNo);
+      const viewport = page.getViewport({ scale: 2 });
+      const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
+      const context = canvas.getContext("2d");
+
+      await page.render({
+        canvasContext: context,
+        viewport,
+      }).promise;
+
+      const imagePath = path.join(tempDir, `page.${pageNo}.png`);
+      fs.writeFileSync(imagePath, canvas.toBuffer("image/png"));
+      imagePaths.push(imagePath);
+      page.cleanup();
+    }
+  } finally {
+    await pdf.destroy();
+  }
+
+  return imagePaths;
+}
+
+async function runTesseractCliOCR(filePath) {
+  const imagePaths = await renderPdfToPngPages(filePath);
+  const pages = [];
+
+  for (let i = 0; i < imagePaths.length; i++) {
+    const { stdout } = await execFileAsync(
+      DEFAULT_TESSERACT_COMMAND,
+      [imagePaths[i], "stdout", "-l", DEFAULT_OCR_LANG, "--psm", "3"],
       {
-        timeout: 300000,
-        maxBuffer: 50 * 1024 * 1024,
-      },
-      (error, stdout, stderr) => {
-        if (stderr) {
-          console.warn("OCR stderr:", stderr);
-        }
-
-        if (error) {
-          console.error("OCR exec error:", error);
-          return reject(new Error("OCR ทำงานไม่สำเร็จหรือใช้เวลานานเกินไป"));
-        }
-
-        const raw = String(stdout || "").trim();
-        if (!raw) {
-          return reject(new Error("OCR ไม่ได้ข้อความจากไฟล์ PDF"));
-        }
-
-        try {
-          const parsed = JSON.parse(raw);
-
-          if (
-            parsed &&
-            (typeof parsed.text === "string" || Array.isArray(parsed.pages))
-          ) {
-            return resolve({
-              text: parsed.text || "",
-              pages: Array.isArray(parsed.pages) ? parsed.pages : [],
-            });
-          }
-
-          return reject(new Error("OCR ส่งข้อมูลกลับมาไม่ถูกต้อง"));
-        } catch (e) {
-          return reject(new Error("OCR ส่ง JSON กลับมาไม่สำเร็จ"));
-        }
+        timeout: 2 * 60 * 1000,
+        maxBuffer: 10 * 1024 * 1024,
       }
     );
+
+    pages.push(normalizeOcrText(stdout));
+    console.log(`OCR page ${i + 1}/${imagePaths.length}`);
+  }
+
+  return {
+    text: pages.filter(Boolean).join("\n\n"),
+    pages,
+  };
+}
+
+async function runPythonOCR(filePath) {
+  const scriptPath = path.join(__dirname, "ocr_pdf.py");
+  const pythonCommand = process.env.OCR_PYTHON_COMMAND || "python";
+
+  const { stdout, stderr } = await execFileAsync(
+    pythonCommand,
+    [scriptPath, filePath],
+    {
+      timeout: 30 * 60 * 1000,
+      maxBuffer: 200 * 1024 * 1024,
+    }
+  );
+
+  if (stderr) {
+    console.warn("OCR stderr:", stderr);
+  }
+
+  const raw = String(stdout || "").trim();
+  if (!raw) {
+    throw new Error("OCR ไม่ได้ข้อความจากไฟล์ PDF");
+  }
+
+  const parsed = JSON.parse(raw);
+
+  if (parsed?.error && !parsed.text && !parsed.pages?.length) {
+    throw new Error(parsed.error);
+  }
+
+  if (
+    parsed &&
+    (typeof parsed.text === "string" || Array.isArray(parsed.pages))
+  ) {
+    return {
+      text: parsed.text || "",
+      pages: Array.isArray(parsed.pages) ? parsed.pages : [],
+    };
+  }
+
+  throw new Error("OCR ส่งข้อมูลกลับมาไม่ถูกต้อง");
+}
+
+function runPdfOCR(filePath) {
+  return runPythonOCR(filePath).catch(async (pythonError) => {
+    console.warn("Python OCR failed, trying Tesseract CLI:", pythonError.message);
+
+    try {
+      return await runTesseractCliOCR(filePath);
+    } catch (tesseractError) {
+      console.error("Tesseract CLI OCR failed:", tesseractError);
+      throw new Error(
+        `OCR ทำงานไม่สำเร็จ: ${tesseractError.message || pythonError.message}`
+      );
+    }
   });
 }
 
