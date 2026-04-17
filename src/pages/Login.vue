@@ -1,14 +1,60 @@
 <script setup>
-import { ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import { api } from "../utils/api";
 import { loginWithSocialProvider } from "../utils/socialLogin";
 
 const router = useRouter();
 const socialLoading = ref("");
+const statusLoading = ref(true);
 const error = ref("");
+const oauthStatus = ref({});
+
+const socialProviders = [
+  { id: "facebook", label: "Facebook", className: "facebook" },
+  { id: "line", label: "LINE", className: "line" },
+  { id: "apple", label: "Apple", className: "apple" },
+  { id: "google", label: "Google", className: "google" },
+];
+
+const providerStatus = computed(() => {
+  return socialProviders.reduce((statusMap, provider) => {
+    statusMap[provider.id] = oauthStatus.value[provider.id] || {
+      configured: false,
+      callbackUrl: "",
+      requiredEnv: [],
+    };
+    return statusMap;
+  }, {});
+});
+
+const loadOAuthStatus = async () => {
+  statusLoading.value = true;
+
+  try {
+    const res = await api.get("/api/auth/oauth/status");
+    oauthStatus.value = (res.data.providers || []).reduce((statusMap, provider) => {
+      statusMap[provider.provider] = provider;
+      return statusMap;
+    }, {});
+  } catch {
+    oauthStatus.value = {};
+  } finally {
+    statusLoading.value = false;
+  }
+};
 
 const socialLogin = async (provider) => {
   error.value = "";
+
+  if (!providerStatus.value[provider]?.configured) {
+    const required = providerStatus.value[provider]?.requiredEnv || [];
+    error.value = required.length
+      ? `ยังไม่ได้ตั้งค่า ${required.join(", ")} ใน backend/.env`
+      : "ยังไม่ได้ตั้งค่า OAuth provider นี้";
+    return;
+  }
+
   socialLoading.value = provider;
 
   try {
@@ -28,6 +74,8 @@ const goToAccountLogin = () => {
 const goToRegister = () => {
   router.push("/register");
 };
+
+onMounted(loadOAuthStatus);
 </script>
 
 <template>
@@ -35,21 +83,26 @@ const goToRegister = () => {
     <div class="login-box">
       <h1 class="title">เข้าสู่ระบบ</h1>
 
-      <button class="social-btn facebook" :disabled="!!socialLoading" @click="socialLogin('facebook')">
-        {{ socialLoading === "facebook" ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบด้วย Facebook" }}
-      </button>
-
-      <button class="social-btn line" :disabled="!!socialLoading" @click="socialLogin('line')">
-        {{ socialLoading === "line" ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบด้วย LINE" }}
-      </button>
-
-      <button class="social-btn apple" :disabled="!!socialLoading" @click="socialLogin('apple')">
-        {{ socialLoading === "apple" ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบด้วย Apple" }}
-      </button>
-
-      <button class="social-btn google" :disabled="!!socialLoading" @click="socialLogin('google')">
-        <span class="google-icon">G</span>
-        {{ socialLoading === "google" ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบด้วย Google" }}
+      <button
+        v-for="provider in socialProviders"
+        :key="provider.id"
+        class="social-btn"
+        :class="[
+          provider.className,
+          { unconfigured: !providerStatus[provider.id]?.configured && !statusLoading }
+        ]"
+        :disabled="!!socialLoading || statusLoading"
+        @click="socialLogin(provider.id)"
+      >
+        <span v-if="provider.id === 'google'" class="google-icon">G</span>
+        {{
+          socialLoading === provider.id
+            ? "กำลังเข้าสู่ระบบ..."
+            : `เข้าสู่ระบบด้วย ${provider.label}`
+        }}
+        <small v-if="!providerStatus[provider.id]?.configured && !statusLoading">
+          ยังไม่ได้ตั้งค่า
+        </small>
       </button>
 
       <button class="social-btn account" @click="goToAccountLogin">
@@ -92,6 +145,9 @@ const goToRegister = () => {
 }
 
 .social-btn {
+  display: grid;
+  place-items: center;
+  gap: 2px;
   width: 100%;
   min-height: 56px;
   border: none;
@@ -111,6 +167,15 @@ const goToRegister = () => {
   cursor: not-allowed;
   opacity: 0.72;
   transform: none;
+}
+
+.social-btn small {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.social-btn.unconfigured {
+  filter: grayscale(0.35);
 }
 
 .facebook {

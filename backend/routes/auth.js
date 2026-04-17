@@ -119,6 +119,40 @@ function getProviderConfig(provider) {
   return config;
 }
 
+function getProviderSetupStatus(provider) {
+  const key = provider.toUpperCase();
+
+  if (provider === "apple") {
+    const hasGeneratedSecretInputs =
+      !!process.env.APPLE_TEAM_ID &&
+      !!process.env.APPLE_KEY_ID &&
+      !!process.env.APPLE_PRIVATE_KEY;
+
+    return {
+      provider,
+      configured:
+        !!process.env.APPLE_CLIENT_ID &&
+        (!!process.env.APPLE_CLIENT_SECRET || hasGeneratedSecretInputs),
+      requiredEnv: [
+        "APPLE_CLIENT_ID",
+        "APPLE_TEAM_ID",
+        "APPLE_KEY_ID",
+        "APPLE_PRIVATE_KEY",
+      ],
+      callbackUrl: getOAuthRedirectUri(provider),
+    };
+  }
+
+  return {
+    provider,
+    configured:
+      !!process.env[`${key}_CLIENT_ID`] &&
+      !!process.env[`${key}_CLIENT_SECRET`],
+    requiredEnv: [`${key}_CLIENT_ID`, `${key}_CLIENT_SECRET`],
+    callbackUrl: getOAuthRedirectUri(provider),
+  };
+}
+
 function getAppleClientSecret() {
   if (process.env.APPLE_CLIENT_SECRET) {
     return process.env.APPLE_CLIENT_SECRET;
@@ -414,6 +448,14 @@ router.post("/login", async (req, res) => {
     console.error("LOGIN ERROR:", error);
     return res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
   }
+});
+
+router.get("/oauth/status", (_req, res) => {
+  return res.status(200).json({
+    frontendUrl: getFrontendUrl(),
+    apiPublicUrl: getPublicApiUrl(),
+    providers: SOCIAL_PROVIDERS.map(getProviderSetupStatus),
+  });
 });
 
 router.get("/oauth/:provider/start", (req, res) => {
