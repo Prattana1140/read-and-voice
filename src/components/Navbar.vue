@@ -110,6 +110,14 @@ const visibleGroups = computed(() => {
     .filter((group) => group.items.length > 0);
 });
 
+const mainNavItems = computed(() => {
+  return navGroups[0].items.filter((item) => item.roles.includes(currentRole.value));
+});
+
+const roleNavGroups = computed(() => {
+  return visibleGroups.value.filter((group) => group.title !== navGroups[0].title);
+});
+
 const closeMenu = () => {
   isMenuOpen.value = false;
 };
@@ -190,16 +198,35 @@ const logout = () => {
     </div>
 
     <nav class="nav-strip" aria-label="เมนูหลัก">
-      <section v-for="group in visibleGroups" :key="group.title" class="nav-group">
-        <span class="group-label">{{ group.title }}</span>
+      <section class="nav-group primary-group">
         <router-link
-          v-for="item in group.items"
+          v-for="item in mainNavItems"
           :key="item.to"
           :to="item.to"
           @click="closeMenu"
         >
           {{ item.label }}
         </router-link>
+      </section>
+
+      <section
+        v-for="group in roleNavGroups"
+        :key="group.title"
+        class="nav-dropdown"
+      >
+        <details>
+          <summary>{{ group.title }}</summary>
+          <div class="dropdown-menu">
+            <router-link
+              v-for="item in group.items"
+              :key="item.to"
+              :to="item.to"
+              @click="closeMenu"
+            >
+              {{ item.label }}
+            </router-link>
+          </div>
+        </details>
       </section>
     </nav>
 
@@ -412,12 +439,10 @@ const logout = () => {
 .nav-strip {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   min-height: 50px;
   padding: 0 clamp(14px, 3vw, 52px);
-  overflow-x: auto;
   background: rgba(255, 255, 255, 0.74);
-  scrollbar-width: thin;
 }
 
 .nav-group {
@@ -427,16 +452,12 @@ const logout = () => {
   gap: 6px;
 }
 
-.group-label {
-  border-right: 1px solid rgba(17, 156, 145, 0.18);
-  color: #62a8a0;
-  font-size: 12px;
-  font-weight: 900;
-  padding-right: 8px;
-  white-space: nowrap;
+.primary-group {
+  margin-right: auto;
 }
 
-.nav-strip a {
+.nav-strip a,
+.nav-dropdown summary {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -451,9 +472,52 @@ const logout = () => {
 }
 
 .nav-strip a:hover,
-.nav-strip a.router-link-active {
+.nav-strip a.router-link-active,
+.nav-dropdown summary:hover {
   color: #0f766e;
   background: #dff8f3;
+}
+
+.nav-dropdown {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.nav-dropdown details {
+  position: relative;
+}
+
+.nav-dropdown summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.nav-dropdown summary::-webkit-details-marker {
+  display: none;
+}
+
+.nav-dropdown summary::after {
+  margin-left: 7px;
+  content: "v";
+  font-size: 11px;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  display: grid;
+  min-width: 210px;
+  border: 1px solid rgba(17, 156, 145, 0.18);
+  border-radius: 8px;
+  background: #f8fffd;
+  box-shadow: 0 12px 28px rgba(17, 156, 145, 0.14);
+  padding: 8px;
+}
+
+.dropdown-menu a {
+  justify-content: flex-start;
 }
 
 .mobile-panel {
