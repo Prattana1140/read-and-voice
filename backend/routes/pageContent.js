@@ -92,13 +92,13 @@ router.post(
       writeConfig(config);
 
       return res.json({
-        message: "อัปเดตรูปภาพหน้า สมัครรายเดือน สำเร็จ",
+        message: "อัปเดตรูปภาพหน้าสมัครรายเดือนสำเร็จ",
         subscriptionHero: config.subscriptionHero,
       });
     } catch (error) {
       console.error("POST /page-content/subscription-hero error:", error);
       return res.status(500).json({
-        message: "อัปเดตรูปภาพหน้า สมัครรายเดือน ไม่สำเร็จ",
+        message: "อัปเดตรูปภาพหน้าสมัครรายเดือนไม่สำเร็จ",
       });
     }
   },
@@ -113,11 +113,11 @@ router.delete("/subscription-hero", verifyToken, requireAdmin, (_req, res) => {
     };
     writeConfig(config);
 
-    return res.json({ message: "ลบรูปภาพหน้า สมัครรายเดือน สำเร็จ" });
+    return res.json({ message: "ลบรูปภาพหน้าสมัครรายเดือนสำเร็จ" });
   } catch (error) {
     console.error("DELETE /page-content/subscription-hero error:", error);
     return res.status(500).json({
-      message: "ลบรูปภาพหน้า สมัครรายเดือน ไม่สำเร็จ",
+      message: "ลบรูปภาพหน้าสมัครรายเดือนไม่สำเร็จ",
     });
   }
 });

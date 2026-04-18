@@ -55,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { API_BASE_URL } from "../utils/api";
+import api, { API_BASE_URL } from "../utils/api";
 import { ref, onMounted, computed, watch } from "vue";
 import axios from "axios";
 import { useRoute, useRouter } from "vue-router";
@@ -100,7 +100,20 @@ const getWishlist = () => {
   return JSON.parse(localStorage.getItem("wishlist") || "[]");
 };
 
-const addToWishlist = (book: Book) => {
+const addToWishlist = async (book: Book) => {
+  const token = localStorage.getItem("token");
+
+  if (token) {
+    try {
+      const { data } = await api.post("/wishlist", { book_id: book.id });
+      alert(data?.message || "เพิ่มเข้า Wishlist สำเร็จ");
+      return;
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "เพิ่มเข้า Wishlist ไม่สำเร็จ");
+      return;
+    }
+  }
+
   const wishlist = getWishlist();
 
   const exists = wishlist.some(

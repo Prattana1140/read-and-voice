@@ -55,7 +55,8 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: "/serials",
-    redirect: "/store",
+    name: "Serials",
+    component: () => import("../pages/Serials.vue"),
   },
   {
     path: "/book/:id",
@@ -154,6 +155,12 @@ const routes: RouteRecordRaw[] = [
     meta: { guestOnly: true },
   },
   {
+    path: "/forgot-password",
+    name: "ForgotPassword",
+    component: () => import("../pages/ForgotPassword.vue"),
+    meta: { guestOnly: true },
+  },
+  {
     path: "/reader/:id",
     name: "ReaderPage",
     component: ReaderPage,
@@ -188,6 +195,48 @@ const routes: RouteRecordRaw[] = [
     path: "/profile",
     name: "Profile",
     component: Profile,
+    meta: { requiresAuth: true, allowedRoles: memberRoles },
+  },
+  {
+    path: "/account/following",
+    name: "AccountFollowing",
+    component: () => import("../pages/account/AccountPlaceholder.vue"),
+    meta: { requiresAuth: true, allowedRoles: memberRoles },
+  },
+  {
+    path: "/account/gift-codes",
+    name: "AccountGiftCodes",
+    component: () => import("../pages/account/AccountPlaceholder.vue"),
+    meta: { requiresAuth: true, allowedRoles: memberRoles },
+  },
+  {
+    path: "/account/buffet",
+    name: "AccountBuffet",
+    component: () => import("../pages/account/AccountPlaceholder.vue"),
+    meta: { requiresAuth: true, allowedRoles: memberRoles },
+  },
+  {
+    path: "/account/devices",
+    name: "AccountDevices",
+    component: () => import("../pages/account/AccountPlaceholder.vue"),
+    meta: { requiresAuth: true, allowedRoles: memberRoles },
+  },
+  {
+    path: "/account/benefits",
+    name: "AccountBenefits",
+    component: () => import("../pages/account/AccountPlaceholder.vue"),
+    meta: { requiresAuth: true, allowedRoles: memberRoles },
+  },
+  {
+    path: "/account/reviews",
+    name: "AccountReviews",
+    component: () => import("../pages/account/AccountPlaceholder.vue"),
+    meta: { requiresAuth: true, allowedRoles: memberRoles },
+  },
+  {
+    path: "/account/age-verification",
+    name: "AccountAgeVerification",
+    component: () => import("../pages/account/AccountPlaceholder.vue"),
     meta: { requiresAuth: true, allowedRoles: memberRoles },
   },
   {

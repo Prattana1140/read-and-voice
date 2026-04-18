@@ -26,7 +26,7 @@ router.post("/", verifyToken, async (req, res) => {
 
     const [bookRows] = await connection.query(
       "SELECT id FROM books WHERE id = ? LIMIT 1",
-      [book_id]
+      [book_id],
     );
 
     if (bookRows.length === 0) {
@@ -44,7 +44,7 @@ router.post("/", verifyToken, async (req, res) => {
          last_position = VALUES(last_position),
          progress_percent = VALUES(progress_percent),
          last_read_at = NOW()`,
-      [userId, book_id, current_page, last_position, progress_percent]
+      [userId, book_id, current_page, last_position, progress_percent],
     );
 
     await connection.query(
@@ -57,7 +57,7 @@ router.post("/", verifyToken, async (req, res) => {
          volume = COALESCE(VALUES(volume), volume),
          voice_name = COALESCE(VALUES(voice_name), voice_name),
          updated_at = NOW()`,
-      [userId, rate, pitch, volume, voice_name]
+      [userId, rate, pitch, volume, voice_name],
     );
 
     await connection.commit();
@@ -96,7 +96,7 @@ router.get("/:bookId", verifyToken, async (req, res) => {
        LEFT JOIN tts_settings ts ON ts.user_id = rp.user_id
        WHERE rp.user_id = ? AND rp.book_id = ?
        LIMIT 1`,
-      [req.user.id, bookId]
+      [req.user.id, bookId],
     );
 
     if (rows.length === 0) {
@@ -105,7 +105,7 @@ router.get("/:bookId", verifyToken, async (req, res) => {
          FROM tts_settings
          WHERE user_id = ?
          LIMIT 1`,
-        [req.user.id]
+        [req.user.id],
       );
 
       return res.json({

@@ -1,11 +1,13 @@
-const express = require("express");
-const router = express.Router();
-const db = require("../config/db");
+﻿const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const db = require("../config/db");
+
 const fetch = global.fetch || require("node-fetch");
 require("dotenv").config({ quiet: true });
+
+const router = express.Router();
 
 const ALLOWED_ROLES = ["user", "writer", "admin", "superadmin"];
 const SOCIAL_PROVIDERS = ["facebook", "line"];
@@ -30,11 +32,11 @@ function createToken(user) {
       role: user.role,
     },
     process.env.JWT_SECRET,
-    { expiresIn: "7d" }
+    { expiresIn: "7d" },
   );
 }
 
-function sanitizeUser(user, provider) {
+function sanitizeUser(user, provider = "password") {
   return {
     id: user.id,
     name: user.name,
@@ -61,20 +63,24 @@ function getOAuthRedirectUri(provider) {
   return `${getPublicApiUrl()}/api/auth/oauth/${provider}/callback`;
 }
 
-function createOAuthState(provider) {
+function createOAuthState(provider, extra = {}) {
   return jwt.sign(
     {
       provider,
       nonce: crypto.randomBytes(12).toString("hex"),
+      ...extra,
     },
     process.env.JWT_SECRET,
-    { expiresIn: "10m" }
+    { expiresIn: "10m" },
   );
 }
 
 function verifyOAuthState(state, provider) {
   const decoded = jwt.verify(state, process.env.JWT_SECRET);
-  return decoded.provider === provider;
+  if (decoded.provider !== provider) {
+    throw new Error("เธเนเธญเธกเธนเธฅ OAuth state เนเธกเนเธ•เธฃเธเธเธฑเธ provider");
+  }
+  return decoded;
 }
 
 function getProviderConfig(provider) {
@@ -139,16 +145,15 @@ async function exchangeOAuthCode(provider, code) {
   if (!config) {
     const envPrefix = provider.toUpperCase();
     throw new Error(
-      `ยังไม่ได้ตั้งค่า ${envPrefix}_CLIENT_ID และ ${envPrefix}_CLIENT_SECRET ใน backend/.env`
+      `ระบบ ${envPrefix} login ยังไม่พร้อมใช้งาน`,
     );
   }
 
-  const redirectUri = getOAuthRedirectUri(provider);
   const tokenBody = new URLSearchParams({
     code,
     client_id: config.clientId,
     client_secret: config.clientSecret,
-    redirect_uri: redirectUri,
+    redirect_uri: getOAuthRedirectUri(provider),
     grant_type: "authorization_code",
   });
 
@@ -163,7 +168,7 @@ async function exchangeOAuthCode(provider, code) {
       `${config.profileUrl}?${encodeQuery({
         fields: "id,name,email",
         access_token: tokenData.access_token,
-      })}`
+      })}`,
     );
 
     return {
@@ -184,45 +189,94 @@ async function exchangeOAuthCode(provider, code) {
   };
 }
 
+async function ensureSocialConnectionsTable() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS social_connections (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      provider VARCHAR(40) NOT NULL,
+      provider_user_id VARCHAR(191) NOT NULL,
+      display_name VARCHAR(255) NULL,
+      email VARCHAR(255) NULL,
+      connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_social_connections_provider_user (provider, provider_user_id),
+      UNIQUE KEY uq_social_connections_user_provider (user_id, provider),
+      INDEX idx_social_connections_user (user_id),
+      CONSTRAINT fk_social_connections_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+}
+
+async function linkSocialConnection(userId, provider, profile) {
+  await ensureSocialConnectionsTable();
+
+  const [claimedRows] = await db.query(
+    `SELECT user_id
+     FROM social_connections
+     WHERE provider = ? AND provider_user_id = ? AND user_id <> ?
+     LIMIT 1`,
+    [provider, profile.providerId, userId],
+  );
+
+  if (claimedRows.length > 0) {
+    throw new Error("เธเธฑเธเธเธต social เธเธตเนเธ–เธนเธเน€เธเธทเนเธญเธกเธเธฑเธเธเธนเนเนเธเนเธญเธทเนเธเนเธฅเนเธง");
+  }
+
+  await db.query(
+    `INSERT INTO social_connections
+       (user_id, provider, provider_user_id, display_name, email, connected_at)
+     VALUES (?, ?, ?, ?, ?, NOW())
+     ON DUPLICATE KEY UPDATE
+       provider_user_id = VALUES(provider_user_id),
+       display_name = VALUES(display_name),
+       email = VALUES(email),
+       updated_at = NOW()`,
+    [
+      userId,
+      provider,
+      profile.providerId,
+      profile.name || null,
+      normalizeEmail(profile.email) || null,
+    ],
+  );
+}
+
 async function findOrCreateSocialUser(profile, provider) {
   const email = normalizeEmail(profile.email);
   const [existingUsers] = await db.query(
-    `
-    SELECT id, name, email, role, status, created_at, updated_at
-    FROM users
-    WHERE LOWER(TRIM(email)) = ?
-    LIMIT 1
-    `,
-    [email]
+    `SELECT id, name, email, role, status, created_at, updated_at
+     FROM users
+     WHERE LOWER(TRIM(email)) = ?
+     LIMIT 1`,
+    [email],
   );
 
   if (existingUsers[0]) {
+    await linkSocialConnection(existingUsers[0].id, provider, profile);
     return existingUsers[0];
   }
 
   const randomPassword = await bcrypt.hash(
     `${provider}:${profile.providerId}:${Date.now()}`,
-    10
+    10,
   );
 
   const [result] = await db.query(
-    `
-    INSERT INTO users (name, email, password, role, status, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, NOW(), NOW())
-    `,
-    [profile.name, email, randomPassword, "user", "active"]
+    `INSERT INTO users (name, email, password, role, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+    [profile.name, email, randomPassword, "user", "active"],
   );
 
   const [createdUsers] = await db.query(
-    `
-    SELECT id, name, email, role, status, created_at, updated_at
-    FROM users
-    WHERE id = ?
-    LIMIT 1
-    `,
-    [result.insertId]
+    `SELECT id, name, email, role, status, created_at, updated_at
+     FROM users
+     WHERE id = ?
+     LIMIT 1`,
+    [result.insertId],
   );
 
+  await linkSocialConnection(result.insertId, provider, profile);
   return createdUsers[0];
 }
 
@@ -237,8 +291,18 @@ function redirectOAuthResult(res, payload) {
 
 function redirectOAuthError(res, message) {
   return res.redirect(
-    `${getFrontendUrl()}/oauth/callback?${encodeQuery({ error: message })}`
+    `${getFrontendUrl()}/oauth/callback?${encodeQuery({ error: message })}`,
   );
+}
+
+function assertActiveUser(user) {
+  if (!ALLOWED_ROLES.includes(user.role)) {
+    throw new Error("role เธเธตเนเนเธกเนเนเธ”เนเธฃเธฑเธเธญเธเธธเธเธฒเธ•เนเธซเนเนเธเนเธเธฒเธเธฃเธฐเธเธ");
+  }
+
+  if (user.status && user.status !== "active") {
+    throw new Error("เธเธฑเธเธเธตเธเธตเนเธ–เธนเธเธฃเธฐเธเธฑเธเธเธฒเธฃเนเธเนเธเธฒเธ");
+  }
 }
 
 router.post("/register", async (req, res) => {
@@ -248,34 +312,30 @@ router.post("/register", async (req, res) => {
     const password = normalizePassword(req.body.password);
 
     if (!name || !email || !password) {
-      return res.status(400).json({ message: "กรอกข้อมูลไม่ครบ" });
+      return res.status(400).json({ message: "เธเธฃเธญเธเธเนเธญเธกเธนเธฅเนเธซเนเธเธฃเธ" });
     }
 
     const [existingUsers] = await db.query(
       "SELECT id FROM users WHERE LOWER(TRIM(email)) = ? LIMIT 1",
-      [email]
+      [email],
     );
 
     if (existingUsers.length > 0) {
-      return res.status(400).json({ message: "อีเมลนี้ถูกใช้งานแล้ว" });
+      return res.status(400).json({ message: "เธญเธตเน€เธกเธฅเธเธตเนเธ–เธนเธเนเธเนเธเธฒเธเนเธฅเนเธง" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await db.query(
-      `
-      INSERT INTO users (name, email, password, role, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, NOW(), NOW())
-      `,
-      [name, email, hashedPassword, "user", "active"]
+      `INSERT INTO users (name, email, password, role, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+      [name, email, hashedPassword, "user", "active"],
     );
 
-    return res.status(201).json({
-      message: "สมัครสมาชิกสำเร็จ",
-    });
+    return res.status(201).json({ message: "เธชเธกเธฑเธเธฃเธชเธกเธฒเธเธดเธเธชเธณเน€เธฃเนเธ" });
   } catch (error) {
     console.error("REGISTER ERROR:", error);
-    return res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
+    return res.status(500).json({ message: "เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธฃเธฐเธเธ" });
   }
 });
 
@@ -285,71 +345,47 @@ router.post("/login", async (req, res) => {
     const password = normalizePassword(req.body.password);
 
     if (!email || !password) {
-      return res.status(400).json({ message: "กรอกอีเมลและรหัสผ่านให้ครบ" });
+      return res.status(400).json({ message: "เธเธฃเธญเธเธญเธตเน€เธกเธฅเนเธฅเธฐเธฃเธซเธฑเธชเธเนเธฒเธเนเธซเนเธเธฃเธ" });
     }
 
     const [users] = await db.query(
-      `
-      SELECT id, name, email, password, role, status, created_at, updated_at
-      FROM users
-      WHERE LOWER(TRIM(email)) = ?
-      LIMIT 1
-      `,
-      [email]
+      `SELECT id, name, email, password, role, status, created_at, updated_at
+       FROM users
+       WHERE LOWER(TRIM(email)) = ?
+       LIMIT 1`,
+      [email],
     );
 
     if (users.length === 0) {
-      return res.status(401).json({ message: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
+      return res.status(401).json({ message: "เธญเธตเน€เธกเธฅเธซเธฃเธทเธญเธฃเธซเธฑเธชเธเนเธฒเธเนเธกเนเธ–เธนเธเธ•เนเธญเธ" });
     }
 
     const user = users[0];
+    assertActiveUser(user);
 
-    if (!ALLOWED_ROLES.includes(user.role)) {
-      return res.status(403).json({
-        message: "role นี้ไม่ได้รับอนุญาตให้ใช้งานระบบ",
-      });
-    }
-
-    if (user.status && user.status !== "active") {
-      return res.status(403).json({
-        message: "บัญชีนี้ถูกระงับการใช้งาน",
-      });
-    }
-
-    let isMatch = false;
-
-    if (
-      typeof user.password === "string" &&
-      (user.password.startsWith("$2a$") ||
-        user.password.startsWith("$2b$") ||
-        user.password.startsWith("$2y$"))
-    ) {
-      isMatch = await bcrypt.compare(password, user.password);
-    } else {
-      isMatch = password === String(user.password || "");
-    }
+    const passwordText = String(user.password || "");
+    const isHashed =
+      passwordText.startsWith("$2a$") ||
+      passwordText.startsWith("$2b$") ||
+      passwordText.startsWith("$2y$");
+    const isMatch = isHashed
+      ? await bcrypt.compare(password, passwordText)
+      : password === passwordText;
 
     if (!isMatch) {
-      return res.status(401).json({ message: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
-    }
-
-    if (!process.env.JWT_SECRET) {
-      console.error("JWT_SECRET is missing in .env");
-      return res.status(500).json({
-        message: "ระบบยังไม่ได้ตั้งค่า JWT_SECRET",
-      });
+      return res.status(401).json({ message: "เธญเธตเน€เธกเธฅเธซเธฃเธทเธญเธฃเธซเธฑเธชเธเนเธฒเธเนเธกเนเธ–เธนเธเธ•เนเธญเธ" });
     }
 
     const token = createToken(user);
 
     return res.status(200).json({
-      message: "เข้าสู่ระบบสำเร็จ",
+      message: "เน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเธชเธณเน€เธฃเนเธ",
       token,
       user: sanitizeUser(user, "password"),
     });
   } catch (error) {
     console.error("LOGIN ERROR:", error);
-    return res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
+    return res.status(500).json({ message: error.message || "เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธฃเธฐเธเธ" });
   }
 });
 
@@ -364,13 +400,14 @@ router.get("/oauth/status", (_req, res) => {
 router.get("/oauth/:provider/start", (req, res) => {
   try {
     const provider = String(req.params.provider || "").toLowerCase();
+    const mode = String(req.query.mode || "login").toLowerCase();
 
     if (!SOCIAL_PROVIDERS.includes(provider)) {
-      return res.status(400).json({ message: "provider ไม่ถูกต้อง" });
+      return res.status(400).json({ message: "provider เนเธกเนเธ–เธนเธเธ•เนเธญเธ" });
     }
 
     if (!process.env.JWT_SECRET) {
-      return res.status(500).json({ message: "ระบบยังไม่ได้ตั้งค่า JWT_SECRET" });
+      return res.status(500).json({ message: "เธฃเธฐเธเธเธขเธฑเธเนเธกเนเนเธ”เนเธ•เธฑเนเธเธเนเธฒ JWT_SECRET" });
     }
 
     const config = getProviderConfig(provider);
@@ -378,11 +415,21 @@ router.get("/oauth/:provider/start", (req, res) => {
       const envPrefix = provider.toUpperCase();
       return redirectOAuthError(
         res,
-        `ยังไม่ได้ตั้งค่า ${envPrefix}_CLIENT_ID และ ${envPrefix}_CLIENT_SECRET`
+        `เธขเธฑเธเนเธกเนเนเธ”เนเธ•เธฑเนเธเธเนเธฒ ${envPrefix}_CLIENT_ID เนเธฅเธฐ ${envPrefix}_CLIENT_SECRET`,
       );
     }
 
-    const state = createOAuthState(provider);
+    let extraState = {};
+    if (mode === "connect") {
+      const token = String(req.query.token || "");
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (!decoded?.id) {
+        return redirectOAuthError(res, "เธเธฃเธธเธ“เธฒเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเธเนเธญเธเน€เธเธทเนเธญเธกเธเธฑเธเธเธต social");
+      }
+      extraState = { mode: "connect", userId: decoded.id };
+    }
+
+    const state = createOAuthState(provider, extraState);
     const params = {
       client_id: config.clientId,
       redirect_uri: getOAuthRedirectUri(provider),
@@ -394,7 +441,10 @@ router.get("/oauth/:provider/start", (req, res) => {
     return res.redirect(`${config.authUrl}?${encodeQuery(params)}`);
   } catch (error) {
     console.error("OAUTH START ERROR:", error);
-    return redirectOAuthError(res, "เริ่มเข้าสู่ระบบด้วย social network ไม่สำเร็จ");
+    return redirectOAuthError(
+      res,
+      error.message || "เน€เธฃเธดเนเธกเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเธ”เนเธงเธข social network เนเธกเนเธชเธณเน€เธฃเนเธ",
+    );
   }
 });
 
@@ -406,27 +456,29 @@ const handleOAuthCallback = async (req, res) => {
 
   try {
     if (!SOCIAL_PROVIDERS.includes(provider)) {
-      return redirectOAuthError(res, "provider ไม่ถูกต้อง");
+      return redirectOAuthError(res, "provider เนเธกเนเธ–เธนเธเธ•เนเธญเธ");
     }
 
     if (providerError) {
       return redirectOAuthError(res, String(providerError));
     }
 
-    if (!code || !state || !verifyOAuthState(state, provider)) {
-      return redirectOAuthError(res, "ข้อมูล callback ไม่ถูกต้อง");
+    if (!code || !state) {
+      return redirectOAuthError(res, "เธเนเธญเธกเธนเธฅ callback เนเธกเนเธ–เธนเธเธ•เนเธญเธ");
     }
 
+    const decodedState = verifyOAuthState(state, provider);
     const profile = await exchangeOAuthCode(provider, String(code));
+
+    if (decodedState.mode === "connect" && decodedState.userId) {
+      await linkSocialConnection(decodedState.userId, provider, profile);
+      return res.redirect(
+        `${getFrontendUrl()}/profile?${encodeQuery({ connected: provider })}`,
+      );
+    }
+
     const user = await findOrCreateSocialUser(profile, provider);
-
-    if (!ALLOWED_ROLES.includes(user.role)) {
-      return redirectOAuthError(res, "role นี้ไม่ได้รับอนุญาตให้ใช้งานระบบ");
-    }
-
-    if (user.status && user.status !== "active") {
-      return redirectOAuthError(res, "บัญชีนี้ถูกระงับการใช้งาน");
-    }
+    assertActiveUser(user);
 
     const token = createToken(user);
     return redirectOAuthResult(res, {
@@ -437,7 +489,7 @@ const handleOAuthCallback = async (req, res) => {
     console.error("OAUTH CALLBACK ERROR:", error);
     return redirectOAuthError(
       res,
-      error.message || "เข้าสู่ระบบด้วย social network ไม่สำเร็จ"
+      error.message || "เน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเธ”เนเธงเธข social network เนเธกเนเธชเธณเน€เธฃเนเธ",
     );
   }
 };
@@ -451,84 +503,33 @@ router.post("/social-login", async (req, res) => {
     const providerId = String(req.body.providerId || "demo").trim();
     const displayName = String(req.body.name || "").trim();
     const email = normalizeEmail(
-      req.body.email || `${provider}.${providerId}@read-and-voice.local`
+      req.body.email || `${provider}.${providerId}@read-and-voice.local`,
     );
 
     if (!SOCIAL_PROVIDERS.includes(provider)) {
-      return res.status(400).json({ message: "provider ไม่ถูกต้อง" });
+      return res.status(400).json({ message: "provider เนเธกเนเธ–เธนเธเธ•เนเธญเธ" });
     }
 
-    if (!process.env.JWT_SECRET) {
-      console.error("JWT_SECRET is missing in .env");
-      return res.status(500).json({
-        message: "ระบบยังไม่ได้ตั้งค่า JWT_SECRET",
-      });
-    }
-
-    const [existingUsers] = await db.query(
-      `
-      SELECT id, name, email, role, status, created_at, updated_at
-      FROM users
-      WHERE LOWER(TRIM(email)) = ?
-      LIMIT 1
-      `,
-      [email]
-    );
-
-    let user = existingUsers[0];
-
-    if (!user) {
-      const fallbackName =
+    const profile = {
+      providerId,
+      name:
         displayName ||
-        `${provider.charAt(0).toUpperCase()}${provider.slice(1)} User`;
-      const randomPassword = await bcrypt.hash(
-        `${provider}:${providerId}:${Date.now()}`,
-        10
-      );
-
-      const [result] = await db.query(
-        `
-        INSERT INTO users (name, email, password, role, status, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, NOW(), NOW())
-        `,
-        [fallbackName, email, randomPassword, "user", "active"]
-      );
-
-      const [createdUsers] = await db.query(
-        `
-        SELECT id, name, email, role, status, created_at, updated_at
-        FROM users
-        WHERE id = ?
-        LIMIT 1
-        `,
-        [result.insertId]
-      );
-
-      user = createdUsers[0];
-    }
-
-    if (!ALLOWED_ROLES.includes(user.role)) {
-      return res.status(403).json({
-        message: "role นี้ไม่ได้รับอนุญาตให้ใช้งานระบบ",
-      });
-    }
-
-    if (user.status && user.status !== "active") {
-      return res.status(403).json({
-        message: "บัญชีนี้ถูกระงับการใช้งาน",
-      });
-    }
+        `${provider.charAt(0).toUpperCase()}${provider.slice(1)} User`,
+      email,
+    };
+    const user = await findOrCreateSocialUser(profile, provider);
+    assertActiveUser(user);
 
     const token = createToken(user);
 
     return res.status(200).json({
-      message: "เข้าสู่ระบบสำเร็จ",
+      message: "เน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเธชเธณเน€เธฃเนเธ",
       token,
       user: sanitizeUser(user, provider),
     });
   } catch (error) {
     console.error("SOCIAL LOGIN ERROR:", error);
-    return res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
+    return res.status(500).json({ message: error.message || "เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธฃเธฐเธเธ" });
   }
 });
 
@@ -537,39 +538,33 @@ router.get("/me", async (req, res) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "ไม่ได้ส่ง token" });
+      return res.status(401).json({ message: "เนเธกเนเนเธ”เนเธชเนเธ token" });
     }
 
     if (!process.env.JWT_SECRET) {
-      return res.status(500).json({
-        message: "ระบบยังไม่ได้ตั้งค่า JWT_SECRET",
-      });
+      return res.status(500).json({ message: "เธฃเธฐเธเธเธขเธฑเธเนเธกเนเนเธ”เนเธ•เธฑเนเธเธเนเธฒ JWT_SECRET" });
     }
 
     const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const [users] = await db.query(
-      `
-      SELECT id, name, email, role, status, created_at, updated_at
-      FROM users
-      WHERE id = ?
-      LIMIT 1
-      `,
-      [decoded.id]
+      `SELECT id, name, email, role, status, created_at, updated_at
+       FROM users
+       WHERE id = ?
+       LIMIT 1`,
+      [decoded.id],
     );
 
     if (users.length === 0) {
-      return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
+      return res.status(404).json({ message: "เนเธกเนเธเธเธเธนเนเนเธเนเธเธฒเธ" });
     }
 
-    return res.status(200).json({
-      user: users[0],
-    });
+    return res.status(200).json({ user: users[0] });
   } catch (error) {
     console.error("GET PROFILE ERROR:", error);
     return res.status(401).json({
-      message: "token ไม่ถูกต้องหรือหมดอายุ",
+      message: "token เนเธกเนเธ–เธนเธเธ•เนเธญเธเธซเธฃเธทเธญเธซเธกเธ”เธญเธฒเธขเธธ",
     });
   }
 });

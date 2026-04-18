@@ -105,7 +105,7 @@ const publicNavItems: NavItem[] = [
   },
   {
     label: "E-Book",
-    to: "/ebooks",
+    to: "/store",
     roles: ["guest", "user", "writer", "admin", "superadmin"],
   },
   {
@@ -279,7 +279,7 @@ const submitSearch = () => {
 const logout = () => {
   clearAuth();
   closeMenu();
-  router.push("/login");
+  router.push({ name: "Login", query: { loggedOut: "1" } });
 };
 
 onMounted(() => {
@@ -359,7 +359,7 @@ onUnmounted(() => {
           </div>
         </details>
 
-        <div class="notification-wrapper">
+        <div v-if="isLoggedIn" class="notification-wrapper">
           <button
             class="notification-button"
             type="button"
@@ -421,15 +421,15 @@ onUnmounted(() => {
             </template>
 
             <template v-else>
-              <section class="account-section">
-                <h3>บัญชีของฉัน</h3>
-                <router-link class="account-link" to="/login">
+              <div class="guest-actions">
+                <router-link class="guest-auth-link" to="/login">
                   เข้าสู่ระบบ
                 </router-link>
-                <router-link class="account-link" to="/register">
+                <span>/</span>
+                <router-link class="guest-auth-link" to="/register">
                   สมัครสมาชิก
                 </router-link>
-              </section>
+              </div>
             </template>
           </div>
         </details>
@@ -788,6 +788,7 @@ onUnmounted(() => {
 }
 
 .desktop-public-nav a.router-link-exact-active {
+  border: 2px solid #111827;
   background: #ffe9dc;
   color: #ea6b3a;
   box-shadow: 0 6px 14px rgba(234, 107, 58, 0.12);
@@ -945,6 +946,25 @@ onUnmounted(() => {
 .account-panel {
   min-width: 300px;
   max-width: min(360px, calc(100vw - 24px));
+}
+
+.guest-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.guest-auth-link {
+  color: #0f766e;
+  font-size: 15px;
+  font-weight: 900;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.guest-auth-link:hover {
+  color: #0b5f59;
 }
 
 .role-summary {

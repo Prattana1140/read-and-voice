@@ -834,23 +834,21 @@ const addToLibrary = async () => {
 const addToWishlist = () => {
   if (!book.value) return;
 
-  const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
-  const exists = wishlist.some((item: any) => Number(item.id) === Number(book.value?.id));
-
-  if (exists) {
-    alert("หนังสือเล่มนี้อยู่ใน Wishlist แล้ว");
+  const user = getUser();
+  if (!user) {
+    alert("กรุณาเข้าสู่ระบบก่อน");
+    router.push({ name: "Login" });
     return;
   }
 
-  wishlist.push({
-    id: book.value.id,
-    title: book.value.title,
-    author: book.value.author,
-    cover: bookCover.value,
-  });
-
-  localStorage.setItem("wishlist", JSON.stringify(wishlist));
-  alert("เพิ่มเข้า Wishlist สำเร็จ");
+  api
+    .post("/wishlist", { book_id: book.value.id })
+    .then((res) => {
+      alert(res.data?.message || "เพิ่มรายการที่อยากได้สำเร็จ");
+    })
+    .catch((error) => {
+      alert(error?.response?.data?.message || "เพิ่มรายการที่อยากได้ไม่สำเร็จ");
+    });
 };
 
 const addWholeBookToCart = async () => {
@@ -1345,6 +1343,264 @@ input[type="range"] {
 
   .episode-actions {
     justify-content: flex-start;
+  }
+}
+/* Reference-style layout override */
+.book-detail-page {
+  background: #ffffff;
+  padding: 0 0 72px;
+}
+
+.container {
+  max-width: none;
+}
+
+.book-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+.book-sidebar,
+.book-content {
+  width: min(100% - 32px, 720px);
+  margin-inline: auto;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.book-sidebar {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  column-gap: 24px;
+  align-items: start;
+  padding: 28px 0 34px;
+}
+
+.cover-box {
+  grid-row: span 8;
+  width: 190px;
+  height: 260px;
+  margin: 0;
+  border-radius: 0;
+  background: #f3f4f6;
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.12);
+}
+
+.cover-image {
+  object-fit: cover;
+}
+
+.book-title {
+  margin: 0 0 8px;
+  color: #111827;
+  font-size: 21px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.book-author,
+.book-meta {
+  margin: 0 0 6px;
+  color: #008e68;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.book-description {
+  margin: 8px 0 10px;
+  color: #374151;
+  font-size: 13px;
+  line-height: 1.7;
+  line-clamp: 4;
+  -webkit-line-clamp: 4;
+}
+
+.access-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 10px;
+  align-items: center;
+  width: fit-content;
+  min-width: 210px;
+  margin: 4px 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.access-card strong {
+  margin: 0;
+  color: #00a96b;
+  font-size: 16px;
+}
+
+.access-card p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.access-badge {
+  border: 1px solid #00a96b;
+  border-radius: 999px;
+  background: #ffffff !important;
+  color: #009b72 !important;
+  font-size: 12px;
+  padding: 5px 12px;
+}
+
+.quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.btn,
+.small-btn,
+.subscribe-link {
+  border-radius: 999px;
+  min-height: 34px;
+  padding: 0 16px;
+  font-size: 13px;
+}
+
+.btn:hover,
+.small-btn:hover,
+.subscribe-link:hover {
+  box-shadow: 0 8px 16px rgba(0, 169, 107, 0.16);
+}
+
+.reader-btn,
+.btn.primary,
+.library-btn {
+  width: auto;
+  background: #00b36b;
+  color: #ffffff;
+}
+
+.wishlist-btn,
+.cart-btn,
+.coin-btn,
+.subscribe-btn {
+  width: auto;
+  border: 1px solid #00a96b;
+  background: #ffffff;
+  color: #008e68;
+}
+
+.tts-panel {
+  grid-column: 1 / -1;
+  margin-top: 20px;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 18px;
+}
+
+.tts-panel h3 {
+  color: #111827;
+  font-size: 17px;
+}
+
+.content-header {
+  position: relative;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-bottom: 26px;
+  background: #e50914;
+  color: #ffffff;
+  padding: 12px max(16px, calc((100vw - 720px) / 2));
+}
+
+.content-header h2 {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.top-right-actions {
+  display: none;
+}
+
+.reader-box,
+.episode-list {
+  background: #ffffff;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  min-height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+.sentence {
+  display: inline;
+  border-radius: 3px;
+  color: #374151;
+  font-size: 15px;
+  line-height: 2;
+}
+
+.sentence.active {
+  background: #fff3b0;
+}
+
+.episode-list {
+  gap: 12px;
+}
+
+.episode-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 0;
+  background: #ffffff;
+  padding: 14px 16px;
+}
+
+.episode-item strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.episode-item p {
+  font-size: 12px;
+}
+
+.preview-notice {
+  border-radius: 0;
+}
+
+.preview-footer {
+  justify-content: flex-start;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 28px;
+  padding-top: 18px;
+}
+
+@media (max-width: 760px) {
+  .book-sidebar {
+    grid-template-columns: 1fr;
+  }
+
+  .cover-box {
+    grid-row: auto;
+    justify-self: center;
+    margin-bottom: 18px;
+  }
+
+  .book-title,
+  .book-author,
+  .book-meta,
+  .book-description {
+    text-align: center;
+  }
+
+  .access-card,
+  .quick-actions {
+    justify-content: center;
+    margin-inline: auto;
   }
 }
 </style>

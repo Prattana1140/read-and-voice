@@ -58,9 +58,15 @@ onMounted(async () => {
 <template>
   <main class="oauth-page">
     <section class="oauth-card">
-      <h1>{{ error ? "เข้าสู่ระบบไม่สำเร็จ" : "กำลังเข้าสู่ระบบ" }}</h1>
-      <p v-if="!error">กำลังตรวจสอบบัญชี social network ของคุณ...</p>
-      <p v-else class="error">{{ error }}</p>
+      <div class="oauth-mark" :class="{ error: !!error }">
+        {{ error ? "!" : "✓" }}
+      </div>
+      <p class="eyebrow">Read and Voice Social Login</p>
+      <h1>{{ error ? "เข้าสู่ระบบไม่สำเร็จ" : "กำลังเชื่อมต่อบัญชี" }}</h1>
+      <p v-if="!error">
+        ระบบกำลังตรวจสอบบัญชี Facebook/LINE และพาคุณไปยังหน้าที่เหมาะสม
+      </p>
+      <p v-else class="error-text">{{ error }}</p>
       <button v-if="error" type="button" @click="router.push('/login')">
         กลับหน้าเข้าสู่ระบบ
       </button>
@@ -80,11 +86,38 @@ onMounted(async () => {
 .oauth-card {
   width: min(460px, 100%);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 22px;
   background: var(--surface);
   box-shadow: var(--shadow);
-  padding: 28px;
+  padding: 34px 28px;
   text-align: center;
+}
+
+.oauth-mark {
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 14px;
+  background: #e8faf6;
+  color: #0f766e;
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.oauth-mark.error {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--primary-strong, var(--primary));
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 h1 {
@@ -97,7 +130,7 @@ p {
   color: var(--text-muted);
 }
 
-.error {
+.error-text {
   color: var(--danger);
   font-weight: 800;
 }

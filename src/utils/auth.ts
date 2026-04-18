@@ -56,5 +56,6 @@ export const saveAuth = (token: string, user: AuthUser) => {
 export const logout = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
+  localStorage.removeItem("rememberedEmail");
   notifyAuthChanged();
 };

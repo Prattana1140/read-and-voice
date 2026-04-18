@@ -96,16 +96,51 @@ function saveReaderSettings() {
   localStorage.setItem("reader-voice", selectedVoice.value);
 }
 
-function loadProgress() {
+async function loadProgress() {
   const saved = localStorage.getItem(`${readerKey.value}-index`);
   const index = Number(saved || 0);
   if (!Number.isNaN(index) && index >= 0 && index < sentences.value.length) {
     currentIndex.value = index;
   }
+
+  if (isEpisodeMode.value || !route.params.id) return;
+
+  try {
+    const { data } = await api.get(`/progress/${route.params.id}`);
+    const serverIndex = Number(data?.last_position ?? 0);
+
+    if (!Number.isNaN(serverIndex) && serverIndex >= 0 && serverIndex < sentences.value.length) {
+      currentIndex.value = serverIndex;
+    }
+
+    if (data?.rate) rate.value = Number(data.rate);
+    if (data?.pitch) pitch.value = Number(data.pitch);
+    if (data?.volume) volume.value = Number(data.volume);
+    if (data?.voice_name) selectedVoice.value = data.voice_name;
+  } catch {
+    // ใช้ progress จากเครื่องนี้ต่อไป ถ้า backend ยังไม่มีข้อมูล
+  }
 }
 
 function saveProgress() {
   localStorage.setItem(`${readerKey.value}-index`, String(currentIndex.value));
+
+  if (isEpisodeMode.value || !route.params.id || !sentences.value.length) return;
+
+  api
+    .post("/progress", {
+      book_id: Number(route.params.id),
+      current_page: 1,
+      last_position: currentIndex.value,
+      progress_percent: currentProgress.value,
+      rate: rate.value,
+      pitch: pitch.value,
+      volume: volume.value,
+      voice_name: selectedVoice.value || null,
+    })
+    .catch(() => {
+      // เก็บ localStorage ไว้แล้ว จึงไม่รบกวนการอ่านเมื่อ API ชั่วคราวล้มเหลว
+    });
 }
 
 async function scrollToCurrent() {
@@ -133,13 +168,14 @@ async function fetchContent() {
     title.value = data.title || (isEpisodeMode.value ? "ตอนนิยาย" : "หนังสือ");
 
     if (data.is_locked) {
-      lockReason.value = data.lock_reason || "ต้องซื้อหรือสมัครแพ็กเกจก่อนอ่าน";
+      lockReason.value =
+        data.lock_reason || "ต้องซื้อหนังสือหรือสมัครแพ็กเกจก่อนอ่าน";
       return;
     }
 
     content.value = data.content || "";
     sentences.value = splitSentences(content.value);
-    loadProgress();
+    await loadProgress();
     await scrollToCurrent();
   } catch (err: any) {
     error.value = err?.response?.data?.message || "โหลดเนื้อหาไม่สำเร็จ";

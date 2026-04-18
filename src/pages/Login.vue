@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { api } from "../utils/api";
 import { saveAuth } from "../utils/auth";
 import { redirectAfterLogin } from "../utils/loginRedirect";
@@ -8,10 +8,12 @@ import { loginWithSocialProvider } from "../utils/socialLogin";
 import logoUrl from "../assets/Logo-transparent.png";
 
 const router = useRouter();
+const route = useRoute();
+const wasLoggedOut = route.query.loggedOut === "1";
 
-const email = ref(localStorage.getItem("rememberedEmail") || "");
+const email = ref(wasLoggedOut ? "" : localStorage.getItem("rememberedEmail") || "");
 const password = ref("");
-const rememberMe = ref(!!localStorage.getItem("rememberedEmail"));
+const rememberMe = ref(wasLoggedOut ? false : !!localStorage.getItem("rememberedEmail"));
 const showPassword = ref(false);
 
 const loading = ref(false);
@@ -25,12 +27,16 @@ const socialProviders = [
     id: "facebook",
     label: "Facebook",
     icon: "f",
+    title: "เข้าสู่ระบบด้วย Facebook",
+    description: "ใช้บัญชี Facebook เพื่อสมัครหรือเข้าสู่ระบบทันที",
     className: "facebook",
   },
   {
     id: "line",
     label: "LINE",
     icon: "LINE",
+    title: "เข้าสู่ระบบด้วย LINE",
+    description: "ใช้บัญชี LINE เพื่อสมัครหรือเข้าสู่ระบบทันที",
     className: "line",
   },
 ];
@@ -100,10 +106,9 @@ const socialLogin = async (provider) => {
   error.value = "";
 
   if (!providerStatus.value[provider]?.configured) {
-    const required = providerStatus.value[provider]?.requiredEnv || [];
-    error.value = required.length
-      ? `ยังไม่ได้ตั้งค่า ${required.join(", ")} ใน backend/.env`
-      : "ยังไม่ได้ตั้งค่า OAuth provider นี้";
+    const providerLabel =
+      socialProviders.find((item) => item.id === provider)?.label || "Social login";
+    error.value = `ระบบ ${providerLabel} ยังไม่พร้อมใช้งาน กรุณาลองเข้าสู่ระบบด้วยอีเมลก่อน`;
     return;
   }
 
@@ -116,6 +121,15 @@ const socialLogin = async (provider) => {
       err?.response?.data?.message || "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่";
     socialLoading.value = "";
   }
+};
+
+const isProviderReady = (provider) => {
+  return !!providerStatus.value[provider]?.configured;
+};
+
+const getProviderStatusText = (provider) => {
+  if (statusLoading.value) return "กำลังตรวจสอบการเชื่อมต่อ...";
+  return isProviderReady(provider) ? "พร้อมใช้งาน" : "ยังไม่พร้อมใช้งาน";
 };
 
 const goToRegister = () => {
@@ -134,7 +148,17 @@ const goToPrivacyPolicy = () => {
   router.push("/privacy-policy");
 };
 
-onMounted(loadOAuthStatus);
+onMounted(() => {
+  if (wasLoggedOut) {
+    email.value = "";
+    password.value = "";
+    rememberMe.value = false;
+    localStorage.removeItem("rememberedEmail");
+    router.replace({ name: "Login" });
+  }
+
+  loadOAuthStatus();
+});
 </script>
 
 <template>
@@ -146,13 +170,17 @@ onMounted(loadOAuthStatus);
 
       <h1 class="login-title">เข้าสู่ระบบ</h1>
 
-      <form class="login-form" @submit.prevent="handleLogin">
+      <form
+        class="login-form"
+        :autocomplete="wasLoggedOut ? 'off' : 'on'"
+        @submit.prevent="handleLogin"
+      >
         <input
           v-model="email"
           type="email"
           placeholder="อีเมลของฉัน"
           class="login-input"
-          autocomplete="email"
+          :autocomplete="wasLoggedOut ? 'off' : 'email'"
         />
 
         <div class="password-field">
@@ -161,7 +189,7 @@ onMounted(loadOAuthStatus);
             :type="showPassword ? 'text' : 'password'"
             placeholder="รหัสผ่าน"
             class="login-input"
-            autocomplete="current-password"
+            :autocomplete="wasLoggedOut ? 'new-password' : 'current-password'"
           />
           <button
             type="button"
@@ -190,7 +218,7 @@ onMounted(loadOAuthStatus);
       </form>
 
       <div class="social-divider">
-        <span>เข้าสู่ระบบ / สมัครสมาชิก ผ่าน social network</span>
+        <span>เข้าสู่ระบบ / สมัครสมาชิก ผ่าน Social Login</span>
       </div>
 
       <div class="social-buttons">
@@ -198,14 +226,22 @@ onMounted(loadOAuthStatus);
           v-for="provider in socialProviders"
           :key="provider.id"
           class="social-btn"
-          :class="provider.className"
+          :class="[provider.className, { ready: isProviderReady(provider.id) }]"
           type="button"
           :disabled="loading || !!socialLoading || statusLoading"
           :aria-label="`เข้าสู่ระบบด้วย ${provider.label}`"
           @click="socialLogin(provider.id)"
         >
-          <span class="social-icon" :class="provider.className">
-            {{ provider.icon }}
+          <span class="social-icon" :class="provider.className">{{ provider.icon }}</span>
+          <span class="social-copy">
+            <strong>{{ socialLoading === provider.id ? "กำลังเชื่อมต่อ..." : provider.title }}</strong>
+            <small>{{ provider.description }}</small>
+          </span>
+          <span
+            class="social-status"
+            :class="{ online: isProviderReady(provider.id), checking: statusLoading }"
+          >
+            {{ getProviderStatusText(provider.id) }}
           </span>
         </button>
       </div>
@@ -400,25 +436,44 @@ onMounted(loadOAuthStatus);
 }
 
 .social-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
+  display: grid;
+  gap: 12px;
 }
 
 .social-btn {
-  width: 50px;
-  height: 50px;
-  border-radius: 999px;
+  width: 100%;
+  min-height: 68px;
+  border-radius: 16px;
   border: 1px solid var(--border);
   background: var(--surface-soft);
+  color: var(--text-strong);
   cursor: pointer;
   display: grid;
-  place-items: center;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  text-align: left;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.social-btn.facebook.ready {
+  border-color: color-mix(in srgb, #1877f2 38%, var(--border));
+  background: linear-gradient(135deg, #f8fbff, #eef5ff);
+}
+
+.social-btn.line.ready {
+  border-color: color-mix(in srgb, #06c755 38%, var(--border));
+  background: linear-gradient(135deg, #f7fff9, #ecfff2);
 }
 
 .social-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.1);
+  transform: translateY(-2px);
 }
 
 .social-btn:disabled {
@@ -427,8 +482,15 @@ onMounted(loadOAuthStatus);
 }
 
 .social-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  background: var(--surface);
+  display: grid;
+  place-items: center;
   font-weight: 900;
   line-height: 1;
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 
 .social-icon.facebook {
@@ -440,6 +502,44 @@ onMounted(loadOAuthStatus);
   color: #06c755;
   font-size: 11px;
   letter-spacing: 0.3px;
+}
+
+.social-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.social-copy strong {
+  color: var(--text-strong);
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.social-copy small {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.social-status {
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #c2410c;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 6px 9px;
+  white-space: nowrap;
+}
+
+.social-status.online {
+  background: #e8faf6;
+  color: #0f766e;
+}
+
+.social-status.checking {
+  background: #eef2ff;
+  color: #4f46e5;
 }
 
 .login-policy {

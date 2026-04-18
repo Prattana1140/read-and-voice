@@ -4,81 +4,62 @@ const { runPdfOCR } = require("./ocrService");
 
 function normalizeText(text) {
   return String(text || "")
+    .normalize("NFC")
     .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/\u0000/g, "")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
     .replace(/\t/g, " ")
     .replace(/[ ]{2,}/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
-function cleanOcrText(text) {
-  const cleanedText = String(text || "")
-    .replace(/\r\n/g, "\n")
-    .split("\n")
-    .map((line) => line.trim())
-    .map((line) => line.replace(/[A-Za-z@#$%^*_+=<>\\/|~`{}\[\]]+/g, " "))
-    .map((line) => line.replace(/["'“”.,;:!?()\-]{2,}/g, " "))
-    .map((line) => line.replace(/\s{2,}/g, " ").trim())
-    .filter((line) => {
-      if (!line) return false;
+function hasUsefulLetters(line) {
+  const compact = line.replace(/\s/g, "");
+  if (!compact) return false;
 
-      const thaiCount = (line.match(/[\u0E00-\u0E7F]/g) || []).length;
-      const digitCount = (line.match(/[0-9๐-๙]/g) || []).length;
-      const visibleCount = line.replace(/\s/g, "").length;
+  const thaiCount = (compact.match(/[\u0E00-\u0E7F]/g) || []).length;
+  const latinCount = (compact.match(/[A-Za-z]/g) || []).length;
+  const digitCount = (compact.match(/[0-9๐-๙]/g) || []).length;
+  const usefulCount = thaiCount + latinCount + digitCount;
 
-      if (thaiCount === 0) return false;
-      if (thaiCount < 5) return false;
-      if (thaiCount < 10 && digitCount > 0) return false;
-      if (visibleCount > 0 && thaiCount / visibleCount < 0.55) return false;
+  if (usefulCount < 2) return false;
 
-      return true;
-    })
-    .join("\n")
-    .replace(/\n{3,}/g, "\n\n")
+  // Preserve Thai, English, and mixed Thai-English lines while dropping OCR dust.
+  return usefulCount / compact.length >= 0.35;
+}
+
+function cleanOcrLine(line) {
+  return String(line || "")
+    .normalize("NFC")
+    .replace(/\u0000/g, "")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/[|\\/~`^*_+=<>[\]{}]{2,}/g, " ")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .replace(/([,.;:!?])([^\s])/g, "$1 $2")
     .trim();
-
-  return polishThaiOcrText(cleanedText);
 }
 
 function polishThaiOcrText(text) {
-  const phraseReplacements = [
-    ["กําลัง", "กำลัง"],
-    ["สํานัก", "สำนัก"],
-    ["สําเร็จ", "สำเร็จ"],
-    ["สําคัญ", "สำคัญ"],
-    ["สําหรับ", "สำหรับ"],
-    ["นํ้า", "น้ำ"],
-    ["นํา", "นำ"],
-    ["นัน", "นั้น"],
-    ["นี", "นี้"],
-    ["ทัง", "ทั้ง"],
-    ["ซึง", "ซึ่ง"],
-    ["ขึน", "ขึ้น"],
-    ["ตัง", "ตั้ง"],
-    ["นัง", "นั่ง"],
-    ["ครึง", "ครึ่ง"],
-    ["หนึง", "หนึ่ง"],
-    ["ชัว", "ชั่ว"],
-    ["เรือง", "เรื่อง"],
-    ["เมือ", "เมื่อ"],
-    ["ตืน", "ตื่น"],
-    ["ดืม", "ดื่ม"],
-    ["สูดท้าย", "สุดท้าย"],
-    ["ฮองเต้", "ฮ่องเต้"],
-    ["ฟาน", "ฟ่าน"],
-    ["นี้่", "นี่"],
-    ["นี้้", "นี้"],
-    ["เมื่อง", "เมือง"],
-    ["หนั่ง", "หนัง"],
-    ["นำชา", "น้ำชา"],
-    ["กําหนด", "กำหนด"],
-  ];
+  return normalizeText(text)
+    .replace(/([ก-ฮ])ํา/g, "$1ำ")
+    .replace(/เเ/g, "แ")
+    .replace(/([ๆฯ])\1+/g, "$1")
+    .replace(/[ ]+([ะาิีึืุูเแโใไ])/g, "$1")
+    .replace(/([เแโใไ])\s+([ก-ฮ])/g, "$1$2");
+}
 
-  return phraseReplacements.reduce(
-    (value, [findText, replaceText]) =>
-      value.replace(new RegExp(findText, "g"), replaceText),
-    text
-  );
+function cleanOcrText(text) {
+  const lines = normalizeText(text)
+    .split("\n")
+    .map(cleanOcrLine)
+    .filter(Boolean)
+    .filter(hasUsefulLetters);
+
+  return polishThaiOcrText(lines.join("\n"));
 }
 
 function splitTextToPages(text, chunkSize = 1800) {
@@ -134,14 +115,14 @@ async function extractPdfTextByPage(filePath) {
   const pages = [];
 
   try {
-    for (let pageNo = 1; pageNo <= pdf.numPages; pageNo++) {
+    for (let pageNo = 1; pageNo <= pdf.numPages; pageNo += 1) {
       const page = await pdf.getPage(pageNo);
       const textContent = await page.getTextContent();
 
       const pageText = normalizeText(
         textContent.items
           .map((item) => ("str" in item ? item.str : ""))
-          .join(" ")
+          .join(" "),
       );
 
       pages.push(pageText);
@@ -161,15 +142,13 @@ function looksLikeScannedPdf(pageTexts) {
   if (!joined) return true;
 
   const avgLength =
-    pageTexts.reduce((sum, p) => sum + normalizeText(p).length, 0) / pageTexts.length;
+    pageTexts.reduce((sum, page) => sum + normalizeText(page).length, 0) /
+    pageTexts.length;
 
-  // ถ้าค่าเฉลี่ยต่อหน้าน้อยมาก มักเป็น PDF สแกนหรือดึงข้อความไม่ได้
   if (avgLength < 80) return true;
 
-  const weirdChars = (joined.match(/�/g) || []).length;
-  if (weirdChars > 20) return true;
-
-  return false;
+  const replacementChars = (joined.match(/�/g) || []).length;
+  return replacementChars > 20;
 }
 
 async function parsePdfFile(filePath) {
@@ -182,7 +161,7 @@ async function parsePdfFile(filePath) {
     console.error("PDF.js extraction error:", err);
   }
 
-  const cleanPages = pageTexts.map((p) => normalizeText(p)).filter(Boolean);
+  const cleanPages = pageTexts.map((page) => normalizeText(page)).filter(Boolean);
 
   if (!looksLikeScannedPdf(cleanPages)) {
     const fullText = normalizeText(cleanPages.join("\n\n"));
@@ -196,18 +175,17 @@ async function parsePdfFile(filePath) {
 
   console.log("PDF STEP 2: fallback OCR");
 
-  // ✅ เพิ่ม try-catch รอบ OCR
   try {
     const ocrResult = await runPdfOCR(filePath);
 
     const ocrPages = Array.isArray(ocrResult?.pages)
-      ? ocrResult.pages.map((p) => cleanOcrText(p)).filter(Boolean)
+      ? ocrResult.pages.map((page) => cleanOcrText(page)).filter(Boolean)
       : splitTextToPages(cleanOcrText(ocrResult?.text || ""));
 
     const fullText = cleanOcrText(
       Array.isArray(ocrResult?.pages)
         ? ocrResult.pages.join("\n\n")
-        : ocrResult?.text || ""
+        : ocrResult?.text || "",
     );
 
     if (!fullText) {
@@ -220,11 +198,9 @@ async function parsePdfFile(filePath) {
       pages: ocrPages.length ? ocrPages : splitTextToPages(fullText),
       parseMethod: "ocr-fallback",
     };
-
   } catch (ocrErr) {
     console.error("OCR failed:", ocrErr.message);
 
-    // ✅ ถ้า OCR ล้มเหลว ให้ใช้ข้อความที่ได้จาก pdfjs แทน (แม้จะน้อย)
     if (cleanPages.length > 0) {
       const fullText = normalizeText(cleanPages.join("\n\n"));
       return {
@@ -235,7 +211,7 @@ async function parsePdfFile(filePath) {
       };
     }
 
-    throw new Error("ไม่สามารถประมวลผล PDF ได้: " + ocrErr.message);
+    throw new Error(`ไม่สามารถประมวลผล PDF ได้: ${ocrErr.message}`);
   }
 }
 
@@ -255,4 +231,6 @@ async function parseBookFile(filePath, mimeType, originalName) {
 
 module.exports = {
   parseBookFile,
+  cleanOcrText,
+  normalizeText,
 };

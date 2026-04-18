@@ -5,6 +5,10 @@ const { verifyToken } = require("../middleware/auth");
 
 const router = express.Router();
 
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
 router.get("/me", verifyToken, async (req, res) => {
   try {
     const [rows] = await db.query(
@@ -12,7 +16,7 @@ router.get("/me", verifyToken, async (req, res) => {
        FROM users
        WHERE id = ?
        LIMIT 1`,
-      [req.user.id]
+      [req.user.id],
     );
 
     return res.json(rows[0] || null);
@@ -24,11 +28,18 @@ router.get("/me", verifyToken, async (req, res) => {
 
 router.put("/me", verifyToken, async (req, res) => {
   try {
-    const { name, email, currentPassword, newPassword } = req.body;
+    const name = String(req.body.name || req.user.name || "").trim();
+    const email = normalizeEmail(req.body.email || req.user.email);
+    const currentPassword = String(req.body.currentPassword || "");
+    const newPassword = String(req.body.newPassword || "");
+
+    if (!name || !email) {
+      return res.status(400).json({ message: "กรุณากรอกชื่อและอีเมล" });
+    }
 
     const [users] = await db.query(
       "SELECT id, email, password FROM users WHERE id = ? LIMIT 1",
-      [req.user.id]
+      [req.user.id],
     );
 
     if (users.length === 0) {
@@ -37,13 +48,13 @@ router.put("/me", verifyToken, async (req, res) => {
 
     const currentUser = users[0];
 
-    if (email && email !== currentUser.email) {
-      const [dup] = await db.query(
-        "SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1",
-        [email, req.user.id]
+    if (email !== normalizeEmail(currentUser.email)) {
+      const [duplicates] = await db.query(
+        "SELECT id FROM users WHERE LOWER(TRIM(email)) = ? AND id <> ? LIMIT 1",
+        [email, req.user.id],
       );
 
-      if (dup.length > 0) {
+      if (duplicates.length > 0) {
         return res.status(400).json({ message: "อีเมลนี้ถูกใช้งานแล้ว" });
       }
     }
@@ -57,7 +68,15 @@ router.put("/me", verifyToken, async (req, res) => {
         });
       }
 
-      const isMatch = await bcrypt.compare(currentPassword, currentUser.password);
+      const passwordText = String(currentUser.password || "");
+      const isHashed =
+        passwordText.startsWith("$2a$") ||
+        passwordText.startsWith("$2b$") ||
+        passwordText.startsWith("$2y$");
+      const isMatch = isHashed
+        ? await bcrypt.compare(currentPassword, passwordText)
+        : currentPassword === passwordText;
+
       if (!isMatch) {
         return res.status(400).json({ message: "รหัสผ่านปัจจุบันไม่ถูกต้อง" });
       }
@@ -66,8 +85,10 @@ router.put("/me", verifyToken, async (req, res) => {
     }
 
     await db.query(
-      "UPDATE users SET name = ?, email = ?, password = ? WHERE id = ?",
-      [name || req.user.name, email || req.user.email, passwordHash, req.user.id]
+      `UPDATE users
+       SET name = ?, email = ?, password = ?, updated_at = NOW()
+       WHERE id = ?`,
+      [name, email, passwordHash, req.user.id],
     );
 
     return res.json({ message: "อัปเดตโปรไฟล์สำเร็จ" });

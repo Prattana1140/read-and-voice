@@ -21,6 +21,11 @@ const form = reactive({
 
 const closeModal = () => {
   emit("close");
+  if (window.history.length > 1) {
+    router.back();
+  } else {
+    router.push("/");
+  }
 };
 
 const goToLogin = () => {

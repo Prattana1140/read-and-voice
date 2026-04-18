@@ -19,6 +19,9 @@ const readerRoutes = require("./routes/reader");
 const adminStatsRoutes = require("./routes/adminStats");
 const coinsRoutes = require("./routes/coins");
 const pageContentRoutes = require("./routes/pageContent");
+const shelvesRoutes = require("./routes/shelves");
+const accountRoutes = require("./routes/account");
+const wishlistRoutes = require("./routes/wishlist");
 
 const app = express();
 const allowedOrigins = [
@@ -49,6 +52,29 @@ app.get("/", (_req, res) => {
   });
 });
 
+app.get("/api", (_req, res) => {
+  return res.status(200).json({
+    message: "Read and Voice API",
+    status: "ok",
+    endpoints: [
+      "/api/books",
+      "/api/ebooks",
+      "/api/serials",
+      "/api/best-sellers",
+      "/api/new-releases",
+      "/api/promotions",
+      "/api/free-books",
+      "/api/hall-of-fame",
+      "/api/recommended",
+      "/api/subscription",
+      "/api/subscriptions/plans",
+      "/api/page-content",
+      "/api/account/following",
+      "/api/wishlist",
+    ],
+  });
+});
+
 app.use("/api/auth", authRoutes);
 app.use("/api/books", booksRoutes);
 app.use("/api/cart", cartRoutes);
@@ -65,6 +91,9 @@ app.use("/api/reader", readerRoutes);
 app.use("/api/admin/stats", adminStatsRoutes);
 app.use("/api/coins", coinsRoutes);
 app.use("/api/page-content", pageContentRoutes);
+app.use("/api/account", accountRoutes);
+app.use("/api/wishlist", wishlistRoutes);
+app.use("/api", shelvesRoutes);
 
 app.use((req, res) => {
   return res.status(404).json({

@@ -1,46 +1,164 @@
-<script setup>
-import { ref, onMounted } from "vue";
+<script setup lang="ts">
+import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import api, { API_BASE_URL } from "../utils/api";
+
+type WishlistItem = {
+  id: number;
+  title: string;
+  author?: string;
+  cover?: string;
+  cover_image?: string;
+};
 
 const router = useRouter();
-const wishlist = ref([]);
+const wishlist = ref<WishlistItem[]>([]);
+const loading = ref(false);
+const errorMessage = ref("");
 
-const loadWishlist = () => {
-  wishlist.value = JSON.parse(localStorage.getItem("wishlist") || "[]");
-};
+function coverUrl(item: WishlistItem) {
+  const cover = item.cover || item.cover_image || "";
+  if (!cover) return "/no-cover.png";
+  if (cover.startsWith("http://") || cover.startsWith("https://")) return cover;
+  return `${API_BASE_URL}/${cover.replace(/^\/+/, "")}`;
+}
 
-const removeItem = (id) => {
-  wishlist.value = wishlist.value.filter((b) => b.id !== id);
-  localStorage.setItem("wishlist", JSON.stringify(wishlist.value));
-};
+async function loadWishlist() {
+  try {
+    loading.value = true;
+    errorMessage.value = "";
+    const { data } = await api.get("/wishlist");
+    wishlist.value = Array.isArray(data) ? data : [];
+  } catch (error: any) {
+    errorMessage.value =
+      error?.response?.data?.message || "โหลดรายการที่อยากได้ไม่สำเร็จ";
+    wishlist.value = JSON.parse(localStorage.getItem("wishlist") || "[]");
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function removeItem(id: number) {
+  try {
+    await api.delete(`/wishlist/${id}`);
+    wishlist.value = wishlist.value.filter((book) => Number(book.id) !== Number(id));
+    localStorage.setItem("wishlist", JSON.stringify(wishlist.value));
+  } catch (error: any) {
+    errorMessage.value =
+      error?.response?.data?.message || "ลบรายการที่อยากได้ไม่สำเร็จ";
+  }
+}
 
 onMounted(loadWishlist);
 </script>
 
 <template>
-  <div class="page">
-    <h1>❤️ Wishlist</h1>
+  <main class="wishlist-page">
+    <h1>รายการที่อยากได้</h1>
 
-    <div v-if="!wishlist.length">ยังไม่มีรายการ</div>
+    <div v-if="loading" class="state-box">กำลังโหลดข้อมูล...</div>
+    <div v-else-if="errorMessage" class="state-box error">{{ errorMessage }}</div>
+    <div v-else-if="!wishlist.length" class="state-box">ยังไม่มีรายการ</div>
 
-    <div v-else class="grid">
-      <div v-for="item in wishlist" :key="item.id" class="card">
-        <img :src="item.cover" class="cover" />
+    <section v-else class="grid">
+      <article v-for="item in wishlist" :key="item.id" class="book-card">
+        <img :src="coverUrl(item)" :alt="item.title" class="cover" />
         <h3>{{ item.title }}</h3>
+        <p>{{ item.author || "ไม่ระบุผู้แต่ง" }}</p>
 
-        <div class="btns">
-          <button @click="router.push(`/book/${item.id}`)">ดู</button>
-          <button @click="removeItem(item.id)">ลบ</button>
+        <div class="actions">
+          <button type="button" @click="router.push(`/book/${item.id}`)">ดู</button>
+          <button type="button" class="danger" @click="removeItem(item.id)">ลบ</button>
         </div>
-      </div>
-    </div>
-  </div>
+      </article>
+    </section>
+  </main>
 </template>
 
 <style scoped>
-.page { padding: 20px }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, 200px); gap: 16px }
-.card { background: white; padding: 10px; border-radius: 12px }
-.cover { width: 100%; height: 200px; object-fit: cover }
-.btns { display: flex; gap: 8px }
+.wishlist-page {
+  min-height: 70vh;
+  background: #ffffff;
+  color: #111827;
+  padding: 32px;
+}
+
+.wishlist-page h1 {
+  margin: 0 0 20px;
+  text-align: center;
+}
+
+.state-box {
+  width: min(720px, 100%);
+  margin: 0 auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  color: #4b5563;
+  padding: 18px;
+}
+
+.state-box.error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 18px;
+  width: min(100%, 960px);
+  margin: 0 auto;
+}
+
+.book-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px;
+  transition:
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.book-card:hover {
+  box-shadow: 0 12px 24px rgba(15, 118, 110, 0.12);
+  transform: translateY(-3px);
+}
+
+.cover {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+}
+
+.book-card h3 {
+  margin: 10px 0 4px;
+  font-size: 16px;
+}
+
+.book-card p {
+  color: #6b7280;
+  margin: 0 0 10px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.actions button {
+  flex: 1;
+  min-height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: #20b8ad;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.actions button.danger {
+  background: #ef4444;
+}
 </style>

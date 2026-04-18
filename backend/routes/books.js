@@ -177,6 +177,8 @@ router.post(
         price = 0,
         access_type,
         content_type,
+        preview_page_limit,
+        preview_char_limit,
       } = req.body;
 
       if (!title || !author) {
@@ -199,8 +201,8 @@ router.post(
         `INSERT INTO books
          (title, author, description, category_id, cover_image, source_type, content_type,
           access_type, process_status, full_text, total_pages, is_published, created_by, price,
-          created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?, 1, ?, ?, NOW(), NOW())`,
+          preview_page_limit, preview_char_limit, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?, 1, ?, ?, ?, ?, NOW(), NOW())`,
         [
           title,
           author,
@@ -214,6 +216,8 @@ router.post(
           pages.length,
           req.user.id,
           Number(price || 0),
+          normalizePositiveInt(preview_page_limit, GUEST_PREVIEW_PAGE_LIMIT),
+          normalizePositiveInt(preview_char_limit, GUEST_PREVIEW_CHAR_LIMIT),
         ]
       );
 
@@ -235,6 +239,61 @@ router.post(
       });
     } finally {
       connection.release();
+    }
+  }
+);
+
+router.post(
+  "/serial",
+  verifyToken,
+  allowRoles("writer", "admin", "superadmin"),
+  async (req, res) => {
+    try {
+      const {
+        title,
+        author,
+        description = "",
+        category_id = null,
+        cover_image = "",
+        price = 0,
+        access_type,
+        preview_page_limit,
+        preview_char_limit,
+      } = req.body;
+
+      if (!title || !author) {
+        return res.status(400).json({
+          message: "Title and author are required",
+        });
+      }
+
+      const [result] = await db.query(
+        `INSERT INTO books
+         (title, author, description, category_id, cover_image, source_type, content_type,
+          access_type, process_status, full_text, total_pages, is_published, created_by, price,
+          preview_page_limit, preview_char_limit, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'manual', 'serial', ?, 'completed', '', 0, 1, ?, ?, ?, ?, NOW(), NOW())`,
+        [
+          title,
+          author,
+          description,
+          category_id || null,
+          cover_image,
+          normalizeAccessType(access_type, price),
+          req.user.id,
+          Number(price || 0),
+          normalizePositiveInt(preview_page_limit, GUEST_PREVIEW_PAGE_LIMIT),
+          normalizePositiveInt(preview_char_limit, GUEST_PREVIEW_CHAR_LIMIT),
+        ]
+      );
+
+      return res.json({
+        message: "Serial book created successfully",
+        book_id: result.insertId,
+      });
+    } catch (error) {
+      console.error("POST /books/serial error:", error);
+      return res.status(500).json({ message: "Unable to create serial book" });
     }
   }
 );
@@ -346,7 +405,15 @@ router.post(
   allowRoles("writer", "admin", "superadmin"),
   async (req, res) => {
     try {
-      const { title, content = "", price = 0, is_free = 0, access_type } = req.body;
+      const {
+        title,
+        content = "",
+        episode_number,
+        price = 0,
+        is_free = 0,
+        access_type,
+        preview_char_limit,
+      } = req.body;
 
       if (!title) {
         return res.status(400).json({ message: "กรุณากรอกชื่อตอน" });
@@ -364,17 +431,23 @@ router.post(
         });
       }
 
-      const [countRows] = await db.query(
-        "SELECT COALESCE(MAX(episode_number), 0) AS max_episode FROM book_episodes WHERE book_id = ?",
-        [book.id]
-      );
-      const episodeNumber = Number(countRows[0]?.max_episode || 0) + 1;
+      const requestedEpisodeNumber = Number(episode_number);
+      let episodeNumber = requestedEpisodeNumber;
+
+      if (!Number.isInteger(episodeNumber) || episodeNumber <= 0) {
+        const [countRows] = await db.query(
+          "SELECT COALESCE(MAX(episode_number), 0) AS max_episode FROM book_episodes WHERE book_id = ?",
+          [book.id]
+        );
+        episodeNumber = Number(countRows[0]?.max_episode || 0) + 1;
+      }
+
       const safeIsFree = Number(is_free) === 1 || Number(price || 0) <= 0 ? 1 : 0;
 
       const [result] = await db.query(
         `INSERT INTO book_episodes
-         (book_id, episode_number, title, content, price, is_free, access_type, is_published)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+         (book_id, episode_number, title, content, price, is_free, access_type, preview_char_limit, is_published)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
         [
           book.id,
           episodeNumber,
@@ -383,6 +456,7 @@ router.post(
           Number(price || 0),
           safeIsFree,
           access_type || (safeIsFree ? "free" : "paid"),
+          normalizePositiveInt(preview_char_limit, GUEST_PREVIEW_CHAR_LIMIT),
         ]
       );
 

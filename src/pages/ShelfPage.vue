@@ -1,10 +1,5 @@
 <template>
   <div class="shelf-page">
-    <header class="shelf-title">
-      <h1>อีบุ๊กทั้งหมด</h1>
-      <span aria-hidden="true">⌄</span>
-    </header>
-
     <nav class="shelf-tabs" aria-label="หมวดหนังสือ">
       <router-link
         v-for="tab in shelfTabs"
@@ -35,7 +30,6 @@
       <section class="shelf-toolbar">
         <div>
           <h2>{{ shelf.title }}</h2>
-          <span aria-hidden="true">⌄</span>
         </div>
 
         <div class="pager" aria-label="หน้า">
@@ -449,30 +443,6 @@ onMounted(async () => {
   background: #ffffff;
   color: #111827;
   padding-bottom: 64px;
-}
-
-.shelf-title {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  min-height: 46px;
-  background: #ffffff;
-}
-
-.shelf-title h1 {
-  margin: 0;
-  color: #111827;
-  font-size: 29px;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.shelf-title span {
-  color: #111827;
-  font-size: 18px;
-  line-height: 1;
-  transform: translateY(2px);
 }
 
 .shelf-tabs {
@@ -1007,10 +977,6 @@ onMounted(async () => {
 }
 
 @media (max-width: 680px) {
-  .shelf-title h1 {
-    font-size: 24px;
-  }
-
   .shelf-content {
     padding-top: 24px;
   }
