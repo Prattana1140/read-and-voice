@@ -18,6 +18,7 @@ const writerBooksRoutes = require("./routes/writerBooks");
 const readerRoutes = require("./routes/reader");
 const adminStatsRoutes = require("./routes/adminStats");
 const coinsRoutes = require("./routes/coins");
+const pageContentRoutes = require("./routes/pageContent");
 
 const app = express();
 const allowedOrigins = [
@@ -63,6 +64,7 @@ app.use("/api/writer/books", writerBooksRoutes);
 app.use("/api/reader", readerRoutes);
 app.use("/api/admin/stats", adminStatsRoutes);
 app.use("/api/coins", coinsRoutes);
+app.use("/api/page-content", pageContentRoutes);
 
 app.use((req, res) => {
   return res.status(404).json({

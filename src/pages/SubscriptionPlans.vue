@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import api from "../utils/api";
+import api, { API_BASE_URL } from "../utils/api";
 
 type Plan = {
   id: number;
@@ -19,9 +19,17 @@ type CurrentPlan = {
   };
 };
 
+type PageContent = {
+  subscriptionHero?: {
+    image_url?: string;
+    updated_at?: string | null;
+  };
+};
+
 const router = useRouter();
 const plans = ref<Plan[]>([]);
 const currentPlan = ref<CurrentPlan | null>(null);
+const pageContent = ref<PageContent | null>(null);
 const message = ref("");
 const errorMessage = ref("");
 const loading = ref(true);
@@ -59,19 +67,40 @@ function getOldPrice(plan: Plan) {
   return Math.ceil(Number(plan.price || 0) / (1 - discount / 100));
 }
 
+const resolveImageUrl = (url: string) => {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return `${API_BASE_URL}/${url.replace(/^\/+/, "")}`;
+};
+
+const heroImageUrl = computed(() => {
+  return resolveImageUrl(pageContent.value?.subscriptionHero?.image_url || "");
+});
+
 async function loadPlans() {
   loading.value = true;
   message.value = "";
   errorMessage.value = "";
 
   try {
-    const [plansRes, meRes] = await Promise.all([
+    const [plansRes, meRes, pageContentRes] = await Promise.allSettled([
       api.get("/subscriptions/plans"),
       api.get("/subscriptions/me"),
+      api.get("/page-content"),
     ]);
 
-    plans.value = Array.isArray(plansRes.data) ? plansRes.data : [];
-    currentPlan.value = meRes.data || null;
+    if (plansRes.status === "fulfilled") {
+      plans.value = Array.isArray(plansRes.value.data) ? plansRes.value.data : [];
+    } else {
+      plans.value = [];
+      errorMessage.value =
+        plansRes.reason?.response?.data?.message ||
+        "โหลดแพ็กเกจรายเดือนไม่สำเร็จ";
+    }
+
+    currentPlan.value = meRes.status === "fulfilled" ? meRes.value.data || null : null;
+    pageContent.value =
+      pageContentRes.status === "fulfilled" ? pageContentRes.value.data || null : null;
   } catch (error: any) {
     errorMessage.value =
       error?.response?.data?.message || "โหลดแพ็กเกจไม่สำเร็จ";
@@ -114,7 +143,13 @@ onMounted(loadPlans);
       <strong>Pinto VIP</strong>
     </nav>
 
-    <section class="vip-hero">
+    <section class="vip-hero" :class="{ 'has-admin-image': heroImageUrl }">
+      <img
+        v-if="heroImageUrl"
+        class="admin-hero-image"
+        :src="heroImageUrl"
+        alt="Pinto VIP"
+      />
       <div class="hero-copy">
         <p>Pinto VIP</p>
         <h1>สมัครไว้ซื้ออีบุ๊กได้คุ้มกว่าใคร</h1>
@@ -290,6 +325,25 @@ onMounted(loadPlans);
     linear-gradient(135deg, #e62129 0%, #f54235 45%, #f6a21a 100%);
   color: #ffffff;
   padding: 38px 28px 26px;
+}
+
+.vip-hero.has-admin-image {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  background: #f3f4f6;
+}
+
+.vip-hero.has-admin-image .hero-copy,
+.vip-hero.has-admin-image .benefit-board {
+  display: none;
+}
+
+.admin-hero-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 7;
+  object-fit: cover;
 }
 
 .hero-copy {

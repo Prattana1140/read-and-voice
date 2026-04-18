@@ -27,3 +27,5 @@ backend/uploads/
 *.njsproj
 *.sln
 *.sw?
+
+.vercel

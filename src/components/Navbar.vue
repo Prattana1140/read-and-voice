@@ -16,7 +16,7 @@ type StoredUser = {
   id?: number;
   name?: string;
   email?: string;
-  role?: UserRole;
+  role?: string;
 } | null;
 
 type NavItem = {
@@ -46,6 +46,7 @@ const isNotificationsOpen = ref(false);
 const search = ref("");
 const authVersion = ref(0);
 const notificationCount = ref(49);
+const allRoles: UserRole[] = ["guest", "user", "writer", "admin", "superadmin"];
 
 const notifications = [
   "หนังสือใหม่พร้อมให้อ่านแล้ว",
@@ -67,8 +68,27 @@ const isLoggedIn = computed(() => {
   return !!getToken() && !!user.value;
 });
 
+const normalizeRole = (role: string | undefined): UserRole => {
+  const normalized = role?.trim().toLowerCase();
+  return allRoles.includes(normalized as UserRole)
+    ? (normalized as UserRole)
+    : "user";
+};
+
 const currentRole = computed<UserRole>(() => {
-  return isLoggedIn.value ? user.value?.role || "user" : "guest";
+  return isLoggedIn.value ? normalizeRole(user.value?.role) : "guest";
+});
+
+const currentRoleLabel = computed(() => {
+  const labels: Record<UserRole, string> = {
+    guest: "ผู้เยี่ยมชม",
+    user: "สมาชิกทั่วไป",
+    writer: "นักเขียน",
+    admin: "ผู้ดูแลระบบ",
+    superadmin: "ผู้ดูแลสูงสุด",
+  };
+
+  return labels[currentRole.value];
 });
 
 const themeOptions: { label: string; value: ThemeMode }[] = [
@@ -144,6 +164,11 @@ const accountGroups = computed<NavGroup[]>(() => {
       title: "จัดการระบบ",
       items: [
         { label: "ตรวจภาพรวมระบบ", to: "/admin", roles: ["admin", "superadmin"] },
+        {
+          label: "จัดข้อมูลหน้าเมนู",
+          to: "/admin/page-content",
+          roles: ["admin", "superadmin"],
+        },
         {
           label: "ตรวจสอบ / แก้ไขหนังสือ",
           to: "/admin/books",
@@ -369,6 +394,11 @@ onUnmounted(() => {
 
           <div class="dropdown-panel account-panel">
             <template v-if="isLoggedIn">
+              <div class="role-summary">
+                <span>สิทธิ์ที่เข้าสู่ระบบ</span>
+                <strong>{{ currentRoleLabel }}</strong>
+              </div>
+
               <section
                 v-for="group in accountGroups"
                 :key="group.title"
@@ -915,6 +945,28 @@ onUnmounted(() => {
 .account-panel {
   min-width: 300px;
   max-width: min(360px, calc(100vw - 24px));
+}
+
+.role-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 8px;
+  background: #e8faf6;
+  color: #0b5f59;
+  padding: 10px 12px;
+}
+
+.role-summary span {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.role-summary strong {
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
 }
 
 .account-section {

@@ -17,7 +17,7 @@ import FacebookLogin from "../pages/FacebookLogin.vue";
 import OAuthCallback from "../pages/OAuthCallback.vue";
 
 import MyLibrary from "../pages/MyLibrary.vue";
-import WishList from "../pages/WishList.vue";
+import WishList from "../pages/Wishlist.vue";
 import Cart from "../pages/Cart.vue";
 import OrderHistory from "../pages/OrderHistory.vue";
 import Profile from "../pages/Profile.vue";
@@ -230,6 +230,12 @@ const routes: RouteRecordRaw[] = [
     path: "/admin/books",
     name: "AdminBooks",
     component: () => import("../pages/admin/Books.vue"),
+    meta: { requiresAuth: true, allowedRoles: adminRoles },
+  },
+  {
+    path: "/admin/page-content",
+    name: "AdminPageContent",
+    component: () => import("../pages/admin/PageContentManager.vue"),
     meta: { requiresAuth: true, allowedRoles: adminRoles },
   },
   {
