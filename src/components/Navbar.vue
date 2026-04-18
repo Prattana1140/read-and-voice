@@ -39,6 +39,7 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
+const navbarRef = ref<HTMLElement | null>(null);
 const isMenuOpen = ref(false);
 const isSearchOpen = ref(false);
 const isNotificationsOpen = ref(false);
@@ -83,33 +84,13 @@ const publicNavItems: NavItem[] = [
     roles: ["guest", "user", "writer", "admin", "superadmin"],
   },
   {
-    label: "ขายดี",
-    to: "/best-sellers",
+    label: "E-Book",
+    to: "/ebooks",
     roles: ["guest", "user", "writer", "admin", "superadmin"],
   },
   {
-    label: "มาใหม่",
-    to: "/new-releases",
-    roles: ["guest", "user", "writer", "admin", "superadmin"],
-  },
-  {
-    label: "โปรโมชั่น",
-    to: "/promotions",
-    roles: ["guest", "user", "writer", "admin", "superadmin"],
-  },
-  {
-    label: "ฟรีกระจาย",
-    to: "/free-books",
-    roles: ["guest", "user", "writer", "admin", "superadmin"],
-  },
-  {
-    label: "ฮิตขึ้นหิ้ง",
-    to: "/hall-of-fame",
-    roles: ["guest", "user", "writer", "admin", "superadmin"],
-  },
-  {
-    label: "แนะนำ",
-    to: "/recommended",
+    label: "รายตอน",
+    to: "/serials",
     roles: ["guest", "user", "writer", "admin", "superadmin"],
   },
 ];
@@ -231,6 +212,36 @@ const toggleNotifications = () => {
   isNotificationsOpen.value = !isNotificationsOpen.value;
 };
 
+const closeFloatingMenus = () => {
+  isNotificationsOpen.value = false;
+  document.querySelectorAll<HTMLDetailsElement>(".icon-dropdown[open]").forEach((item) => {
+    item.open = false;
+  });
+};
+
+const handleDocumentPointerDown = (event: PointerEvent) => {
+  const target = event.target as HTMLElement | null;
+  if (!target) return;
+
+  const navbar = navbarRef.value;
+  const activeDropdown = target.closest(".icon-dropdown") as HTMLDetailsElement | null;
+  document.querySelectorAll<HTMLDetailsElement>(".icon-dropdown[open]").forEach((item) => {
+    if (item !== activeDropdown) {
+      item.open = false;
+    }
+  });
+
+  if (navbar && !navbar.contains(target)) {
+    closeMenu();
+    closeFloatingMenus();
+    return;
+  }
+
+  if (!target.closest(".icon-dropdown, .notification-wrapper")) {
+    closeFloatingMenus();
+  }
+};
+
 const submitSearch = () => {
   const keyword = search.value.trim();
   closeMenu();
@@ -249,25 +260,33 @@ const logout = () => {
 onMounted(() => {
   window.addEventListener(AUTH_CHANGED_EVENT, refreshAuth);
   window.addEventListener("storage", refreshAuth);
+  document.addEventListener("pointerdown", handleDocumentPointerDown);
 });
 
 onUnmounted(() => {
   window.removeEventListener(AUTH_CHANGED_EVENT, refreshAuth);
   window.removeEventListener("storage", refreshAuth);
+  document.removeEventListener("pointerdown", handleDocumentPointerDown);
 });
 </script>
 
 <template>
-  <header class="navbar">
+  <header ref="navbarRef" class="navbar">
     <div class="top-bar">
-      <router-link
-        class="brand"
-        to="/"
-        aria-label="กลับหน้าแรก"
-        @click="closeMenu"
-      >
-        <img class="brand-logo" :src="logoUrl" alt="Read and Voice" />
-      </router-link>
+      <div class="left-cluster">
+        <router-link
+          class="brand"
+          to="/"
+          aria-label="กลับหน้าแรก"
+          @click="closeMenu"
+        >
+          <img class="brand-logo" :src="logoUrl" alt="Read and Voice" />
+        </router-link>
+
+        <router-link class="subscription-link" to="/subscription" @click="closeMenu">
+          สมัครรายเดือน
+        </router-link>
+      </div>
 
       <nav class="desktop-public-nav" aria-label="เมนูหลัก">
         <router-link
@@ -374,12 +393,12 @@ onUnmounted(() => {
             <template v-else>
               <section class="account-section">
                 <h3>บัญชีของฉัน</h3>
-                <router-link class="account-link" to="/login"
-                  >เข้าสู่ระบบ</router-link
-                >
-                <router-link class="account-link" to="/register"
-                  >สมัครสมาชิก</router-link
-                >
+                <router-link class="account-link" to="/login">
+                  เข้าสู่ระบบ
+                </router-link>
+                <router-link class="account-link" to="/register">
+                  สมัครสมาชิก
+                </router-link>
               </section>
             </template>
           </div>
@@ -393,7 +412,10 @@ onUnmounted(() => {
           @click="isMenuOpen = !isMenuOpen"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 7h16v2H4V7Zm0 4h16v2H4v-2Zm0 4h16v2H4v-2Z" />
+            <path
+              class="menu-icon-lines"
+              d="M4.8 6.8h14.4M4.8 12h14.4M4.8 17.2h14.4"
+            />
           </svg>
         </button>
       </div>
@@ -432,10 +454,44 @@ onUnmounted(() => {
       </div>
     </form>
 
+    <div
+      v-if="isMenuOpen"
+      class="mobile-backdrop"
+      aria-hidden="true"
+      @click="closeMenu"
+    ></div>
+
     <div id="mobile-menu" class="mobile-panel" :class="{ open: isMenuOpen }">
+      <div class="mobile-panel-header">
+        <button
+          class="mobile-close"
+          type="button"
+          aria-label="ปิดเมนู"
+          @click="closeMenu"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z"
+            />
+          </svg>
+        </button>
+
+        <img class="mobile-panel-logo" :src="logoUrl" alt="Read and Voice" />
+      </div>
+
       <form class="mobile-search" role="search" @submit.prevent="submitSearch">
         <input v-model="search" type="search" placeholder="ค้นหาหนังสือ" />
       </form>
+
+      <section class="mobile-group">
+        <router-link
+          class="mobile-subscription-link"
+          to="/subscription"
+          @click="closeMenu"
+        >
+          สมัครรายเดือน
+        </router-link>
+      </section>
 
       <section class="mobile-group">
         <h3>เมนูหลัก</h3>
@@ -453,9 +509,9 @@ onUnmounted(() => {
         <h3>บัญชี</h3>
         <template v-if="!isLoggedIn">
           <router-link to="/login" @click="closeMenu">เข้าสู่ระบบ</router-link>
-          <router-link to="/register" @click="closeMenu"
-            >สมัครสมาชิก</router-link
-          >
+          <router-link to="/register" @click="closeMenu">
+            สมัครสมาชิก
+          </router-link>
         </template>
         <template v-else>
           <template v-for="group in accountGroups" :key="group.title">
@@ -504,29 +560,39 @@ onUnmounted(() => {
 }
 
 .top-bar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 42px;
+  min-height: 94px;
+  padding: 12px clamp(52px, 6.2vw, 126px);
+}
+
+.left-cluster {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 82px;
-  padding: 10px clamp(14px, 3vw, 52px);
-  flex-wrap: nowrap;
+  gap: 42px;
+  flex: 0 0 auto;
 }
 
 .brand,
 .desktop-public-nav a,
-.account-link {
+.account-link,
+.subscription-link,
+.mobile-subscription-link {
   text-decoration: none;
 }
 
 .brand {
-  position: static;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  padding: 6px 10px;
-  border-radius: 16px;
+  width: 128px;
+  height: 58px;
+  overflow: visible;
+  padding: 0;
+  border-radius: 8px;
   transition:
     transform 0.2s ease,
     background 0.2s ease,
@@ -540,62 +606,183 @@ onUnmounted(() => {
 }
 
 .brand:hover .brand-logo {
-  transform: scale(1.03);
+  transform: scale(1.9);
 }
 
 .brand:active {
-  transform: scale(0.96);
+  transform: scale(0.97);
 }
 
 .brand-logo {
-  width: clamp(150px, 14vw, 220px);
+  width: 204px;
   height: auto;
-  max-height: 72px;
+  max-height: 82px;
   object-fit: contain;
   transform-origin: center;
-  transition: transform 0.2s ease;
+  transform: scale(1.8);
+  transition:
+    filter 0.2s ease,
+    transform 0.2s ease;
   will-change: transform;
+}
+
+.subscription-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 142px;
+  min-height: 38px;
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent 42%),
+    linear-gradient(135deg, #45c8c4 0%, #20aeb4 100%);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0;
+  padding: 0 18px;
+  position: relative;
+  isolation: isolate;
+  box-shadow:
+    0 10px 20px rgba(47, 183, 186, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition:
+    background 0.2s ease,
+    filter 0.2s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+  white-space: nowrap;
+}
+
+.subscription-link::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.35), transparent 42%);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.subscription-link:hover,
+.mobile-subscription-link:hover {
+  filter: saturate(1.1);
+  transform: translateY(-2px);
+  box-shadow:
+    0 14px 24px rgba(47, 183, 186, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+.subscription-link:hover::after {
+  opacity: 1;
+}
+
+.subscription-link:active,
+.mobile-subscription-link:active {
+  transform: translateY(0) scale(0.96);
+  box-shadow:
+    0 6px 14px rgba(47, 183, 186, 0.22),
+    inset 0 2px 4px rgba(7, 99, 96, 0.22);
 }
 
 .desktop-public-nav {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  flex: 1 1 auto;
+  gap: 18px;
   min-width: 0;
   overflow: hidden;
-  margin: 0;
 }
 
 .desktop-public-nav a {
   display: inline-flex;
   align-items: center;
-  min-height: 38px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: #244b47;
-  font-size: 13px;
-  font-weight: 900;
-  padding: 6px 8px;
+  justify-content: center;
+  min-height: 34px;
+  min-width: 0;
+  border: 0;
+  border-radius: 999px;
+  color: #1f2937;
+  font-size: 16px;
+  font-weight: 800;
+  position: relative;
+  padding: 0 18px;
+  isolation: isolate;
+  overflow: hidden;
   white-space: nowrap;
+  transition:
+    background 0.18s ease,
+    box-shadow 0.18s ease,
+    color 0.2s ease,
+    transform 0.18s ease;
+}
+
+.desktop-public-nav a::before {
+  display: none;
+}
+
+.desktop-public-nav a::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  width: 18px;
+  height: 2px;
+  border-radius: 999px;
+  background: #14b8a6;
+  box-shadow: none;
+  opacity: 0;
+  transform: translateX(-50%) scaleX(0.35);
+  transform-origin: center;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
 }
 
 .desktop-public-nav a:hover,
 .desktop-public-nav a.router-link-exact-active {
   color: #0f766e;
-  background: rgba(255, 255, 255, 0.68);
-  border-color: #082f2b;
+}
+
+.desktop-public-nav a:hover {
+  transform: translateY(-1px);
+  background: rgba(20, 184, 166, 0.08);
+  text-shadow: none;
+}
+
+.desktop-public-nav a:hover::after,
+.desktop-public-nav a.router-link-exact-active::after {
+  opacity: 1;
+  transform: translateX(-50%) scaleX(1);
+}
+
+.desktop-public-nav a.router-link-exact-active {
+  background: #ffe9dc;
+  color: #ea6b3a;
+  box-shadow: 0 6px 14px rgba(234, 107, 58, 0.12);
+}
+
+.desktop-public-nav a.router-link-exact-active::after {
+  display: none;
+}
+
+.desktop-public-nav a:active {
+  transform: translateY(0) scale(0.96);
+  color: #0f766e;
+}
+
+.desktop-public-nav a:active::after {
+  background: #0f766e;
+  transform: translateX(-50%) scaleX(0.78);
 }
 
 .top-actions {
-  position: static;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 22px;
   flex: 0 0 auto;
-  min-width: 0;
 }
 
 .icon-dropdown {
@@ -607,15 +794,16 @@ onUnmounted(() => {
 .notification-button {
   display: inline-grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 46px;
+  height: 46px;
   border: 0;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.76);
+  background: rgba(255, 255, 255, 0.8);
   color: #082f2b;
   cursor: pointer;
   list-style: none;
   flex: 0 0 auto;
+  box-shadow: 0 4px 14px rgba(15, 118, 110, 0.08);
 }
 
 .icon-button::-webkit-details-marker,
@@ -626,8 +814,8 @@ onUnmounted(() => {
 .icon-button svg,
 .avatar-button svg,
 .notification-button svg {
-  width: 23px;
-  height: 23px;
+  width: 24px;
+  height: 24px;
   fill: currentColor;
 }
 
@@ -651,7 +839,7 @@ onUnmounted(() => {
 
 .notification-button {
   position: relative;
-  background: rgba(255, 255, 255, 0.76);
+  background: rgba(255, 255, 255, 0.8);
   color: #111827;
 }
 
@@ -713,7 +901,7 @@ onUnmounted(() => {
   display: grid;
   min-width: 210px;
   border: 1px solid rgba(17, 156, 145, 0.18);
-  border-radius: 8px;
+  border-radius: 12px;
   background: #f8fffd;
   box-shadow: 0 12px 28px rgba(17, 156, 145, 0.14);
   padding: 8px;
@@ -805,6 +993,18 @@ onUnmounted(() => {
   display: none;
 }
 
+.menu-toggle svg {
+  width: 38px;
+  height: 38px;
+}
+
+.menu-icon-lines {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 3.2;
+}
+
 .search-overlay {
   position: fixed;
   top: 0;
@@ -881,6 +1081,14 @@ onUnmounted(() => {
   display: none;
 }
 
+.mobile-backdrop {
+  display: none;
+}
+
+.mobile-panel-header {
+  display: none;
+}
+
 .mobile-search input {
   width: 100%;
   min-height: 42px;
@@ -897,40 +1105,76 @@ onUnmounted(() => {
   box-shadow: 0 0 0 3px rgba(46, 196, 182, 0.18);
 }
 
-@media (max-width: 1080px) {
-  .top-bar {
-    gap: 12px;
-  }
-
-  .brand-logo {
-    width: clamp(138px, 16vw, 190px);
-    max-height: 66px;
-  }
-
-  .desktop-public-nav a {
-    font-size: 12px;
-    padding: 6px 7px;
-  }
-
-  .top-actions {
-    gap: 8px;
-  }
+.mobile-subscription-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #4cc8c6 0%, #2fb7ba 100%);
+  color: white;
+  font-weight: 900;
+  padding: 0 20px;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 1280px) {
   .top-bar {
-    min-height: 70px;
-    padding: 8px 12px;
-    gap: 10px;
+    grid-template-columns: auto 1fr auto;
+    gap: 30px;
+    min-height: 86px;
+    padding-inline: clamp(42px, 5vw, 86px);
+  }
+
+  .left-cluster {
+    gap: 30px;
   }
 
   .brand {
-    padding: 4px 6px;
+    width: 116px;
+    height: 54px;
   }
 
   .brand-logo {
-    width: clamp(118px, 28vw, 170px);
-    max-height: 58px;
+    width: 190px;
+    max-height: 76px;
+    transform: scale(1.72);
+  }
+
+  .subscription-link {
+    min-width: 132px;
+    min-height: 36px;
+    font-size: 14px;
+    padding: 0 16px;
+  }
+
+  .desktop-public-nav {
+    gap: 14px;
+  }
+
+  .desktop-public-nav a {
+    font-size: 15px;
+    min-width: 0;
+    padding: 0 14px;
+  }
+}
+
+@media (max-width: 980px) {
+  .top-bar {
+    grid-template-columns: auto 1fr auto;
+    gap: 20px;
+    position: relative;
+  }
+
+  .left-cluster {
+    order: 1;
+    justify-self: start;
+    margin-left: 54px;
+  }
+
+  .top-actions {
+    order: 3;
+    justify-self: end;
+    gap: 14px;
   }
 
   .desktop-public-nav {
@@ -939,25 +1183,93 @@ onUnmounted(() => {
 
   .menu-toggle {
     display: inline-grid;
+    position: absolute;
+    left: clamp(24px, 6vw, 42px);
+    top: 50%;
+    z-index: 2;
+    transform: translateY(-50%);
+    width: 58px;
+    height: 58px;
+    background: transparent;
+    box-shadow: none;
+    color: #111827;
+  }
+
+  .menu-toggle:hover {
+    background: rgba(20, 184, 166, 0.12);
+  }
+
+  .mobile-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 69;
+    display: block;
+    background: rgba(15, 23, 42, 0.22);
+    backdrop-filter: blur(2px);
   }
 
   .mobile-panel.open {
     display: grid;
-    gap: 14px;
-    padding: 0 12px 16px;
-    background: rgba(255, 255, 255, 0.92);
+    align-content: start;
+    gap: 18px;
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 70;
+    width: min(330px, 88vw);
+    min-height: 100vh;
+    overflow-y: auto;
+    padding: 24px 26px 32px;
+    background: #ffffff;
+    box-shadow: 18px 0 36px rgba(15, 23, 42, 0.16);
+  }
+
+  .mobile-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-height: 44px;
+    margin-bottom: 12px;
+  }
+
+  .mobile-close {
+    display: inline-grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border: 1px solid rgba(15, 23, 42, 0.15);
+    border-radius: 0;
+    background: #ffffff;
+    color: #111827;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .mobile-close:hover {
+    background: #f8fafc;
+  }
+
+  .mobile-close svg {
+    width: 28px;
+    height: 28px;
+    fill: currentColor;
+  }
+
+  .mobile-panel-logo {
+    width: 140px;
+    height: 48px;
+    object-fit: contain;
   }
 
   .mobile-group {
     display: grid;
-    gap: 8px;
-    border-top: 1px solid rgba(17, 156, 145, 0.14);
-    padding-top: 12px;
+    gap: 18px;
+    border-top: 0;
+    padding-top: 0;
   }
 
   .mobile-group h3 {
     margin: 0;
-    color: #0b5f59;
+    color: #0f172a;
     font-size: 13px;
   }
 
@@ -970,20 +1282,36 @@ onUnmounted(() => {
   .mobile-group a,
   .mobile-group button {
     width: 100%;
-    min-height: 42px;
+    min-height: 34px;
     justify-content: flex-start;
-    border: 1px solid rgba(17, 156, 145, 0.18);
-    border-radius: 8px;
-    background: #f2fffc;
-    color: #244b47;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #0f172a;
+    font-size: 23px;
     font-weight: 900;
-    padding: 10px 12px;
+    line-height: 1.15;
+    padding: 0;
     text-decoration: none;
   }
 
+  .mobile-group a:hover,
+  .mobile-group button:hover,
   .mobile-group a.router-link-active {
     color: #0f766e;
-    background: #dff8f3;
+    background: transparent;
+    transform: translateX(4px);
+  }
+
+  .mobile-group .mobile-subscription-link {
+    color: #ef5f93;
+    font-size: 22px;
+    min-height: 34px;
+    padding: 0;
+  }
+
+  .mobile-group .mobile-subscription-link:hover {
+    color: #db2777;
   }
 
   .mobile-theme {
@@ -996,20 +1324,67 @@ onUnmounted(() => {
   }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 720px) {
   .top-bar {
-    gap: 8px;
+    min-height: 74px;
+    padding: 10px clamp(24px, 6vw, 42px);
+    gap: 14px;
+  }
+
+  .left-cluster {
+    gap: 12px;
+    min-width: 0;
+    margin-left: 48px;
+  }
+
+  .brand {
+    width: 98px;
+    height: 50px;
+    padding: 0;
+  }
+
+  .brand-logo {
+    width: 158px;
+    max-height: 62px;
+    transform: scale(1.58);
+  }
+
+  .subscription-link {
+    min-width: 118px;
+    min-height: 34px;
+    font-size: 13px;
+    padding: 0 14px;
   }
 
   .top-actions {
-    gap: 6px;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 420px) {
+  .left-cluster {
+    margin-left: 48px;
+  }
+
+  .menu-toggle {
+    width: 54px;
+    height: 54px;
+  }
+
+  .menu-toggle svg {
+    width: 36px;
+    height: 36px;
+  }
+
+  .top-actions {
+    gap: 7px;
   }
 
   .icon-button,
   .avatar-button,
   .notification-button {
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
   }
 
   .icon-button svg,
@@ -1020,8 +1395,9 @@ onUnmounted(() => {
   }
 
   .brand-logo {
-    width: 108px;
-    max-height: 50px;
+    width: 136px;
+    max-height: 52px;
+    transform: scale(1.5);
   }
 
   .notification-badge {
