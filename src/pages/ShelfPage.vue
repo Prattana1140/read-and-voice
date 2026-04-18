@@ -553,6 +553,7 @@ onMounted(async () => {
   font-size: 24px;
   font-weight: 900;
   line-height: 1.15;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -777,6 +778,7 @@ onMounted(async () => {
   overflow: hidden;
   font-size: 15px;
   font-weight: 900;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -922,6 +924,7 @@ onMounted(async () => {
   font-size: 14px;
   font-weight: 900;
   line-height: 1.35;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -935,6 +938,7 @@ onMounted(async () => {
   font-size: 12px;
   font-weight: 700;
   line-height: 1.3;
+  line-clamp: 1;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
 }

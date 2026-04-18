@@ -383,6 +383,7 @@ onUnmounted(() => {
   font-size: 18px;
   font-weight: 900;
   line-height: 1.2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -394,6 +395,7 @@ onUnmounted(() => {
   color: rgba(11, 47, 43, 0.72);
   font-size: 12px;
   font-weight: 800;
+  line-clamp: 1;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
 }
@@ -757,6 +759,7 @@ onUnmounted(() => {
   font-size: 12px;
   font-weight: 900;
   line-height: 1.35;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }

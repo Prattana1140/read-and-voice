@@ -50,6 +50,14 @@ const routes: RouteRecordRaw[] = [
     component: Store,
   },
   {
+    path: "/ebooks",
+    redirect: "/store",
+  },
+  {
+    path: "/serials",
+    redirect: "/store",
+  },
+  {
     path: "/book/:id",
     name: "BookDetail",
     component: BookDetail,
