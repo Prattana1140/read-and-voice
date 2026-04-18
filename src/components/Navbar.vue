@@ -143,24 +143,24 @@ const accountGroups = computed<NavGroup[]>(() => {
     {
       title: "จัดการระบบ",
       items: [
-        { label: "แดชบอร์ด", to: "/admin", roles: ["admin", "superadmin"] },
+        { label: "ตรวจภาพรวมระบบ", to: "/admin", roles: ["admin", "superadmin"] },
         {
-          label: "จัดการหนังสือ",
+          label: "ตรวจสอบ / แก้ไขหนังสือ",
           to: "/admin/books",
           roles: ["admin", "superadmin"],
         },
         {
-          label: "จัดการหมวดหมู่",
+          label: "จัดหมวดหมู่หนังสือ",
           to: "/admin/categories",
           roles: ["admin", "superadmin"],
         },
         {
-          label: "อัปโหลดหนังสือ",
+          label: "เพิ่มหนังสือเข้าระบบ",
           to: "/admin/upload-book",
           roles: ["admin", "superadmin"],
         },
         {
-          label: "จัดการสมาชิกบางส่วน",
+          label: "ตรวจสมาชิกบางส่วน",
           to: "/admin/members",
           roles: ["admin", "superadmin"],
         },

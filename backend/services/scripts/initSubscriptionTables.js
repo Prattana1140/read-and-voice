@@ -1,19 +1,19 @@
-// backend/scripts/initSubscriptionTables.js
+// services/scripts/initSubscriptionTables.js
 // ======================================================
-// ไฟล์นี้ใช้สร้าง/อัปเดตตารางที่จำเป็นสำหรับ:
+// Creates or updates the tables needed for:
 // 1) subscription plans
 // 2) user subscriptions
-// 3) access_type ของ books / book_episodes
+// 3) books / book_episodes access_type
 //
-// รันด้วย:
-// node scripts/initSubscriptionTables.js
+// Run with:
+// node services/scripts/initSubscriptionTables.js
 // ======================================================
 
-const db = require("../config/db");
+const db = require("../../config/db");
 
 async function init() {
   try {
-    // 1) plans รายเดือน
+    // 1) Monthly plans
     await db.query(`
       CREATE TABLE IF NOT EXISTS subscription_plans (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -27,7 +27,7 @@ async function init() {
       )
     `);
 
-    // 2) การสมัครของผู้ใช้
+    // 2) User subscriptions
     await db.query(`
       CREATE TABLE IF NOT EXISTS user_subscriptions (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -46,72 +46,72 @@ async function init() {
       )
     `);
 
-    // 3) เพิ่ม status ให้ users ถ้ายังไม่มี
+    // 3) Add users.status if missing
     try {
       await db.query(`
         ALTER TABLE users
         ADD COLUMN status ENUM('active','banned') NOT NULL DEFAULT 'active'
       `);
-      console.log("✅ Added users.status");
+      console.log("Added users.status");
     } catch (err) {
       if (!String(err.message).includes("Duplicate column")) {
         throw err;
       }
     }
 
-    // 4) เพิ่ม access_type ให้ books ถ้ายังไม่มี
+    // 4) Add books.access_type if missing
     try {
       await db.query(`
         ALTER TABLE books
         ADD COLUMN access_type ENUM('free','paid','subscription') NOT NULL DEFAULT 'free'
       `);
-      console.log("✅ Added books.access_type");
+      console.log("Added books.access_type");
     } catch (err) {
       if (!String(err.message).includes("Duplicate column")) {
         throw err;
       }
     }
 
-    // 5) เพิ่ม price ให้ books ถ้ายังไม่มี
+    // 5) Add books.price if missing
     try {
       await db.query(`
         ALTER TABLE books
         ADD COLUMN price DECIMAL(10,2) NOT NULL DEFAULT 0
       `);
-      console.log("✅ Added books.price");
+      console.log("Added books.price");
     } catch (err) {
       if (!String(err.message).includes("Duplicate column")) {
         throw err;
       }
     }
 
-    // 6) เพิ่ม access_type ให้ episodes ถ้ายังไม่มี
+    // 6) Add book_episodes.access_type if missing
     try {
       await db.query(`
         ALTER TABLE book_episodes
         ADD COLUMN access_type ENUM('free','paid','subscription') NOT NULL DEFAULT 'free'
       `);
-      console.log("✅ Added book_episodes.access_type");
+      console.log("Added book_episodes.access_type");
     } catch (err) {
       if (!String(err.message).includes("Duplicate column")) {
         throw err;
       }
     }
 
-    // 7) เพิ่ม price ให้ episodes ถ้ายังไม่มี
+    // 7) Add book_episodes.price if missing
     try {
       await db.query(`
         ALTER TABLE book_episodes
         ADD COLUMN price DECIMAL(10,2) NOT NULL DEFAULT 0
       `);
-      console.log("✅ Added book_episodes.price");
+      console.log("Added book_episodes.price");
     } catch (err) {
       if (!String(err.message).includes("Duplicate column")) {
         throw err;
       }
     }
 
-    // 8) seed แผนรายเดือนเริ่มต้น
+    // 8) Seed the default monthly plan
     const [plans] = await db.query(`SELECT id FROM subscription_plans LIMIT 1`);
     if (plans.length === 0) {
       await db.query(`
@@ -119,13 +119,13 @@ async function init() {
         VALUES
         ('Monthly Basic', 'อ่านหนังสือและตอนที่กำหนดเป็น subscription ได้ 30 วัน', 199.00, 30)
       `);
-      console.log("✅ Seeded default monthly plan");
+      console.log("Seeded default monthly plan");
     }
 
-    console.log("🎉 Subscription tables initialized successfully");
+    console.log("Subscription tables initialized successfully");
     process.exit(0);
   } catch (error) {
-    console.error("❌ initSubscriptionTables error:", error.message);
+    console.error("initSubscriptionTables error:", error.message);
     process.exit(1);
   }
 }

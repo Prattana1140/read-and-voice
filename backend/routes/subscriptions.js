@@ -4,6 +4,11 @@ const { verifyToken, optionalVerifyToken } = require("../middleware/auth");
 
 const router = express.Router();
 
+function normalizePlanDuration(value) {
+  const days = Number(value);
+  return Number.isInteger(days) && days > 0 ? days : 30;
+}
+
 router.get("/plans", async (_req, res) => {
   try {
     const [rows] = await db.query(
@@ -99,6 +104,7 @@ async function debitCoins(connection, userId, amount, refType, refId, descriptio
 
 async function checkoutSubscription(req, res) {
   const connection = await db.getConnection();
+  let transactionStarted = false;
 
   try {
     const userId = req.user.id;
@@ -119,8 +125,10 @@ async function checkoutSubscription(req, res) {
     }
 
     const coinCost = Math.max(0, Math.ceil(Number(plan.price || 0)));
+    const durationDays = normalizePlanDuration(plan.duration_days);
 
     await connection.beginTransaction();
+    transactionStarted = true;
 
     const balanceAfter = await debitCoins(
       connection,
@@ -138,11 +146,35 @@ async function checkoutSubscription(req, res) {
       [userId]
     );
 
+    const [activeSubscriptions] = await connection.query(
+      `SELECT id, end_at
+       FROM user_subscriptions
+       WHERE user_id = ?
+         AND status = 'active'
+         AND payment_status = 'paid'
+         AND end_at > NOW()
+       ORDER BY end_at DESC
+       FOR UPDATE`,
+      [userId]
+    );
+    const extensionBaseDate = activeSubscriptions[0]?.end_at || null;
+    const supersededIds = activeSubscriptions.map((subscription) => subscription.id);
+
+    if (supersededIds.length > 0) {
+      await connection.query(
+        `UPDATE user_subscriptions
+         SET status = 'cancelled'
+         WHERE user_id = ?
+           AND id IN (?)`,
+        [userId, supersededIds]
+      );
+    }
+
     await connection.query(
       `INSERT INTO user_subscriptions
        (user_id, plan_id, status, payment_status, start_at, end_at)
-       VALUES (?, ?, 'active', 'paid', NOW(), DATE_ADD(NOW(), INTERVAL ? DAY))`,
-      [userId, plan.id, Number(plan.duration_days || 30)]
+       VALUES (?, ?, 'active', 'paid', NOW(), DATE_ADD(COALESCE(?, NOW()), INTERVAL ? DAY))`,
+      [userId, plan.id, extensionBaseDate, durationDays]
     );
 
     await connection.commit();
@@ -153,7 +185,9 @@ async function checkoutSubscription(req, res) {
       plan,
     });
   } catch (error) {
-    await connection.rollback();
+    if (transactionStarted) {
+      await connection.rollback();
+    }
 
     if (error.message === "COINS_NOT_ENOUGH") {
       return res.status(402).json({

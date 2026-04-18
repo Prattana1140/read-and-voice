@@ -7,6 +7,7 @@
     "start": "node server.js",
     "db:test": "node services/scripts/testDbConnection.js",
     "db:init": "node services/scripts/initDatabase.js",
+    "db:migrate:subscriptions": "node services/scripts/initSubscriptionTables.js",
     "db:migrate:content": "node services/scripts/migrateContentModel.js",
     "db:migrate:commerce": "node services/scripts/migrateCommerceSystem.js",
     "create:superadmin": "node services/scripts/createSuperAdmin.js"
