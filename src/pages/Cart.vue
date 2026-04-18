@@ -1,290 +1,353 @@
-<script setup>
-import { API_BASE_URL } from "../utils/api";
-import { ref, onMounted, computed } from "vue";
+<script setup lang="ts">
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import axios from "axios";
+import api from "../utils/api";
+
+type CartItem = {
+  id: number;
+  book_id?: number | null;
+  episode_id?: number | null;
+  quantity?: number;
+  title: string;
+  book_title?: string;
+  episode_number?: number;
+  price?: number;
+  access_type?: string;
+};
 
 const router = useRouter();
-const cart = ref([]);
+const cart = ref<CartItem[]>([]);
+const balance = ref(0);
 const loading = ref(true);
 const checkingOut = ref(false);
+const errorMessage = ref("");
 
-const total = computed(() =>
-  cart.value.reduce((sum, item) => sum + Number(item.price || 0), 0),
-);
-
-const getToken = () => localStorage.getItem("token") || "";
-
-const getHeaders = () => ({
-  Authorization: `Bearer ${getToken()}`,
+const total = computed(() => {
+  return cart.value.reduce((sum, item) => {
+    return sum + Number(item.price || 0) * Number(item.quantity || 1);
+  }, 0);
 });
 
-const loadCart = async () => {
+async function loadCart() {
   loading.value = true;
+  errorMessage.value = "";
 
   try {
-    const token = getToken();
+    const [cartRes, walletRes] = await Promise.all([
+      api.get("/cart"),
+      api.get("/coins/wallet"),
+    ]);
 
-    if (!token) {
-      alert("กรุณาเข้าสู่ระบบก่อน");
+    cart.value = Array.isArray(cartRes.data) ? cartRes.data : [];
+    balance.value = Number(walletRes.data?.balance || 0);
+  } catch (error: any) {
+    if (error?.response?.status === 401) {
       router.push({ name: "Login" });
       return;
     }
-
-    const res = await axios.get(`${API_BASE_URL}/api/cart`, {
-      headers: getHeaders(),
-    });
-
-    cart.value = Array.isArray(res.data) ? res.data : [];
-  } catch (err) {
-    console.error("loadCart error:", err);
-    alert("โหลดตะกร้าไม่สำเร็จ");
+    errorMessage.value = error?.response?.data?.message || "โหลดตะกร้าไม่สำเร็จ";
   } finally {
     loading.value = false;
   }
-};
+}
 
-const removeItem = async (id) => {
+async function removeItem(id: number) {
   try {
-    await axios.delete(`${API_BASE_URL}/api/cart/${id}`, {
-      headers: getHeaders(),
+    await api.delete(`/cart/${id}`);
+    cart.value = cart.value.filter((item) => item.id !== id);
+  } catch (error: any) {
+    errorMessage.value = error?.response?.data?.message || "ลบสินค้าไม่สำเร็จ";
+  }
+}
+
+async function checkout() {
+  if (!cart.value.length) return;
+
+  checkingOut.value = true;
+  errorMessage.value = "";
+
+  try {
+    const { data } = await api.post("/orders/checkout", {
+      payment_method: "coin",
     });
 
-    cart.value = cart.value.filter((item) => item.id !== id);
-  } catch (err) {
-    console.error("removeItem error:", err);
-    alert("ลบสินค้าไม่สำเร็จ");
-  }
-};
-
-const checkout = async () => {
-  if (!cart.value.length) {
-    alert("ไม่มีสินค้าในตะกร้า");
-    return;
-  }
-
-  try {
-    checkingOut.value = true;
-
-    const res = await axios.post(
-      `${API_BASE_URL}/api/orders/checkout`,
-      { payment_method: "mock" },
-      { headers: getHeaders() },
-    );
-
-    alert(res.data.message || "สั่งซื้อสำเร็จ");
+    alert(data?.message || "ซื้อสำเร็จ");
     cart.value = [];
     router.push({ name: "OrderHistory" });
-  } catch (err) {
-    console.error("checkout error:", err);
-    alert(err?.response?.data?.message || "สั่งซื้อไม่สำเร็จ");
+  } catch (error: any) {
+    if (error?.response?.status === 402) {
+      errorMessage.value = "coin ไม่พอ กรุณาเติม coin ก่อนซื้อ";
+      router.push({ name: "CoinWallet" });
+      return;
+    }
+    errorMessage.value = error?.response?.data?.message || "ซื้อไม่สำเร็จ";
   } finally {
     checkingOut.value = false;
   }
-};
+}
 
-const goToStore = () => {
-  router.push({ name: "Store" });
-};
-
-const goToHistory = () => {
-  router.push({ name: "OrderHistory" });
-};
+function itemKind(item: CartItem) {
+  return item.episode_id ? "รายตอน" : "อีบุ๊ก";
+}
 
 onMounted(loadCart);
 </script>
 
 <template>
-  <div class="cart-page">
-    <div class="container">
-      <div class="header">
-        <div>
-          <h1>ตะกร้าของฉัน</h1>
-          <p>ตรวจสอบรายการก่อนสั่งซื้อ</p>
-        </div>
-
-        <div class="header-actions">
-          <button class="btn" @click="goToStore">กลับร้านหนังสือ</button>
-          <button class="btn primary" @click="goToHistory">
-            ประวัติคำสั่งซื้อ
-          </button>
-        </div>
+  <main class="cart-page">
+    <section class="header-card">
+      <div>
+        <p class="eyebrow">Checkout</p>
+        <h1>ตะกร้าของฉัน</h1>
+        <p>ซื้ออีบุ๊กและรายตอนด้วย coin ในกระเป๋า</p>
       </div>
 
-      <div v-if="loading" class="state-box">กำลังโหลดตะกร้า...</div>
-
-      <div v-else-if="!cart.length" class="state-box empty">
-        ยังไม่มีสินค้าในตะกร้า
+      <div class="wallet-pill">
+        <span>ยอด coin</span>
+        <strong>{{ balance }}</strong>
       </div>
+    </section>
 
-      <div v-else class="cart-layout">
-        <div class="cart-list">
-          <div v-for="item in cart" :key="item.id" class="cart-item">
-            <div class="item-info">
-              <h3>{{ item.title }}</h3>
-              <p>{{ item.price }} บาท</p>
-            </div>
+    <p v-if="errorMessage" class="alert error">{{ errorMessage }}</p>
 
-            <button class="btn danger" @click="removeItem(item.id)">ลบ</button>
+    <section v-if="loading" class="state-card">กำลังโหลดตะกร้า...</section>
+    <section v-else-if="cart.length === 0" class="state-card empty">
+      ยังไม่มีสินค้าในตะกร้า
+      <button type="button" @click="router.push('/store')">ไปเลือกหนังสือ</button>
+    </section>
+
+    <section v-else class="cart-layout">
+      <div class="cart-list">
+        <article v-for="item in cart" :key="item.id" class="cart-item">
+          <div>
+            <span>{{ itemKind(item) }}</span>
+            <h2>{{ item.title }}</h2>
+            <p v-if="item.book_title && item.episode_id">
+              {{ item.book_title }} ตอนที่ {{ item.episode_number || "-" }}
+            </p>
+            <p>{{ item.access_type || "paid" }}</p>
           </div>
-        </div>
 
-        <div class="summary-box">
-          <h2>สรุปรายการ</h2>
-          <p>จำนวนสินค้า: {{ cart.length }}</p>
-          <p class="total">รวมทั้งหมด: {{ total }} บาท</p>
-
-          <button class="checkout-btn" @click="checkout" :disabled="checkingOut">
-            {{ checkingOut ? "กำลังสั่งซื้อ..." : "ซื้อเลย" }}
-          </button>
-        </div>
+          <div class="item-side">
+            <strong>{{ Number(item.price || 0) * Number(item.quantity || 1) }} coin</strong>
+            <small>จำนวน {{ item.quantity || 1 }}</small>
+            <button type="button" @click="removeItem(item.id)">ลบ</button>
+          </div>
+        </article>
       </div>
-    </div>
-  </div>
+
+      <aside class="summary-card">
+        <h2>สรุปรายการ</h2>
+        <p>จำนวนสินค้า: {{ cart.length }}</p>
+        <p class="total">รวม {{ total }} coin</p>
+        <p :class="balance >= total ? 'enough' : 'not-enough'">
+          {{ balance >= total ? "coin เพียงพอสำหรับชำระเงิน" : "coin ไม่พอสำหรับรายการนี้" }}
+        </p>
+
+        <button
+          class="checkout-btn"
+          type="button"
+          :disabled="checkingOut"
+          @click="checkout"
+        >
+          {{ checkingOut ? "กำลังซื้อ..." : "ชำระด้วย coin" }}
+        </button>
+        <button class="topup-btn" type="button" @click="router.push('/coin-wallet')">
+          เติม coin
+        </button>
+      </aside>
+    </section>
+  </main>
 </template>
 
 <style scoped>
 .cart-page {
-  min-height: 100%;
-  background: var(--bg);
-  padding: 28px 20px 44px;
+  background: #f7f8fb;
+  min-height: 100vh;
+  padding: 24px;
 }
 
-.container {
-  max-width: var(--content-width);
-  margin: 0 auto;
+.header-card,
+.state-card,
+.cart-item,
+.summary-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
 
-.header {
+.header-card {
+  align-items: center;
   display: flex;
   justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-  margin-bottom: 20px;
+  gap: 20px;
+  margin: 0 auto 18px;
+  max-width: 1120px;
+  padding: 24px;
 }
 
-.header h1 {
+.eyebrow {
+  color: #0f766e;
+  font-weight: 900;
   margin: 0 0 8px;
-  color: var(--text-strong);
 }
 
-.header p {
+h1,
+h2 {
+  color: #111827;
   margin: 0;
-  color: var(--text-muted);
 }
 
-.header-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+.header-card p:not(.eyebrow),
+.cart-item p,
+.item-side small,
+.summary-card p {
+  color: #6b7280;
 }
 
-.state-box,
-.cart-item,
-.summary-box {
-  background: var(--surface);
-  border: 1px solid var(--border);
+.wallet-pill {
+  background: #111827;
   border-radius: 8px;
-  box-shadow: var(--shadow);
+  color: white;
+  min-width: 160px;
+  padding: 16px;
 }
 
-.state-box {
+.wallet-pill span,
+.wallet-pill strong {
+  display: block;
+}
+
+.wallet-pill strong {
+  font-size: 34px;
+}
+
+.alert,
+.state-card,
+.cart-layout {
+  margin: 0 auto 16px;
+  max-width: 1120px;
+}
+
+.alert {
+  border-radius: 8px;
+  font-weight: 800;
+  padding: 12px 14px;
+}
+
+.error {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.state-card {
   padding: 24px;
 }
 
 .empty {
-  text-align: center;
-  color: var(--text-muted);
+  display: grid;
+  gap: 14px;
+  justify-items: start;
 }
 
 .cart-layout {
   display: grid;
-  grid-template-columns: 1.4fr 0.8fr;
-  gap: 20px;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) 320px;
 }
 
 .cart-list {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .cart-item {
-  padding: 18px;
+  align-items: center;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  gap: 16px;
+  padding: 18px;
 }
 
-.item-info h3 {
-  margin: 0 0 8px;
-  color: var(--text-strong);
-}
-
-.item-info p {
-  margin: 0;
-  color: var(--text-muted);
-}
-
-.summary-box {
-  padding: 20px;
-  height: fit-content;
-}
-
-.summary-box h2 {
-  color: var(--text-strong);
-}
-
-.total {
-  color: var(--text-strong);
-  font-size: 20px;
+.cart-item span {
+  color: #0f766e;
   font-weight: 900;
-  margin-top: 12px;
 }
 
-.btn,
-.checkout-btn {
-  border: none;
+.cart-item h2 {
+  font-size: 20px;
+  margin-top: 4px;
+}
+
+.item-side {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+  text-align: right;
+}
+
+.item-side strong,
+.total {
+  color: #111827;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.summary-card {
+  align-self: start;
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+}
+
+button {
+  border: 0;
   border-radius: 8px;
   cursor: pointer;
-  font-weight: 800;
-}
-
-.btn {
+  font-weight: 900;
   padding: 11px 14px;
-  background: var(--surface-soft);
-  color: var(--text-strong);
 }
 
-.btn.primary,
 .checkout-btn {
-  background: var(--primary);
-  color: var(--on-primary);
-}
-
-.btn.danger {
-  background: var(--danger);
+  background: #14b8a6;
   color: white;
 }
 
-.checkout-btn {
-  width: 100%;
-  margin-top: 16px;
-  padding: 14px;
-  font-size: 16px;
+.topup-btn {
+  background: #eef2ff;
+  color: #3730a3;
 }
 
-.checkout-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+.item-side button {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
-@media (max-width: 900px) {
+.enough {
+  color: #047857 !important;
+  font-weight: 800;
+}
+
+.not-enough {
+  color: #dc2626 !important;
+  font-weight: 800;
+}
+
+@media (max-width: 860px) {
+  .header-card,
+  .cart-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .cart-layout {
     grid-template-columns: 1fr;
   }
 
-  .header {
-    flex-direction: column;
+  .item-side {
+    justify-items: start;
+    text-align: left;
   }
 }
 </style>

@@ -1,38 +1,91 @@
+// backend/middleware/auth.js
 const jwt = require("jsonwebtoken");
+const db = require("../config/db");
 
-function verifyToken(req, res, next) {
+async function verifyToken(req, res, next) {
   try {
-    const authHeader = req.headers.authorization;
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.split(" ")[1]
+      : null;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "ไม่ได้ส่ง token" });
+    if (!token) {
+      return res.status(401).json({ message: "ไม่พบ token" });
     }
 
-    const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    req.user = decoded;
+    const [rows] = await db.query(
+      `SELECT id, name, email, role, status
+       FROM users
+       WHERE id = ?
+       LIMIT 1`,
+      [decoded.id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(401).json({ message: "ไม่พบผู้ใช้งาน" });
+    }
+
+    const user = rows[0];
+
+    if (user.status && user.status !== "active") {
+      return res.status(403).json({ message: "บัญชีนี้ถูกระงับการใช้งาน" });
+    }
+
+    req.user = user;
     next();
   } catch (error) {
-    return res.status(401).json({ message: "token ไม่ถูกต้องหรือหมดอายุ" });
+    return res.status(401).json({ message: "Token ไม่ถูกต้องหรือหมดอายุ" });
   }
+}
+
+async function optionalVerifyToken(req, _res, next) {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.split(" ")[1]
+      : null;
+
+    if (!token) {
+      req.user = null;
+      return next();
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const [rows] = await db.query(
+      `SELECT id, name, email, role, status
+       FROM users
+       WHERE id = ?
+       LIMIT 1`,
+      [decoded.id]
+    );
+
+    const user = rows[0] || null;
+    req.user = user && (!user.status || user.status === "active") ? user : null;
+  } catch (_) {
+    req.user = null;
+  }
+
+  return next();
 }
 
 function allowRoles(...roles) {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ message: "ไม่พบข้อมูลผู้ใช้งาน" });
+      return res.status(401).json({ message: "กรุณาเข้าสู่ระบบก่อน" });
     }
 
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ message: "ไม่มีสิทธิ์ใช้งาน" });
+      return res.status(403).json({ message: "คุณไม่มีสิทธิ์ใช้งานส่วนนี้" });
     }
 
-    next();
+    return next();
   };
 }
 
 module.exports = {
   verifyToken,
+  optionalVerifyToken,
   allowRoles,
 };

@@ -18,7 +18,7 @@
   --on-primary: #ffffff;
   --radius: 8px;
   --content-width: 1200px;
-  --sans: system-ui, "Segoe UI", Roboto, sans-serif;
+  --sans: "Noto Sans Thai", "Leelawadee UI", "Tahoma", "Segoe UI", Roboto, Arial, sans-serif;
 
   color: var(--text);
   background: var(--bg);

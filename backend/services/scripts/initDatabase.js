@@ -29,18 +29,43 @@ const statements = [
     category_id INT NULL,
     cover_image TEXT NULL,
     source_type VARCHAR(50) NULL,
+    content_type VARCHAR(20) NOT NULL DEFAULT 'ebook',
+    access_type VARCHAR(20) NOT NULL DEFAULT 'paid',
     process_status VARCHAR(50) NOT NULL DEFAULT 'pending',
     full_text LONGTEXT NULL,
     total_pages INT NOT NULL DEFAULT 0,
     is_published TINYINT(1) NOT NULL DEFAULT 1,
     created_by INT NULL,
     price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    preview_page_limit INT NOT NULL DEFAULT 1,
+    preview_char_limit INT NOT NULL DEFAULT 1500,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_books_content_type (content_type),
+    INDEX idx_books_access_type (access_type),
     INDEX idx_books_category_id (category_id),
     INDEX idx_books_created_by (created_by),
     CONSTRAINT fk_books_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
     CONSTRAINT fk_books_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `,
+  `
+  CREATE TABLE IF NOT EXISTS book_episodes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    book_id INT NOT NULL,
+    episode_number INT NOT NULL,
+    title VARCHAR(500) NOT NULL,
+    content LONGTEXT NULL,
+    price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    is_free TINYINT(1) NOT NULL DEFAULT 0,
+    access_type VARCHAR(20) NOT NULL DEFAULT 'free',
+    is_published TINYINT(1) NOT NULL DEFAULT 1,
+    preview_char_limit INT NOT NULL DEFAULT 1500,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_book_episodes_book_episode (book_id, episode_number),
+    INDEX idx_book_episodes_book_id (book_id),
+    CONSTRAINT fk_book_episodes_book FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `,
   `
@@ -73,11 +98,15 @@ const statements = [
   CREATE TABLE IF NOT EXISTS cart (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    book_id INT NOT NULL,
+    book_id INT NULL,
+    episode_id INT NULL,
+    quantity INT NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_cart_user_book (user_id, book_id),
+    UNIQUE KEY uq_cart_user_episode (user_id, episode_id),
     CONSTRAINT fk_cart_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_cart_book FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
+    CONSTRAINT fk_cart_book FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
+    CONSTRAINT fk_cart_episode FOREIGN KEY (episode_id) REFERENCES book_episodes(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `,
   `
@@ -96,11 +125,14 @@ const statements = [
   CREATE TABLE IF NOT EXISTS order_items (
     id INT AUTO_INCREMENT PRIMARY KEY,
     order_id INT NOT NULL,
-    book_id INT NOT NULL,
+    book_id INT NULL,
+    episode_id INT NULL,
+    quantity INT NOT NULL DEFAULT 1,
     price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-    CONSTRAINT fk_order_items_book FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
+    CONSTRAINT fk_order_items_book FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
+    CONSTRAINT fk_order_items_episode FOREIGN KEY (episode_id) REFERENCES book_episodes(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `,
   `
@@ -167,6 +199,29 @@ const statements = [
     page_number INT NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_bookmarks_book_id (book_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `,
+  `
+  CREATE TABLE IF NOT EXISTS coin_wallets (
+    user_id INT PRIMARY KEY,
+    balance INT NOT NULL DEFAULT 0,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_coin_wallets_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `,
+  `
+  CREATE TABLE IF NOT EXISTS coin_transactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    type ENUM('topup','purchase','refund','adjustment') NOT NULL,
+    amount INT NOT NULL,
+    balance_after INT NOT NULL,
+    ref_type VARCHAR(50) NULL,
+    ref_id INT NULL,
+    description VARCHAR(500) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_coin_transactions_user_id (user_id),
+    CONSTRAINT fk_coin_transactions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `,
 ];

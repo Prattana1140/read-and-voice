@@ -1,43 +1,140 @@
+<script setup lang="ts">
+// ======================================================
+// [เพิ่มอะไร]
+// - รายชื่อสมาชิก
+// - ban / unban
+//
+// [ใช้ทำอะไร]
+// - ปิดงาน user management ฝั่ง admin
+// ======================================================
+
+import { onMounted, ref } from "vue";
+import api from "../../utils/api";
+
+type UserItem = {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  status: "active" | "banned";
+  created_at: string;
+};
+
+const users = ref<UserItem[]>([]);
+const loading = ref(false);
+const message = ref("");
+const errorMessage = ref("");
+
+async function loadUsers() {
+  try {
+    loading.value = true;
+    const { data } = await api.get("/admin/users");
+    users.value = data || [];
+  } catch (error: any) {
+    errorMessage.value = error?.response?.data?.message || "โหลดรายชื่อสมาชิกไม่สำเร็จ";
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function updateStatus(id: number, status: "active" | "banned") {
+  try {
+    await api.put(`/admin/users/${id}/status`, { status });
+    message.value = status === "banned" ? "แบนสมาชิกสำเร็จ" : "ปลดแบนสมาชิกสำเร็จ";
+    await loadUsers();
+  } catch (error: any) {
+    errorMessage.value = error?.response?.data?.message || "เปลี่ยนสถานะไม่สำเร็จ";
+  }
+}
+
+onMounted(loadUsers);
+</script>
+
 <template>
-  <div class="admin-page">
-    <section class="panel">
-      <p class="eyebrow">Admin</p>
-      <h1>จัดการสมาชิกบางส่วน</h1>
-      <p class="muted">
-        หน้านี้เป็นพื้นที่สำหรับ admin ดูแลสมาชิกระดับทั่วไป เช่น ตรวจสอบบัญชีหรือสถานะการใช้งาน
-        ส่วนการเปลี่ยน role และจัดการผู้ใช้ทั้งหมดถูกสงวนไว้สำหรับ superadmin
-      </p>
-    </section>
+  <div class="page">
+    <div class="card">
+      <h1>จัดการสมาชิก</h1>
+
+      <p v-if="loading">กำลังโหลด...</p>
+      <p v-if="message" class="success">{{ message }}</p>
+      <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>ชื่อ</th>
+            <th>อีเมล</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr v-for="user in users" :key="user.id">
+            <td>{{ user.id }}</td>
+            <td>{{ user.name }}</td>
+            <td>{{ user.email }}</td>
+            <td>{{ user.role }}</td>
+            <td>{{ user.status }}</td>
+            <td class="actions">
+              <button
+                v-if="user.status === 'active'"
+                class="danger"
+                @click="updateStatus(user.id, 'banned')"
+              >
+                Ban
+              </button>
+
+              <button
+                v-else
+                @click="updateStatus(user.id, 'active')"
+              >
+                Unban
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.admin-page {
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 32px 20px 48px;
+.page {
+  padding: 24px;
 }
-
-.panel {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  padding: 28px;
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
 }
-
-.eyebrow {
-  margin: 0 0 8px;
-  color: var(--primary-strong);
-  font-weight: 900;
+table {
+  width: 100%;
+  border-collapse: collapse;
 }
-
-h1 {
-  color: var(--text-strong);
+th,
+td {
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
 }
-
-.muted {
-  color: var(--text-muted);
-  line-height: 1.8;
+.actions {
+  display: flex;
+  gap: 8px;
+}
+button {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.danger {
+  background: #dc2626;
+  color: white;
+}
+.success {
+  color: #15803d;
+}
+.error {
+  color: #dc2626;
 }
 </style>

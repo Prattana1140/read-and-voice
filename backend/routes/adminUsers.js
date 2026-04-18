@@ -1,158 +1,86 @@
 const express = require("express");
-const router = express.Router();
 const db = require("../config/db");
 const { verifyToken } = require("../middleware/auth");
+const { requireAdmin } = require("../middleware/admin");
 const { requireSuperAdmin } = require("../middleware/superadmin");
 
-// ดูผู้ใช้ทั้งหมด
-router.get("/users", verifyToken, requireSuperAdmin, async (req, res) => {
-  try {
-    const [rows] = await db.query(`
-      SELECT id, name, email, role, created_at
-      FROM users
-      ORDER BY id DESC
-    `);
+const router = express.Router();
 
-    res.json(rows);
+router.get("/", verifyToken, requireAdmin, async (_req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT id, name, email, role, status, created_at
+       FROM users
+       ORDER BY created_at DESC`
+    );
+
+    return res.json(rows);
   } catch (error) {
     console.error("GET /admin/users error:", error);
-    res.status(500).json({ message: "โหลดรายการผู้ใช้ไม่สำเร็จ" });
+    return res.status(500).json({ message: "ดึงรายชื่อสมาชิกไม่สำเร็จ" });
   }
 });
 
-// ดูผู้ใช้รายคน
-router.get("/users/:id", verifyToken, requireSuperAdmin, async (req, res) => {
+router.put("/:id/status", verifyToken, requireAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
+    const userId = Number(req.params.id);
+    const { status } = req.body;
 
-    const [rows] = await db.query(
-      `
-      SELECT id, name, email, role, created_at
-      FROM users
-      WHERE id = ?
-      LIMIT 1
-      `,
-      [id]
+    if (!["active", "banned"].includes(status)) {
+      return res.status(400).json({ message: "สถานะไม่ถูกต้อง" });
+    }
+
+    if (userId === Number(req.user.id)) {
+      return res
+        .status(400)
+        .json({ message: "ไม่สามารถเปลี่ยนสถานะบัญชีตัวเองได้" });
+    }
+
+    const [result] = await db.query(
+      "UPDATE users SET status = ? WHERE id = ?",
+      [status, userId]
     );
 
-    if (rows.length === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
     }
 
-    res.json(rows[0]);
+    return res.json({
+      message:
+        status === "banned"
+          ? "แบนผู้ใช้งานสำเร็จ"
+          : "ปลดแบนผู้ใช้งานสำเร็จ",
+    });
   } catch (error) {
-    console.error("GET /admin/users/:id error:", error);
-    res.status(500).json({ message: "โหลดข้อมูลผู้ใช้ไม่สำเร็จ" });
+    console.error("PUT /admin/users/:id/status error:", error);
+    return res.status(500).json({ message: "เปลี่ยนสถานะผู้ใช้ไม่สำเร็จ" });
   }
 });
 
-// เปลี่ยน role แบบกำหนดเอง
-router.patch(
-  "/users/:id/role",
-  verifyToken,
-  requireSuperAdmin,
-  async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { role } = req.body;
+router.put("/:id/role", verifyToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+    const { role } = req.body;
+    const allowedRoles = ["user", "writer", "admin", "superadmin"];
 
-      const allowedRoles = ["user", "writer", "admin"];
-
-      if (!allowedRoles.includes(role)) {
-        return res.status(400).json({ message: "role ไม่ถูกต้อง" });
-      }
-
-      const [users] = await db.query(
-        "SELECT id, role FROM users WHERE id = ? LIMIT 1",
-        [id]
-      );
-
-      if (users.length === 0) {
-        return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
-      }
-
-      if (users[0].role === "superadmin") {
-        return res
-          .status(400)
-          .json({ message: "ไม่สามารถแก้ role ของ superadmin ได้" });
-      }
-
-      await db.query("UPDATE users SET role = ? WHERE id = ?", [role, id]);
-
-      res.json({ message: `อัปเดต role เป็น ${role} สำเร็จ` });
-    } catch (error) {
-      console.error("PATCH /admin/users/:id/role error:", error);
-      res.status(500).json({ message: "อัปเดต role ไม่สำเร็จ" });
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({ message: "role ไม่ถูกต้อง" });
     }
-  }
-);
 
-// อนุมัติเป็น admin
-router.patch(
-  "/users/:id/approve-admin",
-  verifyToken,
-  requireSuperAdmin,
-  async (req, res) => {
-    try {
-      const { id } = req.params;
+    const [result] = await db.query("UPDATE users SET role = ? WHERE id = ?", [
+      role,
+      userId,
+    ]);
 
-      const [users] = await db.query(
-        "SELECT id, role FROM users WHERE id = ? LIMIT 1",
-        [id]
-      );
-
-      if (users.length === 0) {
-        return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
-      }
-
-      if (users[0].role === "superadmin") {
-        return res
-          .status(400)
-          .json({ message: "ไม่สามารถแก้ role ของ superadmin ได้" });
-      }
-
-      await db.query("UPDATE users SET role = 'admin' WHERE id = ?", [id]);
-
-      res.json({ message: "อนุมัติเป็น admin สำเร็จ" });
-    } catch (error) {
-      console.error("PATCH /admin/users/:id/approve-admin error:", error);
-      res.status(500).json({ message: "อนุมัติ admin ไม่สำเร็จ" });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
     }
+
+    return res.json({ message: "เปลี่ยน role สำเร็จ" });
+  } catch (error) {
+    console.error("PUT /admin/users/:id/role error:", error);
+    return res.status(500).json({ message: "เปลี่ยน role ไม่สำเร็จ" });
   }
-);
-
-// ยกเลิกสิทธิ์ admin กลับเป็น user
-router.patch(
-  "/users/:id/revoke-admin",
-  verifyToken,
-  requireSuperAdmin,
-  async (req, res) => {
-    try {
-      const { id } = req.params;
-
-      const [users] = await db.query(
-        "SELECT id, role FROM users WHERE id = ? LIMIT 1",
-        [id]
-      );
-
-      if (users.length === 0) {
-        return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
-      }
-
-      if (users[0].role === "superadmin") {
-        return res
-          .status(400)
-          .json({ message: "ไม่สามารถแก้ role ของ superadmin ได้" });
-      }
-
-      await db.query("UPDATE users SET role = 'user' WHERE id = ?", [id]);
-
-      res.json({ message: "ยกเลิกสิทธิ์ admin สำเร็จ" });
-    } catch (error) {
-      console.error("PATCH /admin/users/:id/revoke-admin error:", error);
-      res.status(500).json({ message: "ยกเลิกสิทธิ์ admin ไม่สำเร็จ" });
-    }
-  }
-);
+});
 
 module.exports = router;

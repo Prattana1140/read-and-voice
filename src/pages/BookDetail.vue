@@ -1,13 +1,18 @@
-<template>
+﻿<template>
   <div class="book-detail-page">
     <div class="container">
-      <div v-if="loading" class="state-box">กำลังโหลดข้อมูลหนังสือ...</div>
+      <div v-if="loading" class="state-box">
+        กำลังโหลดข้อมูลหนังสือ...
+      </div>
 
       <div v-else-if="error" class="state-box error">
         {{ error }}
       </div>
 
       <div v-else-if="book" class="book-layout">
+        <!-- =========================
+             SIDEBAR: ปก + ข้อมูลหลัก + ปุ่มลัด + TTS ตัวอย่าง
+             ========================= -->
         <aside class="book-sidebar">
           <div class="cover-box">
             <img
@@ -19,7 +24,7 @@
           </div>
 
           <h1 class="book-title">{{ book.title }}</h1>
-          <p class="book-author">ผู้แต่ง: {{ book.author }}</p>
+          <p class="book-author">ผู้แต่ง: {{ book.author || "ไม่ระบุ" }}</p>
 
           <p v-if="book.category_name" class="book-meta">
             หมวดหมู่: {{ book.category_name }}
@@ -29,28 +34,55 @@
             {{ book.description }}
           </p>
 
+          <div class="access-card" :class="`access-${bookAccessType}`">
+            <span class="access-badge">{{ bookAccessLabel }}</span>
+            <strong>{{ bookPriceLabel }}</strong>
+            <p>{{ bookAccessHint }}</p>
+          </div>
+
+          <!-- ปุ่มลัด -->
           <div class="quick-actions">
             <button class="btn reader-btn" @click="openReaderPage">
-              📖 โหมดอ่านเต็มจอ
+              {{ primaryReaderLabel }}
             </button>
 
             <button class="btn primary library-btn" @click="addToLibrary">
-              ➕ เพิ่มเข้าชั้นหนังสือ
+              เพิ่มเข้าชั้นหนังสือ
             </button>
 
             <button class="btn wishlist-btn" @click="addToWishlist">
-              ♡ เพิ่ม Wishlist
+              เพิ่ม Wishlist
             </button>
 
-            <button class="btn cart-btn" @click="addToCart">
-              🛒 เพิ่มลงตะกร้า
+            <button class="btn cart-btn" @click="addWholeBookToCart">
+              {{ bookAccessType === "paid" ? "เพิ่มลงตะกร้า" : "เก็บไว้ในตะกร้า" }}
+            </button>
+
+            <button
+              v-if="bookAccessType === 'paid'"
+              class="btn coin-btn"
+              @click="router.push('/coin-wallet')"
+            >
+              เติม coin
+            </button>
+
+            <button
+              v-if="bookAccessType === 'subscription' && !hasActiveSubscription"
+              class="btn subscribe-btn"
+              @click="router.push('/subscription-plans')"
+            >
+              สมัครรายเดือน
             </button>
           </div>
 
-          <div class="tts-panel">
+          <!-- TTS ตัวอย่าง -->
+          <div
+            v-if="book.content_type !== 'serial' && sentences.length"
+            class="tts-panel"
+          >
             <h3>ทดลองอ่านออกเสียง</h3>
             <p class="tts-note">
-              หน้านี้เป็นตัวอย่างเสียงเบื้องต้น หากต้องการอ่านเต็มเล่มให้เข้าโหมดอ่านเต็มจอ
+              ส่วนนี้เป็นตัวอย่างการฟังเบื้องต้น หากต้องการอ่านแบบเต็มหน้าจอให้กดเปิด Reader
             </p>
 
             <div class="control-group">
@@ -99,25 +131,22 @@
             </div>
 
             <div class="button-group">
-              <button class="btn primary" @click="playBook">▶ เริ่มอ่าน</button>
-              <button class="btn" @click="pauseBook">⏸ หยุดชั่วคราว</button>
-              <button class="btn" @click="resumeBook">⏯ เล่นต่อ</button>
-              <button class="btn danger" @click="stopSpeech">⏹ หยุด</button>
+              <button class="btn primary" @click="playBook">เริ่มอ่าน</button>
+              <button class="btn" @click="pauseBook">หยุดชั่วคราว</button>
+              <button class="btn" @click="resumeBook">เล่นต่อ</button>
+              <button class="btn danger" @click="stopSpeech">หยุด</button>
             </div>
 
             <div class="button-group">
-              <button class="btn" @click="restartBook">🔄 เริ่มใหม่</button>
-              <button class="btn" @click="prevSentence">⏮ ย้อนกลับ</button>
-              <button class="btn" @click="replayCurrent">🔁 อ่านซ้ำ</button>
-              <button class="btn" @click="nextSentence">⏭ ถัดไป</button>
+              <button class="btn" @click="restartBook">เริ่มใหม่</button>
+              <button class="btn" @click="prevSentence">ย้อนกลับ</button>
+              <button class="btn" @click="replayCurrent">อ่านซ้ำ</button>
+              <button class="btn" @click="nextSentence">ถัดไป</button>
             </div>
 
             <div class="status-box">
               <p>จำนวนประโยคตัวอย่าง: {{ sentences.length }}</p>
-              <p>
-                กำลังอ่านประโยคที่:
-                {{ sentences.length ? currentIndex + 1 : 0 }}
-              </p>
+              <p>กำลังอ่านประโยคที่: {{ sentences.length ? currentIndex + 1 : 0 }}</p>
               <p v-if="isSpeaking">สถานะ: กำลังอ่าน</p>
               <p v-else-if="isPaused">สถานะ: หยุดชั่วคราว</p>
               <p v-else>สถานะ: ยังไม่เริ่ม</p>
@@ -125,9 +154,14 @@
           </div>
         </aside>
 
+        <!-- =========================
+             CONTENT AREA
+             ========================= -->
         <main class="book-content">
           <div class="content-header">
-            <h2>ตัวอย่างเนื้อหา</h2>
+            <h2>
+              {{ book.content_type === "serial" ? "รายการตอน" : "ตัวอย่างเนื้อหา" }}
+            </h2>
 
             <div class="top-right-actions">
               <button class="small-btn" @click="goToWishlist">Wishlist</button>
@@ -135,7 +169,78 @@
             </div>
           </div>
 
+          <!-- =========================
+               กรณีเป็นนิยายรายตอน / serial
+               ========================= -->
+          <div v-if="book.content_type === 'serial'" class="episode-list">
+            <!-- กล่องซื้อทั้งเรื่อง / สมัครรายเดือน -->
+            <div class="purchase-actions">
+              <button
+                v-if="book.access_type === 'paid'"
+                class="btn primary"
+                :disabled="buyingBook"
+                @click="addBookToCart(book.id)"
+              >
+                {{ buyingBook ? "กำลังเพิ่ม..." : `ซื้ออีบุ๊ก ${book.price || 0} coin` }}
+              </button>
+
+              <router-link
+                v-if="book.access_type === 'subscription'"
+                class="subscribe-link"
+                to="/subscription-plans"
+              >
+                สมัครรายเดือนเพื่ออ่าน
+              </router-link>
+            </div>
+
+            <article
+              v-for="episode in episodes"
+              :key="episode.id"
+              class="episode-item"
+            >
+              <div>
+                <strong>ตอนที่ {{ episode.episode_number }}: {{ episode.title }}</strong>
+                <p>{{ getEpisodeAccessLabel(episode) }}</p>
+              </div>
+
+              <div class="episode-actions">
+                <button class="small-btn" @click="openEpisodeReader(episode)">
+                  {{ isEpisodeFree(episode) ? "อ่านตอนนี้" : "ดูสถานะตอน" }}
+                </button>
+
+                <button
+                  v-if="isEpisodePaid(episode)"
+                  class="small-btn"
+                  :disabled="buyingEpisodeId === episode.id"
+                  @click="addEpisodeToCart(episode)"
+                >
+                  {{
+                    buyingEpisodeId === episode.id
+                      ? "กำลังเพิ่ม..."
+                      : "เพิ่มตอนลงตะกร้า"
+                  }}
+                </button>
+
+                <router-link
+                  v-if="episode.access_type === 'subscription'"
+                  class="subscribe-link small-link"
+                  to="/subscription-plans"
+                >
+                  สมัครรายเดือน
+                </router-link>
+              </div>
+            </article>
+
+            <div v-if="!episodes.length" class="empty-content">
+              ยังไม่มีตอนที่เผยแพร่
+            </div>
+          </div>
+
+          <!-- =========================
+               กรณีเป็น ebook เต็มเล่ม
+               ========================= -->
           <div
+            v-else
             class="reader-box"
             :style="{ fontSize: fontSize + 'px', lineHeight: '1.9' }"
           >
@@ -154,8 +259,13 @@
             </div>
           </div>
 
-          <div class="preview-footer">
-            <button class="btn reader-btn preview-reader-btn" @click="openReaderPage">
+          <p v-if="previewNotice" class="preview-notice">{{ previewNotice }}</p>
+
+          <div v-if="book.content_type !== 'serial'" class="preview-footer">
+            <button
+              class="btn reader-btn preview-reader-btn"
+              @click="openReaderPage"
+            >
               เปิดอ่านเต็มเล่มใน Reader
             </button>
           </div>
@@ -166,12 +276,21 @@
 </template>
 
 <script setup lang="ts">
+// =========================
+// ส่วน import
+// ใช้สำหรับดึง dependency ที่จำเป็นเข้ามา
+// =========================
 import { API_BASE_URL } from "../utils/api";
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
 import { getAuthHeaders, getUser } from "../utils/auth";
+import api from "../utils/api";
 
+// =========================
+// Type สำหรับข้อมูลหนังสือ
+// ใช้ช่วยให้ TypeScript รู้ shape ของข้อมูล
+// =========================
 type Book = {
   id: number;
   title: string;
@@ -184,31 +303,67 @@ type Book = {
   full_text?: string;
   category_name?: string;
   price?: number;
+  content_type?: "ebook" | "serial";
+  access_type?: "paid" | "free" | "subscription";
+  episode_count?: number;
 };
 
+type Episode = {
+  id: number;
+  book_id: number;
+  episode_number: number;
+  title: string;
+  price: number;
+  is_free?: number;
+  access_type?: "paid" | "free" | "subscription";
+};
+
+// จำกัดจำนวนประโยคตัวอย่างในหน้า detail
 const PREVIEW_LIMIT = 12;
 
+// =========================
+// route / router
+// ใช้อ่าน id จาก URL และสั่งเปลี่ยนหน้า
+// =========================
 const route = useRoute();
 const router = useRouter();
 
+// =========================
+// state หลักของหน้า
+// =========================
 const book = ref<Book | null>(null);
+const episodes = ref<Episode[]>([]);
 const loading = ref(true);
 const error = ref("");
+const previewNotice = ref("");
 
+// state ฝั่ง reader preview
 const fontSize = ref(22);
 const rate = ref(1);
 const pitch = ref(1);
 const volume = ref(1);
 
+// state voice
 const voices = ref<SpeechSynthesisVoice[]>([]);
 const selectedVoice = ref("");
 
+// state ประโยคสำหรับ TTS preview
 const sentences = ref<string[]>([]);
 const currentIndex = ref(0);
 
+// state สถานะเสียง
 const isSpeaking = ref(false);
 const isPaused = ref(false);
 
+// state subscription/cart
+const subscriptionInfo = ref<any>(null);
+const buyingBook = ref(false);
+const buyingEpisodeId = ref<number | null>(null);
+
+// =========================
+// computed
+// ใช้คำนวณข้อมูลจาก state
+// =========================
 const selectedVoiceObject = computed(() => {
   return voices.value.find((v) => v.name === selectedVoice.value) || null;
 });
@@ -227,11 +382,83 @@ const progressKey = computed(() => {
   return book.value ? `book-preview-progress-${book.value.id}` : "";
 });
 
+// =========================
+// helper functions
+// =========================
 const handleImgError = (event: Event) => {
   const target = event.target as HTMLImageElement;
   if (target.src.endsWith("/no-cover.png")) return;
   target.src = "/no-cover.png";
 };
+
+const isEpisodeFree = (episode: Episode) => {
+  return Number(episode.is_free) === 1 || episode.access_type === "free" || Number(episode.price) <= 0;
+};
+
+const isEpisodePaid = (episode: Episode) => {
+  return episode.access_type === "paid" || (!isEpisodeFree(episode) && episode.access_type !== "subscription");
+};
+
+const getEpisodeAccessLabel = (episode: Episode) => {
+  if (episode.access_type === "subscription") {
+    return "อ่านได้ด้วยแพ็กเกจรายเดือน";
+  }
+
+  if (isEpisodeFree(episode)) {
+    return "อ่านฟรี";
+  }
+
+  return `ใช้ ${episode.price || 0} coin`;
+};
+
+const bookAccessType = computed(() => {
+  return book.value?.access_type || "free";
+});
+
+const hasActiveSubscription = computed(() => {
+  return Boolean(subscriptionInfo.value?.isActive);
+});
+
+const bookAccessLabel = computed(() => {
+  if (bookAccessType.value === "subscription") return "อ่านด้วยรายเดือน";
+  if (bookAccessType.value === "paid") return "ใช้ coin";
+  return "อ่านฟรี";
+});
+
+const bookPriceLabel = computed(() => {
+  if (bookAccessType.value === "subscription") {
+    return hasActiveSubscription.value ? "แพ็กเกจกำลังใช้งาน" : "ต้องมีแพ็กเกจ";
+  }
+
+  if (bookAccessType.value === "paid") {
+    return `${book.value?.price || 0} coin`;
+  }
+
+  return "0 coin";
+});
+
+const bookAccessHint = computed(() => {
+  if (bookAccessType.value === "subscription") {
+    return hasActiveSubscription.value
+      ? "บัญชีนี้มีแพ็กเกจรายเดือน สามารถเปิดอ่านได้"
+      : "สมัครแพ็กเกจรายเดือนก่อนเพื่ออ่านเนื้อหานี้";
+  }
+
+  if (bookAccessType.value === "paid") {
+    return "เติม coin ให้พอ แล้วเพิ่มลงตะกร้าหรือซื้อเพื่อปลดล็อก";
+  }
+
+  return "เปิดอ่านและฟังเสียงได้ทันที";
+});
+
+const primaryReaderLabel = computed(() => {
+  if (bookAccessType.value === "free") return "อ่านฟรีใน Reader";
+  if (bookAccessType.value === "subscription" && hasActiveSubscription.value) {
+    return "อ่านด้วยแพ็กเกจใน Reader";
+  }
+
+  return "ตรวจสิทธิ์/อ่านใน Reader";
+});
 
 const loadVoices = () => {
   const list = window.speechSynthesis.getVoices();
@@ -308,7 +535,7 @@ const splitSentences = (text: string): string[] => {
     .trim();
 
   return cleaned
-    .split(/(?<=[.!?…。！？])\s+|<PARA>/)
+    .split(/(?<=[.!?…。！？])/)
     .map((s) => s.trim())
     .filter((s) => s.length > 0)
     .flatMap((s) => {
@@ -329,11 +556,7 @@ const loadProgress = () => {
   if (saved !== null) {
     const parsed = Number(saved);
 
-    if (
-      !Number.isNaN(parsed) &&
-      parsed >= 0 &&
-      parsed < sentences.value.length
-    ) {
+    if (!Number.isNaN(parsed) && parsed >= 0 && parsed < sentences.value.length) {
       currentIndex.value = parsed;
     }
   }
@@ -373,9 +596,13 @@ const scrollToCurrent = async () => {
   }
 };
 
+// =========================
+// API load data
+// =========================
 const fetchBook = async () => {
   loading.value = true;
   error.value = "";
+  previewNotice.value = "";
 
   try {
     const id = Number(route.params.id);
@@ -383,15 +610,44 @@ const fetchBook = async () => {
     const bookRes = await axios.get(`${API_BASE_URL}/api/books/${id}`);
     book.value = bookRes.data;
 
-    const contentRes = await axios.get(
-      `${API_BASE_URL}/api/books/${id}/content`
-    );
+    // ถ้าเป็น serial ให้โหลดเฉพาะรายการตอน
+    if (book.value?.content_type === "serial") {
+      const episodeRes = await axios.get(`${API_BASE_URL}/api/books/${id}/episodes`);
+      episodes.value = Array.isArray(episodeRes.data) ? episodeRes.data : [];
+      sentences.value = [];
+      return;
+    }
 
-    const fullText = contentRes.data.map((p: any) => p.content || "").join(" ");
-    const normalized = normalizeContent(fullText);
-    const allSentences = splitSentences(normalized);
+    // ถ้าเป็น ebook ให้โหลด content preview
+    const contentRes = await axios.get(`${API_BASE_URL}/api/books/${id}/content`, {
+      headers: getAuthHeaders(),
+    });
 
-    sentences.value = allSentences.slice(0, PREVIEW_LIMIT);
+    const rawData = contentRes.data;
+
+    if (Array.isArray(rawData)) {
+      const fullText = rawData.map((p: any) => p.content || "").join(" ");
+      const hasPreview = rawData.some((p: any) => p.is_preview);
+
+      if (hasPreview) {
+        previewNotice.value = "ขณะนี้แสดงเฉพาะตัวอย่างเนื้อหา หากต้องการอ่านเต็มเล่มให้เข้าสู่ระบบหรือซื้อก่อน";
+      }
+
+      const normalized = normalizeContent(fullText);
+      const allSentences = splitSentences(normalized);
+      sentences.value = allSentences.slice(0, PREVIEW_LIMIT);
+    } else if (rawData?.content) {
+      const normalized = normalizeContent(rawData.content);
+      const allSentences = splitSentences(normalized);
+      sentences.value = allSentences.slice(0, PREVIEW_LIMIT);
+
+      if (rawData?.is_preview) {
+        previewNotice.value = "ขณะนี้แสดงเฉพาะตัวอย่างเนื้อหา";
+      }
+    } else {
+      sentences.value = [];
+    }
+
     loadProgress();
   } catch (err) {
     console.error("fetchBook error:", err);
@@ -401,6 +657,18 @@ const fetchBook = async () => {
   }
 };
 
+const loadSubscriptionStatus = async () => {
+  try {
+    const { data } = await api.get("/subscriptions/me");
+    subscriptionInfo.value = data;
+  } catch {
+    subscriptionInfo.value = null;
+  }
+};
+
+// =========================
+// TTS functions
+// =========================
 const stopSpeech = () => {
   window.speechSynthesis.cancel();
   isSpeaking.value = false;
@@ -504,12 +772,41 @@ const selectSentence = (index: number) => {
   speakFrom(index);
 };
 
+// =========================
+// navigation
+// =========================
 const openReaderPage = () => {
   if (!book.value) return;
   stopSpeech();
-  router.push({ name: "ReaderPage", params: { id: book.value.id } });
+
+  router.push({
+    name: "ReaderPage",
+    params: { id: book.value.id },
+  });
 };
 
+const openEpisodeReader = (episode: Episode) => {
+  if (!book.value) return;
+  stopSpeech();
+
+  router.push({
+    name: "ReaderPage",
+    params: { id: book.value.id },
+    query: { episode: String(episode.id) },
+  });
+};
+
+const goToWishlist = () => {
+  router.push({ name: "WishList" });
+};
+
+const goToCart = () => {
+  router.push({ name: "Cart" });
+};
+
+// =========================
+// actions: library / wishlist / cart
+// =========================
 const addToLibrary = async () => {
   try {
     const user = getUser();
@@ -524,7 +821,7 @@ const addToLibrary = async () => {
     const res = await axios.post(
       `${API_BASE_URL}/api/library`,
       { book_id: book.value.id },
-      { headers: getAuthHeaders() }
+      { headers: getAuthHeaders() },
     );
 
     alert(res.data.message || "เพิ่มเข้าชั้นหนังสือสำเร็จ");
@@ -538,9 +835,7 @@ const addToWishlist = () => {
   if (!book.value) return;
 
   const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
-  const exists = wishlist.some(
-    (item: any) => Number(item.id) === Number(book.value?.id)
-  );
+  const exists = wishlist.some((item: any) => Number(item.id) === Number(book.value?.id));
 
   if (exists) {
     alert("หนังสือเล่มนี้อยู่ใน Wishlist แล้ว");
@@ -558,11 +853,20 @@ const addToWishlist = () => {
   alert("เพิ่มเข้า Wishlist สำเร็จ");
 };
 
-const addToCart = async () => {
+const addWholeBookToCart = async () => {
   if (!book.value) return;
 
-  const token = localStorage.getItem("token");
+  if (bookAccessType.value === "free") {
+    openReaderPage();
+    return;
+  }
 
+  if (bookAccessType.value === "subscription" && !hasActiveSubscription.value) {
+    router.push("/subscription-plans");
+    return;
+  }
+
+  const token = localStorage.getItem("token");
   if (!token) {
     alert("กรุณาเข้าสู่ระบบก่อน");
     router.push({ name: "Login" });
@@ -577,31 +881,59 @@ const addToCart = async () => {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      }
+      },
     );
 
     alert("เพิ่มลงตะกร้าแล้ว");
   } catch (err: any) {
     alert(err?.response?.data?.message || "เพิ่มลงตะกร้าไม่สำเร็จ");
-    console.error("addToCart error:", err);
+    console.error("addWholeBookToCart error:", err);
   }
 };
 
-const goToWishlist = () => {
-  router.push({ name: "WishList" });
+const addBookToCart = async (bookId: number) => {
+  try {
+    if (bookAccessType.value === "free") {
+      openReaderPage();
+      return;
+    }
+
+    buyingBook.value = true;
+    await api.post("/cart", { book_id: bookId, quantity: 1 });
+    alert("เพิ่มอีบุ๊กลงตะกร้าแล้ว");
+  } catch (error: any) {
+    alert(error?.response?.data?.message || "เพิ่มอีบุ๊กลงตะกร้าไม่สำเร็จ");
+  } finally {
+    buyingBook.value = false;
+  }
 };
 
-const goToCart = () => {
-  router.push({ name: "Cart" });
+const addEpisodeToCart = async (episode: Episode) => {
+  try {
+    buyingEpisodeId.value = episode.id;
+    await api.post("/cart", { episode_id: episode.id, quantity: 1 });
+    alert("เพิ่มตอนลงตะกร้าแล้ว");
+  } catch (error: any) {
+    alert(error?.response?.data?.message || "เพิ่มตอนลงตะกร้าไม่สำเร็จ");
+  } finally {
+    buyingEpisodeId.value = null;
+  }
 };
 
+// =========================
+// watchers
+// =========================
 watch([fontSize, rate, pitch, volume, selectedVoice], () => {
   savePreviewSettings();
 });
 
+// =========================
+// lifecycle
+// =========================
 onMounted(async () => {
   loadPreviewSettings();
   await fetchBook();
+  await loadSubscriptionStatus();
   loadVoices();
   window.speechSynthesis.onvoiceschanged = loadVoices;
   scrollToCurrent();
@@ -705,6 +1037,50 @@ onBeforeUnmount(() => {
   margin-bottom: 20px;
 }
 
+.access-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+  margin: 0 0 18px;
+  padding: 14px;
+}
+
+.access-card strong {
+  color: #111827;
+  display: block;
+  font-size: 24px;
+  margin-top: 8px;
+}
+
+.access-card p {
+  color: #667085;
+  line-height: 1.5;
+  margin: 8px 0 0;
+}
+
+.access-badge {
+  border-radius: 8px;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 6px 10px;
+}
+
+.access-free .access-badge {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.access-paid .access-badge {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.access-subscription .access-badge {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
 .tts-panel h3 {
   margin-bottom: 8px;
 }
@@ -792,6 +1168,18 @@ input[type="range"] {
   color: #2f63d8;
 }
 
+.coin-btn {
+  width: 100%;
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.subscribe-btn {
+  width: 100%;
+  background: #eef2ff;
+  color: #3730a3;
+}
+
 .status-box {
   margin-top: 12px;
   background: #f6f7fb;
@@ -837,6 +1225,67 @@ input[type="range"] {
   max-height: 75vh;
   overflow-y: auto;
   color: #222;
+}
+
+.episode-list {
+  display: grid;
+  gap: 12px;
+}
+
+.episode-item {
+  align-items: center;
+  background: #fcfcff;
+  border: 1px solid #ececf3;
+  border-radius: 8px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 16px;
+}
+
+.episode-item p {
+  color: #667085;
+  margin: 6px 0 0;
+}
+
+.episode-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.purchase-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.subscribe-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #eef6ff;
+  color: #2f63d8;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.small-link {
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+
+.preview-notice {
+  background: #fff8e6;
+  border: 1px solid #ffe3a3;
+  border-radius: 8px;
+  color: #7a4d00;
+  font-weight: 700;
+  margin: 16px 0 0;
+  padding: 12px 14px;
 }
 
 .sentence {
@@ -887,6 +1336,15 @@ input[type="range"] {
   .preview-reader-btn {
     max-width: none;
     width: 100%;
+  }
+
+  .episode-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .episode-actions {
+    justify-content: flex-start;
   }
 }
 </style>

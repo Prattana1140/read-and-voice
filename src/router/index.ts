@@ -1,4 +1,8 @@
-import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
+import {
+  createRouter,
+  createWebHistory,
+  type RouteRecordRaw,
+} from "vue-router";
 
 import Home from "../pages/Home.vue";
 import Store from "../pages/Store.vue";
@@ -18,10 +22,12 @@ import Cart from "../pages/Cart.vue";
 import OrderHistory from "../pages/OrderHistory.vue";
 import Profile from "../pages/Profile.vue";
 
-import UploadBook from "../pages/UploadBook.vue";
-
 import AdminDashboard from "../pages/admin/Dashboard.vue";
 import AdminEditBook from "../pages/admin/EditBook.vue";
+
+import UploadBook from "../pages/UploadBook.vue";
+import SubscriptionPlans from "../pages/SubscriptionPlans.vue";
+import CoinWallet from "../pages/CoinWallet.vue";
 
 import { getAuthUser, isAuthenticated, type AuthUser } from "../utils/auth";
 
@@ -30,10 +36,9 @@ type UserRole = "user" | "writer" | "admin" | "superadmin";
 const memberRoles: UserRole[] = ["user", "writer", "admin", "superadmin"];
 const writerRoles: UserRole[] = ["writer"];
 const adminRoles: UserRole[] = ["admin", "superadmin"];
-const loggedInRoles: UserRole[] = ["user", "writer", "admin", "superadmin"];
+const superAdminRoles: UserRole[] = ["superadmin"];
 
 const routes: RouteRecordRaw[] = [
-  // public
   {
     path: "/",
     name: "Home",
@@ -43,6 +48,12 @@ const routes: RouteRecordRaw[] = [
     path: "/store",
     name: "Store",
     component: Store,
+  },
+  {
+    path: "/book/:id",
+    name: "BookDetail",
+    component: BookDetail,
+    props: true,
   },
   {
     path: "/best-sellers",
@@ -75,12 +86,6 @@ const routes: RouteRecordRaw[] = [
     component: () => import("../pages/ShelfPage.vue"),
   },
   {
-    path: "/book/:id",
-    name: "BookDetail",
-    component: BookDetail,
-    props: true,
-  },
-  {
     path: "/terms",
     name: "Terms",
     component: () => import("../pages/Terms.vue"),
@@ -90,8 +95,21 @@ const routes: RouteRecordRaw[] = [
     name: "PrivacyPolicy",
     component: () => import("../pages/PrivacyPolicy.vue"),
   },
-
-  // auth
+  {
+    path: "/subscription-plans",
+    name: "SubscriptionPlans",
+    component: SubscriptionPlans,
+  },
+  {
+    path: "/subscription",
+    redirect: "/subscription-plans",
+  },
+  {
+    path: "/coin-wallet",
+    name: "CoinWallet",
+    component: CoinWallet,
+    meta: { requiresAuth: true, allowedRoles: memberRoles },
+  },
   {
     path: "/login",
     name: "Login",
@@ -127,8 +145,6 @@ const routes: RouteRecordRaw[] = [
     component: Register,
     meta: { guestOnly: true },
   },
-
-  // member
   {
     path: "/reader/:id",
     name: "ReaderPage",
@@ -164,10 +180,8 @@ const routes: RouteRecordRaw[] = [
     path: "/profile",
     name: "Profile",
     component: Profile,
-    meta: { requiresAuth: true, allowedRoles: loggedInRoles },
+    meta: { requiresAuth: true, allowedRoles: memberRoles },
   },
-
-  // writer
   {
     path: "/writer",
     name: "WriterDashboard",
@@ -198,8 +212,6 @@ const routes: RouteRecordRaw[] = [
     component: () => import("../pages/writer/Stats.vue"),
     meta: { requiresAuth: true, allowedRoles: writerRoles },
   },
-
-  // admin
   {
     path: "/admin",
     name: "AdminDashboard",
@@ -237,31 +249,26 @@ const routes: RouteRecordRaw[] = [
     component: () => import("../pages/admin/Members.vue"),
     meta: { requiresAuth: true, allowedRoles: adminRoles },
   },
-
-  // superadmin
   {
     path: "/superadmin/roles",
     name: "SuperAdminRoles",
     component: () => import("../pages/superadmin/Roles.vue"),
-    meta: { requiresAuth: true, allowedRoles: ["superadmin"] },
+    meta: { requiresAuth: true, allowedRoles: superAdminRoles },
   },
   {
     path: "/superadmin/users",
     name: "SuperAdminUsers",
     component: () => import("../pages/superadmin/Users.vue"),
-    meta: { requiresAuth: true, allowedRoles: ["superadmin"] },
+    meta: { requiresAuth: true, allowedRoles: superAdminRoles },
   },
   {
     path: "/superadmin/settings",
     name: "SuperAdminSettings",
     component: () => import("../pages/superadmin/Settings.vue"),
-    meta: { requiresAuth: true, allowedRoles: ["superadmin"] },
+    meta: { requiresAuth: true, allowedRoles: superAdminRoles },
   },
-
-  // fallback
   {
     path: "/:pathMatch(.*)*",
-    name: "NotFoundRedirect",
     redirect: "/",
   },
 ];
@@ -276,7 +283,6 @@ router.beforeEach((to, _from, next) => {
   const user = getAuthUser() as AuthUser | null;
   const role = user?.role as UserRole | undefined;
 
-  // ถ้าล็อกอินแล้ว ห้ามเข้าหน้า guestOnly
   if (to.meta.guestOnly && isLoggedIn) {
     if (role === "writer") return next("/writer");
     if (role === "admin") return next("/admin");
@@ -284,7 +290,6 @@ router.beforeEach((to, _from, next) => {
     return next("/");
   }
 
-  // ถ้าหน้าที่ต้องล็อกอินก่อน
   if (to.meta.requiresAuth) {
     if (!isLoggedIn || !role) {
       alert("กรุณาเข้าสู่ระบบก่อน");
@@ -295,9 +300,11 @@ router.beforeEach((to, _from, next) => {
 
     if (allowedRoles && !allowedRoles.includes(role)) {
       alert("คุณไม่มีสิทธิ์เข้าหน้านี้");
+
       if (role === "writer") return next("/writer");
       if (role === "admin") return next("/admin");
       if (role === "superadmin") return next("/superadmin/roles");
+
       return next("/");
     }
   }

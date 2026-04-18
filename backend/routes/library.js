@@ -1,12 +1,12 @@
 const express = require("express");
-const router = express.Router();
 const db = require("../config/db");
 const { verifyToken } = require("../middleware/auth");
 
-// เพิ่มหนังสือเข้าชั้น
+const router = express.Router();
+
 router.post("/", verifyToken, async (req, res) => {
   try {
-    const user_id = req.user.id;
+    const userId = req.user.id;
     const { book_id } = req.body;
 
     if (!book_id) {
@@ -15,33 +15,29 @@ router.post("/", verifyToken, async (req, res) => {
 
     const [exists] = await db.query(
       "SELECT id FROM `library` WHERE user_id = ? AND book_id = ?",
-      [user_id, book_id]
+      [userId, book_id]
     );
 
     if (exists.length > 0) {
-      return res.json({ message: "มีในชั้นแล้ว" });
+      return res.json({ message: "มีหนังสือเล่มนี้ในชั้นแล้ว" });
     }
 
-    await db.query(
-      "INSERT INTO `library` (user_id, book_id) VALUES (?, ?)",
-      [user_id, book_id]
-    );
+    await db.query("INSERT INTO `library` (user_id, book_id) VALUES (?, ?)", [
+      userId,
+      book_id,
+    ]);
 
-    res.json({ message: "เพิ่มสำเร็จ" });
+    return res.json({ message: "เพิ่มเข้าชั้นหนังสือสำเร็จ" });
   } catch (error) {
-    console.error("POST library error:", error);
-    res.status(500).json({ message: error.message });
+    console.error("POST /library error:", error);
+    return res.status(500).json({ message: "เพิ่มเข้าชั้นหนังสือไม่สำเร็จ" });
   }
 });
 
-// โหลดรายการชั้นหนังสือของตัวเอง
 router.get("/me", verifyToken, async (req, res) => {
   try {
-    const userId = req.user.id;
-
     const [rows] = await db.query(
-      `
-      SELECT 
+      `SELECT
         l.id AS library_id,
         l.user_id,
         l.book_id,
@@ -56,33 +52,28 @@ router.get("/me", verifyToken, async (req, res) => {
       JOIN books b ON l.book_id = b.id
       LEFT JOIN categories c ON b.category_id = c.id
       WHERE l.user_id = ?
-      ORDER BY l.id DESC
-      `,
-      [userId]
+      ORDER BY l.id DESC`,
+      [req.user.id]
     );
 
-    res.json(rows);
+    return res.json(rows);
   } catch (error) {
-    console.error("GET library error:", error);
-    res.status(500).json({ message: error.message });
+    console.error("GET /library/me error:", error);
+    return res.status(500).json({ message: "โหลดชั้นหนังสือไม่สำเร็จ" });
   }
 });
 
-// ลบออกจากชั้น
 router.delete("/:bookId", verifyToken, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { bookId } = req.params;
+    await db.query("DELETE FROM `library` WHERE user_id = ? AND book_id = ?", [
+      req.user.id,
+      req.params.bookId,
+    ]);
 
-    await db.query(
-      "DELETE FROM `library` WHERE user_id = ? AND book_id = ?",
-      [userId, bookId]
-    );
-
-    res.json({ message: "ลบสำเร็จ" });
+    return res.json({ message: "ลบออกจากชั้นหนังสือสำเร็จ" });
   } catch (error) {
-    console.error("DELETE library error:", error);
-    res.status(500).json({ message: error.message });
+    console.error("DELETE /library/:bookId error:", error);
+    return res.status(500).json({ message: "ลบออกจากชั้นหนังสือไม่สำเร็จ" });
   }
 });
 

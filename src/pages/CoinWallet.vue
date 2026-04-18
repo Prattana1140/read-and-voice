@@ -1,0 +1,292 @@
+<script setup lang="ts">
+import { onMounted, ref } from "vue";
+import api from "../utils/api";
+
+type CoinPackage = {
+  id: string;
+  coins: number;
+  price: number;
+  label: string;
+};
+
+type Transaction = {
+  id: number;
+  type: string;
+  amount: number;
+  balance_after: number;
+  description?: string;
+  created_at?: string;
+};
+
+const balance = ref(0);
+const packages = ref<CoinPackage[]>([]);
+const transactions = ref<Transaction[]>([]);
+const loading = ref(true);
+const message = ref("");
+const errorMessage = ref("");
+
+async function loadWallet() {
+  loading.value = true;
+  errorMessage.value = "";
+
+  try {
+    const [walletRes, packageRes, txRes] = await Promise.all([
+      api.get("/coins/wallet"),
+      api.get("/coins/packages"),
+      api.get("/coins/transactions"),
+    ]);
+
+    balance.value = Number(walletRes.data?.balance || 0);
+    packages.value = packageRes.data || [];
+    transactions.value = txRes.data || [];
+  } catch (error: any) {
+    errorMessage.value = error?.response?.data?.message || "โหลดกระเป๋า coin ไม่สำเร็จ";
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function topup(packageId: string) {
+  message.value = "";
+  errorMessage.value = "";
+
+  try {
+    const { data } = await api.post("/coins/topup", { package_id: packageId });
+    message.value = data?.message || "เติม coin สำเร็จ";
+    await loadWallet();
+  } catch (error: any) {
+    errorMessage.value = error?.response?.data?.message || "เติม coin ไม่สำเร็จ";
+  }
+}
+
+function formatDate(value?: string) {
+  if (!value) return "-";
+  return new Date(value).toLocaleString("th-TH");
+}
+
+onMounted(loadWallet);
+</script>
+
+<template>
+  <main class="wallet-page">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Read and Voice Coin</p>
+        <h1>เติม coin สำหรับซื้อหนังสือและรายตอน</h1>
+        <p>ใช้ coin ซื้ออีบุ๊ก รายตอน และสมัครแพ็กเกจอ่านรายเดือนในระบบเดียว</p>
+      </div>
+
+      <div class="balance-card">
+        <span>ยอด coin</span>
+        <strong>{{ balance }}</strong>
+      </div>
+    </section>
+
+    <p v-if="message" class="alert success">{{ message }}</p>
+    <p v-if="errorMessage" class="alert error">{{ errorMessage }}</p>
+
+    <section v-if="loading" class="panel">กำลังโหลดกระเป๋า coin...</section>
+
+    <template v-else>
+      <section class="package-grid">
+        <article v-for="item in packages" :key="item.id" class="package-card">
+          <span>{{ item.label }}</span>
+          <strong>{{ item.coins }} coin</strong>
+          <p>{{ item.price }} บาท</p>
+          <button type="button" @click="topup(item.id)">เติมแพ็กนี้</button>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>ประวัติ coin</h2>
+          <button type="button" @click="loadWallet">รีเฟรช</button>
+        </div>
+
+        <div v-if="transactions.length === 0" class="empty">ยังไม่มีรายการ</div>
+        <div v-else class="tx-list">
+          <article v-for="tx in transactions" :key="tx.id">
+            <div>
+              <strong>{{ tx.description || tx.type }}</strong>
+              <span>{{ formatDate(tx.created_at) }}</span>
+            </div>
+            <div class="tx-amount" :class="{ plus: Number(tx.amount) > 0 }">
+              {{ Number(tx.amount) > 0 ? "+" : "" }}{{ tx.amount }}
+              <small>เหลือ {{ tx.balance_after }}</small>
+            </div>
+          </article>
+        </div>
+      </section>
+    </template>
+  </main>
+</template>
+
+<style scoped>
+.wallet-page {
+  background: #f7f8fb;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.hero,
+.panel,
+.package-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.hero {
+  align-items: center;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  margin: 0 auto 20px;
+  max-width: 1120px;
+  padding: 28px;
+}
+
+.eyebrow {
+  color: #0f766e;
+  font-weight: 900;
+  margin: 0 0 8px;
+}
+
+h1,
+h2 {
+  color: #111827;
+  margin: 0;
+}
+
+.hero p:not(.eyebrow) {
+  color: #6b7280;
+}
+
+.balance-card {
+  background: #111827;
+  border-radius: 8px;
+  color: white;
+  padding: 20px;
+}
+
+.balance-card span,
+.balance-card strong {
+  display: block;
+}
+
+.balance-card strong {
+  font-size: 44px;
+}
+
+.alert,
+.panel,
+.package-grid {
+  margin: 0 auto 16px;
+  max-width: 1120px;
+}
+
+.alert {
+  border-radius: 8px;
+  font-weight: 800;
+  padding: 12px 14px;
+}
+
+.success {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.error {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.package-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.package-card {
+  padding: 20px;
+}
+
+.package-card span,
+.package-card strong,
+.package-card p {
+  display: block;
+}
+
+.package-card strong {
+  font-size: 30px;
+  margin-top: 8px;
+}
+
+.package-card p {
+  color: #6b7280;
+}
+
+button {
+  border: 0;
+  border-radius: 8px;
+  background: #14b8a6;
+  color: white;
+  cursor: pointer;
+  font-weight: 900;
+  padding: 11px 14px;
+}
+
+.panel {
+  padding: 20px;
+}
+
+.panel-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.tx-list {
+  display: grid;
+  gap: 10px;
+}
+
+.tx-list article {
+  align-items: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+}
+
+.tx-list span,
+.tx-amount small {
+  color: #6b7280;
+  display: block;
+}
+
+.tx-amount {
+  color: #dc2626;
+  font-weight: 900;
+  text-align: right;
+}
+
+.tx-amount.plus {
+  color: #047857;
+}
+
+.empty {
+  color: #6b7280;
+}
+
+@media (max-width: 720px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

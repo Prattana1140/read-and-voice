@@ -1,7 +1,8 @@
 const express = require("express");
-const router = express.Router();
 const db = require("../config/db");
 const { verifyToken } = require("../middleware/auth");
+
+const router = express.Router();
 
 router.post("/", verifyToken, async (req, res) => {
   const connection = await db.getConnection();
@@ -35,46 +36,27 @@ router.post("/", verifyToken, async (req, res) => {
     await connection.beginTransaction();
 
     await connection.query(
-      `
-      INSERT INTO reading_progress
-      (
-        user_id,
-        book_id,
-        current_page,
-        last_position,
-        progress_percent,
-        last_read_at
-      )
-      VALUES (?, ?, ?, ?, ?, NOW())
-      ON DUPLICATE KEY UPDATE
-        current_page = VALUES(current_page),
-        last_position = VALUES(last_position),
-        progress_percent = VALUES(progress_percent),
-        last_read_at = NOW()
-      `,
+      `INSERT INTO reading_progress
+       (user_id, book_id, current_page, last_position, progress_percent, last_read_at)
+       VALUES (?, ?, ?, ?, ?, NOW())
+       ON DUPLICATE KEY UPDATE
+         current_page = VALUES(current_page),
+         last_position = VALUES(last_position),
+         progress_percent = VALUES(progress_percent),
+         last_read_at = NOW()`,
       [userId, book_id, current_page, last_position, progress_percent]
     );
 
     await connection.query(
-      `
-      INSERT INTO tts_settings
-      (
-        user_id,
-        rate,
-        pitch,
-        volume,
-        voice_name,
-        lang,
-        updated_at
-      )
-      VALUES (?, ?, ?, ?, ?, 'th-TH', NOW())
-      ON DUPLICATE KEY UPDATE
-        rate = COALESCE(VALUES(rate), rate),
-        pitch = COALESCE(VALUES(pitch), pitch),
-        volume = COALESCE(VALUES(volume), volume),
-        voice_name = COALESCE(VALUES(voice_name), voice_name),
-        updated_at = NOW()
-      `,
+      `INSERT INTO tts_settings
+       (user_id, rate, pitch, volume, voice_name, lang, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'th-TH', NOW())
+       ON DUPLICATE KEY UPDATE
+         rate = COALESCE(VALUES(rate), rate),
+         pitch = COALESCE(VALUES(pitch), pitch),
+         volume = COALESCE(VALUES(volume), volume),
+         voice_name = COALESCE(VALUES(voice_name), voice_name),
+         updated_at = NOW()`,
       [userId, rate, pitch, volume, voice_name]
     );
 
@@ -92,7 +74,6 @@ router.post("/", verifyToken, async (req, res) => {
 
 router.get("/:bookId", verifyToken, async (req, res) => {
   try {
-    const userId = req.user.id;
     const bookId = Number(req.params.bookId);
 
     if (!bookId || Number.isNaN(bookId)) {
@@ -100,35 +81,31 @@ router.get("/:bookId", verifyToken, async (req, res) => {
     }
 
     const [rows] = await db.query(
-      `
-      SELECT
-        rp.user_id,
-        rp.book_id,
-        rp.current_page,
-        rp.last_position,
-        rp.progress_percent,
-        rp.last_read_at AS updated_at,
-        ts.rate,
-        ts.pitch,
-        ts.volume,
-        ts.voice_name
-      FROM reading_progress rp
-      LEFT JOIN tts_settings ts ON ts.user_id = rp.user_id
-      WHERE rp.user_id = ? AND rp.book_id = ?
-      LIMIT 1
-      `,
-      [userId, bookId]
+      `SELECT
+         rp.user_id,
+         rp.book_id,
+         rp.current_page,
+         rp.last_position,
+         rp.progress_percent,
+         rp.last_read_at AS updated_at,
+         ts.rate,
+         ts.pitch,
+         ts.volume,
+         ts.voice_name
+       FROM reading_progress rp
+       LEFT JOIN tts_settings ts ON ts.user_id = rp.user_id
+       WHERE rp.user_id = ? AND rp.book_id = ?
+       LIMIT 1`,
+      [req.user.id, bookId]
     );
 
     if (rows.length === 0) {
       const [settings] = await db.query(
-        `
-        SELECT rate, pitch, volume, voice_name
-        FROM tts_settings
-        WHERE user_id = ?
-        LIMIT 1
-        `,
-        [userId]
+        `SELECT rate, pitch, volume, voice_name
+         FROM tts_settings
+         WHERE user_id = ?
+         LIMIT 1`,
+        [req.user.id]
       );
 
       return res.json({
