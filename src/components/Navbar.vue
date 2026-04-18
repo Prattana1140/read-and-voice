@@ -77,17 +77,47 @@ const themeOptions: { label: string; value: ThemeMode }[] = [
 ];
 
 const publicNavItems: NavItem[] = [
-  { label: "หน้าแรก", to: "/", roles: ["guest", "user", "writer", "admin", "superadmin"] },
-  { label: "ขายดี", to: "/best-sellers", roles: ["guest", "user", "writer", "admin", "superadmin"] },
-  { label: "มาใหม่", to: "/new-releases", roles: ["guest", "user", "writer", "admin", "superadmin"] },
-  { label: "โปรโมชั่น", to: "/promotions", roles: ["guest", "user", "writer", "admin", "superadmin"] },
-  { label: "ฟรีกระจาย", to: "/free-books", roles: ["guest", "user", "writer", "admin", "superadmin"] },
-  { label: "ฮิตขึ้นหิ้ง", to: "/hall-of-fame", roles: ["guest", "user", "writer", "admin", "superadmin"] },
-  { label: "แนะนำ", to: "/recommended", roles: ["guest", "user", "writer", "admin", "superadmin"] },
+  {
+    label: "หน้าแรก",
+    to: "/",
+    roles: ["guest", "user", "writer", "admin", "superadmin"],
+  },
+  {
+    label: "ขายดี",
+    to: "/best-sellers",
+    roles: ["guest", "user", "writer", "admin", "superadmin"],
+  },
+  {
+    label: "มาใหม่",
+    to: "/new-releases",
+    roles: ["guest", "user", "writer", "admin", "superadmin"],
+  },
+  {
+    label: "โปรโมชั่น",
+    to: "/promotions",
+    roles: ["guest", "user", "writer", "admin", "superadmin"],
+  },
+  {
+    label: "ฟรีกระจาย",
+    to: "/free-books",
+    roles: ["guest", "user", "writer", "admin", "superadmin"],
+  },
+  {
+    label: "ฮิตขึ้นหิ้ง",
+    to: "/hall-of-fame",
+    roles: ["guest", "user", "writer", "admin", "superadmin"],
+  },
+  {
+    label: "แนะนำ",
+    to: "/recommended",
+    roles: ["guest", "user", "writer", "admin", "superadmin"],
+  },
 ];
 
 const mainNavItems = computed(() => {
-  return publicNavItems.filter((item) => item.roles.includes(currentRole.value));
+  return publicNavItems.filter((item) =>
+    item.roles.includes(currentRole.value),
+  );
 });
 
 const accountGroups = computed<NavGroup[]>(() => {
@@ -96,14 +126,26 @@ const accountGroups = computed<NavGroup[]>(() => {
     {
       title: "บัญชีของฉัน",
       items: [
-        { label: "โปรไฟล์", to: "/profile", roles: ["user", "writer", "admin", "superadmin"] },
-        { label: "ประวัติคำสั่งซื้อ", to: "/orders/history", roles: ["user", "writer"] },
+        {
+          label: "โปรไฟล์",
+          to: "/profile",
+          roles: ["user", "writer", "admin", "superadmin"],
+        },
+        {
+          label: "ประวัติคำสั่งซื้อ",
+          to: "/orders/history",
+          roles: ["user", "writer"],
+        },
       ],
     },
     {
       title: "การใช้งาน",
       items: [
-        { label: "ชั้นหนังสือของฉัน", to: "/my-library", roles: ["user", "writer"] },
+        {
+          label: "ชั้นหนังสือของฉัน",
+          to: "/my-library",
+          roles: ["user", "writer"],
+        },
         { label: "รายการโปรด", to: "/wishlist", roles: ["user", "writer"] },
         { label: "ตะกร้า", to: "/cart", roles: ["user", "writer"] },
       ],
@@ -121,18 +163,46 @@ const accountGroups = computed<NavGroup[]>(() => {
       title: "จัดการระบบ",
       items: [
         { label: "แดชบอร์ด", to: "/admin", roles: ["admin", "superadmin"] },
-        { label: "จัดการหนังสือ", to: "/admin/books", roles: ["admin", "superadmin"] },
-        { label: "จัดการหมวดหมู่", to: "/admin/categories", roles: ["admin", "superadmin"] },
-        { label: "อัปโหลดหนังสือ", to: "/admin/upload-book", roles: ["admin", "superadmin"] },
-        { label: "จัดการสมาชิกบางส่วน", to: "/admin/members", roles: ["admin", "superadmin"] },
+        {
+          label: "จัดการหนังสือ",
+          to: "/admin/books",
+          roles: ["admin", "superadmin"],
+        },
+        {
+          label: "จัดการหมวดหมู่",
+          to: "/admin/categories",
+          roles: ["admin", "superadmin"],
+        },
+        {
+          label: "อัปโหลดหนังสือ",
+          to: "/admin/upload-book",
+          roles: ["admin", "superadmin"],
+        },
+        {
+          label: "จัดการสมาชิกบางส่วน",
+          to: "/admin/members",
+          roles: ["admin", "superadmin"],
+        },
       ],
     },
     {
       title: "สิทธิ์ขั้นสูง",
       items: [
-        { label: "จัดการผู้ใช้", to: "/superadmin/users", roles: ["superadmin"] },
-        { label: "เปลี่ยน role / ระงับผู้ใช้", to: "/superadmin/roles", roles: ["superadmin"] },
-        { label: "ตั้งค่าระบบ", to: "/superadmin/settings", roles: ["superadmin"] },
+        {
+          label: "จัดการผู้ใช้",
+          to: "/superadmin/users",
+          roles: ["superadmin"],
+        },
+        {
+          label: "เปลี่ยน role / ระงับผู้ใช้",
+          to: "/superadmin/roles",
+          roles: ["superadmin"],
+        },
+        {
+          label: "ตั้งค่าระบบ",
+          to: "/superadmin/settings",
+          roles: ["superadmin"],
+        },
       ],
     },
   ];
@@ -165,7 +235,9 @@ const submitSearch = () => {
   const keyword = search.value.trim();
   closeMenu();
   closeSearch();
-  router.push(keyword ? { name: "Store", query: { q: keyword } } : { name: "Store" });
+  router.push(
+    keyword ? { name: "Store", query: { q: keyword } } : { name: "Store" },
+  );
 };
 
 const logout = () => {
@@ -188,7 +260,12 @@ onUnmounted(() => {
 <template>
   <header class="navbar">
     <div class="top-bar">
-      <router-link class="brand" to="/" aria-label="กลับหน้าแรก" @click="closeMenu">
+      <router-link
+        class="brand"
+        to="/"
+        aria-label="กลับหน้าแรก"
+        @click="closeMenu"
+      >
         <img class="brand-logo" :src="logoUrl" alt="Read and Voice" />
       </router-link>
 
@@ -204,16 +281,25 @@ onUnmounted(() => {
       </nav>
 
       <div class="top-actions">
-        <button class="icon-button" type="button" aria-label="ค้นหาหนังสือ" @click="openSearch">
+        <button
+          class="icon-button"
+          type="button"
+          aria-label="ค้นหาหนังสือ"
+          @click="openSearch"
+        >
           <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M10.8 4.2a6.6 6.6 0 1 1 0 13.2 6.6 6.6 0 0 1 0-13.2Zm0 2a4.6 4.6 0 1 0 0 9.2 4.6 4.6 0 0 0 0-9.2Zm5.4 9 4 4-1.4 1.4-4-4 1.4-1.4Z" />
+            <path
+              d="M10.8 4.2a6.6 6.6 0 1 1 0 13.2 6.6 6.6 0 0 1 0-13.2Zm0 2a4.6 4.6 0 1 0 0 9.2 4.6 4.6 0 0 0 0-9.2Zm5.4 9 4 4-1.4 1.4-4-4 1.4-1.4Z"
+            />
           </svg>
         </button>
 
         <details class="icon-dropdown">
           <summary class="icon-button" aria-label="เปลี่ยนโหมดสี">
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 3a9 9 0 0 0 0 18h.4a3.1 3.1 0 0 0 2.2-5.3 1.1 1.1 0 0 1 .8-1.9H17a4 4 0 0 0 0-8h-.5A8.9 8.9 0 0 0 12 3Zm-5 9.2a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8Zm3.1-4.1a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8Zm4.6.1a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8Z" />
+              <path
+                d="M12 3a9 9 0 0 0 0 18h.4a3.1 3.1 0 0 0 2.2-5.3 1.1 1.1 0 0 1 .8-1.9H17a4 4 0 0 0 0-8h-.5A8.9 8.9 0 0 0 12 3Zm-5 9.2a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8Zm3.1-4.1a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8Zm4.6.1a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8Z"
+              />
             </svg>
           </summary>
           <div class="dropdown-panel theme-panel">
@@ -238,7 +324,9 @@ onUnmounted(() => {
             @click="toggleNotifications"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 22a2.7 2.7 0 0 0 2.6-2h-5.2A2.7 2.7 0 0 0 12 22Zm7-5-1.8-2.2V10a5.2 5.2 0 0 0-4-5.1V3a1.2 1.2 0 0 0-2.4 0v1.9a5.2 5.2 0 0 0-4 5.1v4.8L5 17v1h14v-1Z" />
+              <path
+                d="M12 22a2.7 2.7 0 0 0 2.6-2h-5.2A2.7 2.7 0 0 0 12 22Zm7-5-1.8-2.2V10a5.2 5.2 0 0 0-4-5.1V3a1.2 1.2 0 0 0-2.4 0v1.9a5.2 5.2 0 0 0-4 5.1v4.8L5 17v1h14v-1Z"
+              />
             </svg>
             <span v-if="notificationCount" class="notification-badge">
               {{ notificationCount > 99 ? "99+" : notificationCount }}
@@ -254,7 +342,9 @@ onUnmounted(() => {
         <details class="icon-dropdown account-dropdown">
           <summary class="avatar-button" aria-label="บัญชีผู้ใช้">
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 12a4.4 4.4 0 1 0 0-8.8 4.4 4.4 0 0 0 0 8.8Zm0 2c-4.2 0-7.6 2.2-7.6 5v1.2h15.2V19c0-2.8-3.4-5-7.6-5Z" />
+              <path
+                d="M12 12a4.4 4.4 0 1 0 0-8.8 4.4 4.4 0 0 0 0 8.8Zm0 2c-4.2 0-7.6 2.2-7.6 5v1.2h15.2V19c0-2.8-3.4-5-7.6-5Z"
+              />
             </svg>
           </summary>
 
@@ -284,8 +374,12 @@ onUnmounted(() => {
             <template v-else>
               <section class="account-section">
                 <h3>บัญชีของฉัน</h3>
-                <router-link class="account-link" to="/login">เข้าสู่ระบบ</router-link>
-                <router-link class="account-link" to="/register">สมัครสมาชิก</router-link>
+                <router-link class="account-link" to="/login"
+                  >เข้าสู่ระบบ</router-link
+                >
+                <router-link class="account-link" to="/register"
+                  >สมัครสมาชิก</router-link
+                >
               </section>
             </template>
           </div>
@@ -313,7 +407,9 @@ onUnmounted(() => {
     >
       <div class="search-box">
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M10.8 4.2a6.6 6.6 0 1 1 0 13.2 6.6 6.6 0 0 1 0-13.2Zm0 2a4.6 4.6 0 1 0 0 9.2 4.6 4.6 0 0 0 0-9.2Zm5.4 9 4 4-1.4 1.4-4-4 1.4-1.4Z" />
+          <path
+            d="M10.8 4.2a6.6 6.6 0 1 1 0 13.2 6.6 6.6 0 0 1 0-13.2Zm0 2a4.6 4.6 0 1 0 0 9.2 4.6 4.6 0 0 0 0-9.2Zm5.4 9 4 4-1.4 1.4-4-4 1.4-1.4Z"
+          />
         </svg>
         <input
           v-model="search"
@@ -321,9 +417,16 @@ onUnmounted(() => {
           placeholder="ค้นหา"
           aria-label="ค้นหาหนังสือ"
         />
-        <button class="search-close" type="button" aria-label="ปิดค้นหา" @click="closeSearch">
+        <button
+          class="search-close"
+          type="button"
+          aria-label="ปิดค้นหา"
+          @click="closeSearch"
+        >
           <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z" />
+            <path
+              d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z"
+            />
           </svg>
         </button>
       </div>
@@ -350,7 +453,9 @@ onUnmounted(() => {
         <h3>บัญชี</h3>
         <template v-if="!isLoggedIn">
           <router-link to="/login" @click="closeMenu">เข้าสู่ระบบ</router-link>
-          <router-link to="/register" @click="closeMenu">สมัครสมาชิก</router-link>
+          <router-link to="/register" @click="closeMenu"
+            >สมัครสมาชิก</router-link
+          >
         </template>
         <template v-else>
           <template v-for="group in accountGroups" :key="group.title">
@@ -399,13 +504,13 @@ onUnmounted(() => {
 }
 
 .top-bar {
-  position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0;
+  justify-content: space-between;
+  gap: 16px;
   min-height: 82px;
   padding: 10px clamp(14px, 3vw, 52px);
+  flex-wrap: nowrap;
 }
 
 .brand,
@@ -415,47 +520,52 @@ onUnmounted(() => {
 }
 
 .brand {
-  position: absolute;
-  left: clamp(14px, 3vw, 52px);
+  position: static;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
-  border-radius: 12px;
+  padding: 6px 10px;
+  border-radius: 16px;
   transition:
-    filter 0.18s ease,
-    background 0.18s ease;
+    transform 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .brand:hover {
   background: rgba(46, 196, 182, 0.12);
-  filter: drop-shadow(0 6px 10px rgba(17, 156, 145, 0.18));
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(17, 156, 145, 0.16);
 }
 
 .brand:hover .brand-logo {
-  transform: translateY(-1px) scale(1.04);
+  transform: scale(1.03);
 }
 
-.brand:active .brand-logo {
-  transform: translateY(1px) scale(0.96);
+.brand:active {
+  transform: scale(0.96);
 }
 
 .brand-logo {
-  width: clamp(128px, 11vw, 180px);
-  height: 58px;
+  width: clamp(150px, 14vw, 220px);
+  height: auto;
+  max-height: 72px;
   object-fit: contain;
   transform-origin: center;
-  transition: transform 0.18s ease;
+  transition: transform 0.2s ease;
   will-change: transform;
 }
 
 .desktop-public-nav {
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-width: 0;
   justify-content: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
   margin: 0;
-  transform: translateY(8px);
 }
 
 .desktop-public-nav a {
@@ -465,9 +575,9 @@ onUnmounted(() => {
   border: 1px solid transparent;
   border-radius: 8px;
   color: #244b47;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 900;
-  padding: 8px 10px;
+  padding: 6px 8px;
   white-space: nowrap;
 }
 
@@ -479,12 +589,13 @@ onUnmounted(() => {
 }
 
 .top-actions {
-  position: absolute;
-  right: clamp(14px, 3vw, 52px);
+  position: static;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 10px;
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .icon-dropdown {
@@ -496,14 +607,15 @@ onUnmounted(() => {
 .notification-button {
   display: inline-grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
+  width: 42px;
+  height: 42px;
   border: 0;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.76);
   color: #082f2b;
   cursor: pointer;
   list-style: none;
+  flex: 0 0 auto;
 }
 
 .icon-button::-webkit-details-marker,
@@ -514,8 +626,8 @@ onUnmounted(() => {
 .icon-button svg,
 .avatar-button svg,
 .notification-button svg {
-  width: 25px;
-  height: 25px;
+  width: 23px;
+  height: 23px;
   fill: currentColor;
 }
 
@@ -534,6 +646,7 @@ onUnmounted(() => {
 
 .notification-wrapper {
   position: relative;
+  flex: 0 0 auto;
 }
 
 .notification-button {
@@ -784,15 +897,40 @@ onUnmounted(() => {
   box-shadow: 0 0 0 3px rgba(46, 196, 182, 0.18);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 1080px) {
   .top-bar {
-    min-height: 74px;
-    padding: 8px 12px;
+    gap: 12px;
   }
 
   .brand-logo {
-    width: 132px;
-    height: 52px;
+    width: clamp(138px, 16vw, 190px);
+    max-height: 66px;
+  }
+
+  .desktop-public-nav a {
+    font-size: 12px;
+    padding: 6px 7px;
+  }
+
+  .top-actions {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 720px) {
+  .top-bar {
+    min-height: 70px;
+    padding: 8px 12px;
+    gap: 10px;
+  }
+
+  .brand {
+    padding: 4px 6px;
+  }
+
+  .brand-logo {
+    width: clamp(118px, 28vw, 170px);
+    max-height: 58px;
   }
 
   .desktop-public-nav {
@@ -807,7 +945,7 @@ onUnmounted(() => {
     display: grid;
     gap: 14px;
     padding: 0 12px 16px;
-    background: rgba(255, 255, 255, 0.86);
+    background: rgba(255, 255, 255, 0.92);
   }
 
   .mobile-group {
@@ -859,22 +997,31 @@ onUnmounted(() => {
 }
 
 @media (max-width: 420px) {
-  .top-actions {
+  .top-bar {
     gap: 8px;
+  }
+
+  .top-actions {
+    gap: 6px;
   }
 
   .icon-button,
   .avatar-button,
   .notification-button {
-    width: 40px;
-    height: 40px;
+    width: 38px;
+    height: 38px;
   }
 
   .icon-button svg,
   .avatar-button svg,
   .notification-button svg {
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
+  }
+
+  .brand-logo {
+    width: 108px;
+    max-height: 50px;
   }
 
   .notification-badge {
