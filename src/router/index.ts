@@ -165,7 +165,6 @@ const routes: RouteRecordRaw[] = [
     name: "ReaderPage",
     component: ReaderPage,
     props: true,
-    meta: { requiresAuth: true, allowedRoles: memberRoles },
   },
   {
     path: "/my-library",

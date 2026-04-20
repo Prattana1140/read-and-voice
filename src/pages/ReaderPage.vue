@@ -11,6 +11,9 @@ type ReaderResponse = {
   content?: string;
 };
 
+type ColorMode = "light" | "sepia" | "dark";
+type ReadingMode = "continuous" | "focus";
+
 const route = useRoute();
 const router = useRouter();
 
@@ -27,7 +30,8 @@ const pitch = ref(1);
 const volume = ref(1);
 const fontSize = ref(22);
 const lineHeight = ref(1.9);
-const darkMode = ref(false);
+const colorMode = ref<ColorMode>("light");
+const readingMode = ref<ReadingMode>("continuous");
 
 const sentences = ref<string[]>([]);
 const currentIndex = ref(0);
@@ -43,6 +47,13 @@ const readerKey = computed(() => {
 
 const selectedVoiceObject = computed(() => {
   return voices.value.find((voice) => voice.name === selectedVoice.value) || null;
+});
+
+const isDarkMode = computed(() => colorMode.value === "dark");
+const colorModeLabel = computed(() => {
+  if (colorMode.value === "dark") return "โหมดกลางคืน";
+  if (colorMode.value === "sepia") return "โหมดถนอมสายตา";
+  return "โหมดสว่าง";
 });
 
 const currentProgress = computed(() => {
@@ -77,7 +88,15 @@ function loadVoices() {
 }
 
 function loadReaderSettings() {
-  darkMode.value = localStorage.getItem("reader-dark-mode") === "true";
+  const savedColorMode = localStorage.getItem("reader-color-mode") as ColorMode | null;
+  const legacyDarkMode = localStorage.getItem("reader-dark-mode") === "true";
+  colorMode.value = ["light", "sepia", "dark"].includes(savedColorMode || "")
+    ? (savedColorMode as ColorMode)
+    : legacyDarkMode
+      ? "dark"
+      : "light";
+  readingMode.value =
+    localStorage.getItem("reader-reading-mode") === "focus" ? "focus" : "continuous";
   fontSize.value = Number(localStorage.getItem("reader-font-size") || 22);
   lineHeight.value = Number(localStorage.getItem("reader-line-height") || 1.9);
   rate.value = Number(localStorage.getItem("reader-rate") || 1);
@@ -87,13 +106,25 @@ function loadReaderSettings() {
 }
 
 function saveReaderSettings() {
-  localStorage.setItem("reader-dark-mode", String(darkMode.value));
+  localStorage.setItem("reader-color-mode", colorMode.value);
+  localStorage.setItem("reader-dark-mode", String(isDarkMode.value));
+  localStorage.setItem("reader-reading-mode", readingMode.value);
   localStorage.setItem("reader-font-size", String(fontSize.value));
   localStorage.setItem("reader-line-height", String(lineHeight.value));
   localStorage.setItem("reader-rate", String(rate.value));
   localStorage.setItem("reader-pitch", String(pitch.value));
   localStorage.setItem("reader-volume", String(volume.value));
   localStorage.setItem("reader-voice", selectedVoice.value);
+}
+
+function cycleColorMode() {
+  const nextMode: Record<ColorMode, ColorMode> = {
+    light: "sepia",
+    sepia: "dark",
+    dark: "light",
+  };
+
+  colorMode.value = nextMode[colorMode.value];
 }
 
 async function loadProgress() {
@@ -267,7 +298,10 @@ function restart() {
   play();
 }
 
-watch([selectedVoice, rate, pitch, volume, fontSize, lineHeight, darkMode], saveReaderSettings);
+watch(
+  [selectedVoice, rate, pitch, volume, fontSize, lineHeight, colorMode, readingMode],
+  saveReaderSettings
+);
 watch(() => route.fullPath, fetchContent);
 
 onMounted(async () => {
@@ -286,15 +320,15 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="reader-page" :class="{ dark: darkMode }">
+  <main class="reader-page" :class="[colorMode, readingMode]">
     <header class="reader-header">
       <button class="ghost-btn" type="button" @click="router.back()">กลับ</button>
       <div>
         <p>{{ isEpisodeMode ? "รายตอน" : "อีบุ๊ก" }}</p>
         <h1>{{ title }}</h1>
       </div>
-      <button class="ghost-btn" type="button" @click="darkMode = !darkMode">
-        {{ darkMode ? "โหมดสว่าง" : "โหมดกลางคืน" }}
+      <button class="ghost-btn" type="button" @click="cycleColorMode">
+        {{ colorModeLabel }}
       </button>
     </header>
 
@@ -333,6 +367,14 @@ onBeforeUnmount(() => {
         <label>Font {{ fontSize }}px<input v-model="fontSize" type="range" min="16" max="40" step="1" /></label>
         <label>Line {{ lineHeight }}<input v-model="lineHeight" type="range" min="1.4" max="2.6" step="0.1" /></label>
 
+        <label>
+          Reading mode
+          <select v-model="readingMode">
+            <option value="continuous">อ่านต่อเนื่อง</option>
+            <option value="focus">โฟกัสทีละประโยค</option>
+          </select>
+        </label>
+
         <div class="button-grid">
           <button class="primary" type="button" @click="play">อ่าน</button>
           <button type="button" @click="pause">พัก</button>
@@ -344,7 +386,11 @@ onBeforeUnmount(() => {
         </div>
       </aside>
 
-      <article class="reader-content" :style="{ fontSize: fontSize + 'px', lineHeight }">
+      <article
+        class="reader-content"
+        :class="{ focus: readingMode === 'focus' }"
+        :style="{ fontSize: fontSize + 'px', lineHeight }"
+      >
         <span
           v-for="(sentence, index) in sentences"
           :key="index"
@@ -370,6 +416,11 @@ onBeforeUnmount(() => {
 .reader-page.dark {
   background: #111827;
   color: #f9fafb;
+}
+
+.reader-page.sepia {
+  background: #f4ecd8;
+  color: #2f2a22;
 }
 
 .reader-header {
@@ -415,6 +466,17 @@ button {
   background: #1f2937;
   border-color: #374151;
   color: #f9fafb;
+}
+
+.sepia .ghost-btn,
+.sepia button,
+.sepia .controls,
+.sepia .reader-content,
+.sepia .state-card,
+.sepia .locked-card {
+  background: #fff8e8;
+  border-color: #d6c7a3;
+  color: #2f2a22;
 }
 
 .state-card,
@@ -516,6 +578,23 @@ button {
 .reader-content {
   min-height: calc(100vh - 110px);
   padding: 34px;
+}
+
+.reader-content.focus {
+  align-content: center;
+  display: grid;
+  min-height: calc(100vh - 170px);
+}
+
+.reader-content.focus .sentence {
+  display: none;
+}
+
+.reader-content.focus .sentence.active {
+  display: block;
+  font-size: 1.15em;
+  margin: 0;
+  padding: 18px;
 }
 
 .sentence {

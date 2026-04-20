@@ -100,6 +100,77 @@ async function parseTxtFile(filePath) {
   };
 }
 
+function extractTextFromJsonValue(value) {
+  if (value === null || value === undefined) return "";
+
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(extractTextFromJsonValue).filter(Boolean).join("\n\n");
+  }
+
+  if (typeof value === "object") {
+    const preferredKeys = [
+      "title",
+      "chapter",
+      "heading",
+      "name",
+      "content",
+      "text",
+      "body",
+      "paragraph",
+      "paragraphs",
+      "page_text",
+      "pages",
+      "chapters",
+    ];
+
+    const objectValue = value;
+    const parts = [];
+
+    for (const key of preferredKeys) {
+      if (Object.prototype.hasOwnProperty.call(objectValue, key)) {
+        parts.push(extractTextFromJsonValue(objectValue[key]));
+      }
+    }
+
+    if (parts.some(Boolean)) return parts.filter(Boolean).join("\n\n");
+
+    return Object.values(objectValue)
+      .map(extractTextFromJsonValue)
+      .filter(Boolean)
+      .join("\n\n");
+  }
+
+  return "";
+}
+
+async function parseJsonFile(filePath) {
+  const raw = fs.readFileSync(filePath, "utf8");
+  let parsed;
+
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    throw new Error(`ไฟล์ JSON ไม่ถูกต้อง: ${error.message}`);
+  }
+
+  const fullText = normalizeText(extractTextFromJsonValue(parsed));
+
+  if (!fullText) {
+    throw new Error("ไม่พบข้อความที่สามารถอ่านได้ในไฟล์ JSON");
+  }
+
+  return {
+    sourceType: "json",
+    fullText,
+    pages: splitTextToPages(fullText),
+    parseMethod: "json",
+  };
+}
+
 async function extractPdfTextByPage(filePath) {
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const data = new Uint8Array(fs.readFileSync(filePath));
@@ -222,6 +293,10 @@ async function parseBookFile(filePath, mimeType, originalName) {
     return parseTxtFile(filePath);
   }
 
+  if (ext === ".json" || mimeType === "application/json") {
+    return parseJsonFile(filePath);
+  }
+
   if (ext === ".pdf" || mimeType === "application/pdf") {
     return parsePdfFile(filePath);
   }
@@ -232,5 +307,6 @@ async function parseBookFile(filePath, mimeType, originalName) {
 module.exports = {
   parseBookFile,
   cleanOcrText,
+  extractTextFromJsonValue,
   normalizeText,
 };

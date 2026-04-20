@@ -1,10 +1,12 @@
 const express = require("express");
 const db = require("../config/db");
-const { verifyToken } = require("../middleware/auth");
+const { optionalVerifyToken } = require("../middleware/auth");
 
 const router = express.Router();
 
 async function hasActiveSubscription(userId) {
+  if (!userId) return false;
+
   const [rows] = await db.query(
     `SELECT id
      FROM user_subscriptions
@@ -20,6 +22,8 @@ async function hasActiveSubscription(userId) {
 }
 
 async function hasPurchasedBook(userId, bookId) {
+  if (!userId) return false;
+
   const [rows] = await db.query(
     `SELECT oi.id
      FROM order_items oi
@@ -36,6 +40,8 @@ async function hasPurchasedBook(userId, bookId) {
 }
 
 async function hasPurchasedEpisode(userId, episodeId) {
+  if (!userId) return false;
+
   const [rows] = await db.query(
     `SELECT oi.id
      FROM order_items oi
@@ -52,6 +58,7 @@ async function hasPurchasedEpisode(userId, episodeId) {
 }
 
 async function isBookOwnerOrAdmin(user, bookId) {
+  if (!user) return false;
   if (["admin", "superadmin"].includes(user.role)) return true;
 
   const [rows] = await db.query(
@@ -62,7 +69,21 @@ async function isBookOwnerOrAdmin(user, bookId) {
   return rows.length > 0;
 }
 
-router.get("/books/:bookId/content", verifyToken, async (req, res) => {
+async function getBookFullText(bookId, fullText) {
+  if (fullText) return fullText;
+
+  const [pages] = await db.query(
+    `SELECT page_text
+     FROM book_pages
+     WHERE book_id = ?
+     ORDER BY page_number ASC`,
+    [bookId]
+  );
+
+  return pages.map((page) => page.page_text || "").filter(Boolean).join("\n\n");
+}
+
+router.get("/books/:bookId/content", optionalVerifyToken, async (req, res) => {
   try {
     const { bookId } = req.params;
 
@@ -80,8 +101,8 @@ router.get("/books/:bookId/content", verifyToken, async (req, res) => {
 
     const book = books[0];
     const ownerOrAdmin = await isBookOwnerOrAdmin(req.user, book.id);
-    const subscribed = await hasActiveSubscription(req.user.id);
-    const purchased = await hasPurchasedBook(req.user.id, book.id);
+    const subscribed = await hasActiveSubscription(req.user?.id);
+    const purchased = await hasPurchasedBook(req.user?.id, book.id);
 
     let allowRead = false;
     let lockReason = null;
@@ -110,7 +131,7 @@ router.get("/books/:bookId/content", verifyToken, async (req, res) => {
       is_locked: false,
       title: book.title,
       access_type: book.access_type,
-      content: book.full_text || "",
+      content: await getBookFullText(book.id, book.full_text),
     });
   } catch (error) {
     console.error("GET /reader/books/:bookId/content error:", error);
@@ -118,7 +139,7 @@ router.get("/books/:bookId/content", verifyToken, async (req, res) => {
   }
 });
 
-router.get("/episodes/:episodeId/content", verifyToken, async (req, res) => {
+router.get("/episodes/:episodeId/content", optionalVerifyToken, async (req, res) => {
   try {
     const { episodeId } = req.params;
 
@@ -145,8 +166,8 @@ router.get("/episodes/:episodeId/content", verifyToken, async (req, res) => {
 
     const episode = episodes[0];
     const ownerOrAdmin = await isBookOwnerOrAdmin(req.user, episode.book_id);
-    const subscribed = await hasActiveSubscription(req.user.id);
-    const purchased = await hasPurchasedEpisode(req.user.id, episode.id);
+    const subscribed = await hasActiveSubscription(req.user?.id);
+    const purchased = await hasPurchasedEpisode(req.user?.id, episode.id);
 
     let allowRead = false;
     let lockReason = null;
