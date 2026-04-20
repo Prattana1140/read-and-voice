@@ -15,6 +15,7 @@ type CurrentPlan = {
   isActive?: boolean;
   subscription?: {
     plan_name?: string;
+    name?: string;
     end_at?: string;
   };
 };
@@ -41,7 +42,10 @@ const sortedPlans = computed(() => {
 
 const activePlanText = computed(() => {
   if (!currentPlan.value?.isActive) return "";
-  const planName = currentPlan.value.subscription?.plan_name || "VIP";
+  const planName =
+    currentPlan.value.subscription?.plan_name ||
+    currentPlan.value.subscription?.name ||
+    "VIP";
   const endAt = currentPlan.value.subscription?.end_at
     ? new Date(currentPlan.value.subscription.end_at).toLocaleDateString("th-TH")
     : "";

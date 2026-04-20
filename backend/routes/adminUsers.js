@@ -116,9 +116,12 @@ router.get("/users", verifyToken, requireAdmin, listUsers);
 
 router.put("/:id/status", verifyToken, requireAdmin, updateUserStatus);
 router.put("/users/:id/status", verifyToken, requireAdmin, updateUserStatus);
+router.patch("/:id/status", verifyToken, requireAdmin, updateUserStatus);
+router.patch("/users/:id/status", verifyToken, requireAdmin, updateUserStatus);
 
 router.put("/:id/role", verifyToken, requireSuperAdmin, updateUserRole);
 router.put("/users/:id/role", verifyToken, requireSuperAdmin, updateUserRole);
+router.patch("/:id/role", verifyToken, requireSuperAdmin, updateUserRole);
 router.patch("/users/:id/role", verifyToken, requireSuperAdmin, updateUserRole);
 router.patch("/users/:id/approve-admin", verifyToken, requireSuperAdmin, approveAdmin);
 router.patch("/users/:id/revoke-admin", verifyToken, requireSuperAdmin, revokeAdmin);

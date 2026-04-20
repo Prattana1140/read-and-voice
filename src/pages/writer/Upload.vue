@@ -16,6 +16,7 @@ const accessType = ref<"paid" | "free">("paid");
 const previewPageLimit = ref(1);
 const previewCharLimit = ref(1500);
 const bookFile = ref<File | null>(null);
+const coverFile = ref<File | null>(null);
 
 const serialBookId = ref<number | null>(null);
 const episodeNumber = ref(1);
@@ -39,6 +40,11 @@ const onFileChange = (event: Event) => {
   bookFile.value = target.files?.[0] || null;
 };
 
+const onCoverFileChange = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  coverFile.value = target.files?.[0] || null;
+};
+
 const uploadEbook = async () => {
   resetStatus();
 
@@ -54,12 +60,20 @@ const uploadEbook = async () => {
     formData.append("title", title.value);
     formData.append("author", author.value);
     formData.append("description", description.value);
-    formData.append("cover_image", coverImage.value);
+    if (coverImage.value.trim()) {
+      formData.append("cover_image", coverImage.value.trim());
+    }
     formData.append("price", String(price.value || 0));
     formData.append("access_type", accessType.value);
     formData.append("preview_page_limit", String(previewPageLimit.value || 1));
-    formData.append("preview_char_limit", String(previewCharLimit.value || 1500));
+    formData.append(
+      "preview_char_limit",
+      String(previewCharLimit.value || 1500),
+    );
     formData.append("book_file", bookFile.value);
+    if (coverFile.value) {
+      formData.append("cover_file", coverFile.value);
+    }
 
     const res = await axios.post(`${API_BASE_URL}/api/books/upload`, formData, {
       headers: {
@@ -71,6 +85,7 @@ const uploadEbook = async () => {
 
     message.value = `อัปโหลดเล่มเต็มสำเร็จ: Book #${res.data.book_id}`;
     bookFile.value = null;
+    coverFile.value = null;
   } catch (err: any) {
     error.value =
       err.response?.data?.message ||
@@ -102,7 +117,7 @@ const createSerialBook = async () => {
         price: price.value || 0,
         access_type: accessType.value,
       },
-      { headers: getAuthHeaders() }
+      { headers: getAuthHeaders() },
     );
 
     serialBookId.value = Number(res.data.book_id);
@@ -140,7 +155,7 @@ const addEpisode = async () => {
         is_free: episodeIsFree.value,
         preview_char_limit: episodePreviewLimit.value || 1500,
       },
-      { headers: getAuthHeaders() }
+      { headers: getAuthHeaders() },
     );
 
     message.value = `เพิ่มตอนสำเร็จ: Episode #${res.data.episode_id}`;
@@ -216,7 +231,19 @@ const addEpisode = async () => {
           </label>
           <label class="full">
             <span>ไฟล์หนังสือ</span>
-            <input type="file" accept=".pdf,.txt,.json" @change="onFileChange" />
+            <input
+              type="file"
+              accept=".pdf,.txt,.json"
+              @change="onFileChange"
+            />
+          </label>
+          <label class="full">
+            <span>รูปปกหนังสือ</span>
+            <input
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp"
+              @change="onCoverFileChange"
+            />
           </label>
         </div>
         <button class="primary-btn" :disabled="loading" @click="uploadEbook">
@@ -226,8 +253,14 @@ const addEpisode = async () => {
 
       <div v-else class="sub-panel">
         <h2>สร้างเรื่องรายตอน</h2>
-        <button class="primary-btn" :disabled="loading" @click="createSerialBook">
-          {{ serialBookId ? `ใช้เรื่อง #${serialBookId}` : "สร้างเรื่องรายตอน" }}
+        <button
+          class="primary-btn"
+          :disabled="loading"
+          @click="createSerialBook"
+        >
+          {{
+            serialBookId ? `ใช้เรื่อง #${serialBookId}` : "สร้างเรื่องรายตอน"
+          }}
         </button>
 
         <div class="episode-form" :class="{ disabled: !serialBookId }">
@@ -250,18 +283,31 @@ const addEpisode = async () => {
             </label>
             <label>
               <span>ราคาตอน</span>
-              <input v-model.number="episodePrice" :disabled="episodeIsFree" min="0" type="number" />
+              <input
+                v-model.number="episodePrice"
+                :disabled="episodeIsFree"
+                min="0"
+                type="number"
+              />
             </label>
             <label class="full">
               <span>ตัวอย่างกี่ตัวอักษร</span>
-              <input v-model.number="episodePreviewLimit" min="1" type="number" />
+              <input
+                v-model.number="episodePreviewLimit"
+                min="1"
+                type="number"
+              />
             </label>
             <label class="full">
               <span>เนื้อหาตอน</span>
               <textarea v-model="episodeContent" rows="10" />
             </label>
           </div>
-          <button class="primary-btn" :disabled="loading || !serialBookId" @click="addEpisode">
+          <button
+            class="primary-btn"
+            :disabled="loading || !serialBookId"
+            @click="addEpisode"
+          >
             เพิ่มตอน
           </button>
         </div>

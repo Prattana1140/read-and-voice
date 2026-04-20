@@ -60,6 +60,15 @@
 
             <button
               v-if="bookAccessType === 'paid'"
+              class="btn buy-now-btn"
+              :disabled="purchasingBook"
+              @click="purchaseBookNow"
+            >
+              {{ purchasingBook ? "กำลังซื้อ..." : "ซื้อและอ่านทันที" }}
+            </button>
+
+            <button
+              v-if="bookAccessType === 'paid'"
               class="btn coin-btn"
               @click="router.push('/coin-wallet')"
             >
@@ -217,8 +226,17 @@
                   {{
                     buyingEpisodeId === episode.id
                       ? "กำลังเพิ่ม..."
-                      : "เพิ่มตอนลงตะกร้า"
+                    : "เพิ่มตอนลงตะกร้า"
                   }}
+                </button>
+
+                <button
+                  v-if="isEpisodePaid(episode)"
+                  class="small-btn buy-now-small"
+                  :disabled="purchasingEpisodeId === episode.id"
+                  @click="purchaseEpisodeNow(episode)"
+                >
+                  {{ purchasingEpisodeId === episode.id ? "กำลังซื้อ..." : "ซื้อและอ่าน" }}
                 </button>
 
                 <router-link
@@ -269,6 +287,74 @@
               เปิดอ่านเต็มเล่มใน Reader
             </button>
           </div>
+
+          <section class="reviews-section">
+            <div class="reviews-head">
+              <div>
+                <p class="reviews-eyebrow">รีวิวจากผู้อ่าน</p>
+                <h3>{{ reviewSummaryText }}</h3>
+              </div>
+              <button
+                v-if="!showReviewForm"
+                class="small-btn"
+                type="button"
+                @click="startNewReview"
+              >
+                เขียนรีวิว
+              </button>
+            </div>
+
+            <form v-if="showReviewForm" class="review-form" @submit.prevent="submitReview">
+              <label>
+                <span>คะแนน</span>
+                <select v-model.number="reviewRating">
+                  <option v-for="score in [5, 4, 3, 2, 1]" :key="score" :value="score">
+                    {{ score }} ดาว
+                  </option>
+                </select>
+              </label>
+
+              <label>
+                <span>ความคิดเห็น</span>
+                <textarea
+                  v-model="reviewComment"
+                  rows="4"
+                  placeholder="เล่าว่าหนังสือเล่มนี้เป็นอย่างไร"
+                />
+              </label>
+
+              <div class="review-actions">
+                <button class="btn primary" type="submit" :disabled="reviewSaving">
+                  {{ reviewSaving ? "กำลังบันทึก..." : editingReviewId ? "บันทึกการแก้ไข" : "ส่งรีวิว" }}
+                </button>
+                <button class="btn" type="button" @click="cancelReviewForm">
+                  ยกเลิก
+                </button>
+              </div>
+            </form>
+
+            <p v-if="reviewError" class="review-error">{{ reviewError }}</p>
+
+            <div v-if="reviewsLoading" class="review-state">กำลังโหลดรีวิว...</div>
+            <div v-else-if="reviews.length === 0" class="review-state">
+              ยังไม่มีรีวิว เป็นคนแรกที่แบ่งปันความคิดเห็นได้เลย
+            </div>
+
+            <article v-for="review in reviews" :key="review.id" class="review-item">
+              <div class="review-meta">
+                <strong>{{ review.user_name }}</strong>
+                <span>{{ "★".repeat(review.rating) }}{{ "☆".repeat(5 - review.rating) }}</span>
+              </div>
+              <p>{{ review.comment }}</p>
+              <div class="review-footer">
+                <span>{{ formatReviewDate(review.created_at) }}</span>
+                <div v-if="review.can_edit || review.can_delete" class="review-manage">
+                  <button v-if="review.can_edit" type="button" @click="editReview(review)">แก้ไข</button>
+                  <button v-if="review.can_delete" type="button" @click="deleteReview(review.id)">ลบ</button>
+                </div>
+              </div>
+            </article>
+          </section>
         </main>
       </div>
     </div>
@@ -318,6 +404,20 @@ type Episode = {
   access_type?: "paid" | "free" | "subscription";
 };
 
+type BookReview = {
+  id: number;
+  user_id: number;
+  book_id: number;
+  rating: number;
+  comment: string;
+  created_at: string;
+  updated_at?: string;
+  user_name: string;
+  user_role?: string;
+  can_edit?: boolean;
+  can_delete?: boolean;
+};
+
 // จำกัดจำนวนประโยคตัวอย่างในหน้า detail
 const PREVIEW_LIMIT = 12;
 
@@ -359,6 +459,22 @@ const isPaused = ref(false);
 const subscriptionInfo = ref<any>(null);
 const buyingBook = ref(false);
 const buyingEpisodeId = ref<number | null>(null);
+const purchasingBook = ref(false);
+const purchasingEpisodeId = ref<number | null>(null);
+
+// state รีวิว
+const reviews = ref<BookReview[]>([]);
+const reviewsLoading = ref(false);
+const reviewSaving = ref(false);
+const reviewError = ref("");
+const showReviewForm = ref(false);
+const editingReviewId = ref<number | null>(null);
+const reviewRating = ref(5);
+const reviewComment = ref("");
+const reviewSummary = ref({
+  review_count: 0,
+  average_rating: 0,
+});
 
 // =========================
 // computed
@@ -459,6 +575,40 @@ const primaryReaderLabel = computed(() => {
 
   return "ตรวจสิทธิ์/อ่านใน Reader";
 });
+
+const reviewSummaryText = computed(() => {
+  const count = reviewSummary.value.review_count;
+  const average = Number(reviewSummary.value.average_rating || 0);
+
+  if (!count) return "ยังไม่มีคะแนน";
+
+  return `${average.toFixed(1)} / 5 จาก ${count} รีวิว`;
+});
+
+const canDeleteReview = (review: BookReview) => {
+  const user = getUser();
+  if (!user) return false;
+
+  return (
+    Number(review.user_id) === Number(user.id) ||
+    user.role === "admin" ||
+    user.role === "superadmin"
+  );
+};
+
+const canEditReview = (review: BookReview) => {
+  const user = getUser();
+  return Boolean(user && Number(review.user_id) === Number(user.id));
+};
+
+const normalizeReview = (review: BookReview): BookReview => {
+  return {
+    ...review,
+    rating: Number(review.rating || 0),
+    can_edit: canEditReview(review),
+    can_delete: canDeleteReview(review),
+  };
+};
 
 const loadVoices = () => {
   const list = window.speechSynthesis.getVoices();
@@ -609,6 +759,7 @@ const fetchBook = async () => {
 
     const bookRes = await axios.get(`${API_BASE_URL}/api/books/${id}`);
     book.value = bookRes.data;
+    fetchReviews();
 
     // ถ้าเป็น serial ให้โหลดเฉพาะรายการตอน
     if (book.value?.content_type === "serial") {
@@ -664,6 +815,118 @@ const loadSubscriptionStatus = async () => {
   } catch {
     subscriptionInfo.value = null;
   }
+};
+
+const fetchReviews = async () => {
+  if (!book.value?.id) return;
+
+  reviewsLoading.value = true;
+  reviewError.value = "";
+
+  try {
+    const { data } = await api.get(`/books/${book.value.id}/reviews`);
+    reviews.value = Array.isArray(data?.items) ? data.items : [];
+    reviewSummary.value = {
+      review_count: Number(data?.summary?.review_count || 0),
+      average_rating: Number(data?.summary?.average_rating || 0),
+    };
+  } catch (err: any) {
+    reviewError.value = err?.response?.data?.message || "โหลดรีวิวไม่สำเร็จ";
+  } finally {
+    reviewsLoading.value = false;
+  }
+};
+
+const startNewReview = () => {
+  const user = getUser();
+  if (!user) {
+    alert("กรุณาเข้าสู่ระบบก่อนเขียนรีวิว");
+    router.push({ name: "Login" });
+    return;
+  }
+
+  editingReviewId.value = null;
+  reviewRating.value = 5;
+  reviewComment.value = "";
+  reviewError.value = "";
+  showReviewForm.value = true;
+};
+
+const cancelReviewForm = () => {
+  showReviewForm.value = false;
+  editingReviewId.value = null;
+  reviewRating.value = 5;
+  reviewComment.value = "";
+  reviewError.value = "";
+};
+
+const submitReview = async () => {
+  if (!book.value?.id || reviewSaving.value) return;
+
+  const user = getUser();
+  if (!user) {
+    alert("กรุณาเข้าสู่ระบบก่อนเขียนรีวิว");
+    router.push({ name: "Login" });
+    return;
+  }
+
+  const comment = reviewComment.value.trim();
+  if (!comment) {
+    reviewError.value = "กรุณาเขียนความคิดเห็น";
+    return;
+  }
+
+  reviewSaving.value = true;
+  reviewError.value = "";
+
+  try {
+    const payload = {
+      rating: reviewRating.value,
+      comment,
+    };
+
+    if (editingReviewId.value) {
+      await api.put(`/reviews/${editingReviewId.value}`, payload);
+    } else {
+      await api.post(`/books/${book.value.id}/reviews`, payload);
+    }
+
+    cancelReviewForm();
+    await fetchReviews();
+  } catch (err: any) {
+    reviewError.value = err?.response?.data?.message || "บันทึกรีวิวไม่สำเร็จ";
+  } finally {
+    reviewSaving.value = false;
+  }
+};
+
+const editReview = (review: BookReview) => {
+  editingReviewId.value = review.id;
+  reviewRating.value = review.rating;
+  reviewComment.value = review.comment || "";
+  reviewError.value = "";
+  showReviewForm.value = true;
+};
+
+const deleteReview = async (reviewId: number) => {
+  const confirmed = window.confirm("ต้องการลบรีวิวนี้ใช่ไหม?");
+  if (!confirmed) return;
+
+  try {
+    await api.delete(`/reviews/${reviewId}`);
+    await fetchReviews();
+  } catch (err: any) {
+    reviewError.value = err?.response?.data?.message || "ลบรีวิวไม่สำเร็จ";
+  }
+};
+
+const formatReviewDate = (value: string) => {
+  if (!value) return "";
+
+  return new Intl.DateTimeFormat("th-TH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
 };
 
 // =========================
@@ -918,6 +1181,67 @@ const addEpisodeToCart = async (episode: Episode) => {
   }
 };
 
+const ensureLoggedInForPurchase = () => {
+  const user = getUser();
+  if (user) return true;
+
+  alert("กรุณาเข้าสู่ระบบก่อนซื้อ");
+  router.push({ name: "Login" });
+  return false;
+};
+
+const handlePurchaseError = (error: any) => {
+  if (error?.response?.status === 402) {
+    alert(error?.response?.data?.message || "coin ไม่พอ กรุณาเติม coin ก่อน");
+    router.push("/coin-wallet");
+    return;
+  }
+
+  alert(error?.response?.data?.message || "ซื้อไม่สำเร็จ");
+};
+
+const purchaseBookNow = async () => {
+  if (!book.value || purchasingBook.value) return;
+  if (!ensureLoggedInForPurchase()) return;
+
+  purchasingBook.value = true;
+
+  try {
+    await api.post("/orders/purchase", {
+      book_id: book.value.id,
+      payment_method: "coin",
+    });
+
+    alert("ซื้อสำเร็จ กำลังเปิด Reader");
+    openReaderPage();
+  } catch (error: any) {
+    handlePurchaseError(error);
+  } finally {
+    purchasingBook.value = false;
+  }
+};
+
+const purchaseEpisodeNow = async (episode: Episode) => {
+  if (purchasingEpisodeId.value) return;
+  if (!ensureLoggedInForPurchase()) return;
+
+  purchasingEpisodeId.value = episode.id;
+
+  try {
+    await api.post("/orders/purchase", {
+      episode_id: episode.id,
+      payment_method: "coin",
+    });
+
+    alert("ซื้อตอนสำเร็จ กำลังเปิด Reader");
+    openEpisodeReader(episode);
+  } catch (error: any) {
+    handlePurchaseError(error);
+  } finally {
+    purchasingEpisodeId.value = null;
+  }
+};
+
 // =========================
 // watchers
 // =========================
@@ -1151,6 +1475,10 @@ input[type="range"] {
 }
 
 .library-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   width: 100%;
 }
 
@@ -1164,6 +1492,17 @@ input[type="range"] {
   width: 100%;
   background: #eef6ff;
   color: #2f63d8;
+}
+
+.buy-now-btn {
+  width: 100%;
+  background: #111827;
+  color: #ffffff;
+}
+
+.buy-now-small {
+  background: #111827;
+  color: #ffffff;
 }
 
 .coin-btn {
@@ -1311,6 +1650,114 @@ input[type="range"] {
   margin-top: 20px;
   display: flex;
   justify-content: center;
+}
+
+.reviews-section {
+  border-top: 1px solid #e5e7eb;
+  margin-top: 28px;
+  padding-top: 22px;
+}
+
+.reviews-head {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.reviews-eyebrow {
+  color: #008e68;
+  font-size: 13px;
+  font-weight: 900;
+  margin: 0 0 4px;
+}
+
+.reviews-head h3 {
+  color: #111827;
+  font-size: 18px;
+  margin: 0;
+}
+
+.review-form {
+  border: 1px solid #e5e7eb;
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px;
+}
+
+.review-form label {
+  display: grid;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.review-form select,
+.review-form textarea {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font: inherit;
+  padding: 10px 12px;
+}
+
+.review-actions,
+.review-manage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.review-error {
+  color: #b91c1c;
+  font-weight: 800;
+}
+
+.review-state {
+  color: #6b7280;
+  padding: 14px 0;
+}
+
+.review-item {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 16px 0;
+}
+
+.review-meta,
+.review-footer {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.review-meta strong {
+  color: #111827;
+}
+
+.review-meta span {
+  color: #f59e0b;
+  letter-spacing: 1px;
+}
+
+.review-item p {
+  color: #374151;
+  line-height: 1.8;
+  margin: 10px 0;
+}
+
+.review-footer {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.review-manage button {
+  border: 0;
+  background: transparent;
+  color: #008e68;
+  cursor: pointer;
+  font-weight: 800;
+  padding: 4px 0;
 }
 
 @media (max-width: 960px) {
@@ -1486,6 +1933,7 @@ input[type="range"] {
 
 .wishlist-btn,
 .cart-btn,
+.buy-now-btn,
 .coin-btn,
 .subscribe-btn {
   width: auto;

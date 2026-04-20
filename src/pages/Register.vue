@@ -133,13 +133,6 @@ const submitRegister = async () => {
               <small class="hint">4-32 chars [A-Z, a-z, 0-9, -, _, @.]</small>
             </div>
 
-            <div class="form-group card-info-wrap">
-              <div class="info-box">
-                <h3>Read and Voice</h3>
-                <p>บัญชีนี้ใช้สำหรับ เข้าชม อ่านหนังสือ ฟังเสียง และจัดการคลังหนังสือของคุณ</p>
-              </div>
-            </div>
-
             <div class="form-group">
               <label>รหัสผ่าน *</label>
               <input
@@ -314,30 +307,6 @@ select.input {
   font-weight: 700;
 }
 
-.info-box {
-  background: var(--surface-soft);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 18px 16px;
-  min-height: 88px;
-  display: grid;
-  align-content: center;
-}
-
-.info-box h3 {
-  margin: 0 0 8px;
-  color: var(--primary-strong, var(--primary));
-  font-size: 15px;
-  font-weight: 900;
-}
-
-.info-box p {
-  margin: 0;
-  color: var(--text-muted);
-  line-height: 1.7;
-  font-size: 13px;
-}
-
 .submit-btn {
   width: 100%;
   min-height: 52px;
@@ -410,7 +379,6 @@ select.input {
     gap: 16px;
   }
 
-  .card-info-wrap,
   .submit-wrap,
   .empty-slot,
   .full-width {

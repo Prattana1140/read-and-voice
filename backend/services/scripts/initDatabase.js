@@ -162,6 +162,18 @@ const statements = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `,
   `
+  CREATE TABLE IF NOT EXISTS wishlists (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    book_id INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_wishlists_user_book (user_id, book_id),
+    INDEX idx_wishlists_user (user_id),
+    CONSTRAINT fk_wishlists_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_wishlists_book FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `,
+  `
   CREATE TABLE IF NOT EXISTS reading_progress (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -217,6 +229,34 @@ const statements = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `,
   `
+  CREATE TABLE IF NOT EXISTS subscription_plans (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NULL,
+    price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    duration_days INT NOT NULL DEFAULT 30,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `,
+  `
+  CREATE TABLE IF NOT EXISTS user_subscriptions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    plan_id INT NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'active',
+    payment_status VARCHAR(50) NOT NULL DEFAULT 'paid',
+    start_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    end_at DATETIME NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_user_subscriptions_user_id (user_id),
+    CONSTRAINT fk_user_subscriptions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_subscriptions_plan FOREIGN KEY (plan_id) REFERENCES subscription_plans(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `,
+  `
   CREATE TABLE IF NOT EXISTS coin_wallets (
     user_id INT PRIMARY KEY,
     balance INT NOT NULL DEFAULT 0,
@@ -239,6 +279,88 @@ const statements = [
     CONSTRAINT fk_coin_transactions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `,
+  `
+  CREATE TABLE IF NOT EXISTS account_follows (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    target_type VARCHAR(40) NOT NULL DEFAULT 'book',
+    target_id INT NULL,
+    target_name VARCHAR(255) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_account_follows_user (user_id),
+    CONSTRAINT fk_account_follows_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `,
+  `
+  CREATE TABLE IF NOT EXISTS gift_codes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    code VARCHAR(80) NOT NULL,
+    description VARCHAR(255) NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'available',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    redeemed_at DATETIME NULL,
+    UNIQUE KEY uq_gift_codes_user_code (user_id, code),
+    INDEX idx_gift_codes_user (user_id),
+    CONSTRAINT fk_gift_codes_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `,
+  `
+  CREATE TABLE IF NOT EXISTS user_devices (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    device_name VARCHAR(255) NOT NULL,
+    platform VARCHAR(80) NULL,
+    last_used_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user_devices_user (user_id),
+    CONSTRAINT fk_user_devices_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `,
+  `
+  CREATE TABLE IF NOT EXISTS user_benefits (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'active',
+    expires_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user_benefits_user (user_id),
+    CONSTRAINT fk_user_benefits_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `,
+  `
+  CREATE TABLE IF NOT EXISTS age_verifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'not_submitted',
+    document_type VARCHAR(60) NULL,
+    note TEXT NULL,
+    submitted_at DATETIME NULL,
+    reviewed_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_age_verifications_user (user_id),
+    CONSTRAINT fk_age_verifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `,
+  `
+  CREATE TABLE IF NOT EXISTS social_connections (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    provider VARCHAR(40) NOT NULL,
+    provider_user_id VARCHAR(191) NOT NULL,
+    display_name VARCHAR(255) NULL,
+    email VARCHAR(255) NULL,
+    connected_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_social_connections_provider_user (provider, provider_user_id),
+    UNIQUE KEY uq_social_connections_user_provider (user_id, provider),
+    INDEX idx_social_connections_user (user_id),
+    CONSTRAINT fk_social_connections_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `,
 ];
 
 const seedCategories = [
@@ -259,6 +381,12 @@ async function main() {
   for (const name of seedCategories) {
     await db.query("INSERT IGNORE INTO categories (name) VALUES (?)", [name]);
   }
+
+  await db.query(
+    `INSERT INTO subscription_plans (name, description, price, duration_days)
+     SELECT 'Monthly Plus', 'อ่านคอนเทนต์ subscription ได้ 30 วัน', 199.00, 30
+     WHERE NOT EXISTS (SELECT 1 FROM subscription_plans LIMIT 1)`
+  );
 
   console.log("Database schema initialized.");
   await db.end();

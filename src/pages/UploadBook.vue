@@ -17,7 +17,9 @@ const author = ref("");
 const description = ref("");
 const categoryId = ref("");
 const selectedFile = ref<File | null>(null);
+const selectedCoverFile = ref<File | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
+const coverInput = ref<HTMLInputElement | null>(null);
 
 const categories = ref<Category[]>([]);
 
@@ -68,11 +70,39 @@ const handleFileChange = (event: Event) => {
   selectedFile.value = file;
 };
 
+const handleCoverFileChange = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0] || null;
+
+  if (!file) {
+    selectedCoverFile.value = null;
+    return;
+  }
+
+  const lowerName = file.name.toLowerCase();
+  const isValid =
+    lowerName.endsWith(".jpg") ||
+    lowerName.endsWith(".jpeg") ||
+    lowerName.endsWith(".png") ||
+    lowerName.endsWith(".webp");
+
+  if (!isValid) {
+    selectedCoverFile.value = null;
+    errorMessage.value = "รองรับรูปปกเฉพาะ .jpg .jpeg .png และ .webp";
+    target.value = "";
+    return;
+  }
+
+  errorMessage.value = "";
+  selectedCoverFile.value = file;
+};
+
 const resetForm = () => {
   title.value = "";
   author.value = "";
   description.value = "";
   selectedFile.value = null;
+  selectedCoverFile.value = null;
 
   if (categories.value.length > 0) {
     categoryId.value = String(categories.value[0].id);
@@ -82,6 +112,10 @@ const resetForm = () => {
 
   if (fileInput.value) {
     fileInput.value.value = "";
+  }
+
+  if (coverInput.value) {
+    coverInput.value.value = "";
   }
 };
 
@@ -125,6 +159,9 @@ const uploadBook = async () => {
     formData.append("description", description.value.trim());
     formData.append("category_id", categoryId.value);
     formData.append("book_file", selectedFile.value);
+    if (selectedCoverFile.value) {
+      formData.append("cover_file", selectedCoverFile.value);
+    }
 
     const res = await axios.post(`${API_BASE}/books/upload`, formData, {
       headers: {
@@ -225,6 +262,19 @@ onMounted(() => {
         />
         <p v-if="selectedFile" class="file-name">
           ไฟล์ที่เลือก: {{ selectedFile.name }}
+        </p>
+      </div>
+
+      <div class="form-group">
+        <label>รูปปกหนังสือ</label>
+        <input
+          ref="coverInput"
+          type="file"
+          accept=".jpg,.jpeg,.png,.webp"
+          @change="handleCoverFileChange"
+        />
+        <p v-if="selectedCoverFile" class="file-name">
+          รูปปกที่เลือก: {{ selectedCoverFile.name }}
         </p>
       </div>
 

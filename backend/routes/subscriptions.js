@@ -4,6 +4,83 @@ const { verifyToken, optionalVerifyToken } = require("../middleware/auth");
 
 const router = express.Router();
 
+let tablesReady;
+
+async function trySchemaUpdate(connection, sql, ignoredMessages = ["Duplicate column"]) {
+  try {
+    await connection.query(sql);
+  } catch (error) {
+    const message = String(error.message || "");
+    if (!ignoredMessages.some((ignored) => message.includes(ignored))) {
+      throw error;
+    }
+  }
+}
+
+async function ensureSubscriptionTables(connection = db) {
+  if (connection === db && tablesReady) return tablesReady;
+
+  const work = (async () => {
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS subscription_plans (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT NULL,
+        price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        duration_days INT NOT NULL DEFAULT 30,
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS user_subscriptions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        plan_id INT NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'active',
+        payment_status VARCHAR(50) NOT NULL DEFAULT 'paid',
+        start_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        end_at DATETIME NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_user_subscriptions_user_id (user_id),
+        CONSTRAINT fk_user_subscriptions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        CONSTRAINT fk_user_subscriptions_plan FOREIGN KEY (plan_id) REFERENCES subscription_plans(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    await trySchemaUpdate(
+      connection,
+      "ALTER TABLE subscription_plans ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1"
+    );
+
+    await trySchemaUpdate(
+      connection,
+      "ALTER TABLE subscription_plans ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+    );
+
+    await connection.query(`
+      INSERT INTO subscription_plans (name, description, price, duration_days)
+      SELECT 'Monthly Plus', 'อ่านคอนเทนต์ subscription ได้ 30 วัน', 199.00, 30
+      WHERE NOT EXISTS (SELECT 1 FROM subscription_plans LIMIT 1)
+    `);
+
+    return true;
+  })();
+
+  if (connection === db) {
+    tablesReady = work.catch((error) => {
+      tablesReady = undefined;
+      throw error;
+    });
+    return tablesReady;
+  }
+
+  return work;
+}
+
 function normalizePlanDuration(value) {
   const days = Number(value);
   return Number.isInteger(days) && days > 0 ? days : 30;
@@ -11,9 +88,11 @@ function normalizePlanDuration(value) {
 
 router.get("/plans", async (_req, res) => {
   try {
+    await ensureSubscriptionTables();
     const [rows] = await db.query(
       `SELECT id, name, description, price, duration_days, created_at
        FROM subscription_plans
+       WHERE COALESCE(is_active, 1) = 1
        ORDER BY price ASC, id ASC`
     );
 
@@ -26,6 +105,7 @@ router.get("/plans", async (_req, res) => {
 
 router.get("/me", optionalVerifyToken, async (req, res) => {
   try {
+    await ensureSubscriptionTables();
     if (!req.user) {
       return res.json({ isActive: false, subscription: null });
     }
@@ -39,6 +119,7 @@ router.get("/me", optionalVerifyToken, async (req, res) => {
          us.start_at,
          us.end_at,
          sp.name,
+         sp.name AS plan_name,
          sp.description,
          sp.price,
          sp.duration_days
@@ -113,6 +194,8 @@ async function checkoutSubscription(req, res) {
     if (!planId) {
       return res.status(400).json({ message: "กรุณาเลือกแพ็กเกจ" });
     }
+
+    await ensureSubscriptionTables(connection);
 
     const [plans] = await connection.query(
       "SELECT * FROM subscription_plans WHERE id = ? LIMIT 1",

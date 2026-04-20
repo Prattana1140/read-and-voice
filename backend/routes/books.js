@@ -14,10 +14,15 @@ const GUEST_PREVIEW_PAGE_LIMIT = Number(process.env.GUEST_PREVIEW_PAGE_LIMIT) ||
 const GUEST_PREVIEW_CHAR_LIMIT = Number(process.env.GUEST_PREVIEW_CHAR_LIMIT) || 1500;
 
 const uploadDir = path.join(__dirname, "../uploads/book-files");
+const coverUploadDir = path.join(__dirname, "../uploads/book-covers");
 fs.mkdirSync(uploadDir, { recursive: true });
+fs.mkdirSync(coverUploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
+  destination: (_req, file, cb) => {
+    if (file.fieldname === "cover_file") return cb(null, coverUploadDir);
+    return cb(null, uploadDir);
+  },
   filename: (_req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     cb(null, `${uniqueSuffix}${path.extname(file.originalname)}`);
@@ -29,10 +34,26 @@ const upload = multer({
   limits: { fileSize: 1024 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
+    if (file.fieldname === "cover_file") {
+      if ([".jpg", ".jpeg", ".png", ".webp"].includes(ext)) return cb(null, true);
+      return cb(new Error("รองรับรูปปกเฉพาะ .jpg .jpeg .png และ .webp"));
+    }
+
     if ([".pdf", ".txt", ".json"].includes(ext)) return cb(null, true);
     return cb(new Error("รองรับเฉพาะไฟล์ .pdf .txt และ .json"));
   },
 });
+
+function getUploadedFile(req, fieldName) {
+  if (req.file && req.file.fieldname === fieldName) return req.file;
+  const files = req.files?.[fieldName];
+  return Array.isArray(files) ? files[0] : null;
+}
+
+function getCoverImagePath(file, fallback = "") {
+  if (!file) return fallback;
+  return `uploads/book-covers/${file.filename}`;
+}
 
 function normalizeAccessType(value, price = 0) {
   if (["free", "paid", "subscription"].includes(value)) return value;
@@ -159,12 +180,18 @@ router.post(
   "/upload",
   verifyToken,
   allowRoles("writer", "admin", "superadmin"),
-  upload.single("book_file"),
+  upload.fields([
+    { name: "book_file", maxCount: 1 },
+    { name: "cover_file", maxCount: 1 },
+  ]),
   async (req, res) => {
     const connection = await db.getConnection();
 
     try {
-      if (!req.file) {
+      const bookFile = getUploadedFile(req, "book_file");
+      const coverFile = getUploadedFile(req, "cover_file");
+
+      if (!bookFile) {
         return res.status(400).json({ message: "กรุณาอัปโหลดไฟล์หนังสือ" });
       }
 
@@ -188,12 +215,13 @@ router.post(
       }
 
       const parsed = await parseBookFile(
-        req.file.path,
-        req.file.mimetype,
-        req.file.originalname
+        bookFile.path,
+        bookFile.mimetype,
+        bookFile.originalname
       );
       const pages = Array.isArray(parsed.pages) ? parsed.pages : [];
       const fullText = parsed.fullText || pages.join("\n\n");
+      const finalCoverImage = getCoverImagePath(coverFile, cover_image);
 
       await connection.beginTransaction();
 
@@ -208,8 +236,8 @@ router.post(
           author,
           description,
           category_id || null,
-          cover_image,
-          parsed.sourceType || path.extname(req.file.originalname).replace(".", "") || "file",
+          finalCoverImage,
+          parsed.sourceType || path.extname(bookFile.originalname).replace(".", "") || "file",
           normalizeContentType(content_type),
           normalizeAccessType(access_type, price),
           fullText,
@@ -221,7 +249,7 @@ router.post(
         ]
       );
 
-      await saveBookFile(result.insertId, req.file, connection);
+      await saveBookFile(result.insertId, bookFile, connection);
       await replaceBookPages(result.insertId, pages, connection);
       await connection.commit();
 

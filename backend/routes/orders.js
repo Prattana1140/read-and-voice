@@ -74,6 +74,15 @@ async function hasPurchasedEpisode(connection, userId, episodeId) {
   return rows.length > 0;
 }
 
+async function addBookToLibrary(connection, userId, bookId) {
+  if (!bookId) return;
+
+  await connection.query(
+    "INSERT IGNORE INTO `library` (user_id, book_id) VALUES (?, ?)",
+    [userId, bookId]
+  );
+}
+
 function normalizePaymentMethod(value) {
   return value === "mock" ? "coin" : String(value || "coin");
 }
@@ -175,6 +184,10 @@ router.post("/checkout", verifyToken, async (req, res) => {
           Number(item.price || 0),
         ]
       );
+
+      if (item.book_id) {
+        await addBookToLibrary(connection, userId, item.book_id);
+      }
     }
 
     await connection.query("DELETE FROM cart WHERE user_id = ?", [userId]);
@@ -299,6 +312,10 @@ router.post("/purchase", verifyToken, async (req, res) => {
         totalAmount,
       ]
     );
+
+    if (!episode_id) {
+      await addBookToLibrary(connection, userId, item.book_id);
+    }
 
     await connection.commit();
 

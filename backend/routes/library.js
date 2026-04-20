@@ -38,22 +38,48 @@ router.get("/me", verifyToken, async (req, res) => {
   try {
     const [rows] = await db.query(
       `SELECT
-        l.id AS library_id,
-        l.user_id,
-        l.book_id,
+        owned.library_id,
+        ? AS user_id,
+        owned.book_id,
         b.id,
         b.title,
         b.author,
         b.description,
         b.cover_image,
+        b.cover_image AS cover_url,
+        b.access_type,
+        b.content_type,
+        b.price,
         b.total_pages,
-        c.name AS category_name
-      FROM \`library\` l
-      JOIN books b ON l.book_id = b.id
+        c.name AS category_name,
+        owned.added_at AS created_at
+      FROM (
+        SELECT
+          owned_source.book_id,
+          MAX(owned_source.library_id) AS library_id,
+          MAX(owned_source.added_at) AS added_at
+        FROM (
+          SELECT l.id AS library_id, l.book_id, l.created_at AS added_at
+          FROM \`library\` l
+          WHERE l.user_id = ?
+
+          UNION ALL
+
+          SELECT NULL AS library_id, oi.book_id, o.created_at AS added_at
+          FROM order_items oi
+          JOIN orders o ON o.id = oi.order_id
+          WHERE o.user_id = ?
+            AND o.payment_status = 'paid'
+            AND o.order_status = 'completed'
+            AND oi.book_id IS NOT NULL
+        ) owned_source
+        GROUP BY owned_source.book_id
+      ) owned
+      JOIN books b ON owned.book_id = b.id
       LEFT JOIN categories c ON b.category_id = c.id
-      WHERE l.user_id = ?
-      ORDER BY l.id DESC`,
-      [req.user.id]
+      WHERE b.is_published = 1
+      ORDER BY owned.added_at DESC, owned.book_id DESC`,
+      [req.user.id, req.user.id, req.user.id]
     );
 
     return res.json(rows);

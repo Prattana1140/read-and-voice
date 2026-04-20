@@ -311,6 +311,16 @@ onUnmounted(() => {
         <router-link class="subscription-link" to="/subscription" @click="closeMenu">
           สมัครรายเดือน
         </router-link>
+
+        <router-link class="coin-link" to="/coin-wallet" @click="closeMenu">
+          <span class="coin-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M8.3 12.2c0-2.3 1.5-3.9 3.8-3.9 1.2 0 2.3.4 3.1 1.2l-1.2 1.4c-.5-.5-1.1-.8-1.9-.8-1.1 0-1.9.8-1.9 2.1s.8 2.1 2 2.1c.8 0 1.5-.3 2-.9l1.2 1.3c-.8.9-1.9 1.4-3.3 1.4-2.3 0-3.8-1.6-3.8-3.9Z" />
+            </svg>
+          </span>
+          เติม coin
+        </router-link>
       </div>
 
       <nav class="desktop-public-nav" aria-label="เมนูหลัก">
@@ -382,6 +392,23 @@ onUnmounted(() => {
             <p v-for="item in notifications" :key="item">{{ item }}</p>
           </div>
         </div>
+
+        <router-link
+          v-if="isLoggedIn"
+          class="library-shortcut"
+          to="/my-library"
+          aria-label="ชั้นหนังสือของฉัน"
+          @click="closeMenu"
+        >
+          <span class="library-shortcut__icon" aria-hidden="true">
+            <svg viewBox="0 0 64 64">
+              <path
+                d="M16 20.5c6.3 0 11.1 1.1 15 3.7v21.4c-3.9-2.4-8.7-3.5-15-3.5V20.5Zm17 3.7c3.9-2.6 8.7-3.7 15-3.7v21.6c-6.3 0-11.1 1.1-15 3.5V24.2ZM13 24h2v20.2c5.7 0 10.9.8 15.2 3H13V24Zm36 0h2v23.2H33.8c4.3-2.2 9.5-3 15.2-3V24Z"
+              />
+            </svg>
+          </span>
+          <span class="library-shortcut__text">ชั้นหนังสือ</span>
+        </router-link>
 
         <details class="icon-dropdown account-dropdown">
           <summary class="avatar-button" aria-label="บัญชีผู้ใช้">
@@ -513,13 +540,27 @@ onUnmounted(() => {
         <input v-model="search" type="search" placeholder="ค้นหาหนังสือ" />
       </form>
 
-      <section class="mobile-group">
+      <section class="mobile-group mobile-subscription-group">
         <router-link
           class="mobile-subscription-link"
           to="/subscription"
           @click="closeMenu"
         >
           สมัครรายเดือน
+        </router-link>
+
+        <router-link
+          class="mobile-coin-link"
+          to="/coin-wallet"
+          @click="closeMenu"
+        >
+          <span class="coin-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M8.3 12.2c0-2.3 1.5-3.9 3.8-3.9 1.2 0 2.3.4 3.1 1.2l-1.2 1.4c-.5-.5-1.1-.8-1.9-.8-1.1 0-1.9.8-1.9 2.1s.8 2.1 2 2.1c.8 0 1.5-.3 2-.9l1.2 1.3c-.8.9-1.9 1.4-3.3 1.4-2.3 0-3.8-1.6-3.8-3.9Z" />
+            </svg>
+          </span>
+          เติม coin
         </router-link>
       </section>
 
@@ -601,7 +642,7 @@ onUnmounted(() => {
 .left-cluster {
   display: flex;
   align-items: center;
-  gap: 42px;
+  gap: 18px;
   flex: 0 0 auto;
 }
 
@@ -609,6 +650,9 @@ onUnmounted(() => {
 .desktop-public-nav a,
 .account-link,
 .subscription-link,
+.coin-link,
+.library-shortcut,
+.mobile-coin-link,
 .mobile-subscription-link {
   text-decoration: none;
 }
@@ -714,6 +758,87 @@ onUnmounted(() => {
   box-shadow:
     0 6px 14px rgba(47, 183, 186, 0.22),
     inset 0 2px 4px rgba(7, 99, 96, 0.22);
+}
+
+.coin-link,
+.mobile-coin-link {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  border: 1px solid rgba(217, 159, 18, 0.48);
+  border-radius: 999px;
+  background: #f6bf36;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 900;
+  padding: 0 16px 0 12px;
+  white-space: nowrap;
+  box-shadow:
+    0 10px 22px rgba(208, 139, 18, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  overflow: hidden;
+  transition:
+    filter 0.2s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.coin-link::after,
+.mobile-coin-link::after {
+  display: none;
+}
+
+.coin-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  filter: drop-shadow(0 2px 4px rgba(112, 71, 0, 0.24));
+  transition: transform 0.2s ease;
+}
+
+.coin-mark svg {
+  width: 100%;
+  height: 100%;
+}
+
+.coin-mark circle {
+  fill: rgba(255, 255, 255, 0.2);
+  stroke: #ffffff;
+  stroke-width: 1.6;
+}
+
+.coin-mark path {
+  fill: #ffffff;
+}
+
+.coin-link:hover,
+.mobile-coin-link:hover {
+  filter: saturate(1.08);
+  transform: translateY(-2px);
+  box-shadow:
+    0 14px 28px rgba(208, 139, 18, 0.32),
+    0 0 0 4px rgba(255, 214, 90, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.coin-link:hover::after,
+.mobile-coin-link:hover::after {
+  display: none;
+}
+
+.coin-link:hover .coin-mark,
+.mobile-coin-link:hover .coin-mark {
+  transform: rotate(-12deg) scale(1.12);
+}
+
+.coin-link:active,
+.mobile-coin-link:active {
+  transform: translateY(0) scale(0.96);
 }
 
 .desktop-public-nav {
@@ -866,6 +991,72 @@ onUnmounted(() => {
 .notification-wrapper {
   position: relative;
   flex: 0 0 auto;
+}
+
+.library-shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 46px;
+  border: 1px solid #2ec4b6;
+  border-radius: 8px;
+  background: transparent;
+  color: #0b5f59;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 0 14px 0 9px;
+  box-shadow: none;
+  white-space: nowrap;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.library-shortcut__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #2ec4b6;
+  color: #ffffff;
+  box-shadow: none;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.library-shortcut__icon svg {
+  width: 19px;
+  height: 19px;
+  fill: currentColor;
+}
+
+.library-shortcut:hover,
+.library-shortcut.router-link-active {
+  border-color: #2ec4b6;
+  background: rgba(46, 196, 182, 0.1);
+  color: #0f766e;
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+
+.library-shortcut:hover .library-shortcut__icon,
+.library-shortcut.router-link-active .library-shortcut__icon {
+  background: #2ec4b6;
+  color: #ffffff;
+  transform: translateY(-1px) rotate(-4deg);
+}
+
+.library-shortcut:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow:
+    0 4px 12px rgba(15, 118, 110, 0.14),
+    0 0 0 2px rgba(46, 196, 182, 0.1);
 }
 
 .notification-button {
@@ -1189,6 +1380,11 @@ onUnmounted(() => {
   padding: 0 20px;
 }
 
+.mobile-coin-link {
+  width: fit-content;
+  min-height: 42px;
+}
+
 @media (max-width: 1280px) {
   .top-bar {
     grid-template-columns: auto 1fr auto;
@@ -1247,6 +1443,17 @@ onUnmounted(() => {
     order: 3;
     justify-self: end;
     gap: 14px;
+  }
+
+  .library-shortcut {
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .library-shortcut__text {
+    display: none;
   }
 
   .desktop-public-nav {
@@ -1386,6 +1593,21 @@ onUnmounted(() => {
     color: #db2777;
   }
 
+  .mobile-subscription-group {
+    gap: 12px;
+  }
+
+  .mobile-group .mobile-coin-link {
+    width: fit-content;
+    min-height: 42px;
+    border: 1px solid rgba(217, 159, 18, 0.48);
+    border-radius: 999px;
+    background: #f6bf36;
+    color: #ffffff;
+    font-size: 17px;
+    padding: 0 16px 0 12px;
+  }
+
   .mobile-theme {
     display: flex;
     width: 100%;
@@ -1426,6 +1648,19 @@ onUnmounted(() => {
     min-height: 34px;
     font-size: 13px;
     padding: 0 14px;
+  }
+
+  .coin-link {
+    width: 40px;
+    min-height: 40px;
+    padding: 0;
+    gap: 0;
+    font-size: 0;
+  }
+
+  .coin-link .coin-mark {
+    width: 23px;
+    height: 23px;
   }
 
   .top-actions {

@@ -22,6 +22,7 @@ const pageContentRoutes = require("./routes/pageContent");
 const shelvesRoutes = require("./routes/shelves");
 const accountRoutes = require("./routes/account");
 const wishlistRoutes = require("./routes/wishlist");
+const reviewsRoutes = require("./routes/reviews");
 
 const app = express();
 const allowedOrigins = [
@@ -71,6 +72,8 @@ app.get("/api", (_req, res) => {
       "/api/page-content",
       "/api/account/following",
       "/api/wishlist",
+      "/api/books/:bookId/reviews",
+      "/api/reviews/:reviewId",
     ],
   });
 });
@@ -93,6 +96,7 @@ app.use("/api/coins", coinsRoutes);
 app.use("/api/page-content", pageContentRoutes);
 app.use("/api/account", accountRoutes);
 app.use("/api/wishlist", wishlistRoutes);
+app.use("/api", reviewsRoutes);
 app.use("/api", shelvesRoutes);
 
 app.use((req, res) => {

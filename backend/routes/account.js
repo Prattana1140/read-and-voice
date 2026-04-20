@@ -63,18 +63,18 @@ async function ensureTables() {
         )
       `),
       db.query(`
-        CREATE TABLE IF NOT EXISTS user_reviews (
+        CREATE TABLE IF NOT EXISTS book_reviews (
           id INT AUTO_INCREMENT PRIMARY KEY,
           user_id INT NOT NULL,
           book_id INT NOT NULL,
-          rating INT NOT NULL DEFAULT 5,
+          rating INT NOT NULL,
           comment TEXT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          UNIQUE KEY uq_user_reviews_user_book (user_id, book_id),
-          INDEX idx_user_reviews_user (user_id),
-          CONSTRAINT fk_user_reviews_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-          CONSTRAINT fk_user_reviews_book FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
+          INDEX idx_book_reviews_user_id (user_id),
+          INDEX idx_book_reviews_book_id (book_id),
+          CONSTRAINT fk_book_reviews_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          CONSTRAINT fk_book_reviews_book FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
         )
       `),
       db.query(`
@@ -356,7 +356,7 @@ router.get("/reviews", async (req, res) => {
          r.updated_at,
          b.title AS book_title,
          b.cover_image
-       FROM user_reviews r
+       FROM book_reviews r
        JOIN books b ON b.id = r.book_id
        WHERE r.user_id = ?
        ORDER BY r.updated_at DESC`,
@@ -382,12 +382,8 @@ router.post("/reviews", async (req, res) => {
     }
 
     await db.query(
-      `INSERT INTO user_reviews (user_id, book_id, rating, comment)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         rating = VALUES(rating),
-         comment = VALUES(comment),
-         updated_at = NOW()`,
+      `INSERT INTO book_reviews (user_id, book_id, rating, comment)
+       VALUES (?, ?, ?, ?)`,
       [req.user.id, bookId, rating, comment],
     );
 
