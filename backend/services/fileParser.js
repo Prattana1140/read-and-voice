@@ -4,6 +4,10 @@ const { TextDecoder } = require("util");
 const { runPdfOCR } = require("./ocrService");
 
 const TEXT_ENCODINGS = ["utf-8", "utf-16le", "windows-874"];
+const THAI_CHAR_PATTERN = /[\u0E00-\u0E7F]/g;
+const LATIN_CHAR_PATTERN = /[A-Za-z]/g;
+const DIGIT_PATTERN = /[0-9\u0E50-\u0E59]/g;
+const PARA_MARKER_PATTERN = /(?:<\s*\/?\s*PARA\s*>|&lt;\s*\/?\s*PARA\s*&gt;)/gi;
 
 function countMatches(text, pattern) {
   return (String(text || "").match(pattern) || []).length;
@@ -15,31 +19,28 @@ function looksLikeMojibake(text) {
 
   const badSignals =
     countMatches(value, /\uFFFD/g) +
-    countMatches(value, /\u0E4F\u0E1F\u0E1D/g) +
-    countMatches(value, /\u0E42[\u20AC\u2018\u2019\u201C\u201D\u2022\u2026]/g) +
-    countMatches(value, /\u0E40\u0E18[\u0E01-\u0E2E]/g) +
-    countMatches(value, /\u0E40\u0E19[\u0080-\u0E2E]/g);
+    countMatches(value, /[\u0080-\u009F]/g) +
+    countMatches(value, /เธ[\u0080-\u009F]/g) +
+    countMatches(value, /เน[\u0080-\u009F]/g) +
+    countMatches(value, /โ[\u0080-\u009F]/g);
 
-  return badSignals >= 8 || badSignals / Math.max(value.length, 1) > 0.04;
+  return badSignals >= 8 || badSignals / Math.max(value.length, 1) > 0.025;
 }
 
 function scoreDecodedText(text) {
   const value = String(text || "");
   return (
     countMatches(value, /[\u0E00-\u0E7FA-Za-z0-9]/g) -
-    countMatches(value, /\uFFFD/g) * 20 -
-    countMatches(value, /\u0E4F\u0E1F\u0E1D/g) * 20 -
-    (looksLikeMojibake(value) ? 100 : 0)
+    countMatches(value, /\uFFFD/g) * 30 -
+    countMatches(value, /[\u0080-\u009F]/g) * 30 -
+    countMatches(value, PARA_MARKER_PATTERN) * 8 -
+    (looksLikeMojibake(value) ? 120 : 0)
   );
 }
 
 function decodeTextBuffer(buffer) {
   const candidates = [];
   const utf8Text = new TextDecoder("utf-8", { fatal: false }).decode(buffer);
-
-  if (!utf8Text.includes("\uFFFD") && !/[\u0080-\u009F]/.test(utf8Text)) {
-    return utf8Text;
-  }
 
   for (const encoding of TEXT_ENCODINGS) {
     try {
@@ -49,12 +50,19 @@ function decodeTextBuffer(buffer) {
     }
   }
 
-  candidates.push(buffer.toString("utf8"));
+  candidates.push(utf8Text, buffer.toString("utf8"));
   return candidates.sort((a, b) => scoreDecodedText(b) - scoreDecodedText(a))[0] || "";
 }
 
-function normalizeText(text) {
+function stripArtificialMarkers(text) {
   return String(text || "")
+    .replace(PARA_MARKER_PATTERN, "\n\n")
+    .replace(/\bPARA\b/gi, " ")
+    .replace(/\[(?:PAGE|หน้า)\s*\d+\]/gi, "\n\n");
+}
+
+function normalizeText(text) {
+  return stripArtificialMarkers(text)
     .normalize("NFC")
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n")
@@ -64,6 +72,7 @@ function normalizeText(text) {
     .replace(/\t/g, " ")
     .replace(/[ ]{2,}/g, " ")
     .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
@@ -72,24 +81,47 @@ function hasUsefulLetters(line) {
   const compact = String(line || "").replace(/\s/g, "");
   if (!compact) return false;
 
-  const thaiCount = countMatches(compact, /[\u0E00-\u0E7F]/g);
-  const latinCount = countMatches(compact, /[A-Za-z]/g);
-  const digitCount = countMatches(compact, /[0-9\u0E50-\u0E59]/g);
+  const thaiCount = countMatches(compact, THAI_CHAR_PATTERN);
+  const latinCount = countMatches(compact, LATIN_CHAR_PATTERN);
+  const digitCount = countMatches(compact, DIGIT_PATTERN);
   const usefulCount = thaiCount + latinCount + digitCount;
 
   if (usefulCount < 2) return false;
   return usefulCount / compact.length >= 0.35;
 }
 
+function isLikelyOcrNoise(line) {
+  const value = String(line || "").trim();
+  if (!value) return true;
+  if (looksLikeMojibake(value)) return true;
+
+  const compact = value.replace(/\s/g, "");
+  const thaiCount = countMatches(compact, THAI_CHAR_PATTERN);
+  const latinCount = countMatches(compact, LATIN_CHAR_PATTERN);
+  const digitCount = countMatches(compact, DIGIT_PATTERN);
+  const symbolCount = compact.length - thaiCount - latinCount - digitCount;
+
+  if (thaiCount === 0 && latinCount > 0 && symbolCount > latinCount) return true;
+  if (
+    thaiCount === 0 &&
+    latinCount > 0 &&
+    digitCount === 0 &&
+    compact.length <= 8 &&
+    value === value.toUpperCase()
+  ) {
+    return true;
+  }
+  if (thaiCount <= 1 && symbolCount >= Math.max(6, latinCount + digitCount)) return true;
+
+  return false;
+}
+
 function cleanOcrLine(line) {
-  return String(line || "")
-    .normalize("NFC")
-    .replace(/\u0000/g, "")
-    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+  return normalizeText(line)
     .replace(/[|\\/~`^*_+=<>[\]{}]{2,}/g, " ")
-    .replace(/[ \t]{2,}/g, " ")
     .replace(/\s+([,.;:!?])/g, "$1")
     .replace(/([,.;:!?])([^\s])/g, "$1 $2")
+    .replace(/[ \t]{2,}/g, " ")
     .trim();
 }
 
@@ -99,7 +131,9 @@ function polishThaiOcrText(text) {
     .replace(/เเ/g, "แ")
     .replace(/([ๆฯ])\1+/g, "$1")
     .replace(/[ ]+([ะาิีึืุูเแโใไ])/g, "$1")
-    .replace(/([เแโใไ])\s+([ก-ฮ])/g, "$1$2");
+    .replace(/([เแโใไ])\s+([ก-ฮ])/g, "$1$2")
+    .replace(/([ก-ฮ])\s+([่้๊๋์])/g, "$1$2")
+    .replace(/\s{2,}/g, " ");
 }
 
 function cleanOcrText(text) {
@@ -107,13 +141,31 @@ function cleanOcrText(text) {
     .split("\n")
     .map(cleanOcrLine)
     .filter(Boolean)
-    .filter(hasUsefulLetters);
+    .filter(hasUsefulLetters)
+    .filter((line) => !isLikelyOcrNoise(line));
 
   return polishThaiOcrText(lines.join("\n"));
 }
 
+function sanitizeBookText(text) {
+  const normalized = normalizeText(text);
+  if (!normalized) return "";
+
+  if (looksLikeMojibake(normalized)) {
+    return cleanOcrText(normalized);
+  }
+
+  return normalized
+    .split("\n")
+    .map((line) => cleanOcrLine(line))
+    .filter((line) => line && !isLikelyOcrNoise(line))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function splitTextToPages(text, chunkSize = 1800) {
-  const cleanText = normalizeText(text);
+  const cleanText = sanitizeBookText(text);
   if (!cleanText) return [];
 
   const paragraphs = cleanText
@@ -141,11 +193,12 @@ function splitTextToPages(text, chunkSize = 1800) {
 
 async function parseTxtFile(filePath) {
   const text = decodeTextBuffer(fs.readFileSync(filePath));
+  const fullText = sanitizeBookText(text);
 
   return {
     sourceType: "txt",
-    fullText: normalizeText(text),
-    pages: splitTextToPages(text),
+    fullText,
+    pages: splitTextToPages(fullText),
     parseMethod: "plain-text",
   };
 }
@@ -205,7 +258,7 @@ async function parseJsonFile(filePath) {
     throw new Error(`ไฟล์ JSON ไม่ถูกต้อง: ${error.message}`);
   }
 
-  const fullText = normalizeText(extractTextFromJsonValue(parsed));
+  const fullText = sanitizeBookText(extractTextFromJsonValue(parsed));
 
   if (!fullText) {
     throw new Error("ไม่พบข้อความที่สามารถอ่านได้ในไฟล์ JSON");
@@ -235,7 +288,7 @@ async function extractPdfTextByPage(filePath) {
     for (let pageNo = 1; pageNo <= pdf.numPages; pageNo += 1) {
       const page = await pdf.getPage(pageNo);
       const textContent = await page.getTextContent();
-      const pageText = normalizeText(
+      const pageText = sanitizeBookText(
         textContent.items.map((item) => ("str" in item ? item.str : "")).join(" "),
       );
 
@@ -252,12 +305,12 @@ async function extractPdfTextByPage(filePath) {
 function looksLikeScannedPdf(pageTexts) {
   if (!Array.isArray(pageTexts) || pageTexts.length === 0) return true;
 
-  const joined = normalizeText(pageTexts.join("\n"));
+  const joined = sanitizeBookText(pageTexts.join("\n"));
   if (!joined) return true;
   if (looksLikeMojibake(joined)) return true;
 
   const avgLength =
-    pageTexts.reduce((sum, page) => sum + normalizeText(page).length, 0) /
+    pageTexts.reduce((sum, page) => sum + sanitizeBookText(page).length, 0) /
     pageTexts.length;
 
   return avgLength < 80;
@@ -273,10 +326,10 @@ async function parsePdfFile(filePath) {
     console.error("PDF.js extraction error:", err);
   }
 
-  const cleanPages = pageTexts.map((page) => normalizeText(page)).filter(Boolean);
+  const cleanPages = pageTexts.map((page) => sanitizeBookText(page)).filter(Boolean);
 
   if (!looksLikeScannedPdf(cleanPages)) {
-    const fullText = normalizeText(cleanPages.join("\n\n"));
+    const fullText = sanitizeBookText(cleanPages.join("\n\n"));
     return {
       sourceType: "pdf",
       fullText,
@@ -307,7 +360,7 @@ async function parsePdfFile(filePath) {
     console.error("OCR failed:", ocrErr.message);
 
     if (cleanPages.length > 0) {
-      const fullText = normalizeText(cleanPages.join("\n\n"));
+      const fullText = sanitizeBookText(cleanPages.join("\n\n"));
       return {
         sourceType: "pdf",
         fullText,
@@ -322,8 +375,6 @@ async function parsePdfFile(filePath) {
     pdfError.statusCode = 400;
     pdfError.code = "PDF_TEXT_EXTRACTION_FAILED";
     throw pdfError;
-
-    throw new Error(`ไม่สามารถประมวลผล PDF ได้: ${ocrErr.message}`);
   }
 }
 
@@ -350,5 +401,6 @@ module.exports = {
   cleanOcrText,
   extractTextFromJsonValue,
   normalizeText,
+  sanitizeBookText,
   looksLikeMojibake,
 };

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 import Footer from "./components/Footer.vue";
 import Navbar from "./components/Navbar.vue";
 import NavigationTrail from "./components/NavigationTrail.vue";
@@ -8,6 +9,8 @@ type ThemeMode = "normal" | "dark" | "reading";
 
 const theme = ref<ThemeMode>("normal");
 const skipNextThemeWatch = ref(false);
+const route = useRoute();
+const isReaderPage = computed(() => route.name === "ReaderPage");
 
 const applyTheme = (mode: ThemeMode, withTransition = true) => {
   document.documentElement.dataset.theme = mode === "normal" ? "" : mode;
@@ -54,12 +57,12 @@ watch(theme, (mode) => {
 </script>
 
 <template>
-  <div class="app-shell">
-    <Navbar :theme="theme" @change-theme="changeTheme" />
-    <NavigationTrail />
+  <div class="app-shell" :class="{ 'reader-shell-mode': isReaderPage }">
+    <Navbar v-if="!isReaderPage" :theme="theme" @change-theme="changeTheme" />
+    <NavigationTrail v-if="!isReaderPage" />
     <main class="app-main">
       <router-view />
     </main>
-    <Footer />
+    <Footer v-if="!isReaderPage" />
   </div>
 </template>

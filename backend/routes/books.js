@@ -4,7 +4,7 @@ const path = require("path");
 const fs = require("fs");
 
 const db = require("../config/db");
-const { parseBookFile } = require("../services/fileParser");
+const { parseBookFile, sanitizeBookText } = require("../services/fileParser");
 const {
   verifyToken,
   optionalVerifyToken,
@@ -253,8 +253,10 @@ router.post(
         bookFile.mimetype,
         bookFile.originalname,
       );
-      const pages = Array.isArray(parsed.pages) ? parsed.pages : [];
-      const fullText = parsed.fullText || pages.join("\n\n");
+      const pages = Array.isArray(parsed.pages)
+        ? parsed.pages.map(sanitizeBookText).filter(Boolean)
+        : [];
+      const fullText = sanitizeBookText(parsed.fullText || pages.join("\n\n"));
       const finalCoverImage = getCoverImagePath(coverFile, cover_image);
 
       await connection.beginTransaction();
@@ -301,7 +303,6 @@ router.post(
       const responseMessage =
         statusCode === 400 ? error.message : "อัปโหลดหนังสือไม่สำเร็จ";
       return res.status(statusCode >= 400 && statusCode < 600 ? statusCode : 500).json({
-        message: "อัปโหลดหนังสือไม่สำเร็จ",
         error: error.message,
         code: error.code,
         message: responseMessage,
@@ -416,13 +417,20 @@ router.get("/:id/content", optionalVerifyToken, async (req, res) => {
         ],
       );
 
-      if (previewPages.length > 0) return res.json(previewPages);
+      if (previewPages.length > 0) {
+        return res.json(
+          previewPages.map((page) => ({
+            ...page,
+            content: sanitizeBookText(page.content),
+          })),
+        );
+      }
 
       return res.json({
         preview: true,
         is_preview: true,
         message: "ต้องซื้อหนังสือหรือสมัครแพ็กเกจก่อน",
-        content: String(book.full_text || book.content || "").slice(
+        content: sanitizeBookText(book.full_text || book.content || "").slice(
           0,
           normalizePositiveInt(
             book.preview_char_limit,
@@ -440,7 +448,12 @@ router.get("/:id/content", optionalVerifyToken, async (req, res) => {
       [book.id],
     );
 
-    return res.json(pages);
+    return res.json(
+      pages.map((page) => ({
+        ...page,
+        content: sanitizeBookText(page.content),
+      })),
+    );
   } catch (error) {
     console.error("GET /books/:id/content error:", error);
     return res.status(500).json({ message: "โหลดเนื้อหาหนังสือไม่สำเร็จ" });

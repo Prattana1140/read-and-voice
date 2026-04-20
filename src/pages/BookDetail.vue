@@ -9,7 +9,238 @@
         {{ error }}
       </div>
 
-      <div v-else-if="book" class="book-layout">
+      <template v-else-if="book">
+        <section class="story-hero">
+          <div class="story-hero__inner">
+            <figure class="story-cover">
+              <img :src="bookCover" :alt="book.title" @error="handleImgError" />
+            </figure>
+
+            <div class="story-main">
+              <div class="story-tags">
+                <span>{{ book.category_name || "นิยาย" }}</span>
+                <span>{{ book.content_type === "serial" ? `${episodes.length || book.episode_count || 0} ตอน` : "แบบเล่ม" }}</span>
+                <span>{{ bookAccessLabel }}</span>
+              </div>
+
+              <h1>{{ book.title }}</h1>
+              <p class="story-author">
+                {{ book.author || "ไม่ระบุผู้เขียน" }}
+                <button type="button">ติดตาม</button>
+              </p>
+
+              <p class="story-description">
+                {{ book.description || "ยังไม่มีคำโปรยสำหรับเรื่องนี้" }}
+              </p>
+
+              <div class="story-stats">
+                <span>♡ {{ reviewSummary.review_count || 0 }} รีวิว</span>
+                <span>👁 {{ displayReadCount }}</span>
+                <span>☰ {{ episodes.length || book.episode_count || 1 }} ตอน</span>
+                <span>💬 {{ reviews.length }}</span>
+              </div>
+
+              <div class="story-actions">
+                <button class="icon-action" type="button" @click="addToWishlist">♡</button>
+                <button class="outline-action" type="button" @click="addToLibrary">เพิ่มเข้าชั้น</button>
+                <button
+                  v-if="book.content_type === 'serial' && firstEpisode"
+                  class="primary-action"
+                  type="button"
+                  @click="openEpisodeReader(firstEpisode)"
+                >
+                  อ่านเลย
+                </button>
+                <button v-else class="primary-action" type="button" @click="openReaderPage">
+                  อ่านเลย
+                </button>
+                <button
+                  v-if="bookAccessType === 'paid'"
+                  class="outline-action"
+                  type="button"
+                  :disabled="purchasingBook"
+                  @click="purchaseBookNow"
+                >
+                  {{ purchasingBook ? "กำลังซื้อ..." : bookPriceLabel }}
+                </button>
+                <button
+                  v-if="bookAccessType === 'subscription' && !hasActiveSubscription"
+                  class="outline-action"
+                  type="button"
+                  @click="router.push('/subscription-plans')"
+                >
+                  สมัครรายเดือน
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <main class="story-content-shell">
+          <section class="story-section character-section">
+            <h2>แนะนำตัวละคร</h2>
+            <div class="character-list">
+              <article>
+                <span>{{ getInitial(book.author || book.title) }}</span>
+                <strong>{{ book.author || "นักเขียน" }}</strong>
+              </article>
+              <article>
+                <span>{{ getInitial(book.title) }}</span>
+                <strong>{{ book.title }}</strong>
+              </article>
+            </div>
+          </section>
+
+          <section class="story-section note-section">
+            <h2>แนะนำเรื่อง</h2>
+            <p>{{ book.description || "เรื่องนี้ยังไม่มีคำแนะนำจากผู้เขียน" }}</p>
+            <p v-if="previewNotice" class="preview-notice">{{ previewNotice }}</p>
+          </section>
+
+          <section class="story-section info-grid">
+            <div>
+              <h2>ข้อมูลนักเขียน</h2>
+              <dl>
+                <div>
+                  <dt>นามปากกา</dt>
+                  <dd>{{ book.author || "ไม่ระบุ" }}</dd>
+                </div>
+                <div>
+                  <dt>นักเขียน</dt>
+                  <dd>{{ book.author || "ไม่ระบุ" }}</dd>
+                </div>
+              </dl>
+            </div>
+            <div>
+              <h2>เผยแพร่</h2>
+              <dl>
+                <div>
+                  <dt>ราคา/สิทธิ์อ่าน</dt>
+                  <dd>{{ bookPriceLabel }}</dd>
+                </div>
+                <div>
+                  <dt>รูปแบบ</dt>
+                  <dd>{{ book.content_type === "serial" ? "รายตอน" : "แบบเล่ม" }}</dd>
+                </div>
+              </dl>
+            </div>
+          </section>
+
+          <section v-if="book.content_type === 'serial'" class="story-section episode-table-section">
+            <div class="section-heading">
+              <h2>ตอนทั้งหมด ({{ episodes.length }})</h2>
+              <button
+                v-if="book.access_type === 'paid'"
+                type="button"
+                :disabled="buyingBook"
+                @click="addBookToCart(book.id)"
+              >
+                {{ buyingBook ? "กำลังเพิ่ม..." : "ซื้อทุกตอน" }}
+              </button>
+            </div>
+
+            <div class="episode-table">
+              <article v-for="episode in episodes" :key="episode.id" class="episode-row">
+                <span class="episode-number">#{{ episode.episode_number }}</span>
+                <button type="button" class="episode-title" @click="openEpisodeReader(episode)">
+                  {{ episode.title }}
+                </button>
+                <span class="episode-meta">{{ getEpisodeAccessLabel(episode) }}</span>
+                <span class="episode-meta">{{ formatEpisodeMeta(episode) }}</span>
+                <button
+                  v-if="isEpisodePaid(episode)"
+                  class="episode-buy"
+                  type="button"
+                  :disabled="purchasingEpisodeId === episode.id"
+                  @click="purchaseEpisodeNow(episode)"
+                >
+                  {{ purchasingEpisodeId === episode.id ? "กำลังซื้อ..." : "ซื้อและอ่าน" }}
+                </button>
+                <button v-else class="episode-buy" type="button" @click="openEpisodeReader(episode)">
+                  อ่าน
+                </button>
+              </article>
+              <div v-if="!episodes.length" class="empty-content">ยังไม่มีตอนที่เผยแพร่</div>
+            </div>
+          </section>
+
+          <section v-else class="story-section ebook-preview-section">
+            <div class="section-heading">
+              <h2>ตัวอย่างเนื้อหา</h2>
+              <button type="button" @click="openReaderPage">เปิดอ่านแบบเต็มจอ</button>
+            </div>
+            <div class="reader-box" :style="{ fontSize: fontSize + 'px', lineHeight: '1.9' }">
+              <span
+                v-for="(sentence, index) in sentences"
+                :key="index"
+                class="sentence"
+                :class="{ active: index === currentIndex }"
+                @click="selectSentence(index)"
+              >
+                {{ sentence }}
+              </span>
+              <div v-if="!sentences.length" class="empty-content">ไม่พบเนื้อหาตัวอย่าง</div>
+            </div>
+          </section>
+
+          <section class="story-section reviews-section">
+            <div class="reviews-head">
+              <div>
+                <p class="reviews-eyebrow">ความคิดเห็น ({{ reviews.length }})</p>
+                <h3>{{ reviewSummaryText }}</h3>
+              </div>
+              <button v-if="!showReviewForm" class="small-btn" type="button" @click="startNewReview">
+                เขียนความคิดเห็น
+              </button>
+            </div>
+
+            <form v-if="showReviewForm" class="review-form" @submit.prevent="submitReview">
+              <div class="sticker-row">
+                <span v-for="item in ['🌸', '💚', '❤️', '✨', '📚', '😊', '🔥', '🌙']" :key="item">{{ item }}</span>
+              </div>
+              <label>
+                <span>คะแนน</span>
+                <select v-model.number="reviewRating">
+                  <option v-for="score in [5, 4, 3, 2, 1]" :key="score" :value="score">{{ score }} ดาว</option>
+                </select>
+              </label>
+              <label>
+                <span>ความคิดเห็น</span>
+                <textarea v-model="reviewComment" rows="4" placeholder="เขียนความคิดเห็นของคุณ" />
+              </label>
+              <div class="review-actions">
+                <button class="btn primary" type="submit" :disabled="reviewSaving">
+                  {{ reviewSaving ? "กำลังบันทึก..." : editingReviewId ? "บันทึกการแก้ไข" : "ส่งความคิดเห็น" }}
+                </button>
+                <button class="btn" type="button" @click="cancelReviewForm">ยกเลิก</button>
+              </div>
+            </form>
+
+            <p v-if="reviewError" class="review-error">{{ reviewError }}</p>
+            <div v-if="reviewsLoading" class="review-state">กำลังโหลดความคิดเห็น...</div>
+            <div v-else-if="reviews.length === 0" class="review-state">
+              ยังไม่มีความคิดเห็น เป็นคนแรกที่คุยกับเรื่องนี้ได้เลย
+            </div>
+
+            <article v-for="review in reviews" :key="review.id" class="review-item">
+              <div class="review-meta">
+                <strong>{{ review.user_name }}</strong>
+                <span>{{ "★".repeat(review.rating) }}{{ "☆".repeat(5 - review.rating) }}</span>
+              </div>
+              <p>{{ review.comment }}</p>
+              <div class="review-footer">
+                <span>{{ formatReviewDate(review.created_at) }}</span>
+                <div v-if="review.can_edit || review.can_delete" class="review-manage">
+                  <button v-if="review.can_edit" type="button" @click="editReview(review)">แก้ไข</button>
+                  <button v-if="review.can_delete" type="button" @click="deleteReview(review.id)">ลบ</button>
+                </div>
+              </div>
+            </article>
+          </section>
+        </main>
+      </template>
+
+      <div v-if="false" class="book-layout">
         <!-- =========================
              SIDEBAR: ปก + ข้อมูลหลัก + ปุ่มลัด + TTS ตัวอย่าง
              ========================= -->
@@ -84,83 +315,6 @@
             </button>
           </div>
 
-          <!-- TTS ตัวอย่าง -->
-          <div
-            v-if="book.content_type !== 'serial' && sentences.length"
-            class="tts-panel"
-          >
-            <h3>ทดลองอ่านออกเสียง</h3>
-            <p class="tts-note">
-              ส่วนนี้เป็นตัวอย่างการฟังเบื้องต้น หากต้องการอ่านแบบเต็มหน้าจอให้กดเปิด Reader
-            </p>
-
-            <div class="control-group">
-              <label>Voice</label>
-              <select v-model="selectedVoice" class="input">
-                <option
-                  v-for="voice in voices"
-                  :key="voice.name"
-                  :value="voice.name"
-                >
-                  {{ voice.name }} ({{ voice.lang }})
-                </option>
-              </select>
-            </div>
-
-            <div class="control-group">
-              <label>Speed: {{ rate }}</label>
-              <input v-model="rate" type="range" min="0.5" max="2" step="0.1" />
-            </div>
-
-            <div class="control-group">
-              <label>Pitch: {{ pitch }}</label>
-              <input
-                v-model="pitch"
-                type="range"
-                min="0.5"
-                max="2"
-                step="0.1"
-              />
-            </div>
-
-            <div class="control-group">
-              <label>Volume: {{ volume }}</label>
-              <input v-model="volume" type="range" min="0" max="1" step="0.1" />
-            </div>
-
-            <div class="control-group">
-              <label>ขนาดตัวอักษร: {{ fontSize }}px</label>
-              <input
-                v-model="fontSize"
-                type="range"
-                min="16"
-                max="36"
-                step="1"
-              />
-            </div>
-
-            <div class="button-group">
-              <button class="btn primary" @click="playBook">เริ่มอ่าน</button>
-              <button class="btn" @click="pauseBook">หยุดชั่วคราว</button>
-              <button class="btn" @click="resumeBook">เล่นต่อ</button>
-              <button class="btn danger" @click="stopSpeech">หยุด</button>
-            </div>
-
-            <div class="button-group">
-              <button class="btn" @click="restartBook">เริ่มใหม่</button>
-              <button class="btn" @click="prevSentence">ย้อนกลับ</button>
-              <button class="btn" @click="replayCurrent">อ่านซ้ำ</button>
-              <button class="btn" @click="nextSentence">ถัดไป</button>
-            </div>
-
-            <div class="status-box">
-              <p>จำนวนประโยคตัวอย่าง: {{ sentences.length }}</p>
-              <p>กำลังอ่านประโยคที่: {{ sentences.length ? currentIndex + 1 : 0 }}</p>
-              <p v-if="isSpeaking">สถานะ: กำลังอ่าน</p>
-              <p v-else-if="isPaused">สถานะ: หยุดชั่วคราว</p>
-              <p v-else>สถานะ: ยังไม่เริ่ม</p>
-            </div>
-          </div>
         </aside>
 
         <!-- =========================
@@ -392,6 +546,10 @@ type Book = {
   content_type?: "ebook" | "serial";
   access_type?: "paid" | "free" | "subscription";
   episode_count?: number;
+  view_count?: number;
+  read_count?: number;
+  created_at?: string;
+  updated_at?: string;
 };
 
 type Episode = {
@@ -402,6 +560,12 @@ type Episode = {
   price: number;
   is_free?: number;
   access_type?: "paid" | "free" | "subscription";
+  view_count?: number;
+  read_count?: number;
+  comment_count?: number;
+  word_count?: number;
+  created_at?: string;
+  updated_at?: string;
 };
 
 type BookReview = {
@@ -584,6 +748,35 @@ const reviewSummaryText = computed(() => {
 
   return `${average.toFixed(1)} / 5 จาก ${count} รีวิว`;
 });
+
+const firstEpisode = computed(() => {
+  return episodes.value[0] || null;
+});
+
+const displayReadCount = computed(() => {
+  const count = Number(book.value?.read_count || book.value?.view_count || 0);
+  if (!count) return "0";
+  if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+  if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
+  return String(count);
+});
+
+const getInitial = (value: string) => {
+  return String(value || "R").trim().charAt(0).toUpperCase() || "R";
+};
+
+const formatEpisodeMeta = (episode: Episode) => {
+  const words = Number(episode.word_count || 0);
+  const reads = Number(episode.read_count || episode.view_count || 0);
+  const comments = Number(episode.comment_count || 0);
+  const parts = [];
+
+  if (words) parts.push(`${words.toLocaleString()} คำ`);
+  if (comments) parts.push(`${comments} ความคิดเห็น`);
+  if (reads) parts.push(`${reads.toLocaleString()} อ่าน`);
+
+  return parts.join(" · ") || "พร้อมอ่าน";
+};
 
 const canDeleteReview = (review: BookReview) => {
   const user = getUser();
@@ -2049,6 +2242,399 @@ input[type="range"] {
   .quick-actions {
     justify-content: center;
     margin-inline: auto;
+  }
+}
+
+/* ReadAWrite-inspired story detail layout */
+.book-detail-page {
+  background: #f4f5f5;
+  color: #202324;
+  padding: 0 0 72px;
+}
+
+.container {
+  max-width: none;
+}
+
+.story-hero {
+  background:
+    linear-gradient(90deg, rgba(9, 15, 14, 0.96), rgba(14, 22, 20, 0.92)),
+    radial-gradient(circle at 20% 20%, rgba(85, 198, 189, 0.22), transparent 30%);
+  color: #ffffff;
+}
+
+.story-hero__inner {
+  display: grid;
+  grid-template-columns: 330px minmax(0, 1fr);
+  gap: 38px;
+  width: min(100% - 40px, 1180px);
+  min-height: 380px;
+  margin: 0 auto;
+  padding: 44px 0 34px;
+}
+
+.story-cover {
+  width: 330px;
+  height: 330px;
+  margin: 0;
+  overflow: hidden;
+  background: #111827;
+}
+
+.story-cover img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.story-main {
+  align-self: center;
+}
+
+.story-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.story-tags span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border-radius: 999px;
+  background: rgba(85, 198, 189, 0.18);
+  color: #9ff0e7;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 0 12px;
+}
+
+.story-main h1 {
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(30px, 4vw, 48px);
+  font-weight: 900;
+  line-height: 1.12;
+}
+
+.story-author {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0 0;
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 800;
+}
+
+.story-author button {
+  min-height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 999px;
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 900;
+  padding: 0 14px;
+}
+
+.story-description {
+  max-width: 720px;
+  margin: 18px 0 0;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.story-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 28px;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.story-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.icon-action,
+.outline-action,
+.primary-action,
+.section-heading button,
+.episode-buy {
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 900;
+  min-height: 40px;
+  padding: 0 22px;
+}
+
+.icon-action {
+  width: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  background: transparent;
+  color: #ffffff;
+  padding: 0;
+}
+
+.outline-action {
+  border: 1px solid rgba(85, 198, 189, 0.7);
+  background: rgba(255, 255, 255, 0.04);
+  color: #b8fff7;
+}
+
+.primary-action {
+  min-width: 138px;
+  background: #55c6bd;
+  color: #ffffff;
+}
+
+.story-content-shell {
+  width: min(100% - 40px, 960px);
+  margin: 0 auto;
+}
+
+.story-section {
+  background: #ffffff;
+  border: 1px solid #e8ecec;
+  margin-top: 18px;
+  padding: 28px 34px;
+}
+
+.story-section h2 {
+  margin: 0 0 20px;
+  color: #202324;
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.character-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 28px;
+}
+
+.character-list article {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.character-list span {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  background: #dff7f4;
+  color: #118478;
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.character-list strong {
+  color: #384044;
+  font-size: 14px;
+}
+
+.note-section {
+  text-align: center;
+}
+
+.note-section p {
+  max-width: 720px;
+  margin: 0 auto;
+  color: #3c4448;
+  font-size: 16px;
+  line-height: 1.9;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 36px;
+}
+
+.info-grid dl {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+}
+
+.info-grid dl div {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+}
+
+.info-grid dt {
+  color: #5c686c;
+  font-weight: 900;
+}
+
+.info-grid dd {
+  margin: 0;
+  color: #202324;
+  font-weight: 800;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.section-heading h2 {
+  margin: 0;
+}
+
+.section-heading button,
+.episode-buy {
+  background: #55c6bd;
+  color: #ffffff;
+}
+
+.episode-table {
+  border-top: 1px solid #e6ecec;
+}
+
+.episode-row {
+  display: grid;
+  grid-template-columns: 56px minmax(180px, 1fr) 130px minmax(150px, 210px) 120px;
+  gap: 12px;
+  align-items: center;
+  min-height: 54px;
+  border-bottom: 1px solid #e6ecec;
+}
+
+.episode-number,
+.episode-meta {
+  color: #667477;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.episode-title {
+  border: 0;
+  background: transparent;
+  color: #202324;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+  padding: 0;
+  text-align: left;
+}
+
+.episode-title:hover {
+  color: #118478;
+}
+
+.episode-buy {
+  justify-self: end;
+  min-height: 32px;
+  padding: 0 14px;
+}
+
+.ebook-preview-section .reader-box {
+  max-height: 360px;
+  overflow: hidden;
+  background: #fbfbfb;
+}
+
+.sticker-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 26px;
+}
+
+.reviews-section {
+  border-top: 0;
+}
+
+.review-form {
+  border-radius: 8px;
+  background: #fbfbfb;
+}
+
+.review-item {
+  border: 1px solid #e8ecec;
+  border-radius: 8px;
+  margin-top: 12px;
+  padding: 16px;
+}
+
+@media (max-width: 900px) {
+  .story-hero__inner {
+    grid-template-columns: 150px 1fr;
+    gap: 18px;
+    width: min(100% - 28px, 760px);
+    min-height: 0;
+    padding: 28px 0;
+  }
+
+  .story-cover {
+    width: 150px;
+    height: 210px;
+  }
+
+  .story-content-shell {
+    width: min(100% - 24px, 760px);
+  }
+
+  .story-section {
+    padding: 22px 18px;
+  }
+
+  .info-grid,
+  .episode-row {
+    grid-template-columns: 1fr;
+  }
+
+  .episode-row {
+    gap: 6px;
+    padding: 12px 0;
+  }
+
+  .episode-buy {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 560px) {
+  .story-hero__inner {
+    grid-template-columns: 1fr;
+  }
+
+  .story-cover {
+    width: 180px;
+    height: 240px;
+  }
+
+  .story-main h1 {
+    font-size: 28px;
+  }
+
+  .story-actions {
+    display: grid;
+    grid-template-columns: 44px 1fr 1fr;
+  }
+
+  .outline-action,
+  .primary-action {
+    padding: 0 12px;
   }
 }
 </style>

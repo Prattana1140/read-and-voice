@@ -21,7 +21,7 @@ const routeLabels: Record<string, string> = {
   BookDetail: "รายละเอียดหนังสือ",
   BestSellers: "ขายดี",
   NewReleases: "มาใหม่",
-  Promotions: "โปรโมชั่น",
+  Promotions: "โปรโมชัน",
   FreeBooks: "หนังสือฟรี",
   HallOfFame: "หอเกียรติยศ",
   Recommended: "แนะนำ",
@@ -163,7 +163,10 @@ function getRouteLabel(currentRoute: RouteLocationNormalizedLoaded) {
   const id = currentRoute.params.id;
 
   if (
-    (name === "BookDetail" || name === "ReaderPage" || name === "AdminEditBook" || name === "WriterEditBook") &&
+    (name === "BookDetail" ||
+      name === "ReaderPage" ||
+      name === "AdminEditBook" ||
+      name === "WriterEditBook") &&
     typeof id === "string"
   ) {
     return `${baseLabel} #${id}`;
@@ -192,14 +195,10 @@ watch(
     }
 
     const nextItem = { fullPath: route.fullPath, label: getRouteLabel(route) };
-    const cleanTrail = trail.value.filter(isTrailItem);
-    const existingIndex = cleanTrail.findIndex((item) => isSameTrailPlace(item, nextItem));
-    const nextTrail =
-      existingIndex >= 0
-        ? [...cleanTrail.slice(0, existingIndex), nextItem]
-        : [...cleanTrail, nextItem].slice(-maxItems);
-
-    const compactTrail = compactTrailItems(nextTrail);
+    const name = typeof route.name === "string" ? route.name : "";
+    const parent = parentRoutes[name];
+    const nextTrail = parent ? [homeItem, parent, nextItem] : [homeItem, nextItem];
+    const compactTrail = compactTrailItems(nextTrail).slice(-maxItems);
     trail.value = compactTrail;
     writeTrail(compactTrail);
   },

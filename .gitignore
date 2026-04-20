@@ -16,6 +16,7 @@ dist-ssr
 backend/.env
 backend/uploads/
 .sixth/
+tmp-upload-book*.txt
 
 # Editor directories and files
 .vscode/*

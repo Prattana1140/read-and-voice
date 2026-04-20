@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../config/db");
 const { optionalVerifyToken } = require("../middleware/auth");
+const { sanitizeBookText } = require("../services/fileParser");
 
 const router = express.Router();
 
@@ -70,7 +71,7 @@ async function isBookOwnerOrAdmin(user, bookId) {
 }
 
 async function getBookFullText(bookId, fullText) {
-  if (fullText) return fullText;
+  if (fullText) return sanitizeBookText(fullText);
 
   const [pages] = await db.query(
     `SELECT page_text
@@ -80,7 +81,9 @@ async function getBookFullText(bookId, fullText) {
     [bookId]
   );
 
-  return pages.map((page) => page.page_text || "").filter(Boolean).join("\n\n");
+  return sanitizeBookText(
+    pages.map((page) => page.page_text || "").filter(Boolean).join("\n\n"),
+  );
 }
 
 router.get("/books/:bookId/content", optionalVerifyToken, async (req, res) => {
@@ -200,7 +203,7 @@ router.get("/episodes/:episodeId/content", optionalVerifyToken, async (req, res)
       is_locked: false,
       title: episode.title,
       access_type: episode.access_type,
-      content: episode.content || "",
+      content: sanitizeBookText(episode.content || ""),
     });
   } catch (error) {
     console.error("GET /reader/episodes/:episodeId/content error:", error);
