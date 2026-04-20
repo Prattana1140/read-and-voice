@@ -30,6 +30,22 @@ type NavGroup = {
   items: NavItem[];
 };
 
+type NotificationItem = {
+  id: number;
+  title: string;
+  detail: string;
+  time: string;
+  tone: string;
+  unread?: boolean;
+};
+
+type NotificationSetting = {
+  key: string;
+  title: string;
+  detail: string;
+  enabled: boolean;
+};
+
 const props = defineProps<{
   theme: ThemeMode;
 }>();
@@ -43,9 +59,9 @@ const navbarRef = ref<HTMLElement | null>(null);
 const isMenuOpen = ref(false);
 const isSearchOpen = ref(false);
 const isNotificationsOpen = ref(false);
+const isNotificationSettingsOpen = ref(false);
 const search = ref("");
 const authVersion = ref(0);
-const notificationCount = ref(49);
 const allRoles: UserRole[] = ["guest", "user", "writer", "admin", "superadmin"];
 
 const notifications = [
@@ -53,6 +69,88 @@ const notifications = [
   "ระบบบันทึกความคืบหน้าการอ่านล่าสุด",
   "มีรายการแนะนำใหม่สำหรับคุณ",
 ];
+
+const notificationItems = ref<NotificationItem[]>([
+  {
+    id: 1,
+    title: "วันสุดท้ายสำหรับโปรโมชันอ่านฟรี",
+    detail: "E-Book ที่ติดตามกำลังจะหมดโปรโมชันวันนี้",
+    time: "เมื่อ 15 เม.ย. 2569 10:46 น.",
+    tone: "sale",
+    unread: true,
+  },
+  {
+    id: 2,
+    title: "มีตอนใหม่จากซีรีส์ที่ติดตาม",
+    detail: "ตอนล่าสุดพร้อมอ่านต่อแล้วในชั้นหนังสือของคุณ",
+    time: "เมื่อ 14 เม.ย. 2569 10:40 น.",
+    tone: "serial",
+    unread: true,
+  },
+  {
+    id: 3,
+    title: "หนังสือใหม่จากนักเขียนที่ติดตาม",
+    detail: "ผลงานใหม่ถูกเพิ่มเข้าร้านหนังสือแล้ว",
+    time: "เมื่อ 12 เม.ย. 2569 09:15 น.",
+    tone: "writer",
+  },
+  {
+    id: 4,
+    title: "มีความคิดเห็นตอบกลับ",
+    detail: "มีผู้อ่านตอบกลับความคิดเห็นของคุณ",
+    time: "เมื่อ 11 เม.ย. 2569 16:22 น.",
+    tone: "comment",
+  },
+]);
+
+const notificationSettings = ref<NotificationSetting[]>([
+  {
+    key: "writers",
+    title: "นักเขียน",
+    detail: "แจ้งเตือนเมื่อหนังสือออกใหม่ของนักเขียนที่ฉันติดตาม",
+    enabled: true,
+  },
+  {
+    key: "publishers",
+    title: "สำนักพิมพ์",
+    detail: "แจ้งเตือนเมื่อหนังสือออกใหม่ของสำนักพิมพ์ที่ฉันติดตาม",
+    enabled: true,
+  },
+  {
+    key: "series",
+    title: "ซีรีส์",
+    detail: "แจ้งเตือนเมื่อมีตอนใหม่ของซีรีส์ที่ฉันติดตาม",
+    enabled: true,
+  },
+  {
+    key: "collections",
+    title: "เล่มถัดไป",
+    detail: "แจ้งเตือนเมื่อหนังสือเล่มถัดไปจากเล่มที่ฉันมี",
+    enabled: true,
+  },
+  {
+    key: "comments",
+    title: "ความคิดเห็นตอบกลับ",
+    detail: "แจ้งเตือนเมื่อมีผู้ใช้งานตอบกลับความคิดเห็นของฉัน",
+    enabled: true,
+  },
+  {
+    key: "news",
+    title: "ข่าวสาร",
+    detail: "แจ้งเตือนเมื่อมีข่าวสารจาก Read and Voice",
+    enabled: false,
+  },
+  {
+    key: "push",
+    title: "แจ้งเตือนแบบพุช",
+    detail: "สำหรับผู้ใช้โมบายแอปบนอุปกรณ์มือถือและแท็บเล็ต",
+    enabled: true,
+  },
+]);
+
+const notificationCount = computed(
+  () => notificationItems.value.filter((item) => item.unread).length,
+);
 
 const refreshAuth = () => {
   authVersion.value += 1;
@@ -237,6 +335,22 @@ const toggleNotifications = () => {
   isNotificationsOpen.value = !isNotificationsOpen.value;
 };
 
+const openNotificationSettings = () => {
+  isNotificationSettingsOpen.value = true;
+};
+
+const closeNotificationSettings = () => {
+  isNotificationSettingsOpen.value = false;
+};
+
+const deleteNotification = (id: number) => {
+  notificationItems.value = notificationItems.value.filter((item) => item.id !== id);
+};
+
+const clearNotifications = () => {
+  notificationItems.value = [];
+};
+
 const closeFloatingMenus = () => {
   isNotificationsOpen.value = false;
   document.querySelectorAll<HTMLDetailsElement>(".icon-dropdown[open]").forEach((item) => {
@@ -299,6 +413,21 @@ onUnmounted(() => {
   <header ref="navbarRef" class="navbar">
     <div class="top-bar">
       <div class="left-cluster">
+        <button
+          class="menu-toggle icon-button"
+          type="button"
+          :aria-expanded="isMenuOpen"
+          aria-controls="mobile-menu"
+          @click="isMenuOpen = !isMenuOpen"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              class="menu-icon-lines"
+              d="M4.8 6.8h14.4M4.8 12h14.4M4.8 17.2h14.4"
+            />
+          </svg>
+        </button>
+
         <router-link
           class="brand"
           to="/"
@@ -388,6 +517,56 @@ onUnmounted(() => {
           </button>
 
           <div v-if="isNotificationsOpen" class="notification-panel">
+            <div class="notification-panel__header">
+              <h3>แจ้งเตือน</h3>
+              <div class="notification-panel__actions">
+                <button
+                  type="button"
+                  aria-label="ล้างแจ้งเตือนทั้งหมด"
+                  @click="clearNotifications"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 4V3h8v1h4v2H4V4h4Zm-1 4h10l-.7 12H7.7L7 8Zm3 2v8h1.5v-8H10Zm2.5 0v8H14v-8h-1.5Z" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  aria-label="ตั้งค่าการแจ้งเตือน"
+                  @click="openNotificationSettings"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m19.4 13.5 1.4 1.1-2 3.5-1.8-.7c-.5.4-1 .7-1.6.9L15.1 20h-4.2l-.3-1.7c-.6-.2-1.1-.5-1.6-.9l-1.8.7-2-3.5 1.4-1.1a6 6 0 0 1 0-1.8l-1.4-1.1 2-3.5 1.8.7c.5-.4 1-.7 1.6-.9l.3-1.7h4.2l.3 1.7c.6.2 1.1.5 1.6.9l1.8-.7 2 3.5-1.4 1.1a6 6 0 0 1 0 1.8ZM12 15.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div v-if="notificationItems.length" class="notification-list">
+              <article
+                v-for="item in notificationItems"
+                :key="item.id"
+                class="notification-item"
+                :class="{ unread: item.unread }"
+              >
+                <span class="notification-thumb" :class="`tone-${item.tone}`">RV</span>
+                <div class="notification-copy">
+                  <h4>{{ item.title }}</h4>
+                  <p>{{ item.detail }}</p>
+                  <time>{{ item.time }}</time>
+                </div>
+                <button
+                  class="notification-delete"
+                  type="button"
+                  aria-label="ลบแจ้งเตือนนี้"
+                  @click="deleteNotification(item.id)"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z" />
+                  </svg>
+                </button>
+              </article>
+            </div>
+            <p v-else class="notification-empty">ยังไม่มีแจ้งเตือนใหม่</p>
             <h3>แจ้งเตือน</h3>
             <p v-for="item in notifications" :key="item">{{ item }}</p>
           </div>
@@ -461,20 +640,6 @@ onUnmounted(() => {
           </div>
         </details>
 
-        <button
-          class="menu-toggle icon-button"
-          type="button"
-          :aria-expanded="isMenuOpen"
-          aria-controls="mobile-menu"
-          @click="isMenuOpen = !isMenuOpen"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              class="menu-icon-lines"
-              d="M4.8 6.8h14.4M4.8 12h14.4M4.8 17.2h14.4"
-            />
-          </svg>
-        </button>
       </div>
     </div>
 
@@ -540,7 +705,7 @@ onUnmounted(() => {
         <input v-model="search" type="search" placeholder="ค้นหาหนังสือ" />
       </form>
 
-      <section class="mobile-group mobile-subscription-group">
+      <section class="mobile-quick-actions" aria-label="เมนูพิเศษ">
         <router-link
           class="mobile-subscription-link"
           to="/subscription"
@@ -564,7 +729,7 @@ onUnmounted(() => {
         </router-link>
       </section>
 
-      <section class="mobile-group">
+      <section class="mobile-group mobile-card">
         <h3>เมนูหลัก</h3>
         <router-link
           v-for="item in mainNavItems"
@@ -576,7 +741,27 @@ onUnmounted(() => {
         </router-link>
       </section>
 
-      <section class="mobile-group">
+      <section v-if="isLoggedIn" class="mobile-group mobile-card">
+        <h3>เมนูของฉัน</h3>
+        <details class="mobile-details">
+          <summary class="mobile-nav-link">
+            แจ้งเตือน
+            <span v-if="notificationCount" class="mobile-count">
+              {{ notificationCount > 99 ? "99+" : notificationCount }}
+            </span>
+          </summary>
+          <p v-for="item in notifications" :key="item">{{ item }}</p>
+        </details>
+        <router-link
+          class="mobile-nav-link"
+          to="/my-library"
+          @click="closeMenu"
+        >
+          ชั้นหนังสือของฉัน
+        </router-link>
+      </section>
+
+      <section class="mobile-account-group">
         <h3>บัญชี</h3>
         <template v-if="!isLoggedIn">
           <router-link to="/login" @click="closeMenu">เข้าสู่ระบบ</router-link>
@@ -600,7 +785,7 @@ onUnmounted(() => {
         </template>
       </section>
 
-      <section class="mobile-group">
+      <section class="mobile-group mobile-card">
         <h3>โหมดสี</h3>
         <div class="theme-switcher mobile-theme">
           <button
@@ -613,6 +798,44 @@ onUnmounted(() => {
             {{ option.label }}
           </button>
         </div>
+      </section>
+    </div>
+
+    <div
+      v-if="isNotificationSettingsOpen"
+      class="notification-settings-backdrop"
+      @click.self="closeNotificationSettings"
+    >
+      <section class="notification-settings" aria-label="ตั้งค่าการแจ้งเตือน">
+        <button
+          class="notification-settings__close"
+          type="button"
+          aria-label="ปิดตั้งค่าการแจ้งเตือน"
+          @click="closeNotificationSettings"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z" />
+          </svg>
+        </button>
+        <h2>ตั้งค่าการแจ้งเตือน</h2>
+        <label
+          v-for="setting in notificationSettings"
+          :key="setting.key"
+          class="notification-setting"
+        >
+          <input v-model="setting.enabled" type="checkbox" />
+          <span>
+            <strong>{{ setting.title }}</strong>
+            <small>{{ setting.detail }}</small>
+          </span>
+        </label>
+        <button
+          class="notification-settings__save"
+          type="button"
+          @click="closeNotificationSettings"
+        >
+          บันทึก
+        </button>
       </section>
     </div>
   </header>
@@ -1090,29 +1313,275 @@ onUnmounted(() => {
   right: 0;
   z-index: 72;
   display: grid;
-  gap: 8px;
-  width: min(300px, calc(100vw - 24px));
+  gap: 0;
+  width: min(430px, calc(100vw - 24px));
+  max-height: min(620px, calc(100vh - 110px));
+  overflow: hidden;
   border: 1px solid rgba(17, 156, 145, 0.18);
-  border-radius: 12px;
-  background: #f8fffd;
-  box-shadow: 0 12px 28px rgba(17, 156, 145, 0.14);
-  padding: 14px;
-}
-
-.notification-panel h3 {
-  margin: 0 0 4px;
-  color: #0b5f59;
-  font-size: 15px;
-}
-
-.notification-panel p {
-  margin: 0;
   border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.18);
+  padding: 0;
+}
+
+.notification-panel > h3,
+.notification-panel > p:not(.notification-empty) {
+  display: none;
+}
+
+.notification-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0 14px;
+}
+
+.notification-panel__header h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.notification-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.notification-panel__actions button,
+.notification-delete {
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+  padding: 8px;
+}
+
+.notification-panel__actions button:hover,
+.notification-delete:hover {
   background: #eefbf8;
-  color: #244b47;
+  color: #0f766e;
+}
+
+.notification-panel__actions svg,
+.notification-delete svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
+.notification-list {
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 42px 1fr auto;
+  gap: 10px;
+  border-bottom: 1px solid #eef2f7;
+  padding: 12px 10px 12px 14px;
+}
+
+.notification-item.unread::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 999px;
+  background: #10b981;
+}
+
+.notification-thumb {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 54px;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+}
+
+.tone-sale {
+  background: #f97316;
+}
+
+.tone-serial {
+  background: #22c55e;
+}
+
+.tone-writer {
+  background: #0ea5e9;
+}
+
+.tone-comment {
+  background: #ec4899;
+}
+
+.notification-copy {
+  min-width: 0;
+}
+
+.notification-copy h4 {
+  margin: 0 0 3px;
+  color: #1f2937;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.notification-copy p {
+  margin: 0 0 2px;
+  color: #64748b;
   font-size: 13px;
   font-weight: 700;
-  padding: 10px;
+  line-height: 1.35;
+}
+
+.notification-copy time {
+  color: #7c8794;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.notification-delete {
+  align-self: start;
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+
+.notification-item:hover .notification-delete {
+  opacity: 1;
+}
+
+.notification-empty {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 24px;
+  text-align: center;
+}
+
+.notification-settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  display: grid;
+  align-items: start;
+  justify-items: center;
+  background: rgba(15, 23, 42, 0.38);
+  padding: clamp(96px, 12vh, 132px) 22px 22px;
+}
+
+.notification-settings {
+  position: relative;
+  width: min(620px, calc(100vw - 28px));
+  max-height: calc(100vh - 132px);
+  overflow-y: auto;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  padding: 34px 42px 32px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+}
+
+.notification-settings h2 {
+  margin: 0 0 26px;
+  color: #102a35;
+  font-size: 28px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.notification-settings__close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #555f68;
+  cursor: pointer;
+}
+
+.notification-settings__close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.notification-settings__close svg {
+  width: 30px;
+  height: 30px;
+  fill: currentColor;
+}
+
+.notification-setting {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+
+.notification-setting input {
+  width: 16px;
+  height: 16px;
+  margin-top: 4px;
+  accent-color: #10b981;
+}
+
+.notification-setting strong {
+  display: block;
+  color: #1f2937;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.notification-setting small {
+  display: block;
+  margin-top: 4px;
+  color: #8b949e;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.notification-settings__save {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 126px;
+  min-height: 48px;
+  margin: 28px auto 0;
+  border: 0;
+  border-radius: 999px;
+  background: #10b981;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: 900;
+  padding: 0 28px;
+}
+
+.notification-settings__save:hover {
+  background: #059669;
 }
 
 .dropdown-panel {
@@ -1385,6 +1854,10 @@ onUnmounted(() => {
   min-height: 42px;
 }
 
+.mobile-account-group {
+  display: none;
+}
+
 @media (max-width: 1280px) {
   .top-bar {
     grid-template-columns: auto 1fr auto;
@@ -1429,30 +1902,31 @@ onUnmounted(() => {
 @media (max-width: 980px) {
   .top-bar {
     grid-template-columns: auto 1fr auto;
-    gap: 20px;
+    gap: 16px;
     position: relative;
   }
 
   .left-cluster {
     order: 1;
     justify-self: start;
-    margin-left: 54px;
+    gap: 12px;
+    margin-left: 0;
+  }
+
+  .left-cluster > .subscription-link,
+  .left-cluster > .coin-link {
+    display: none;
   }
 
   .top-actions {
     order: 3;
     justify-self: end;
-    gap: 14px;
+    gap: 10px;
   }
 
+  .top-actions > .icon-dropdown:not(.account-dropdown),
+  .notification-wrapper,
   .library-shortcut {
-    width: 46px;
-    height: 46px;
-    padding: 0;
-    justify-content: center;
-  }
-
-  .library-shortcut__text {
     display: none;
   }
 
@@ -1462,13 +1936,10 @@ onUnmounted(() => {
 
   .menu-toggle {
     display: inline-grid;
-    position: absolute;
-    left: clamp(24px, 6vw, 42px);
-    top: 50%;
+    position: static;
     z-index: 2;
-    transform: translateY(-50%);
-    width: 58px;
-    height: 58px;
+    width: 46px;
+    height: 46px;
     background: transparent;
     box-shadow: none;
     color: #111827;
@@ -1490,24 +1961,25 @@ onUnmounted(() => {
   .mobile-panel.open {
     display: grid;
     align-content: start;
-    gap: 18px;
+    gap: 16px;
     position: fixed;
     inset: 0 auto 0 0;
     z-index: 70;
-    width: min(330px, 88vw);
+    width: min(340px, 88vw);
     min-height: 100vh;
     overflow-y: auto;
-    padding: 24px 26px 32px;
-    background: #ffffff;
+    padding: 18px 16px 28px;
+    background: #f8fffd;
     box-shadow: 18px 0 36px rgba(15, 23, 42, 0.16);
   }
 
   .mobile-panel-header {
     display: flex;
     align-items: center;
-    gap: 18px;
-    min-height: 44px;
-    margin-bottom: 12px;
+    justify-content: space-between;
+    gap: 14px;
+    min-height: 48px;
+    margin-bottom: 2px;
   }
 
   .mobile-close {
@@ -1515,8 +1987,8 @@ onUnmounted(() => {
     place-items: center;
     width: 42px;
     height: 42px;
-    border: 1px solid rgba(15, 23, 42, 0.15);
-    border-radius: 0;
+    border: 1px solid rgba(15, 118, 110, 0.18);
+    border-radius: 8px;
     background: #ffffff;
     color: #111827;
     cursor: pointer;
@@ -1534,22 +2006,43 @@ onUnmounted(() => {
   }
 
   .mobile-panel-logo {
-    width: 140px;
+    width: 118px;
     height: 48px;
     object-fit: contain;
   }
 
+  .mobile-search,
+  .mobile-account-group {
+    display: none;
+  }
+
+  .mobile-quick-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
   .mobile-group {
     display: grid;
-    gap: 18px;
+    gap: 8px;
     border-top: 0;
     padding-top: 0;
   }
 
+  .mobile-card {
+    border: 1px solid rgba(15, 118, 110, 0.14);
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 12px 24px rgba(15, 118, 110, 0.08);
+    padding: 12px;
+  }
+
   .mobile-group h3 {
-    margin: 0;
-    color: #0f172a;
+    margin: 0 0 4px;
+    color: #0f766e;
     font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.02em;
   }
 
   .mobile-subtitle {
@@ -1561,16 +2054,16 @@ onUnmounted(() => {
   .mobile-group a,
   .mobile-group button {
     width: 100%;
-    min-height: 34px;
+    min-height: 42px;
     justify-content: flex-start;
     border: 0;
-    border-radius: 0;
+    border-radius: 8px;
     background: transparent;
     color: #0f172a;
-    font-size: 23px;
+    font-size: 15px;
     font-weight: 900;
-    line-height: 1.15;
-    padding: 0;
+    line-height: 1.25;
+    padding: 0 10px;
     text-decoration: none;
   }
 
@@ -1578,34 +2071,84 @@ onUnmounted(() => {
   .mobile-group button:hover,
   .mobile-group a.router-link-active {
     color: #0f766e;
-    background: transparent;
-    transform: translateX(4px);
+    background: #e8faf6;
+    transform: translateX(2px);
   }
 
   .mobile-group .mobile-subscription-link {
-    color: #ef5f93;
-    font-size: 22px;
-    min-height: 34px;
-    padding: 0;
+    color: #ffffff;
+    font-size: 15px;
+    min-height: 44px;
+    padding: 0 14px;
   }
 
   .mobile-group .mobile-subscription-link:hover {
     color: #db2777;
   }
 
-  .mobile-subscription-group {
-    gap: 12px;
+  .mobile-quick-actions .mobile-subscription-link {
+    min-height: 44px;
+    border-radius: 8px;
+    background: #2ec4b6;
+    color: #ffffff;
+    box-shadow: 0 10px 20px rgba(15, 118, 110, 0.14);
   }
 
-  .mobile-group .mobile-coin-link {
-    width: fit-content;
+  .mobile-quick-actions .mobile-coin-link {
+    width: 100%;
     min-height: 42px;
     border: 1px solid rgba(217, 159, 18, 0.48);
-    border-radius: 999px;
+    border-radius: 8px;
     background: #f6bf36;
     color: #ffffff;
-    font-size: 17px;
-    padding: 0 16px 0 12px;
+    font-size: 15px;
+    padding: 0 12px;
+  }
+
+  .mobile-nav-link,
+  .mobile-details summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .mobile-details {
+    display: grid;
+    gap: 8px;
+  }
+
+  .mobile-details summary {
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .mobile-details summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobile-details p {
+    margin: 0;
+    border-radius: 8px;
+    background: #eefbf8;
+    color: #244b47;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 9px 10px;
+  }
+
+  .mobile-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 26px;
+    height: 22px;
+    border-radius: 999px;
+    background: #ef3f7a;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 900;
+    padding: 0 7px;
   }
 
   .mobile-theme {
@@ -1628,7 +2171,7 @@ onUnmounted(() => {
   .left-cluster {
     gap: 12px;
     min-width: 0;
-    margin-left: 48px;
+    margin-left: 0;
   }
 
   .brand {
@@ -1644,23 +2187,11 @@ onUnmounted(() => {
   }
 
   .subscription-link {
-    min-width: 118px;
-    min-height: 34px;
-    font-size: 13px;
-    padding: 0 14px;
+    display: none;
   }
 
   .coin-link {
-    width: 40px;
-    min-height: 40px;
-    padding: 0;
-    gap: 0;
-    font-size: 0;
-  }
-
-  .coin-link .coin-mark {
-    width: 23px;
-    height: 23px;
+    display: none;
   }
 
   .top-actions {
@@ -1670,12 +2201,12 @@ onUnmounted(() => {
 
 @media (max-width: 420px) {
   .left-cluster {
-    margin-left: 48px;
+    margin-left: 0;
   }
 
   .menu-toggle {
-    width: 54px;
-    height: 54px;
+    width: 42px;
+    height: 42px;
   }
 
   .menu-toggle svg {

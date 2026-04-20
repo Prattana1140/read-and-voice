@@ -5,6 +5,7 @@ const path = require("path");
 const DEFAULT_TESSERACT_COMMAND =
   process.env.TESSERACT_COMMAND || "C:\\Program Files\\Tesseract-OCR\\tesseract.exe";
 const DEFAULT_OCR_LANG = process.env.OCR_LANG || "tha+eng";
+const ENABLE_PDF_OCR = /^(1|true|yes)$/i.test(process.env.ENABLE_PDF_OCR || "");
 
 function normalizeOcrText(text) {
   return String(text || "")
@@ -134,8 +135,22 @@ async function runPythonOCR(filePath) {
 }
 
 function runPdfOCR(filePath) {
+  if (!ENABLE_PDF_OCR) {
+    return Promise.reject(
+      new Error(
+        "PDF นี้ไม่มีข้อความที่ดึงออกมาได้ และระบบ OCR ยังไม่ได้เปิดใช้งานบนเซิร์ฟเวอร์",
+      ),
+    );
+  }
+
   return runPythonOCR(filePath).catch(async (pythonError) => {
-    console.warn("Python OCR failed, trying Tesseract CLI:", pythonError.message);
+    console.warn("Python OCR failed:", pythonError.message);
+
+    if (!process.env.TESSERACT_COMMAND) {
+      throw new Error(
+        `OCR ทำงานไม่สำเร็จ: ${pythonError.message}. ยังไม่ได้ตั้งค่า TESSERACT_COMMAND`,
+      );
+    }
 
     try {
       return await runTesseractCliOCR(filePath);

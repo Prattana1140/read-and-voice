@@ -2,6 +2,7 @@
 import { onMounted, ref, watch } from "vue";
 import Footer from "./components/Footer.vue";
 import Navbar from "./components/Navbar.vue";
+import NavigationTrail from "./components/NavigationTrail.vue";
 
 type ThemeMode = "normal" | "dark" | "reading";
 
@@ -55,6 +56,7 @@ watch(theme, (mode) => {
 <template>
   <div class="app-shell">
     <Navbar :theme="theme" @change-theme="changeTheme" />
+    <NavigationTrail />
     <main class="app-main">
       <router-view />
     </main>

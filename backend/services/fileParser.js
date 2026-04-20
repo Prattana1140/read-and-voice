@@ -1,6 +1,57 @@
 const fs = require("fs");
 const path = require("path");
+const { TextDecoder } = require("util");
 const { runPdfOCR } = require("./ocrService");
+
+const TEXT_ENCODINGS = ["utf-8", "utf-16le", "windows-874"];
+
+function countMatches(text, pattern) {
+  return (String(text || "").match(pattern) || []).length;
+}
+
+function looksLikeMojibake(text) {
+  const value = String(text || "");
+  if (!value) return false;
+
+  const badSignals =
+    countMatches(value, /\uFFFD/g) +
+    countMatches(value, /\u0E4F\u0E1F\u0E1D/g) +
+    countMatches(value, /\u0E42[\u20AC\u2018\u2019\u201C\u201D\u2022\u2026]/g) +
+    countMatches(value, /\u0E40\u0E18[\u0E01-\u0E2E]/g) +
+    countMatches(value, /\u0E40\u0E19[\u0080-\u0E2E]/g);
+
+  return badSignals >= 8 || badSignals / Math.max(value.length, 1) > 0.04;
+}
+
+function scoreDecodedText(text) {
+  const value = String(text || "");
+  return (
+    countMatches(value, /[\u0E00-\u0E7FA-Za-z0-9]/g) -
+    countMatches(value, /\uFFFD/g) * 20 -
+    countMatches(value, /\u0E4F\u0E1F\u0E1D/g) * 20 -
+    (looksLikeMojibake(value) ? 100 : 0)
+  );
+}
+
+function decodeTextBuffer(buffer) {
+  const candidates = [];
+  const utf8Text = new TextDecoder("utf-8", { fatal: false }).decode(buffer);
+
+  if (!utf8Text.includes("\uFFFD") && !/[\u0080-\u009F]/.test(utf8Text)) {
+    return utf8Text;
+  }
+
+  for (const encoding of TEXT_ENCODINGS) {
+    try {
+      candidates.push(new TextDecoder(encoding, { fatal: false }).decode(buffer));
+    } catch (_) {
+      // Some Node builds may not ship every legacy decoder.
+    }
+  }
+
+  candidates.push(buffer.toString("utf8"));
+  return candidates.sort((a, b) => scoreDecodedText(b) - scoreDecodedText(a))[0] || "";
+}
 
 function normalizeText(text) {
   return String(text || "")
@@ -8,6 +59,7 @@ function normalizeText(text) {
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n")
     .replace(/\u0000/g, "")
+    .replace(/^\uFEFF/, "")
     .replace(/[\u200B-\u200D\uFEFF]/g, "")
     .replace(/\t/g, " ")
     .replace(/[ ]{2,}/g, " ")
@@ -17,17 +69,15 @@ function normalizeText(text) {
 }
 
 function hasUsefulLetters(line) {
-  const compact = line.replace(/\s/g, "");
+  const compact = String(line || "").replace(/\s/g, "");
   if (!compact) return false;
 
-  const thaiCount = (compact.match(/[\u0E00-\u0E7F]/g) || []).length;
-  const latinCount = (compact.match(/[A-Za-z]/g) || []).length;
-  const digitCount = (compact.match(/[0-9๐-๙]/g) || []).length;
+  const thaiCount = countMatches(compact, /[\u0E00-\u0E7F]/g);
+  const latinCount = countMatches(compact, /[A-Za-z]/g);
+  const digitCount = countMatches(compact, /[0-9\u0E50-\u0E59]/g);
   const usefulCount = thaiCount + latinCount + digitCount;
 
   if (usefulCount < 2) return false;
-
-  // Preserve Thai, English, and mixed Thai-English lines while dropping OCR dust.
   return usefulCount / compact.length >= 0.35;
 }
 
@@ -90,7 +140,7 @@ function splitTextToPages(text, chunkSize = 1800) {
 }
 
 async function parseTxtFile(filePath) {
-  const text = fs.readFileSync(filePath, "utf8");
+  const text = decodeTextBuffer(fs.readFileSync(filePath));
 
   return {
     sourceType: "txt",
@@ -126,19 +176,17 @@ function extractTextFromJsonValue(value) {
       "pages",
       "chapters",
     ];
-
-    const objectValue = value;
     const parts = [];
 
     for (const key of preferredKeys) {
-      if (Object.prototype.hasOwnProperty.call(objectValue, key)) {
-        parts.push(extractTextFromJsonValue(objectValue[key]));
+      if (Object.prototype.hasOwnProperty.call(value, key)) {
+        parts.push(extractTextFromJsonValue(value[key]));
       }
     }
 
     if (parts.some(Boolean)) return parts.filter(Boolean).join("\n\n");
 
-    return Object.values(objectValue)
+    return Object.values(value)
       .map(extractTextFromJsonValue)
       .filter(Boolean)
       .join("\n\n");
@@ -148,7 +196,7 @@ function extractTextFromJsonValue(value) {
 }
 
 async function parseJsonFile(filePath) {
-  const raw = fs.readFileSync(filePath, "utf8");
+  const raw = decodeTextBuffer(fs.readFileSync(filePath));
   let parsed;
 
   try {
@@ -174,14 +222,12 @@ async function parseJsonFile(filePath) {
 async function extractPdfTextByPage(filePath) {
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const data = new Uint8Array(fs.readFileSync(filePath));
-
   const loadingTask = getDocument({
     data,
     useWorkerFetch: false,
     isEvalSupported: false,
     useSystemFonts: true,
   });
-
   const pdf = await loadingTask.promise;
   const pages = [];
 
@@ -189,11 +235,8 @@ async function extractPdfTextByPage(filePath) {
     for (let pageNo = 1; pageNo <= pdf.numPages; pageNo += 1) {
       const page = await pdf.getPage(pageNo);
       const textContent = await page.getTextContent();
-
       const pageText = normalizeText(
-        textContent.items
-          .map((item) => ("str" in item ? item.str : ""))
-          .join(" "),
+        textContent.items.map((item) => ("str" in item ? item.str : "")).join(" "),
       );
 
       pages.push(pageText);
@@ -211,15 +254,13 @@ function looksLikeScannedPdf(pageTexts) {
 
   const joined = normalizeText(pageTexts.join("\n"));
   if (!joined) return true;
+  if (looksLikeMojibake(joined)) return true;
 
   const avgLength =
     pageTexts.reduce((sum, page) => sum + normalizeText(page).length, 0) /
     pageTexts.length;
 
-  if (avgLength < 80) return true;
-
-  const replacementChars = (joined.match(/�/g) || []).length;
-  return replacementChars > 20;
+  return avgLength < 80;
 }
 
 async function parsePdfFile(filePath) {
@@ -248,16 +289,9 @@ async function parsePdfFile(filePath) {
 
   try {
     const ocrResult = await runPdfOCR(filePath);
-
-    const ocrPages = Array.isArray(ocrResult?.pages)
-      ? ocrResult.pages.map((page) => cleanOcrText(page)).filter(Boolean)
-      : splitTextToPages(cleanOcrText(ocrResult?.text || ""));
-
-    const fullText = cleanOcrText(
-      Array.isArray(ocrResult?.pages)
-        ? ocrResult.pages.join("\n\n")
-        : ocrResult?.text || "",
-    );
+    const rawPages = Array.isArray(ocrResult?.pages) ? ocrResult.pages : [];
+    const ocrPages = rawPages.map((page) => cleanOcrText(page)).filter(Boolean);
+    const fullText = cleanOcrText(rawPages.length ? rawPages.join("\n\n") : ocrResult?.text || "");
 
     if (!fullText) {
       throw new Error("ไม่สามารถอ่านข้อความจาก PDF ได้");
@@ -282,6 +316,13 @@ async function parsePdfFile(filePath) {
       };
     }
 
+    const pdfError = new Error(
+      `ไม่สามารถอ่านข้อความจาก PDF นี้ได้: ${ocrErr.message}`,
+    );
+    pdfError.statusCode = 400;
+    pdfError.code = "PDF_TEXT_EXTRACTION_FAILED";
+    throw pdfError;
+
     throw new Error(`ไม่สามารถประมวลผล PDF ได้: ${ocrErr.message}`);
   }
 }
@@ -301,7 +342,7 @@ async function parseBookFile(filePath, mimeType, originalName) {
     return parsePdfFile(filePath);
   }
 
-  throw new Error("รองรับเฉพาะไฟล์ .txt และ .pdf");
+  throw new Error("รองรับเฉพาะไฟล์ .txt .json และ .pdf");
 }
 
 module.exports = {
@@ -309,4 +350,5 @@ module.exports = {
   cleanOcrText,
   extractTextFromJsonValue,
   normalizeText,
+  looksLikeMojibake,
 };

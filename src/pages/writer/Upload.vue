@@ -213,8 +213,12 @@ const addEpisode = async () => {
           <textarea v-model="description" rows="4" />
         </label>
         <label class="full">
-          <span>Cover image URL</span>
-          <input v-model="coverImage" type="text" />
+          <span>ลิงก์รูปปกหนังสือ (ไม่บังคับ)</span>
+          <input
+            v-model="coverImage"
+            type="url"
+            placeholder="วาง URL รูปปก หรืออัปโหลดไฟล์รูปปกด้านล่าง"
+          />
         </label>
       </div>
 

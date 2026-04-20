@@ -24,9 +24,17 @@ const coverUploadDir = path.join(__dirname, "../uploads/book-covers");
 fs.mkdirSync(uploadDir, { recursive: true });
 fs.mkdirSync(coverUploadDir, { recursive: true });
 
+const bookFileFields = new Set(["book_file", "file", "book", "ebook", "pdf"]);
+const coverFileFields = new Set([
+  "cover_file",
+  "cover",
+  "image",
+  "cover_image_file",
+]);
+
 const storage = multer.diskStorage({
   destination: (_req, file, cb) => {
-    if (file.fieldname === "cover_file") return cb(null, coverUploadDir);
+    if (coverFileFields.has(file.fieldname)) return cb(null, coverUploadDir);
     return cb(null, uploadDir);
   },
   filename: (_req, file, cb) => {
@@ -40,12 +48,12 @@ const upload = multer({
   limits: { fileSize: 1024 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if (file.fieldname === "cover_file") {
+    if (coverFileFields.has(file.fieldname)) {
       if ([".jpg", ".jpeg", ".png", ".webp"].includes(ext))
         return cb(null, true);
       return cb(new Error("รองรับรูปปกเฉพาะ .jpg .jpeg .png และ .webp"));
     }
-    if (file.fieldname === "book_file") {
+    if (bookFileFields.has(file.fieldname)) {
       if ([".pdf", ".txt", ".json"].includes(ext)) return cb(null, true);
       return cb(new Error("รองรับเฉพาะไฟล์ .pdf .txt และ .json"));
     }
@@ -53,10 +61,26 @@ const upload = multer({
   },
 });
 
-function getUploadedFile(req, fieldName) {
-  if (req.file && req.file.fieldname === fieldName) return req.file;
-  const files = req.files?.[fieldName];
-  return Array.isArray(files) ? files[0] : null;
+function uploadBookFiles(req, res, next) {
+  upload.any()(req, res, (error) => {
+    if (!error) return next();
+
+    const message =
+      error.code === "LIMIT_FILE_SIZE"
+        ? "ไฟล์ใหญ่เกินไป"
+        : error.message || "อัปโหลดไฟล์ไม่สำเร็จ";
+
+    return res.status(400).json({ message });
+  });
+}
+
+function getUploadedFile(req, fieldNames) {
+  const names = Array.isArray(fieldNames) ? fieldNames : [fieldNames];
+  const files = Array.isArray(req.files)
+    ? req.files
+    : Object.values(req.files || {}).flat();
+
+  return files.find((file) => names.includes(file.fieldname)) || null;
 }
 
 function getCoverImagePath(file, fallback = "") {
@@ -193,16 +217,13 @@ router.post(
   "/upload",
   verifyToken,
   allowRoles("writer", "admin", "superadmin"),
-  upload.fields([
-    { name: "book_file", maxCount: 1 },
-    { name: "cover_file", maxCount: 1 },
-  ]),
+  uploadBookFiles,
   async (req, res) => {
     const connection = await db.getConnection();
 
     try {
-      const bookFile = getUploadedFile(req, "book_file");
-      const coverFile = getUploadedFile(req, "cover_file");
+      const bookFile = getUploadedFile(req, [...bookFileFields]);
+      const coverFile = getUploadedFile(req, [...coverFileFields]);
 
       if (!bookFile) {
         return res.status(400).json({ message: "กรุณาอัปโหลดไฟล์หนังสือ" });
@@ -276,9 +297,14 @@ router.post(
     } catch (error) {
       await connection.rollback();
       console.error("POST /books/upload error:", error);
-      return res.status(500).json({
+      const statusCode = Number(error.statusCode || error.status || 500);
+      const responseMessage =
+        statusCode === 400 ? error.message : "อัปโหลดหนังสือไม่สำเร็จ";
+      return res.status(statusCode >= 400 && statusCode < 600 ? statusCode : 500).json({
         message: "อัปโหลดหนังสือไม่สำเร็จ",
         error: error.message,
+        code: error.code,
+        message: responseMessage,
       });
     } finally {
       connection.release();

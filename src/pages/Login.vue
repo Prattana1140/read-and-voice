@@ -233,15 +233,8 @@ onMounted(() => {
           @click="socialLogin(provider.id)"
         >
           <span class="social-icon" :class="provider.className">{{ provider.icon }}</span>
-          <span class="social-copy">
-            <strong>{{ socialLoading === provider.id ? "กำลังเชื่อมต่อ..." : provider.title }}</strong>
-            <small>{{ provider.description }}</small>
-          </span>
-          <span
-            class="social-status"
-            :class="{ online: isProviderReady(provider.id), checking: statusLoading }"
-          >
-            {{ getProviderStatusText(provider.id) }}
+          <span class="social-label">
+            {{ socialLoading === provider.id ? "กำลังเชื่อมต่อ..." : provider.label }}
           </span>
         </button>
       </div>
@@ -436,24 +429,23 @@ onMounted(() => {
 }
 
 .social-buttons {
-  display: grid;
-  gap: 12px;
+  display: flex;
+  justify-content: center;
+  gap: 18px;
 }
 
 .social-btn {
-  width: 100%;
-  min-height: 68px;
-  border-radius: 16px;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
   border: 1px solid var(--border);
-  background: var(--surface-soft);
+  background: var(--surface);
   color: var(--text-strong);
   cursor: pointer;
-  display: grid;
-  grid-template-columns: 44px 1fr auto;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  text-align: left;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  position: relative;
   transition:
     border-color 0.18s ease,
     box-shadow 0.18s ease,
@@ -463,16 +455,18 @@ onMounted(() => {
 
 .social-btn.facebook.ready {
   border-color: color-mix(in srgb, #1877f2 38%, var(--border));
-  background: linear-gradient(135deg, #f8fbff, #eef5ff);
+  background: #1877f2;
+  color: #ffffff;
 }
 
 .social-btn.line.ready {
   border-color: color-mix(in srgb, #06c755 38%, var(--border));
-  background: linear-gradient(135deg, #f7fff9, #ecfff2);
+  background: #06c755;
+  color: #ffffff;
 }
 
 .social-btn:hover:not(:disabled) {
-  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.14);
   transform: translateY(-2px);
 }
 
@@ -482,64 +476,35 @@ onMounted(() => {
 }
 
 .social-icon {
-  width: 42px;
-  height: 42px;
+  width: 100%;
+  height: 100%;
   border-radius: 999px;
-  background: var(--surface);
+  background: transparent;
   display: grid;
   place-items: center;
   font-weight: 900;
   line-height: 1;
-  box-shadow: inset 0 0 0 1px var(--border);
+  box-shadow: none;
 }
 
 .social-icon.facebook {
-  color: #1877f2;
-  font-size: 20px;
+  color: currentColor;
+  font-size: 24px;
 }
 
 .social-icon.line {
-  color: #06c755;
+  color: currentColor;
   font-size: 11px;
   letter-spacing: 0.3px;
 }
 
-.social-copy {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.social-copy strong {
-  color: var(--text-strong);
-  font-size: 14px;
-  line-height: 1.2;
-}
-
-.social-copy small {
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.social-status {
-  border-radius: 999px;
-  background: #fff7ed;
-  color: #c2410c;
-  font-size: 11px;
-  font-weight: 900;
-  padding: 6px 9px;
+.social-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
   white-space: nowrap;
-}
-
-.social-status.online {
-  background: #e8faf6;
-  color: #0f766e;
-}
-
-.social-status.checking {
-  background: #eef2ff;
-  color: #4f46e5;
 }
 
 .login-policy {
