@@ -5,13 +5,19 @@ const fs = require("fs");
 
 const db = require("../config/db");
 const { parseBookFile } = require("../services/fileParser");
-const { verifyToken, optionalVerifyToken, allowRoles } = require("../middleware/auth");
+const {
+  verifyToken,
+  optionalVerifyToken,
+  allowRoles,
+} = require("../middleware/auth");
 const { requireAdmin } = require("../middleware/admin");
 
 const router = express.Router();
 
-const GUEST_PREVIEW_PAGE_LIMIT = Number(process.env.GUEST_PREVIEW_PAGE_LIMIT) || 1;
-const GUEST_PREVIEW_CHAR_LIMIT = Number(process.env.GUEST_PREVIEW_CHAR_LIMIT) || 1500;
+const GUEST_PREVIEW_PAGE_LIMIT =
+  Number(process.env.GUEST_PREVIEW_PAGE_LIMIT) || 1;
+const GUEST_PREVIEW_CHAR_LIMIT =
+  Number(process.env.GUEST_PREVIEW_CHAR_LIMIT) || 1500;
 
 const uploadDir = path.join(__dirname, "../uploads/book-files");
 const coverUploadDir = path.join(__dirname, "../uploads/book-covers");
@@ -35,12 +41,15 @@ const upload = multer({
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (file.fieldname === "cover_file") {
-      if ([".jpg", ".jpeg", ".png", ".webp"].includes(ext)) return cb(null, true);
+      if ([".jpg", ".jpeg", ".png", ".webp"].includes(ext))
+        return cb(null, true);
       return cb(new Error("รองรับรูปปกเฉพาะ .jpg .jpeg .png และ .webp"));
     }
-
-    if ([".pdf", ".txt", ".json"].includes(ext)) return cb(null, true);
-    return cb(new Error("รองรับเฉพาะไฟล์ .pdf .txt และ .json"));
+    if (file.fieldname === "book_file") {
+      if ([".pdf", ".txt", ".json"].includes(ext)) return cb(null, true);
+      return cb(new Error("รองรับเฉพาะไฟล์ .pdf .txt และ .json"));
+    }
+    return cb(null, false); // ← field อื่นๆ skip แทน error
   },
 });
 
@@ -66,7 +75,9 @@ function normalizeContentType(value) {
 
 function normalizePositiveInt(value, fallback) {
   const numberValue = Number(value);
-  return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : fallback;
+  return Number.isInteger(numberValue) && numberValue > 0
+    ? numberValue
+    : fallback;
 }
 
 function canManageBook(user, book) {
@@ -87,7 +98,7 @@ async function hasPurchasedBook(userId, bookId) {
        AND o.payment_status = 'paid'
        AND o.order_status = 'completed'
      LIMIT 1`,
-    [userId, bookId]
+    [userId, bookId],
   );
 
   return rows.length > 0;
@@ -104,7 +115,7 @@ async function hasActiveSubscription(userId) {
        AND payment_status = 'paid'
        AND end_at > NOW()
      LIMIT 1`,
-    [userId]
+    [userId],
   );
 
   return rows.length > 0;
@@ -115,14 +126,16 @@ async function canReadFullBook(user, book) {
   if (book.access_type === "free") return true;
   if (!user) return false;
   if (canManageBook(user, book)) return true;
-  if (book.access_type === "subscription") return hasActiveSubscription(user.id);
+  if (book.access_type === "subscription")
+    return hasActiveSubscription(user.id);
   return hasPurchasedBook(user.id, book.id);
 }
 
 async function saveBookFile(bookId, file, connection = db) {
-  await connection.query("UPDATE book_files SET is_primary = 0 WHERE book_id = ?", [
-    bookId,
-  ]);
+  await connection.query(
+    "UPDATE book_files SET is_primary = 0 WHERE book_id = ?",
+    [bookId],
+  );
 
   await connection.query(
     `INSERT INTO book_files
@@ -136,7 +149,7 @@ async function saveBookFile(bookId, file, connection = db) {
       path.extname(file.originalname || file.filename).toLowerCase(),
       file.mimetype || "application/octet-stream",
       file.size || 0,
-    ]
+    ],
   );
 }
 
@@ -147,7 +160,7 @@ async function replaceBookPages(bookId, pages = [], connection = db) {
     await connection.query(
       `INSERT INTO book_pages (book_id, page_number, page_text)
        VALUES (?, ?, ?)`,
-      [bookId, i + 1, pages[i] || ""]
+      [bookId, i + 1, pages[i] || ""],
     );
   }
 }
@@ -166,7 +179,7 @@ router.get("/", async (_req, res) => {
        FROM books b
        LEFT JOIN categories c ON c.id = b.category_id
        WHERE b.is_published = 1
-       ORDER BY b.created_at DESC`
+       ORDER BY b.created_at DESC`,
     );
 
     return res.json(rows);
@@ -217,7 +230,7 @@ router.post(
       const parsed = await parseBookFile(
         bookFile.path,
         bookFile.mimetype,
-        bookFile.originalname
+        bookFile.originalname,
       );
       const pages = Array.isArray(parsed.pages) ? parsed.pages : [];
       const fullText = parsed.fullText || pages.join("\n\n");
@@ -237,7 +250,9 @@ router.post(
           description,
           category_id || null,
           finalCoverImage,
-          parsed.sourceType || path.extname(bookFile.originalname).replace(".", "") || "file",
+          parsed.sourceType ||
+            path.extname(bookFile.originalname).replace(".", "") ||
+            "file",
           normalizeContentType(content_type),
           normalizeAccessType(access_type, price),
           fullText,
@@ -246,7 +261,7 @@ router.post(
           Number(price || 0),
           normalizePositiveInt(preview_page_limit, GUEST_PREVIEW_PAGE_LIMIT),
           normalizePositiveInt(preview_char_limit, GUEST_PREVIEW_CHAR_LIMIT),
-        ]
+        ],
       );
 
       await saveBookFile(result.insertId, bookFile, connection);
@@ -268,7 +283,7 @@ router.post(
     } finally {
       connection.release();
     }
-  }
+  },
 );
 
 router.post(
@@ -312,7 +327,7 @@ router.post(
           Number(price || 0),
           normalizePositiveInt(preview_page_limit, GUEST_PREVIEW_PAGE_LIMIT),
           normalizePositiveInt(preview_char_limit, GUEST_PREVIEW_CHAR_LIMIT),
-        ]
+        ],
       );
 
       return res.json({
@@ -323,7 +338,7 @@ router.post(
       console.error("POST /books/serial error:", error);
       return res.status(500).json({ message: "Unable to create serial book" });
     }
-  }
+  },
 );
 
 router.get("/:id", async (req, res) => {
@@ -334,7 +349,7 @@ router.get("/:id", async (req, res) => {
        LEFT JOIN categories c ON c.id = b.category_id
        WHERE b.id = ?
        LIMIT 1`,
-      [req.params.id]
+      [req.params.id],
     );
 
     if (rows.length === 0) {
@@ -368,8 +383,11 @@ router.get("/:id/content", optionalVerifyToken, async (req, res) => {
          LIMIT ?`,
         [
           book.id,
-          normalizePositiveInt(book.preview_page_limit, GUEST_PREVIEW_PAGE_LIMIT),
-        ]
+          normalizePositiveInt(
+            book.preview_page_limit,
+            GUEST_PREVIEW_PAGE_LIMIT,
+          ),
+        ],
       );
 
       if (previewPages.length > 0) return res.json(previewPages);
@@ -380,7 +398,10 @@ router.get("/:id/content", optionalVerifyToken, async (req, res) => {
         message: "ต้องซื้อหนังสือหรือสมัครแพ็กเกจก่อน",
         content: String(book.full_text || book.content || "").slice(
           0,
-          normalizePositiveInt(book.preview_char_limit, GUEST_PREVIEW_CHAR_LIMIT)
+          normalizePositiveInt(
+            book.preview_char_limit,
+            GUEST_PREVIEW_CHAR_LIMIT,
+          ),
         ),
       });
     }
@@ -390,7 +411,7 @@ router.get("/:id/content", optionalVerifyToken, async (req, res) => {
        FROM book_pages
        WHERE book_id = ?
        ORDER BY page_number ASC`,
-      [book.id]
+      [book.id],
     );
 
     return res.json(pages);
@@ -417,7 +438,7 @@ router.get("/:id/episodes", async (req, res) => {
        FROM book_episodes
        WHERE book_id = ? AND is_published = 1
        ORDER BY episode_number ASC, id ASC`,
-      [req.params.id]
+      [req.params.id],
     );
 
     return res.json(rows);
@@ -447,9 +468,10 @@ router.post(
         return res.status(400).json({ message: "กรุณากรอกชื่อตอน" });
       }
 
-      const [bookRows] = await db.query("SELECT * FROM books WHERE id = ? LIMIT 1", [
-        req.params.id,
-      ]);
+      const [bookRows] = await db.query(
+        "SELECT * FROM books WHERE id = ? LIMIT 1",
+        [req.params.id],
+      );
       const book = bookRows[0];
 
       if (!book) return res.status(404).json({ message: "ไม่พบหนังสือ" });
@@ -465,12 +487,13 @@ router.post(
       if (!Number.isInteger(episodeNumber) || episodeNumber <= 0) {
         const [countRows] = await db.query(
           "SELECT COALESCE(MAX(episode_number), 0) AS max_episode FROM book_episodes WHERE book_id = ?",
-          [book.id]
+          [book.id],
         );
         episodeNumber = Number(countRows[0]?.max_episode || 0) + 1;
       }
 
-      const safeIsFree = Number(is_free) === 1 || Number(price || 0) <= 0 ? 1 : 0;
+      const safeIsFree =
+        Number(is_free) === 1 || Number(price || 0) <= 0 ? 1 : 0;
 
       const [result] = await db.query(
         `INSERT INTO book_episodes
@@ -485,27 +508,31 @@ router.post(
           safeIsFree,
           access_type || (safeIsFree ? "free" : "paid"),
           normalizePositiveInt(preview_char_limit, GUEST_PREVIEW_CHAR_LIMIT),
-        ]
+        ],
       );
 
       await db.query(
         "UPDATE books SET content_type = 'serial', updated_at = NOW() WHERE id = ?",
-        [book.id]
+        [book.id],
       );
 
-      return res.json({ message: "เพิ่มตอนสำเร็จ", episode_id: result.insertId });
+      return res.json({
+        message: "เพิ่มตอนสำเร็จ",
+        episode_id: result.insertId,
+      });
     } catch (error) {
       console.error("POST /books/:id/episodes error:", error);
       return res.status(500).json({ message: "เพิ่มตอนไม่สำเร็จ" });
     }
-  }
+  },
 );
 
 router.put("/:id", verifyToken, async (req, res) => {
   try {
-    const [bookRows] = await db.query("SELECT * FROM books WHERE id = ? LIMIT 1", [
-      req.params.id,
-    ]);
+    const [bookRows] = await db.query(
+      "SELECT * FROM books WHERE id = ? LIMIT 1",
+      [req.params.id],
+    );
     const book = bookRows[0];
 
     if (!book) return res.status(404).json({ message: "ไม่พบหนังสือ" });
@@ -547,11 +574,16 @@ router.put("/:id", verifyToken, async (req, res) => {
         category_id || null,
         cover_image ?? book.cover_image,
         Number(price ?? book.price ?? 0),
-        normalizeAccessType(access_type || book.access_type, price ?? book.price),
+        normalizeAccessType(
+          access_type || book.access_type,
+          price ?? book.price,
+        ),
         normalizeContentType(content_type || book.content_type),
-        typeof is_published === "number" ? is_published : Number(book.is_published ?? 1),
+        typeof is_published === "number"
+          ? is_published
+          : Number(book.is_published ?? 1),
         book.id,
-      ]
+      ],
     );
 
     return res.json({ message: "บันทึกหนังสือสำเร็จ" });
