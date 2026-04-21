@@ -21,8 +21,8 @@
   top: 72px;
   left: 16px;
   width: 320px;
-  background: white;
-  border: 1px solid #ddd;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
   z-index: 60;
@@ -32,7 +32,7 @@
   padding: 12px 14px;
   display: flex;
   justify-content: space-between;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border);
 }
 
 .panel-header button {
@@ -45,7 +45,7 @@
   display: flex;
   gap: 10px;
   padding: 12px;
-  border-bottom: 1px solid #f1f1f1;
+  border-bottom: 1px solid var(--border);
 }
 
 .item img {
@@ -61,6 +61,6 @@
 
 .text span {
   font-size: 12px;
-  color: #777;
+  color: var(--text-muted);
 }
 </style>

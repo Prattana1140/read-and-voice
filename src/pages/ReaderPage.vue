@@ -1057,7 +1057,7 @@ onBeforeUnmount(() => {
 }
 
 .theme-row button:nth-child(2) {
-  background: #ffffff;
+  background: var(--surface);
   color: #303030;
 }
 
@@ -1285,7 +1285,7 @@ onBeforeUnmount(() => {
     min-width: 0;
     border: 0;
     border-radius: 18px 18px 0 0;
-    background: #ffffff;
+    background: var(--surface);
     box-shadow: 0 -18px 42px rgba(0, 0, 0, 0.24);
     padding: 22px 24px 28px;
   }
@@ -1677,7 +1677,7 @@ onBeforeUnmount(() => {
     display: grid;
     gap: 22px;
     border-radius: 18px 18px 0 0;
-    background: #ffffff;
+    background: var(--surface);
     color: #1f1f1f;
     padding: 18px 24px max(34px, env(safe-area-inset-bottom));
     box-shadow: 0 -20px 42px rgba(0, 0, 0, 0.35);
@@ -1736,7 +1736,7 @@ onBeforeUnmount(() => {
   .voice-selector button,
   .voice-selector select {
     border: 0;
-    background: #ffffff;
+    background: var(--surface);
     color: #2a2a2a;
     font: inherit;
     font-weight: 800;

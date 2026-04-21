@@ -301,20 +301,20 @@ onMounted(() => {
 .upload-card {
   width: 100%;
   max-width: 700px;
-  background: white;
+  background: var(--surface);
   border-radius: 20px;
   padding: 28px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow);
 }
 
 h1 {
   margin: 0 0 8px;
-  color: #222;
+  color: var(--text-strong);
 }
 
 .subtitle {
   margin: 0 0 24px;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .form-group {
@@ -325,7 +325,7 @@ h1 {
   display: block;
   font-weight: 600;
   margin-bottom: 8px;
-  color: #333;
+  color: var(--text-strong);
 }
 
 .form-group input,
@@ -337,12 +337,13 @@ h1 {
   padding: 12px 14px;
   font-size: 15px;
   box-sizing: border-box;
-  background: white;
+  background: var(--surface);
+  color: var(--text-strong);
 }
 
 .file-name {
   margin-top: 8px;
-  color: #555;
+  color: var(--text-muted);
 }
 
 .upload-btn {

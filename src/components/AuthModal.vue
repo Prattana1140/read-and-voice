@@ -146,7 +146,8 @@ const register = async () => {
 
 .modal {
   width: 900px;
-  background: white;
+  background: var(--surface);
+  color: var(--text);
   border-radius: 20px;
   display: grid;
   grid-template-columns: 1fr 1fr;

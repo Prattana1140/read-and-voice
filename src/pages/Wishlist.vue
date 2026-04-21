@@ -78,8 +78,8 @@ onMounted(loadWishlist);
 <style scoped>
 .wishlist-page {
   min-height: 70vh;
-  background: #ffffff;
-  color: #111827;
+  background: var(--bg);
+  color: var(--text-strong);
   padding: 32px;
 }
 
@@ -91,9 +91,10 @@ onMounted(loadWishlist);
 .state-box {
   width: min(720px, 100%);
   margin: 0 auto;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  color: #4b5563;
+  background: var(--surface);
+  color: var(--text-muted);
   padding: 18px;
 }
 
@@ -112,9 +113,9 @@ onMounted(loadWishlist);
 }
 
 .book-card {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--surface);
   padding: 10px;
   transition:
     box-shadow 0.18s ease,
@@ -138,7 +139,7 @@ onMounted(loadWishlist);
 }
 
 .book-card p {
-  color: #6b7280;
+  color: var(--text-muted);
   margin: 0 0 10px;
 }
 

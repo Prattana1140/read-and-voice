@@ -1743,10 +1743,11 @@ onUnmounted(() => {
   left: 0;
   z-index: 1000;
   display: none;
+  align-items: center;
   justify-content: center;
   width: 100vw;
-  min-height: 52px;
-  padding: 8px 14px;
+  min-height: 94px;
+  padding: 0 14px;
   background: #ffffff;
   color: #111827;
   box-shadow: 0 1px 0 rgba(17, 24, 39, 0.08);
@@ -1760,7 +1761,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   width: min(800px, calc(100vw - 28px));
-  min-height: 36px;
+  min-height: 38px;
   border-radius: 999px;
   background: #f2f2f3;
   padding: 0 4px 0 10px;
@@ -1857,6 +1858,7 @@ onUnmounted(() => {
 .mobile-account-group {
   display: none;
 }
+
 
 @media (max-width: 1280px) {
   .top-bar {

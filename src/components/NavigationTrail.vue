@@ -12,71 +12,71 @@ const router = useRouter();
 const storageKey = "read-voice-navigation-trail";
 const maxItems = 12;
 
-const homeItem: TrailItem = { fullPath: "/", label: "หน้าแรก" };
+const homeItem: TrailItem = { fullPath: "/", label: "Home" };
 
 const routeLabels: Record<string, string> = {
-  Home: "หน้าแรก",
-  Store: "ร้านหนังสือ",
-  Serials: "รายตอน",
-  BookDetail: "รายละเอียดหนังสือ",
-  BestSellers: "ขายดี",
-  NewReleases: "มาใหม่",
-  Promotions: "โปรโมชัน",
-  FreeBooks: "หนังสือฟรี",
-  HallOfFame: "หอเกียรติยศ",
-  Recommended: "แนะนำ",
+  Home: "Home",
+  Store: "Store",
+  Serials: "Serials",
+  BookDetail: "Book detail",
+  BestSellers: "Best sellers",
+  NewReleases: "New releases",
+  Promotions: "Promotions",
+  FreeBooks: "Free books",
+  HallOfFame: "Hall of fame",
+  Recommended: "Recommended",
   SubscriptionPlans: "Pinto VIP",
-  CoinWallet: "เติม coin",
-  ReaderPage: "อ่านหนังสือ",
-  MyLibrary: "ชั้นหนังสือของฉัน",
-  WishList: "รายการที่อยากได้",
-  Cart: "ตะกร้า",
-  OrderHistory: "ประวัติคำสั่งซื้อ",
-  Profile: "โปรไฟล์",
-  AccountFollowing: "รายการที่ติดตาม",
+  CoinWallet: "Coin wallet",
+  ReaderPage: "Reader",
+  MyLibrary: "My library",
+  WishList: "Wishlist",
+  Cart: "Cart",
+  OrderHistory: "Order history",
+  Profile: "Profile",
+  AccountFollowing: "Following",
   AccountGiftCodes: "Gift Code",
-  AccountBuffet: "Buffet ของฉัน",
-  AccountDevices: "อุปกรณ์ของฉัน",
-  AccountBenefits: "สิทธิพิเศษ",
-  AccountReviews: "รีวิวของฉัน",
-  AccountAgeVerification: "ยืนยันอายุ",
-  WriterDashboard: "นักเขียน",
-  WriterBooks: "หนังสือของนักเขียน",
-  WriterUpload: "เพิ่มผลงาน",
-  WriterEditBook: "แก้ไขหนังสือ",
-  WriterStats: "สถิตินักเขียน",
-  AdminDashboard: "แอดมิน",
-  AdminBooks: "จัดการหนังสือ",
-  AdminPageContent: "จัดการหน้าเว็บ",
-  AdminEditBook: "แก้ไขหนังสือ",
-  UploadBook: "อัปโหลดหนังสือ",
-  AdminCategories: "จัดการหมวดหมู่",
-  AdminMembers: "จัดการสมาชิก",
-  SuperAdminRoles: "จัดการสิทธิ์",
-  SuperAdminUsers: "จัดการผู้ใช้",
-  SuperAdminSettings: "ตั้งค่าระบบ",
+  AccountBuffet: "My Buffet",
+  AccountDevices: "My devices",
+  AccountBenefits: "Benefits",
+  AccountReviews: "My reviews",
+  AccountAgeVerification: "Age verification",
+  WriterDashboard: "Writer",
+  WriterBooks: "Writer books",
+  WriterUpload: "Add work",
+  WriterEditBook: "Edit book",
+  WriterStats: "Writer stats",
+  AdminDashboard: "Admin",
+  AdminBooks: "Manage books",
+  AdminPageContent: "Manage pages",
+  AdminEditBook: "Edit book",
+  UploadBook: "Upload book",
+  AdminCategories: "Manage categories",
+  AdminMembers: "Manage members",
+  SuperAdminRoles: "Manage roles",
+  SuperAdminUsers: "Manage users",
+  SuperAdminSettings: "System settings",
 };
 
 const parentRoutes: Record<string, TrailItem> = {
-  AccountFollowing: { fullPath: "/profile", label: "โปรไฟล์" },
-  AccountGiftCodes: { fullPath: "/profile", label: "โปรไฟล์" },
-  AccountBuffet: { fullPath: "/profile", label: "โปรไฟล์" },
-  AccountDevices: { fullPath: "/profile", label: "โปรไฟล์" },
-  AccountBenefits: { fullPath: "/profile", label: "โปรไฟล์" },
-  AccountReviews: { fullPath: "/profile", label: "โปรไฟล์" },
-  AccountAgeVerification: { fullPath: "/profile", label: "โปรไฟล์" },
-  WriterBooks: { fullPath: "/writer", label: "นักเขียน" },
-  WriterUpload: { fullPath: "/writer", label: "นักเขียน" },
-  WriterEditBook: { fullPath: "/writer/books", label: "หนังสือของนักเขียน" },
-  WriterStats: { fullPath: "/writer", label: "นักเขียน" },
-  AdminBooks: { fullPath: "/admin", label: "แอดมิน" },
-  AdminPageContent: { fullPath: "/admin", label: "แอดมิน" },
-  AdminEditBook: { fullPath: "/admin/books", label: "จัดการหนังสือ" },
-  UploadBook: { fullPath: "/admin", label: "แอดมิน" },
-  AdminCategories: { fullPath: "/admin", label: "แอดมิน" },
-  AdminMembers: { fullPath: "/admin", label: "แอดมิน" },
-  SuperAdminRoles: { fullPath: "/superadmin/users", label: "จัดการผู้ใช้" },
-  SuperAdminSettings: { fullPath: "/superadmin/users", label: "จัดการผู้ใช้" },
+  AccountFollowing: { fullPath: "/profile", label: "Profile" },
+  AccountGiftCodes: { fullPath: "/profile", label: "Profile" },
+  AccountBuffet: { fullPath: "/profile", label: "Profile" },
+  AccountDevices: { fullPath: "/profile", label: "Profile" },
+  AccountBenefits: { fullPath: "/profile", label: "Profile" },
+  AccountReviews: { fullPath: "/profile", label: "Profile" },
+  AccountAgeVerification: { fullPath: "/profile", label: "Profile" },
+  WriterBooks: { fullPath: "/writer", label: "Writer" },
+  WriterUpload: { fullPath: "/writer", label: "Writer" },
+  WriterEditBook: { fullPath: "/writer/books", label: "Writer books" },
+  WriterStats: { fullPath: "/writer", label: "Writer" },
+  AdminBooks: { fullPath: "/admin", label: "Admin" },
+  AdminPageContent: { fullPath: "/admin", label: "Admin" },
+  AdminEditBook: { fullPath: "/admin/books", label: "Manage books" },
+  UploadBook: { fullPath: "/admin", label: "Admin" },
+  AdminCategories: { fullPath: "/admin", label: "Admin" },
+  AdminMembers: { fullPath: "/admin", label: "Admin" },
+  SuperAdminRoles: { fullPath: "/superadmin/users", label: "Manage users" },
+  SuperAdminSettings: { fullPath: "/superadmin/users", label: "Manage users" },
 };
 
 function isTrailItem(item: unknown): item is TrailItem {
@@ -133,7 +133,7 @@ function compactTrailItems(items: TrailItem[]) {
 function fallbackLabel(currentRoute: RouteLocationNormalizedLoaded) {
   const segment = currentRoute.path.split("/").filter(Boolean).at(-1);
   if (!segment) return homeItem.label;
-  if (/^\d+$/.test(segment)) return "รายละเอียด";
+  if (/^\d+$/.test(segment)) return "Detail";
   return segment
     .split("-")
     .filter(Boolean)
@@ -146,19 +146,19 @@ function getRouteLabel(currentRoute: RouteLocationNormalizedLoaded) {
   const baseLabel =
     routeLabels[name] ||
     (name === "Login"
-      ? "เข้าสู่ระบบ"
+      ? "Login"
       : name === "AccountLogin"
-        ? "เข้าสู่ระบบ"
+        ? "Login"
         : name === "LineLogin"
-          ? "เข้าสู่ระบบ LINE"
+          ? "LINE login"
           : name === "FacebookLogin"
-            ? "เข้าสู่ระบบ Facebook"
+            ? "Facebook login"
             : name === "Register"
-              ? "สมัครสมาชิก"
+              ? "Register"
               : name === "ForgotPassword"
-                ? "ลืมรหัสผ่าน"
+                ? "Forgot password"
                 : name === "OAuthCallback"
-                  ? "เข้าสู่ระบบ"
+                  ? "Login"
                   : fallbackLabel(currentRoute));
   const id = currentRoute.params.id;
 
@@ -195,10 +195,14 @@ watch(
     }
 
     const nextItem = { fullPath: route.fullPath, label: getRouteLabel(route) };
-    const name = typeof route.name === "string" ? route.name : "";
-    const parent = parentRoutes[name];
-    const nextTrail = parent ? [homeItem, parent, nextItem] : [homeItem, nextItem];
-    const compactTrail = compactTrailItems(nextTrail).slice(-maxItems);
+    const cleanTrail = trail.value.filter(isTrailItem);
+    const existingIndex = cleanTrail.findIndex((item) => isSameTrailPlace(item, nextItem));
+    const nextTrail =
+      existingIndex >= 0
+        ? [...cleanTrail.slice(0, existingIndex), nextItem]
+        : [...cleanTrail, nextItem].slice(-maxItems);
+
+    const compactTrail = compactTrailItems(nextTrail);
     trail.value = compactTrail;
     writeTrail(compactTrail);
   },
@@ -221,7 +225,7 @@ function goTo(item: TrailItem) {
 </script>
 
 <template>
-  <nav v-if="shouldShowTrail" class="navigation-trail" aria-label="ประวัติหน้าที่เข้าชม">
+  <nav v-if="shouldShowTrail" class="navigation-trail" aria-label="Visited pages">
     <ol class="navigation-trail__list">
       <li
         v-for="(item, index) in visibleTrail"

@@ -5,6 +5,7 @@ const { runPdfOCR } = require("./ocrService");
 
 const TEXT_ENCODINGS = ["utf-8", "utf-16le", "windows-874"];
 const THAI_CHAR_PATTERN = /[\u0E00-\u0E7F]/g;
+const THAI_CONSONANT_PATTERN = /[\u0E01-\u0E2E]/;
 const LATIN_CHAR_PATTERN = /[A-Za-z]/g;
 const DIGIT_PATTERN = /[0-9\u0E50-\u0E59]/g;
 const PARA_MARKER_PATTERN = /(?:<\s*\/?\s*PARA\s*>|&lt;\s*\/?\s*PARA\s*&gt;)/gi;
@@ -20,9 +21,9 @@ function looksLikeMojibake(text) {
   const badSignals =
     countMatches(value, /\uFFFD/g) +
     countMatches(value, /[\u0080-\u009F]/g) +
-    countMatches(value, /เธ[\u0080-\u009F]/g) +
-    countMatches(value, /เน[\u0080-\u009F]/g) +
-    countMatches(value, /โ[\u0080-\u009F]/g);
+    countMatches(value, /\u0E40\u0E18[\u0080-\u009F]/g) +
+    countMatches(value, /\u0E40\u0E19[\u0080-\u009F]/g) +
+    countMatches(value, /\u0E42[\u0080-\u009F]/g);
 
   return badSignals >= 8 || badSignals / Math.max(value.length, 1) > 0.025;
 }
@@ -58,7 +59,7 @@ function stripArtificialMarkers(text) {
   return String(text || "")
     .replace(PARA_MARKER_PATTERN, "\n\n")
     .replace(/\bPARA\b/gi, " ")
-    .replace(/\[(?:PAGE|หน้า)\s*\d+\]/gi, "\n\n");
+    .replace(/\[(?:PAGE|\u0E2B\u0E19\u0E49\u0E32)\s*\d+\]/gi, "\n\n");
 }
 
 function normalizeText(text) {
@@ -127,12 +128,12 @@ function cleanOcrLine(line) {
 
 function polishThaiOcrText(text) {
   return normalizeText(text)
-    .replace(/([ก-ฮ])ํา/g, "$1ำ")
-    .replace(/เเ/g, "แ")
-    .replace(/([ๆฯ])\1+/g, "$1")
-    .replace(/[ ]+([ะาิีึืุูเแโใไ])/g, "$1")
-    .replace(/([เแโใไ])\s+([ก-ฮ])/g, "$1$2")
-    .replace(/([ก-ฮ])\s+([่้๊๋์])/g, "$1$2")
+    .replace(/([\u0E01-\u0E2E])\u0E4D\u0E32/g, "$1\u0E33")
+    .replace(/\u0E40\u0E40/g, "\u0E41")
+    .replace(/([\u0E46\u0E2F])\1+/g, "$1")
+    .replace(/[ ]+([\u0E30\u0E32\u0E34\u0E35\u0E36\u0E37\u0E38\u0E39\u0E40\u0E41\u0E42\u0E43\u0E44])/g, "$1")
+    .replace(/([\u0E40\u0E41\u0E42\u0E43\u0E44])\s+([\u0E01-\u0E2E])/g, "$1$2")
+    .replace(/([\u0E01-\u0E2E])\s+([\u0E48\u0E49\u0E4A\u0E4B\u0E4C])/g, "$1$2")
     .replace(/\s{2,}/g, " ");
 }
 
@@ -255,13 +256,13 @@ async function parseJsonFile(filePath) {
   try {
     parsed = JSON.parse(raw);
   } catch (error) {
-    throw new Error(`ไฟล์ JSON ไม่ถูกต้อง: ${error.message}`);
+    throw new Error(`Invalid JSON file: ${error.message}`);
   }
 
   const fullText = sanitizeBookText(extractTextFromJsonValue(parsed));
 
   if (!fullText) {
-    throw new Error("ไม่พบข้อความที่สามารถอ่านได้ในไฟล์ JSON");
+    throw new Error("No readable text was found in the JSON file");
   }
 
   return {
@@ -347,7 +348,7 @@ async function parsePdfFile(filePath) {
     const fullText = cleanOcrText(rawPages.length ? rawPages.join("\n\n") : ocrResult?.text || "");
 
     if (!fullText) {
-      throw new Error("ไม่สามารถอ่านข้อความจาก PDF ได้");
+      throw new Error("Unable to read text from this PDF");
     }
 
     return {
@@ -369,9 +370,7 @@ async function parsePdfFile(filePath) {
       };
     }
 
-    const pdfError = new Error(
-      `ไม่สามารถอ่านข้อความจาก PDF นี้ได้: ${ocrErr.message}`,
-    );
+    const pdfError = new Error(`Unable to read text from this PDF: ${ocrErr.message}`);
     pdfError.statusCode = 400;
     pdfError.code = "PDF_TEXT_EXTRACTION_FAILED";
     throw pdfError;
@@ -393,7 +392,7 @@ async function parseBookFile(filePath, mimeType, originalName) {
     return parsePdfFile(filePath);
   }
 
-  throw new Error("รองรับเฉพาะไฟล์ .txt .json และ .pdf");
+  throw new Error("Only .txt, .json, and .pdf files are supported");
 }
 
 module.exports = {

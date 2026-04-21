@@ -162,7 +162,8 @@ onMounted(loadCart);
 
 <style scoped>
 .cart-page {
-  background: #f7f8fb;
+  background: var(--bg);
+  color: var(--text);
   min-height: 100vh;
   padding: 24px;
 }
@@ -171,10 +172,10 @@ onMounted(loadCart);
 .state-card,
 .cart-item,
 .summary-card {
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow);
 }
 
 .header-card {
@@ -195,7 +196,7 @@ onMounted(loadCart);
 
 h1,
 h2 {
-  color: #111827;
+  color: var(--text-strong);
   margin: 0;
 }
 
@@ -203,11 +204,11 @@ h2 {
 .cart-item p,
 .item-side small,
 .summary-card p {
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .wallet-pill {
-  background: #111827;
+  background: color-mix(in srgb, var(--text-strong) 92%, #111827);
   border-radius: 8px;
   color: white;
   min-width: 160px;
@@ -289,7 +290,7 @@ h2 {
 
 .item-side strong,
 .total {
-  color: #111827;
+  color: var(--text-strong);
   font-size: 24px;
   font-weight: 900;
 }

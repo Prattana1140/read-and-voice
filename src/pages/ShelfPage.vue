@@ -440,8 +440,8 @@ onMounted(async () => {
 <style scoped>
 .shelf-page {
   min-height: 100%;
-  background: #ffffff;
-  color: #111827;
+  background: var(--bg);
+  color: var(--text-strong);
   padding-bottom: 64px;
 }
 
@@ -450,7 +450,7 @@ onMounted(async () => {
   justify-content: center;
   gap: 24px;
   min-height: 34px;
-  background: #f7f7f7;
+  background: color-mix(in srgb, var(--surface-soft) 72%, var(--bg));
   border-bottom: 1px solid #e6ecea;
   overflow-x: auto;
   padding: 0 16px;
@@ -460,7 +460,7 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   min-height: 34px;
-  color: #1f2937;
+  color: var(--text-strong);
   font-size: 13px;
   font-weight: 800;
   text-decoration: none;
@@ -480,7 +480,7 @@ onMounted(async () => {
   grid-auto-columns: minmax(360px, 1fr);
   width: 100%;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--surface);
   border-bottom: 1px solid #e6ecea;
 }
 
@@ -559,7 +559,7 @@ onMounted(async () => {
 
 .shelf-toolbar h2 {
   margin: 0;
-  color: #111827;
+  color: var(--text-strong);
   font-size: 22px;
   font-weight: 900;
 }
@@ -572,7 +572,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 9px;
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 12px;
 }
 
@@ -583,7 +583,7 @@ onMounted(async () => {
   height: 25px;
   border: 1px solid #00aa78;
   border-radius: 4px;
-  background: #ffffff;
+  background: var(--surface);
   color: #00a676;
   cursor: pointer;
   font-size: 20px;
@@ -610,8 +610,8 @@ onMounted(async () => {
   min-height: 34px;
   border: 1px solid #dbe4e1;
   border-radius: 4px;
-  background: #ffffff;
-  color: #111827;
+  background: var(--surface);
+  color: var(--text-strong);
   font-size: 13px;
   outline: none;
   padding: 0 10px;
@@ -631,8 +631,8 @@ onMounted(async () => {
 .state-box {
   border: 1px solid #dbe4e1;
   border-radius: 4px;
-  background: #ffffff;
-  color: #6b7280;
+  background: var(--surface);
+  color: var(--text-muted);
   padding: 28px;
 }
 
@@ -675,7 +675,7 @@ onMounted(async () => {
 
 .promo-section-head h3 {
   margin: 0;
-  color: #111827;
+  color: var(--text-strong);
   font-size: 21px;
   font-weight: 900;
 }
@@ -803,7 +803,7 @@ onMounted(async () => {
 
 .free-section-head h3 {
   margin: 0;
-  color: #111827;
+  color: var(--text-strong);
   font-size: 21px;
   font-weight: 900;
 }
@@ -890,7 +890,7 @@ onMounted(async () => {
   min-height: 38px;
   margin: 10px 0 4px;
   overflow: hidden;
-  color: #111827;
+  color: var(--text-strong);
   font-size: 14px;
   font-weight: 900;
   line-height: 1.35;
@@ -904,7 +904,7 @@ onMounted(async () => {
   min-height: 18px;
   margin: 0 0 4px;
   overflow: hidden;
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 12px;
   font-weight: 700;
   line-height: 1.3;

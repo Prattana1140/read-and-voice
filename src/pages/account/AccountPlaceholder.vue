@@ -186,8 +186,8 @@ onMounted(loadData);
   min-height: 70vh;
   display: grid;
   place-items: center;
-  background: #ffffff;
-  color: #111827;
+  background: var(--bg);
+  color: var(--text-strong);
   padding: 32px 16px;
 }
 
@@ -195,8 +195,8 @@ onMounted(loadData);
   width: min(720px, 100%);
   border: 1px solid #dbe4e1;
   border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 10px 28px rgba(15, 118, 110, 0.08);
+  background: var(--surface);
+  box-shadow: var(--shadow);
   padding: 34px;
 }
 
@@ -220,7 +220,7 @@ onMounted(loadData);
 .placeholder-card > span {
   display: block;
   margin-top: 12px;
-  color: #4b5563;
+  color: var(--text-muted);
   line-height: 1.7;
 }
 
@@ -233,7 +233,7 @@ onMounted(loadData);
 .item-row {
   display: grid;
   gap: 6px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 14px;
 }
@@ -243,13 +243,13 @@ onMounted(loadData);
 }
 
 .item-row span {
-  color: #4b5563;
+  color: var(--text-muted);
 }
 
 .state {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  color: #4b5563;
+  color: var(--text-muted);
   margin-top: 24px;
   padding: 14px;
 }

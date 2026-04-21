@@ -123,7 +123,8 @@ onMounted(loadWallet);
 
 <style scoped>
 .wallet-page {
-  background: #f7f8fb;
+  background: var(--bg);
+  color: var(--text);
   min-height: 100vh;
   padding: 24px;
 }
@@ -131,10 +132,10 @@ onMounted(loadWallet);
 .hero,
 .panel,
 .package-card {
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow);
 }
 
 .hero {
@@ -155,16 +156,16 @@ onMounted(loadWallet);
 
 h1,
 h2 {
-  color: #111827;
+  color: var(--text-strong);
   margin: 0;
 }
 
 .hero p:not(.eyebrow) {
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .balance-card {
-  background: #111827;
+  background: color-mix(in srgb, var(--text-strong) 92%, #111827);
   border-radius: 8px;
   color: white;
   padding: 20px;
@@ -224,7 +225,7 @@ h2 {
 }
 
 .package-card p {
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 button {
@@ -256,7 +257,7 @@ button {
 
 .tx-list article {
   align-items: center;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 8px;
   display: flex;
   justify-content: space-between;
@@ -266,7 +267,7 @@ button {
 
 .tx-list span,
 .tx-amount small {
-  color: #6b7280;
+  color: var(--text-muted);
   display: block;
 }
 
@@ -281,7 +282,7 @@ button {
 }
 
 .empty {
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 @media (max-width: 720px) {

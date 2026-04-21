@@ -52,8 +52,8 @@ const isLoggedIn = computed(() => !!localStorage.getItem("token"));
   top: 72px;
   right: 16px;
   width: 300px;
-  background: white;
-  border: 1px solid #ddd;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
   z-index: 60;
@@ -63,7 +63,7 @@ const isLoggedIn = computed(() => !!localStorage.getItem("token"));
   display: flex;
   gap: 12px;
   padding: 16px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border);
 }
 
 .profile img {
@@ -78,7 +78,7 @@ const isLoggedIn = computed(() => !!localStorage.getItem("token"));
 
 .profile p {
   margin: 0;
-  color: #777;
+  color: var(--text-muted);
   font-size: 14px;
   word-break: break-word;
 }
@@ -91,7 +91,7 @@ const isLoggedIn = computed(() => !!localStorage.getItem("token"));
 .menu a {
   padding: 12px 16px;
   text-decoration: none;
-  color: #222;
-  border-bottom: 1px solid #f4f4f4;
+  color: var(--text-strong);
+  border-bottom: 1px solid var(--border);
 }
 </style>

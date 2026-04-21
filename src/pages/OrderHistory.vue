@@ -98,7 +98,8 @@ onMounted(loadOrders);
 <style scoped>
 .history-page {
   min-height: 100vh;
-  background: #f6f8fc;
+  background: var(--bg);
+  color: var(--text);
   padding: 24px;
 }
 
@@ -121,7 +122,7 @@ onMounted(loadOrders);
 
 .header p {
   margin: 0;
-  color: #667085;
+  color: var(--text-muted);
 }
 
 .header-actions {
@@ -131,15 +132,16 @@ onMounted(loadOrders);
 }
 
 .state-box {
-  background: white;
+  background: var(--surface);
+  border: 1px solid var(--border);
   padding: 24px;
   border-radius: 18px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow);
 }
 
 .empty {
   text-align: center;
-  color: #667085;
+  color: var(--text-muted);
 }
 
 .orders-list {
@@ -148,10 +150,11 @@ onMounted(loadOrders);
 }
 
 .order-card {
-  background: white;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 18px;
   padding: 20px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow);
 }
 
 .order-top {
@@ -168,7 +171,7 @@ onMounted(loadOrders);
 
 .order-top p {
   margin: 0;
-  color: #667085;
+  color: var(--text-muted);
 }
 
 .amount {
@@ -184,7 +187,7 @@ onMounted(loadOrders);
 .item-row {
   display: flex;
   justify-content: space-between;
-  border-top: 1px solid #edf1f7;
+  border-top: 1px solid var(--border);
   padding-top: 10px;
 }
 
@@ -192,7 +195,8 @@ onMounted(loadOrders);
   border: none;
   border-radius: 12px;
   padding: 11px 14px;
-  background: #e9edf7;
+  background: var(--surface-soft);
+  color: var(--text-strong);
   font-weight: 700;
   cursor: pointer;
 }

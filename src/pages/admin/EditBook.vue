@@ -163,10 +163,10 @@ onMounted(() => {
 
 .state-box,
 .form-card {
-  background: white;
+  background: var(--surface);
   border-radius: 18px;
   padding: 24px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow);
 }
 
 .state-box.error {

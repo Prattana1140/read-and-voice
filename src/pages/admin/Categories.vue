@@ -152,7 +152,7 @@ table {
 }
 th,
 td {
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border);
   text-align: left;
   padding: 12px;
 }

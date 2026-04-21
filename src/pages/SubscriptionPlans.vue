@@ -289,8 +289,8 @@ onMounted(loadPlans);
 <style scoped>
 .vip-page {
   min-height: 100vh;
-  background: #ffffff;
-  color: #111827;
+  background: var(--bg);
+  color: var(--text);
   padding: 22px 20px 72px;
 }
 
@@ -446,7 +446,7 @@ onMounted(loadPlans);
 
 .plans-section header h2 {
   margin: 0;
-  color: #111827;
+  color: var(--text-strong);
   font-size: 20px;
 }
 
@@ -476,7 +476,7 @@ onMounted(loadPlans);
   border: 1px solid #cfd8dc;
   border-top: 3px solid #9ca3af;
   border-radius: 4px;
-  background: #ffffff;
+  background: var(--surface);
   padding: 22px 14px 14px;
   text-align: left;
 }
@@ -504,12 +504,12 @@ onMounted(loadPlans);
 
 .plan-card h3 {
   margin: 0;
-  color: #111827;
+  color: var(--text-strong);
   font-size: 16px;
 }
 
 .plan-card strong {
-  color: #111827;
+  color: var(--text-strong);
   font-size: 22px;
 }
 
@@ -582,7 +582,7 @@ th:nth-child(3) {
 .details-section h2,
 .faq-section h2 {
   margin: 0 0 12px;
-  color: #111827;
+  color: var(--text-strong);
   font-size: 18px;
 }
 

@@ -589,7 +589,7 @@ onUnmounted(() => {
 .step-grid article {
   border: 1px solid rgba(20, 184, 166, 0.16);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--surface);
 }
 
 .summary-grid article {
@@ -716,7 +716,7 @@ onUnmounted(() => {
   overflow: hidden;
   border: 1px dashed rgba(20, 184, 166, 0.35);
   border-radius: 8px;
-  background: #f8fffd;
+  background: var(--panel-bg);
 }
 
 .banner-preview img,

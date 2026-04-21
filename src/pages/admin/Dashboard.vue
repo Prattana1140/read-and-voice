@@ -306,21 +306,21 @@ onMounted(() => {
 }
 
 .stat-card {
-  background: white;
+  background: var(--surface);
   border-radius: 20px;
   padding: 20px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow);
 }
 
 .stat-label {
   display: block;
-  color: #667085;
+  color: var(--text-muted);
   margin-bottom: 8px;
 }
 
 .stat-value {
   font-size: 34px;
-  color: #1f2430;
+  color: var(--text-strong);
 }
 
 .toolbar {
@@ -334,14 +334,15 @@ onMounted(() => {
   border: 1px solid #d8dfeb;
   border-radius: 14px;
   outline: none;
-  background: white;
+  background: var(--surface);
+  color: var(--text-strong);
 }
 
 .state-box {
-  background: white;
+  background: var(--surface);
   border-radius: 18px;
   padding: 24px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow);
 }
 
 .state-box.error {
@@ -349,15 +350,15 @@ onMounted(() => {
 }
 
 .state-box.empty {
-  color: #667085;
+  color: var(--text-muted);
   text-align: center;
 }
 
 .table-wrap {
-  background: white;
+  background: var(--surface);
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow);
   overflow-x: auto;
 }
 

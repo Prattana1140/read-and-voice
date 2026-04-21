@@ -1475,10 +1475,10 @@ onBeforeUnmount(() => {
 }
 
 .state-box {
-  background: white;
+  background: var(--surface);
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow);
 }
 
 .state-box.error {
@@ -1493,10 +1493,10 @@ onBeforeUnmount(() => {
 
 .book-sidebar,
 .book-content {
-  background: white;
+  background: var(--surface);
   border-radius: 20px;
   padding: 24px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow);
 }
 
 .cover-box {
@@ -1553,15 +1553,15 @@ onBeforeUnmount(() => {
 }
 
 .access-card {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--surface-soft);
   margin: 0 0 18px;
   padding: 14px;
 }
 
 .access-card strong {
-  color: #111827;
+  color: var(--text-strong);
   display: block;
   font-size: 24px;
   margin-top: 8px;
@@ -1867,13 +1867,13 @@ input[type="range"] {
 }
 
 .reviews-head h3 {
-  color: #111827;
+  color: var(--text-strong);
   font-size: 18px;
   margin: 0;
 }
 
 .review-form {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   display: grid;
   gap: 12px;
   margin-bottom: 16px;
@@ -1912,7 +1912,7 @@ input[type="range"] {
 }
 
 .review-item {
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border);
   padding: 16px 0;
 }
 
@@ -1925,7 +1925,7 @@ input[type="range"] {
 }
 
 .review-meta strong {
-  color: #111827;
+  color: var(--text-strong);
 }
 
 .review-meta span {
@@ -1987,7 +1987,7 @@ input[type="range"] {
 }
 /* Reference-style layout override */
 .book-detail-page {
-  background: #ffffff;
+  background: var(--bg);
   padding: 0 0 72px;
 }
 
@@ -2035,7 +2035,7 @@ input[type="range"] {
 
 .book-title {
   margin: 0 0 8px;
-  color: #111827;
+  color: var(--text-strong);
   font-size: 21px;
   font-weight: 900;
   line-height: 1.35;
@@ -2088,7 +2088,7 @@ input[type="range"] {
 .access-badge {
   border: 1px solid #00a96b;
   border-radius: 999px;
-  background: #ffffff !important;
+  background: var(--surface) !important;
   color: #009b72 !important;
   font-size: 12px;
   padding: 5px 12px;
@@ -2131,19 +2131,19 @@ input[type="range"] {
 .subscribe-btn {
   width: auto;
   border: 1px solid #00a96b;
-  background: #ffffff;
+  background: var(--surface);
   color: #008e68;
 }
 
 .tts-panel {
   grid-column: 1 / -1;
   margin-top: 20px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border);
   padding-top: 18px;
 }
 
 .tts-panel h3 {
-  color: #111827;
+  color: var(--text-strong);
   font-size: 17px;
 }
 
@@ -2168,7 +2168,7 @@ input[type="range"] {
 
 .reader-box,
 .episode-list {
-  background: #ffffff;
+  background: var(--surface);
   border: 0;
   border-radius: 0;
   padding: 0;
@@ -2194,14 +2194,14 @@ input[type="range"] {
 }
 
 .episode-item {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 0;
-  background: #ffffff;
+  background: var(--surface);
   padding: 14px 16px;
 }
 
 .episode-item strong {
-  color: #111827;
+  color: var(--text-strong);
   font-size: 14px;
 }
 
@@ -2403,7 +2403,7 @@ input[type="range"] {
 }
 
 .story-section {
-  background: #ffffff;
+  background: var(--surface);
   border: 1px solid #e8ecec;
   margin-top: 18px;
   padding: 28px 34px;

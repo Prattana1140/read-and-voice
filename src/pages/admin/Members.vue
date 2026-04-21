@@ -106,7 +106,7 @@ onMounted(loadUsers);
   padding: 24px;
 }
 .card {
-  background: white;
+  background: var(--surface);
   padding: 20px;
   border-radius: 16px;
 }
@@ -117,7 +117,7 @@ table {
 th,
 td {
   padding: 12px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border);
 }
 .actions {
   display: flex;

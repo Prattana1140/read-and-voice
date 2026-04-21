@@ -112,8 +112,8 @@ onMounted(async () => {
 <style scoped>
 .serial-page {
   min-height: 100vh;
-  background: #f4f4f4;
-  color: #111827;
+  background: var(--bg);
+  color: var(--text-strong);
   padding-bottom: 72px;
 }
 
@@ -183,15 +183,15 @@ onMounted(async () => {
 }
 
 .hero-actions button.ghost {
-  background: #ffffff;
-  color: #111827;
+  background: var(--surface);
+  color: var(--text-strong);
 }
 
 .story-body,
 .episode-list {
   width: min(100% - 32px, 620px);
   margin: 34px auto 0;
-  background: #ffffff;
+  background: var(--surface);
   padding: 24px;
 }
 
@@ -225,9 +225,9 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 16px;
   min-height: 50px;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
-  color: #111827;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-strong);
   cursor: pointer;
   padding: 0 14px;
   text-align: left;

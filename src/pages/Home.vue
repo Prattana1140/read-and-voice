@@ -246,7 +246,9 @@ onUnmounted(() => {
 .page {
   min-height: 100%;
   padding-bottom: 56px;
-  background: #ffffff;
+  background:
+    radial-gradient(circle at top, color-mix(in srgb, var(--primary-soft) 58%, transparent), transparent 42%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 94%, var(--bg)) 0%, var(--bg) 100%);
 }
 
 .category-bar {
@@ -285,8 +287,8 @@ onUnmounted(() => {
   position: relative;
   width: 100%;
   overflow: hidden;
-  background: #ffffff;
-  border-bottom: 1px solid #edf2f1;
+  background: color-mix(in srgb, var(--surface) 90%, var(--bg));
+  border-bottom: 1px solid var(--border);
   padding: 10px 0 24px;
 }
 
@@ -306,7 +308,7 @@ onUnmounted(() => {
   flex: 0 0 calc(100% / 6);
   min-height: 120px;
   overflow: hidden;
-  border: 4px solid #ffffff;
+  border: 4px solid color-mix(in srgb, var(--surface) 92%, transparent);
   border-radius: 8px;
   background:
     radial-gradient(circle at 82% 28%, rgba(255, 255, 255, 0.62), transparent 28%),
@@ -425,7 +427,7 @@ onUnmounted(() => {
   height: 7px;
   border: 0;
   border-radius: 999px;
-  background: #d7dddd;
+  background: color-mix(in srgb, var(--border) 88%, var(--surface));
   cursor: pointer;
   padding: 0;
   transition:
@@ -436,7 +438,7 @@ onUnmounted(() => {
 
 .hero-dots button.active {
   width: 18px;
-  background: #00b36f;
+  background: var(--primary);
 }
 
 .storefront {
@@ -455,29 +457,35 @@ onUnmounted(() => {
 .quick-card {
   min-height: 46px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 8px;
   color: #ffffff;
   cursor: pointer;
   font-size: 15px;
   font-weight: 900;
   padding: 8px 12px;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .quick-card.read {
-  background: #4b63d7;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--secondary) 92%, white), var(--secondary));
 }
 
 .quick-card.library {
-  background: #079987;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 92%, white), var(--primary-strong));
 }
 
 .quick-card.coin {
-  background: #156c77;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary-strong) 72%, #1f7a8c), #1f7a8c);
 }
 
 .quick-card:hover {
   filter: brightness(1.04);
   transform: translateY(-1px);
+  box-shadow: 0 16px 28px rgba(15, 23, 42, 0.12);
 }
 
 .shelf-section {
@@ -485,7 +493,7 @@ onUnmounted(() => {
 }
 
 .hero-dots button:hover {
-  background: #18c692;
+  background: color-mix(in srgb, var(--primary) 82%, white);
   transform: translateY(-1px);
 }
 
@@ -735,7 +743,7 @@ onUnmounted(() => {
 
 .book-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 18px rgba(15, 118, 110, 0.08);
+  box-shadow: var(--shadow);
 }
 
 .book-card img {
@@ -773,9 +781,9 @@ onUnmounted(() => {
 .book-info strong {
   display: inline-flex;
   margin-top: 7px;
-  border-radius: 2px;
-  background: #00b36f;
-  color: white;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 90%, white);
+  color: var(--on-primary);
   font-size: 11px;
   padding: 3px 7px;
 }
