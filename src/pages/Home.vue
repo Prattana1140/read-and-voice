@@ -1,12 +1,12 @@
-<template>
+﻿<template>
   <div class="page">
     <section class="category-bar" aria-label="หมวดหนังสือ">
       <button type="button" class="active" @click="goToStore">ทั้งหมด</button>
       <button type="button" @click="goToShelf('BestSellers')">ขายดี</button>
-      <button type="button" @click="goToShelf('NewReleases')">มาใหม่</button>
-      <button type="button" @click="goToShelf('Promotions')">โปรโมชั่น</button>
-      <button type="button" @click="goToShelf('FreeBooks')">ฟรีกระจาย</button>
-      <button type="button" @click="goToShelf('HallOfFame')">ฮิตขึ้นหิ้ง</button>
+      <button type="button" @click="goToShelf('NewReleases')">ออกใหม่</button>
+      <button type="button" @click="goToShelf('Promotions')">โปรโมชัน</button>
+      <button type="button" @click="goToShelf('FreeBooks')">อ่านฟรี</button>
+      <button type="button" @click="goToShelf('HallOfFame')">หอเกียรติยศ</button>
       <button type="button" @click="goToShelf('Recommended')">แนะนำ</button>
     </section>
 
@@ -43,7 +43,7 @@
           <div class="promo-copy">
             <span>Read and Voice</span>
             <h1>อ่านและฟัง E-Book ได้ทุกที่</h1>
-            <p>เพิ่มหนังสือเล่มแรกเพื่อเริ่มต้นพื้นที่อ่านหนังสือของคุณ</p>
+            <p>เลือกหนังสือเล่มแรกเพื่อเริ่มต้นการอ่านของคุณ</p>
           </div>
         </article>
       </div>
@@ -61,12 +61,6 @@
     </section>
 
     <main class="storefront">
-      <section class="quick-actions">
-        <button class="quick-card read" @click="goToStore">อ่านหนังสือ</button>
-        <button class="quick-card library" @click="goToMyLibrary">ชั้นหนังสือของฉัน</button>
-        <button class="quick-card coin" @click="goToCoinWallet">เติม coin</button>
-      </section>
-
       <div v-if="books.length === 0" class="empty-box">
         ยังไม่มีหนังสือแสดงผล
       </div>
@@ -97,7 +91,7 @@
             <div class="book-info">
               <p>{{ book.title }}</p>
               <small>{{ book.author }}</small>
-              <strong>อ่านเลย</strong>
+              <strong>ดูรายละเอียด</strong>
             </div>
           </article>
         </div>
@@ -124,7 +118,7 @@ const books = ref<Book[]>([]);
 const activeBannerIndex = ref(0);
 let carouselTimer: ReturnType<typeof window.setInterval> | undefined;
 
-const bannerLabels = ["อ่านและฟัง", "ขายดี", "มาใหม่", "โปรโมชั่น", "ฟรีกระจาย", "แนะนำ"];
+const bannerLabels = ["อ่านและฟัง", "ขายดี", "ออกใหม่", "โปรโมชัน", "อ่านฟรี", "แนะนำ"];
 const bannerShiftPercent = 16.6667;
 const visibleBannerCount = 6;
 
@@ -137,7 +131,7 @@ const homeSections = computed(() => {
   const sectionBooks = books.value;
   return [
     {
-      title: "มาใหม่",
+      title: "ออกใหม่",
       to: "/store",
       books: sectionBooks.slice(0, 5),
     },
@@ -147,7 +141,7 @@ const homeSections = computed(() => {
       books: sectionBooks.slice(5, 10),
     },
     {
-      title: "ฟรีกระจาย",
+      title: "อ่านฟรี",
       to: "/free-books",
       books: sectionBooks.slice(10, 15),
     },
@@ -907,3 +901,4 @@ onUnmounted(() => {
   }
 }
 </style>
+

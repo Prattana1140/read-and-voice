@@ -24,6 +24,9 @@ const shelvesRoutes = require("./routes/shelves");
 const accountRoutes = require("./routes/account");
 const wishlistRoutes = require("./routes/wishlist");
 const reviewsRoutes = require("./routes/reviews");
+const episodeCommentsRoutes = require("./routes/episodeComments");
+const notificationsRoutes = require("./routes/notifications");
+const paymentsRoutes = require("./routes/payments");
 
 const app = express();
 const allowedOrigins = [
@@ -85,6 +88,7 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/categories", categoriesRoutes);
 app.use("/api/library", libraryRoutes);
 app.use("/api/orders", ordersRoutes);
+app.use("/api/payments", paymentsRoutes);
 app.use("/api/progress", progressRoutes);
 app.use("/api/admin", adminUsersRoutes);
 app.use("/api/admin/books", adminBooksRoutes);
@@ -97,8 +101,10 @@ app.use("/api/admin/stats", adminStatsRoutes);
 app.use("/api/coins", coinsRoutes);
 app.use("/api/page-content", pageContentRoutes);
 app.use("/api/account", accountRoutes);
+app.use("/api/account/notifications", notificationsRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api", reviewsRoutes);
+app.use("/api", episodeCommentsRoutes);
 app.use("/api", shelvesRoutes);
 
 app.use((req, res) => {

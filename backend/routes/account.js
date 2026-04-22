@@ -325,6 +325,64 @@ router.post("/devices", async (req, res) => {
   }
 });
 
+router.put("/devices/:id", async (req, res) => {
+  try {
+    await ensureTables();
+    const deviceId = Number(req.params.id);
+    const deviceName = String(req.body.device_name || "").trim();
+    const platform = String(req.body.platform || "").trim() || null;
+
+    if (!deviceId || Number.isNaN(deviceId)) {
+      return res.status(400).json({ message: "id อุปกรณ์ไม่ถูกต้อง" });
+    }
+
+    if (!deviceName) {
+      return res.status(400).json({ message: "กรุณาระบุชื่ออุปกรณ์" });
+    }
+
+    const [result] = await db.query(
+      `UPDATE user_devices
+       SET device_name = ?, platform = ?, last_used_at = NOW()
+       WHERE id = ? AND user_id = ?`,
+      [deviceName, platform, deviceId, req.user.id],
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "ไม่พบอุปกรณ์นี้ในบัญชีของคุณ" });
+    }
+
+    return res.json({ message: "อัปเดตอุปกรณ์สำเร็จ" });
+  } catch (error) {
+    console.error("PUT /account/devices/:id error:", error);
+    return res.status(500).json({ message: "อัปเดตอุปกรณ์ไม่สำเร็จ" });
+  }
+});
+
+router.delete("/devices/:id", async (req, res) => {
+  try {
+    await ensureTables();
+    const deviceId = Number(req.params.id);
+
+    if (!deviceId || Number.isNaN(deviceId)) {
+      return res.status(400).json({ message: "id อุปกรณ์ไม่ถูกต้อง" });
+    }
+
+    const [result] = await db.query(
+      "DELETE FROM user_devices WHERE id = ? AND user_id = ?",
+      [deviceId, req.user.id],
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "ไม่พบอุปกรณ์นี้ในบัญชีของคุณ" });
+    }
+
+    return res.json({ message: "ลบอุปกรณ์สำเร็จ" });
+  } catch (error) {
+    console.error("DELETE /account/devices/:id error:", error);
+    return res.status(500).json({ message: "ลบอุปกรณ์ไม่สำเร็จ" });
+  }
+});
+
 router.get("/benefits", async (req, res) => {
   try {
     await ensureTables();
@@ -424,16 +482,18 @@ router.post("/age-verification", async (req, res) => {
   try {
     await ensureTables();
     const documentType = String(req.body.document_type || "id_card").trim();
+    const note = String(req.body.note || "").trim() || null;
 
     await db.query(
-      `INSERT INTO age_verifications (user_id, status, document_type, submitted_at)
-       VALUES (?, 'pending', ?, NOW())
+      `INSERT INTO age_verifications (user_id, status, document_type, note, submitted_at)
+       VALUES (?, 'pending', ?, ?, NOW())
        ON DUPLICATE KEY UPDATE
          status = 'pending',
          document_type = VALUES(document_type),
+         note = VALUES(note),
          submitted_at = NOW(),
          updated_at = NOW()`,
-      [req.user.id, documentType],
+      [req.user.id, documentType, note],
     );
 
     return res.json({ message: "ส่งคำขอยืนยันอายุสำเร็จ" });

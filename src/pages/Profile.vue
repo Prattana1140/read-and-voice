@@ -32,6 +32,7 @@ const accountCards = [
   { title: "ประวัติคำสั่งซื้อ", text: "ดูรายการซื้อและสถานะการชำระเงินที่ผ่านมา", to: "/orders/history" },
   { title: "กระเป๋า Coin", text: "เติม coin และดูประวัติธุรกรรม", to: "/coin-wallet" },
   { title: "สมาชิก VIP", text: "สมัครหรือดูสถานะแพ็กเกจรายเดือน", to: "/subscription-plans" },
+  { title: "การแจ้งเตือน", text: "ดูตอนใหม่จากนักเขียนที่คุณติดตามและอัปเดตสำคัญ", to: "/account/notifications" },
   { title: "รายการที่ติดตาม", text: "ดูหนังสือ ผู้เขียน หรือหมวดที่ติดตาม", to: "/account/following" },
   { title: "Gift Code", text: "ตรวจสอบ gift code ที่ได้รับ", to: "/account/gift-codes" },
   { title: "Buffet ของฉัน", text: "ดูประวัติและสถานะ subscription", to: "/account/buffet" },

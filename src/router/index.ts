@@ -1,4 +1,4 @@
-import {
+﻿import {
   createRouter,
   createWebHistory,
   type RouteRecordRaw,
@@ -8,6 +8,7 @@ import Home from "../pages/Home.vue";
 import Store from "../pages/Store.vue";
 import BookDetail from "../pages/BookDetail.vue";
 import ReaderPage from "../pages/ReaderPage.vue";
+import ReaderListenPage from "../pages/ReaderListenPage.vue";
 
 import Login from "../pages/Login.vue";
 import Register from "../pages/Register.vue";
@@ -167,6 +168,12 @@ const routes: RouteRecordRaw[] = [
     props: true,
   },
   {
+    path: "/reader/:id/listen",
+    name: "ReaderListenPage",
+    component: ReaderListenPage,
+    props: true,
+  },
+  {
     path: "/my-library",
     name: "MyLibrary",
     component: MyLibrary,
@@ -197,45 +204,51 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, allowedRoles: memberRoles },
   },
   {
+    path: "/account/notifications",
+    name: "AccountNotifications",
+    component: () => import("../pages/account/Notifications.vue"),
+    meta: { requiresAuth: true, allowedRoles: memberRoles },
+  },
+  {
     path: "/account/following",
     name: "AccountFollowing",
-    component: () => import("../pages/account/AccountPlaceholder.vue"),
+    component: () => import("../pages/account/Following.vue"),
     meta: { requiresAuth: true, allowedRoles: memberRoles },
   },
   {
     path: "/account/gift-codes",
     name: "AccountGiftCodes",
-    component: () => import("../pages/account/AccountPlaceholder.vue"),
+    component: () => import("../pages/account/GiftCodes.vue"),
     meta: { requiresAuth: true, allowedRoles: memberRoles },
   },
   {
     path: "/account/buffet",
     name: "AccountBuffet",
-    component: () => import("../pages/account/AccountPlaceholder.vue"),
+    component: () => import("../pages/account/Buffet.vue"),
     meta: { requiresAuth: true, allowedRoles: memberRoles },
   },
   {
     path: "/account/devices",
     name: "AccountDevices",
-    component: () => import("../pages/account/AccountPlaceholder.vue"),
+    component: () => import("../pages/account/Devices.vue"),
     meta: { requiresAuth: true, allowedRoles: memberRoles },
   },
   {
     path: "/account/benefits",
     name: "AccountBenefits",
-    component: () => import("../pages/account/AccountPlaceholder.vue"),
+    component: () => import("../pages/account/Benefits.vue"),
     meta: { requiresAuth: true, allowedRoles: memberRoles },
   },
   {
     path: "/account/reviews",
     name: "AccountReviews",
-    component: () => import("../pages/account/AccountPlaceholder.vue"),
+    component: () => import("../pages/account/Reviews.vue"),
     meta: { requiresAuth: true, allowedRoles: memberRoles },
   },
   {
     path: "/account/age-verification",
     name: "AccountAgeVerification",
-    component: () => import("../pages/account/AccountPlaceholder.vue"),
+    component: () => import("../pages/account/AgeVerification.vue"),
     meta: { requiresAuth: true, allowedRoles: memberRoles },
   },
   {
@@ -381,3 +394,4 @@ router.beforeEach((to, _from, next) => {
 });
 
 export default router;
+

@@ -6,6 +6,7 @@ const {
   prepareStructuredContent,
   slugify,
 } = require("../services/contentSegmenter");
+const { notifyWriterFollowersAboutEpisode } = require("../services/notifications");
 
 const router = express.Router();
 
@@ -837,6 +838,12 @@ router.post("/:bookId/episodes", verifyToken, async (req, res) => {
         access_type === "free" || Number(price || 0) <= 0 ? 1 : 0,
       ]
     );
+
+    await notifyWriterFollowersAboutEpisode({
+      bookId: Number(req.params.bookId),
+      episodeId: result.insertId,
+      episodeTitle: title,
+    });
 
     return res.json({
       message: "เพิ่มตอนสำเร็จ",

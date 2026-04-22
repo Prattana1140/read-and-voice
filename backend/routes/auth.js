@@ -20,6 +20,12 @@ function normalizePassword(password) {
   return String(password || "");
 }
 
+function createHttpError(status, message) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
 function createToken(user) {
   if (!process.env.JWT_SECRET) {
     throw new Error("JWT_SECRET_MISSING");
@@ -99,7 +105,7 @@ function createOAuthState(provider, extra = {}) {
 function verifyOAuthState(state, provider) {
   const decoded = jwt.verify(state, process.env.JWT_SECRET);
   if (decoded.provider !== provider) {
-    throw new Error("เธเนเธญเธกเธนเธฅ OAuth state เนเธกเนเธ•เธฃเธเธเธฑเธ provider");
+    throw new Error("OAuth state does not match the selected provider");
   }
   return decoded;
 }
@@ -241,7 +247,7 @@ async function linkSocialConnection(userId, provider, profile) {
   );
 
   if (claimedRows.length > 0) {
-    throw new Error("เธเธฑเธเธเธต social เธเธตเนเธ–เธนเธเน€เธเธทเนเธญเธกเธเธฑเธเธเธนเนเนเธเนเธญเธทเนเธเนเธฅเนเธง");
+    throw new Error("This social account is already linked to another user");
   }
 
   await db.query(
@@ -318,11 +324,11 @@ function redirectOAuthError(res, message) {
 
 function assertActiveUser(user) {
   if (!ALLOWED_ROLES.includes(user.role)) {
-    throw new Error("role เธเธตเนเนเธกเนเนเธ”เนเธฃเธฑเธเธญเธเธธเธเธฒเธ•เนเธซเนเนเธเนเธเธฒเธเธฃเธฐเธเธ");
+    throw createHttpError(403, "role นี้ยังไม่ได้รับอนุญาตให้ใช้งานระบบ");
   }
 
   if (user.status && user.status !== "active") {
-    throw new Error("เธเธฑเธเธเธตเธเธตเนเธ–เธนเธเธฃเธฐเธเธฑเธเธเธฒเธฃเนเธเนเธเธฒเธ");
+    throw createHttpError(403, "บัญชีนี้ถูกระงับการใช้งาน");
   }
 }
 
@@ -333,7 +339,7 @@ router.post("/register", async (req, res) => {
     const password = normalizePassword(req.body.password);
 
     if (!name || !email || !password) {
-      return res.status(400).json({ message: "เธเธฃเธญเธเธเนเธญเธกเธนเธฅเนเธซเนเธเธฃเธ" });
+      return res.status(400).json({ message: "กรอกข้อมูลให้ครบ" });
     }
 
     const [existingUsers] = await db.query(
@@ -342,7 +348,7 @@ router.post("/register", async (req, res) => {
     );
 
     if (existingUsers.length > 0) {
-      return res.status(400).json({ message: "เธญเธตเน€เธกเธฅเธเธตเนเธ–เธนเธเนเธเนเธเธฒเธเนเธฅเนเธง" });
+      return res.status(400).json({ message: "อีเมลนี้ถูกใช้งานแล้ว" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -353,10 +359,12 @@ router.post("/register", async (req, res) => {
       [name, email, hashedPassword, "user", "active"],
     );
 
-    return res.status(201).json({ message: "เธชเธกเธฑเธเธฃเธชเธกเธฒเธเธดเธเธชเธณเน€เธฃเนเธ" });
+    return res.status(201).json({ message: "สมัครสมาชิกสำเร็จ" });
   } catch (error) {
     console.error("REGISTER ERROR:", error);
-    return res.status(500).json({ message: "เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธฃเธฐเธเธ" });
+    return res.status(error.status || 500).json({
+      message: error.message || "เกิดข้อผิดพลาดในระบบ",
+    });
   }
 });
 
@@ -366,7 +374,7 @@ router.post("/login", async (req, res) => {
     const password = normalizePassword(req.body.password);
 
     if (!email || !password) {
-      return res.status(400).json({ message: "เธเธฃเธญเธเธญเธตเน€เธกเธฅเนเธฅเธฐเธฃเธซเธฑเธชเธเนเธฒเธเนเธซเนเธเธฃเธ" });
+      return res.status(400).json({ message: "กรอกอีเมลและรหัสผ่านให้ครบ" });
     }
 
     const [users] = await db.query(
@@ -378,7 +386,7 @@ router.post("/login", async (req, res) => {
     );
 
     if (users.length === 0) {
-      return res.status(401).json({ message: "เธญเธตเน€เธกเธฅเธซเธฃเธทเธญเธฃเธซเธฑเธชเธเนเธฒเธเนเธกเนเธ–เธนเธเธ•เนเธญเธ" });
+      return res.status(401).json({ message: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
     }
 
     const user = users[0];
@@ -394,19 +402,21 @@ router.post("/login", async (req, res) => {
       : password === passwordText;
 
     if (!isMatch) {
-      return res.status(401).json({ message: "เธญเธตเน€เธกเธฅเธซเธฃเธทเธญเธฃเธซเธฑเธชเธเนเธฒเธเนเธกเนเธ–เธนเธเธ•เนเธญเธ" });
+      return res.status(401).json({ message: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
     }
 
     const token = createToken(user);
 
     return res.status(200).json({
-      message: "เน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเธชเธณเน€เธฃเนเธ",
+      message: "เข้าสู่ระบบสำเร็จ",
       token,
       user: sanitizeUser(user, "password"),
     });
   } catch (error) {
     console.error("LOGIN ERROR:", error);
-    return res.status(500).json({ message: error.message || "เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธฃเธฐเธเธ" });
+    return res.status(error.status || 500).json({
+      message: error.message || "เกิดข้อผิดพลาดในระบบ",
+    });
   }
 });
 
@@ -558,11 +568,11 @@ router.get("/oauth/:provider/start", (req, res) => {
     const mode = String(req.query.mode || "login").toLowerCase();
 
     if (!SOCIAL_PROVIDERS.includes(provider)) {
-      return res.status(400).json({ message: "provider เนเธกเนเธ–เธนเธเธ•เนเธญเธ" });
+      return res.status(400).json({ message: "provider ไม่ถูกต้อง" });
     }
 
     if (!process.env.JWT_SECRET) {
-      return res.status(500).json({ message: "เธฃเธฐเธเธเธขเธฑเธเนเธกเนเนเธ”เนเธ•เธฑเนเธเธเนเธฒ JWT_SECRET" });
+      return res.status(500).json({ message: "JWT_SECRET is not configured" });
     }
 
     const config = getProviderConfig(provider);
@@ -570,7 +580,7 @@ router.get("/oauth/:provider/start", (req, res) => {
       const envPrefix = provider.toUpperCase();
       return redirectOAuthError(
         res,
-        `เธขเธฑเธเนเธกเนเนเธ”เนเธ•เธฑเนเธเธเนเธฒ ${envPrefix}_CLIENT_ID เนเธฅเธฐ ${envPrefix}_CLIENT_SECRET`,
+        `${envPrefix}_CLIENT_ID and ${envPrefix}_CLIENT_SECRET are not configured`,
       );
     }
 
@@ -579,7 +589,7 @@ router.get("/oauth/:provider/start", (req, res) => {
       const token = String(req.query.token || "");
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       if (!decoded?.id) {
-        return redirectOAuthError(res, "เธเธฃเธธเธ“เธฒเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเธเนเธญเธเน€เธเธทเนเธญเธกเธเธฑเธเธเธต social");
+        return redirectOAuthError(res, "Please sign in before connecting a social account");
       }
       extraState = { mode: "connect", userId: decoded.id };
     }
@@ -598,7 +608,7 @@ router.get("/oauth/:provider/start", (req, res) => {
     console.error("OAUTH START ERROR:", error);
     return redirectOAuthError(
       res,
-      error.message || "เน€เธฃเธดเนเธกเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเธ”เนเธงเธข social network เนเธกเนเธชเธณเน€เธฃเนเธ",
+      error.message || "Unable to start social login",
     );
   }
 });
@@ -611,7 +621,7 @@ const handleOAuthCallback = async (req, res) => {
 
   try {
     if (!SOCIAL_PROVIDERS.includes(provider)) {
-      return redirectOAuthError(res, "provider เนเธกเนเธ–เธนเธเธ•เนเธญเธ");
+      return redirectOAuthError(res, "Invalid provider");
     }
 
     if (providerError) {
@@ -619,7 +629,7 @@ const handleOAuthCallback = async (req, res) => {
     }
 
     if (!code || !state) {
-      return redirectOAuthError(res, "เธเนเธญเธกเธนเธฅ callback เนเธกเนเธ–เธนเธเธ•เนเธญเธ");
+      return redirectOAuthError(res, "Invalid callback data");
     }
 
     const decodedState = verifyOAuthState(state, provider);
@@ -644,7 +654,7 @@ const handleOAuthCallback = async (req, res) => {
     console.error("OAUTH CALLBACK ERROR:", error);
     return redirectOAuthError(
       res,
-      error.message || "เน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเธ”เนเธงเธข social network เนเธกเนเธชเธณเน€เธฃเนเธ",
+      error.message || "Unable to complete social login",
     );
   }
 };
@@ -662,7 +672,7 @@ router.post("/social-login", async (req, res) => {
     );
 
     if (!SOCIAL_PROVIDERS.includes(provider)) {
-      return res.status(400).json({ message: "provider เนเธกเนเธ–เธนเธเธ•เนเธญเธ" });
+      return res.status(400).json({ message: "Invalid provider" });
     }
 
     const profile = {
@@ -678,13 +688,15 @@ router.post("/social-login", async (req, res) => {
     const token = createToken(user);
 
     return res.status(200).json({
-      message: "เน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเธชเธณเน€เธฃเนเธ",
+      message: "เข้าสู่ระบบสำเร็จ",
       token,
       user: sanitizeUser(user, provider),
     });
   } catch (error) {
     console.error("SOCIAL LOGIN ERROR:", error);
-    return res.status(500).json({ message: error.message || "เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธฃเธฐเธเธ" });
+    return res.status(error.status || 500).json({
+      message: error.message || "เกิดข้อผิดพลาดในระบบ",
+    });
   }
 });
 
@@ -693,11 +705,11 @@ router.get("/me", async (req, res) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "เนเธกเนเนเธ”เนเธชเนเธ token" });
+      return res.status(401).json({ message: "ไม่พบ token" });
     }
 
     if (!process.env.JWT_SECRET) {
-      return res.status(500).json({ message: "เธฃเธฐเธเธเธขเธฑเธเนเธกเนเนเธ”เนเธ•เธฑเนเธเธเนเธฒ JWT_SECRET" });
+      return res.status(500).json({ message: "ระบบยังไม่ได้ตั้งค่า JWT_SECRET" });
     }
 
     const token = authHeader.split(" ")[1];
@@ -712,14 +724,14 @@ router.get("/me", async (req, res) => {
     );
 
     if (users.length === 0) {
-      return res.status(404).json({ message: "เนเธกเนเธเธเธเธนเนเนเธเนเธเธฒเธ" });
+      return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
     }
 
     return res.status(200).json({ user: users[0] });
   } catch (error) {
     console.error("GET PROFILE ERROR:", error);
-    return res.status(401).json({
-      message: "token เนเธกเนเธ–เธนเธเธ•เนเธญเธเธซเธฃเธทเธญเธซเธกเธ”เธญเธฒเธขเธธ",
+    return res.status(error.status || 401).json({
+      message: error.message || "token ไม่ถูกต้องหรือหมดอายุ",
     });
   }
 });

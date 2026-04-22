@@ -9,6 +9,7 @@ const {
   sanitizeBookText,
   splitTextToPages,
 } = require("../services/fileParser");
+const { notifyWriterFollowersAboutEpisode } = require("../services/notifications");
 const {
   verifyToken,
   optionalVerifyToken,
@@ -64,6 +65,31 @@ const upload = multer({
     return cb(null, false); // ← field อื่นๆ skip แทน error
   },
 });
+
+let episodeCommentsTableReady;
+
+async function ensureEpisodeCommentsTable() {
+  if (!episodeCommentsTableReady) {
+    episodeCommentsTableReady = db
+      .query(`
+        CREATE TABLE IF NOT EXISTS episode_comments (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          user_id INT NOT NULL,
+          episode_id INT NOT NULL,
+          comment TEXT NOT NULL,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_episode_comments_user_id (user_id),
+          INDEX idx_episode_comments_episode_id (episode_id),
+          CONSTRAINT fk_episode_comments_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          CONSTRAINT fk_episode_comments_episode FOREIGN KEY (episode_id) REFERENCES book_episodes(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `)
+      .then(() => true);
+  }
+
+  return episodeCommentsTableReady;
+}
 
 function uploadBookFiles(req, res, next) {
   upload.any()(req, res, (error) => {
@@ -266,11 +292,122 @@ async function replaceBookPages(bookId, pages = [], connection = db) {
   }
 }
 
+function toPublicBookSummary(book) {
+  return {
+    id: book.id,
+    slug: book.slug,
+    title: book.title,
+    subtitle: book.subtitle,
+    author: book.author,
+    author_name: book.author_name,
+    author_id: book.author_id,
+    description: book.description,
+    category_id: book.category_id,
+    category_name: book.category_name,
+    language_code: book.language_code,
+    cover_image: book.cover_image,
+    cover_image_url: book.cover_image_url,
+    source_type: book.source_type,
+    content_type: book.content_type,
+    access_type: book.access_type,
+    lifecycle_status: book.lifecycle_status,
+    publishing_status: book.publishing_status,
+    process_status: book.process_status,
+    total_pages: book.total_pages,
+    is_published: book.is_published,
+    created_by: book.created_by,
+    price: book.price,
+    coin_price: book.coin_price,
+    preview_mode: book.preview_mode,
+    preview_value: book.preview_value,
+    age_rating: book.age_rating,
+    approval_status: book.approval_status,
+    requested_best_seller: book.requested_best_seller,
+    requested_new_release: book.requested_new_release,
+    requested_promotion: book.requested_promotion,
+    requested_free_book: book.requested_free_book,
+    requested_hall_of_fame: book.requested_hall_of_fame,
+    requested_recommended: book.requested_recommended,
+    is_best_seller: book.is_best_seller,
+    is_new_release: book.is_new_release,
+    is_promotion: book.is_promotion,
+    is_free_book: book.is_free_book,
+    is_hall_of_fame: book.is_hall_of_fame,
+    is_recommended: book.is_recommended,
+    preview_page_limit: book.preview_page_limit,
+    preview_char_limit: book.preview_char_limit,
+    created_at: book.created_at,
+    updated_at: book.updated_at,
+    episode_count: book.episode_count,
+  };
+}
+
+function toPublicBookDetail(book, options = {}) {
+  const { tags = [], access = {} } = options;
+
+  return {
+    ...toPublicBookSummary(book),
+    total_units: book.total_units,
+    total_blocks: book.total_blocks,
+    total_sentences: book.total_sentences,
+    total_words: book.total_words,
+    total_characters: book.total_characters,
+    estimated_reading_minutes: book.estimated_reading_minutes,
+    approval_note: book.approval_note,
+    approved_by: book.approved_by,
+    approved_at: book.approved_at,
+    tags,
+    access,
+  };
+}
+
 router.get("/", async (_req, res) => {
   try {
     const [rows] = await db.query(
       `SELECT
-         b.*,
+         b.id,
+         b.slug,
+         b.title,
+         b.subtitle,
+         b.author,
+         b.author_name,
+         b.author_id,
+         b.description,
+         b.category_id,
+         b.language_code,
+         b.cover_image,
+         b.cover_image_url,
+         b.source_type,
+         b.content_type,
+         b.access_type,
+         b.lifecycle_status,
+         b.publishing_status,
+         b.process_status,
+         b.total_pages,
+         b.is_published,
+         b.created_by,
+         b.price,
+         b.coin_price,
+         b.preview_mode,
+         b.preview_value,
+         b.age_rating,
+         b.approval_status,
+         b.requested_best_seller,
+         b.requested_new_release,
+         b.requested_promotion,
+         b.requested_free_book,
+         b.requested_hall_of_fame,
+         b.requested_recommended,
+         b.is_best_seller,
+         b.is_new_release,
+         b.is_promotion,
+         b.is_free_book,
+         b.is_hall_of_fame,
+         b.is_recommended,
+         b.preview_page_limit,
+         b.preview_char_limit,
+         b.created_at,
+         b.updated_at,
          c.name AS category_name,
          (
            SELECT COUNT(*)
@@ -283,7 +420,7 @@ router.get("/", async (_req, res) => {
        ORDER BY b.created_at DESC`,
     );
 
-    return res.json(rows);
+    return res.json(rows.map(toPublicBookSummary));
   } catch (error) {
     console.error("GET /books error:", error);
     return res.status(500).json({ message: "โหลดรายการหนังสือไม่สำเร็จ" });
@@ -566,10 +703,63 @@ router.post(
   },
 );
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", optionalVerifyToken, async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT b.*, c.name AS category_name
+      `SELECT
+         b.id,
+         b.slug,
+         b.title,
+         b.subtitle,
+         b.author,
+         b.author_name,
+         b.author_id,
+         b.description,
+         b.category_id,
+         b.language_code,
+         b.cover_image,
+         b.cover_image_url,
+         b.source_type,
+         b.content_type,
+         b.access_type,
+         b.lifecycle_status,
+         b.publishing_status,
+         b.process_status,
+         b.total_pages,
+         b.is_published,
+         b.created_by,
+         b.price,
+         b.coin_price,
+         b.preview_mode,
+         b.preview_value,
+         b.total_units,
+         b.total_blocks,
+         b.total_sentences,
+         b.total_words,
+         b.total_characters,
+         b.estimated_reading_minutes,
+         b.age_rating,
+         b.approval_status,
+         b.approval_note,
+         b.approved_by,
+         b.approved_at,
+         b.requested_best_seller,
+         b.requested_new_release,
+         b.requested_promotion,
+         b.requested_free_book,
+         b.requested_hall_of_fame,
+         b.requested_recommended,
+         b.is_best_seller,
+         b.is_new_release,
+         b.is_promotion,
+         b.is_free_book,
+         b.is_hall_of_fame,
+         b.is_recommended,
+         b.preview_page_limit,
+         b.preview_char_limit,
+         b.created_at,
+         b.updated_at,
+         c.name AS category_name
        FROM books b
        LEFT JOIN categories c ON c.id = b.category_id
        WHERE b.id = ?
@@ -580,6 +770,9 @@ router.get("/:id", async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ message: "ไม่พบหนังสือ" });
     }
+
+    const book = rows[0];
+    const canReadFull = await canReadFullBook(req.user, book);
 
     let tags = [];
     try {
@@ -594,10 +787,25 @@ router.get("/:id", async (req, res) => {
       tags = tagRows.map((row) => row.name);
     } catch (_) {}
 
-    return res.json({
-      ...rows[0],
-      tags,
-    });
+    return res.json(
+      toPublicBookDetail(book, {
+        tags,
+        access: {
+          can_read_full: canReadFull,
+          requires_purchase: book.access_type === "paid" && !canReadFull,
+          requires_subscription:
+            book.access_type === "subscription" && !canReadFull,
+          preview_page_limit: normalizePositiveInt(
+            book.preview_page_limit,
+            GUEST_PREVIEW_PAGE_LIMIT,
+          ),
+          preview_char_limit: normalizePositiveInt(
+            book.preview_char_limit,
+            GUEST_PREVIEW_CHAR_LIMIT,
+          ),
+        },
+      }),
+    );
   } catch (error) {
     console.error("GET /books/:id error:", error);
     return res.status(500).json({ message: "โหลดข้อมูลหนังสือไม่สำเร็จ" });
@@ -711,6 +919,7 @@ router.get("/:id/content", optionalVerifyToken, async (req, res) => {
 
 router.get("/:id/episodes", async (req, res) => {
   try {
+    await ensureEpisodeCommentsTable();
     const [rows] = await db.query(
       `SELECT
          id,
@@ -721,6 +930,11 @@ router.get("/:id/episodes", async (req, res) => {
          is_free,
          is_published,
          COALESCE(access_type, IF(is_free = 1 OR price <= 0, 'free', 'paid')) AS access_type,
+         (
+           SELECT COUNT(*)
+           FROM episode_comments ec
+           WHERE ec.episode_id = book_episodes.id
+         ) AS comment_count,
          created_at,
          updated_at
        FROM book_episodes
@@ -803,6 +1017,12 @@ router.post(
         "UPDATE books SET content_type = 'serial', updated_at = NOW() WHERE id = ?",
         [book.id],
       );
+
+      await notifyWriterFollowersAboutEpisode({
+        bookId: book.id,
+        episodeId: result.insertId,
+        episodeTitle: title,
+      });
 
       return res.json({
         message: "เพิ่มตอนสำเร็จ",

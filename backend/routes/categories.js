@@ -8,9 +8,9 @@ const router = express.Router();
 router.get("/", async (_req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT id, name, created_at, updated_at
+      `SELECT id, name, created_at, NULL AS updated_at
        FROM categories
-       ORDER BY name ASC`
+       ORDER BY name ASC`,
     );
 
     return res.json(rows);
@@ -30,7 +30,7 @@ router.post("/", verifyToken, requireAdmin, async (req, res) => {
 
     const [exists] = await db.query(
       "SELECT id FROM categories WHERE name = ? LIMIT 1",
-      [name]
+      [name],
     );
 
     if (exists.length > 0) {
@@ -39,7 +39,7 @@ router.post("/", verifyToken, requireAdmin, async (req, res) => {
 
     const [result] = await db.query(
       "INSERT INTO categories (name) VALUES (?)",
-      [name]
+      [name],
     );
 
     return res.json({
@@ -63,7 +63,7 @@ router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
 
     const [exists] = await db.query(
       "SELECT id FROM categories WHERE id = ? LIMIT 1",
-      [id]
+      [id],
     );
 
     if (exists.length === 0) {
@@ -85,7 +85,7 @@ router.delete("/:id", verifyToken, requireAdmin, async (req, res) => {
 
     const [exists] = await db.query(
       "SELECT id FROM categories WHERE id = ? LIMIT 1",
-      [id]
+      [id],
     );
 
     if (exists.length === 0) {

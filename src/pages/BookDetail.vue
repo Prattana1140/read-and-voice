@@ -20,13 +20,15 @@
               <div class="story-tags">
                 <span>{{ book.category_name || "นิยาย" }}</span>
                 <span>{{ book.content_type === "serial" ? `${episodes.length || book.episode_count || 0} ตอน` : "แบบเล่ม" }}</span>
-                <span>{{ bookAccessLabel }}</span>
+                <span>{{ accessPresentation.label }}</span>
               </div>
 
               <h1>{{ book.title }}</h1>
               <p class="story-author">
                 {{ book.author || "ไม่ระบุผู้เขียน" }}
-                <button type="button">ติดตาม</button>
+                <button type="button" @click="toggleWriterFollow">
+                  {{ isFollowingWriter ? "ติดตามแล้ว" : "ติดตาม" }}
+                </button>
               </p>
 
               <p class="story-description">
@@ -34,42 +36,35 @@
               </p>
 
               <div class="story-stats">
-                <span>♡ {{ reviewSummary.review_count || 0 }} รีวิว</span>
-                <span>👁 {{ displayReadCount }}</span>
-                <span>☰ {{ episodes.length || book.episode_count || 1 }} ตอน</span>
-                <span>💬 {{ reviews.length }}</span>
+                <span>♡ {{ reviewSummary.review_count || reviews.length || 0 }} คนที่กดหัวใจ</span>
+                <span>👁 {{ displayReadCount }} คนอ่าน</span>
+                <span>☰ {{ episodes.length || book.episode_count || 1 }} จำนวนตอน</span>
+                <span>💬 {{ reviews.length }} ความคิดเห็น</span>
               </div>
 
               <div class="story-actions">
                 <button class="icon-action" type="button" @click="addToWishlist">♡</button>
                 <button class="outline-action" type="button" @click="addToLibrary">เพิ่มเข้าชั้น</button>
+                <button class="primary-action" type="button" @click="handleReadAction">{{ book.content_type === "serial" ? "อ่านเลย" : "ทดลองอ่าน" }}</button>
+                <button class="outline-action" type="button" @click="handleListenAction">
+                  อ่านให้ฟัง
+                </button>
                 <button
-                  v-if="book.content_type === 'serial' && firstEpisode"
+                  v-if="heroDecision === 'purchase'"
                   class="primary-action"
-                  type="button"
-                  @click="openEpisodeReader(firstEpisode)"
-                >
-                  อ่านเลย
-                </button>
-                <button v-else class="primary-action" type="button" @click="openReaderPage">
-                  อ่านเลย
-                </button>
-                <button
-                  v-if="bookAccessType === 'paid'"
-                  class="outline-action"
                   type="button"
                   :disabled="purchasingBook"
                   @click="purchaseBookNow"
                 >
-                  {{ purchasingBook ? "กำลังซื้อ..." : bookPriceLabel }}
+                  {{ purchasingBook ? "กำลังซื้อ..." : "ซื้อเพื่ออ่าน" }}
                 </button>
                 <button
-                  v-if="bookAccessType === 'subscription' && !hasActiveSubscription"
-                  class="outline-action"
+                  v-if="heroDecision === 'subscribe'"
+                  class="primary-action"
                   type="button"
                   @click="router.push('/subscription-plans')"
                 >
-                  สมัครรายเดือน
+                  สมัครเพื่ออ่าน
                 </button>
               </div>
             </div>
@@ -97,7 +92,7 @@
             <p v-if="previewNotice" class="preview-notice">{{ previewNotice }}</p>
           </section>
 
-          <section class="story-section info-grid">
+          <section v-if="book.content_type !== 'serial'" class="story-section info-grid">
             <div>
               <h2>ข้อมูลนักเขียน</h2>
               <dl>
@@ -116,7 +111,7 @@
               <dl>
                 <div>
                   <dt>ราคา/สิทธิ์อ่าน</dt>
-                  <dd>{{ bookPriceLabel }}</dd>
+                  <dd>{{ accessPresentation.priceLabel }}</dd>
                 </div>
                 <div>
                   <dt>รูปแบบ</dt>
@@ -126,29 +121,119 @@
             </div>
           </section>
 
+          <section v-else class="story-section serial-prelude-section">
+            <div class="serial-prelude-grid">
+              <div class="serial-prelude-card">
+                <h2>ข้อมูลนักเขียน</h2>
+                <dl>
+                  <div>
+                    <dt>นามปากกา</dt>
+                    <dd>
+                      <span>{{ book.author || "ไม่ระบุ" }}</span>
+                      <button type="button" class="follow-chip" @click="toggleWriterFollow">
+                        {{ isFollowingWriter ? "ติดตามแล้ว" : "ติดตาม" }}
+                      </button>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>นักเขียน</dt>
+                    <dd>
+                      <span>{{ book.author || "ไม่ระบุ" }}</span>
+                      <button type="button" class="follow-chip" @click="toggleWriterFollow">
+                        {{ isFollowingWriter ? "ติดตามแล้ว" : "ติดตาม" }}
+                      </button>
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div class="serial-prelude-card">
+                <h2>เผยแพร่</h2>
+                <dl>
+                  <div>
+                    <dt>วันที่เผยแพร่</dt>
+                    <dd>{{ formatPublishDate(book.created_at) }}</dd>
+                  </div>
+                  <div>
+                    <dt>แก้ไขล่าสุด</dt>
+                    <dd>{{ formatPublishDate(book.updated_at || book.created_at) }}</dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+
+            <div class="ebook-promo-card">
+              <div class="ebook-promo-cover">
+                <img :src="bookCover" :alt="book.title" @error="handleImgError" />
+              </div>
+
+              <div class="ebook-promo-copy">
+                <p class="ebook-promo-eyebrow">ซื้อ e-book ได้ที่นี่</p>
+                <h3>{{ book.title }}</h3>
+                <p>{{ book.description || "อ่านแบบอีบุ๊กหรือเก็บเข้าคลังเพื่อกลับมาอ่านต่อเมื่อสะดวก" }}</p>
+                <div class="ebook-promo-actions">
+                  <button
+                    v-if="heroDecision === 'purchase'"
+                    class="primary-action"
+                    type="button"
+                    :disabled="purchasingBook"
+                    @click="purchaseBookNow"
+                  >
+                    {{ purchasingBook ? "กำลังซื้อ..." : `ซื้อเลย ${book.price || 0} coin` }}
+                  </button>
+                  <button
+                    v-else-if="heroDecision === 'subscribe'"
+                    class="primary-action"
+                    type="button"
+                    @click="router.push('/subscription-plans')"
+                  >
+                    สมัครเพื่ออ่าน
+                  </button>
+                  <button v-else class="primary-action" type="button" @click="handleReadAction">{{ book.content_type === "serial" ? "อ่านเลย" : "ทดลองอ่าน" }}</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <section v-if="book.content_type === 'serial'" class="story-section episode-table-section">
             <div class="section-heading">
               <h2>ตอนทั้งหมด ({{ episodes.length }})</h2>
-              <button
-                v-if="book.access_type === 'paid'"
-                type="button"
-                :disabled="buyingBook"
-                @click="addBookToCart(book.id)"
-              >
-                {{ buyingBook ? "กำลังเพิ่ม..." : "ซื้อทุกตอน" }}
-              </button>
+              <div class="episode-table-tools">
+                <button
+                  v-if="book.access_type === 'paid'"
+                  type="button"
+                  :disabled="buyingBook"
+                  @click="addBookToCart(book.id)"
+                >
+                  {{ buyingBook ? "กำลังเพิ่ม..." : "ซื้อทุกตอน" }}
+                </button>
+                <button type="button" class="ghost-sort-btn" @click="toggleEpisodeSort">
+                  {{ episodeSortLabel }}
+                </button>
+              </div>
             </div>
 
             <div class="episode-table">
-              <article v-for="episode in episodes" :key="episode.id" class="episode-row">
+              <article v-for="episode in displayedEpisodes" :key="episode.id" class="episode-row">
                 <span class="episode-number">#{{ episode.episode_number }}</span>
-                <button type="button" class="episode-title" @click="openEpisodeReader(episode)">
-                  {{ episode.title }}
-                </button>
-                <span class="episode-meta">{{ getEpisodeAccessLabel(episode) }}</span>
-                <span class="episode-meta">{{ formatEpisodeMeta(episode) }}</span>
+                <div class="episode-title-wrap">
+                  <button type="button" class="episode-title" @click="openEpisodeReader(episode)">
+                    {{ episode.title }}
+                  </button>
+                  <span class="episode-access">{{ getEpisodeAccessLabel(episode) }}</span>
+                </div>
+                <span class="episode-meta episode-meta-stack">
+                  <strong>{{ formatEpisodeWords(episode) }}</strong>
+                  <small>{{ estimateEpisodePages(episode) }}</small>
+                </span>
+                <span class="episode-meta episode-meta-stack">
+                  <strong>{{ formatPublishDate(episode.created_at) }}</strong>
+                  <small>{{ formatPublishTime(episode.created_at) }}</small>
+                </span>
+                <span class="episode-meta episode-stat">💬 {{ formatCompactCount(episode.comment_count) }}</span>
+                <span class="episode-meta episode-stat">👁 {{ formatCompactCount(episode.read_count || episode.view_count) }}</span>
                 <button
-                  v-if="isEpisodePaid(episode)"
+                  v-if="getEpisodePrimaryAction(episode) === 'purchase'"
                   class="episode-buy"
                   type="button"
                   :disabled="purchasingEpisodeId === episode.id"
@@ -156,8 +241,16 @@
                 >
                   {{ purchasingEpisodeId === episode.id ? "กำลังซื้อ..." : "ซื้อและอ่าน" }}
                 </button>
+                <button
+                  v-else-if="getEpisodePrimaryAction(episode) === 'subscribe'"
+                  class="episode-buy"
+                  type="button"
+                  @click="router.push('/subscription-plans')"
+                >
+                  สมัครเพื่ออ่าน
+                </button>
                 <button v-else class="episode-buy" type="button" @click="openEpisodeReader(episode)">
-                  อ่าน
+                  อ่านเลย
                 </button>
               </article>
               <div v-if="!episodes.length" class="empty-content">ยังไม่มีตอนที่เผยแพร่</div>
@@ -167,19 +260,12 @@
           <section v-else class="story-section ebook-preview-section">
             <div class="section-heading">
               <h2>ตัวอย่างเนื้อหา</h2>
-              <button type="button" @click="openReaderPage">เปิดอ่านแบบเต็มจอ</button>
             </div>
             <div class="reader-box" :style="{ fontSize: fontSize + 'px', lineHeight: '1.9' }">
-              <span
-                v-for="(sentence, index) in sentences"
-                :key="index"
-                class="sentence"
-                :class="{ active: index === currentIndex }"
-                @click="selectSentence(index)"
-              >
-                {{ sentence }}
-              </span>
-              <div v-if="!sentences.length" class="empty-content">ไม่พบเนื้อหาตัวอย่าง</div>
+              <p v-for="(paragraph, index) in previewParagraphs" :key="index" class="preview-paragraph">
+                {{ paragraph }}
+              </p>
+              <div v-if="!previewParagraphs.length" class="empty-content">ไม่พบเนื้อหาตัวอย่าง</div>
             </div>
           </section>
 
@@ -526,6 +612,12 @@ import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
 import { getAuthHeaders, getUser } from "../utils/auth";
 import api from "../utils/api";
+import {
+  canOpenBookNow,
+  getBookAccessPresentation,
+  getBookHeroDecision,
+  normalizeBookAccessType,
+} from "../utils/bookAccess";
 
 // =========================
 // Type สำหรับข้อมูลหนังสือ
@@ -548,6 +640,8 @@ type Book = {
   episode_count?: number;
   view_count?: number;
   read_count?: number;
+  author_id?: number;
+  created_by?: number;
   created_at?: string;
   updated_at?: string;
 };
@@ -600,6 +694,9 @@ const episodes = ref<Episode[]>([]);
 const loading = ref(true);
 const error = ref("");
 const previewNotice = ref("");
+const followingId = ref<number | null>(null);
+const isFollowingWriter = ref(false);
+const episodeSortOrder = ref<"asc" | "desc">("asc");
 
 // state ฝั่ง reader preview
 const fontSize = ref(22);
@@ -679,6 +776,18 @@ const isEpisodePaid = (episode: Episode) => {
   return episode.access_type === "paid" || (!isEpisodeFree(episode) && episode.access_type !== "subscription");
 };
 
+const getEpisodePrimaryAction = (episode: Episode) => {
+  if (episode.access_type === "subscription" && !hasActiveSubscription.value) {
+    return "subscribe";
+  }
+
+  if (isEpisodePaid(episode)) {
+    return "purchase";
+  }
+
+  return "read";
+};
+
 const getEpisodeAccessLabel = (episode: Episode) => {
   if (episode.access_type === "subscription") {
     return "อ่านได้ด้วยแพ็กเกจรายเดือน";
@@ -691,49 +800,58 @@ const getEpisodeAccessLabel = (episode: Episode) => {
   return `ใช้ ${episode.price || 0} coin`;
 };
 
+const getWriterFollowPayload = () => {
+  if (!book.value) return null;
+
+  const targetId = Number(book.value.author_id || book.value.created_by || 0);
+  const targetName = String(book.value.author || "นักเขียน").trim();
+
+  if (!targetName) return null;
+
+  return {
+    target_type: "writer",
+    target_id: targetId > 0 ? targetId : null,
+    target_name: targetName,
+  };
+};
+
 const bookAccessType = computed(() => {
-  return book.value?.access_type || "free";
+  return normalizeBookAccessType(book.value?.access_type);
 });
 
 const hasActiveSubscription = computed(() => {
   return Boolean(subscriptionInfo.value?.isActive);
 });
 
-const bookAccessLabel = computed(() => {
-  if (bookAccessType.value === "subscription") return "อ่านด้วยรายเดือน";
-  if (bookAccessType.value === "paid") return "ใช้ coin";
-  return "อ่านฟรี";
+const accessPresentation = computed(() => {
+  return getBookAccessPresentation({
+    accessType: bookAccessType.value,
+    price: book.value?.price,
+    hasActiveSubscription: hasActiveSubscription.value,
+  });
 });
 
-const bookPriceLabel = computed(() => {
-  if (bookAccessType.value === "subscription") {
-    return hasActiveSubscription.value ? "แพ็กเกจกำลังใช้งาน" : "ต้องมีแพ็กเกจ";
-  }
+const bookAccessLabel = computed(() => accessPresentation.value.label);
+const bookPriceLabel = computed(() => accessPresentation.value.priceLabel);
+const bookAccessHint = computed(() => accessPresentation.value.hint);
 
-  if (bookAccessType.value === "paid") {
-    return `${book.value?.price || 0} coin`;
-  }
-
-  return "0 coin";
+const heroDecision = computed(() => {
+  return getBookHeroDecision({
+    accessType: bookAccessType.value,
+    hasActiveSubscription: hasActiveSubscription.value,
+  });
 });
 
-const bookAccessHint = computed(() => {
-  if (bookAccessType.value === "subscription") {
-    return hasActiveSubscription.value
-      ? "บัญชีนี้มีแพ็กเกจรายเดือน สามารถเปิดอ่านได้"
-      : "สมัครแพ็กเกจรายเดือนก่อนเพื่ออ่านเนื้อหานี้";
-  }
-
-  if (bookAccessType.value === "paid") {
-    return "เติม coin ให้พอ แล้วเพิ่มลงตะกร้าหรือซื้อเพื่อปลดล็อก";
-  }
-
-  return "เปิดอ่านและฟังเสียงได้ทันที";
+const canReadImmediately = computed(() => {
+  return canOpenBookNow({
+    accessType: bookAccessType.value,
+    hasActiveSubscription: hasActiveSubscription.value,
+  });
 });
 
 const primaryReaderLabel = computed(() => {
-  if (bookAccessType.value === "free") return "อ่านฟรีใน Reader";
-  if (bookAccessType.value === "subscription" && hasActiveSubscription.value) {
+  if (canReadImmediately.value && bookAccessType.value === "free") return "อ่านฟรีใน Reader";
+  if (canReadImmediately.value && bookAccessType.value === "subscription") {
     return "อ่านด้วยแพ็กเกจใน Reader";
   }
 
@@ -749,8 +867,34 @@ const reviewSummaryText = computed(() => {
   return `${average.toFixed(1)} / 5 จาก ${count} รีวิว`;
 });
 
-const firstEpisode = computed(() => {
-  return episodes.value[0] || null;
+const previewParagraphs = computed(() => {
+  if (!sentences.value.length) return [];
+
+  return sentences.value
+    .join(" ")
+    .replace(/<PARA>/g, "\n\n")
+    .replace(/\s+\n/g, "\n")
+    .replace(/\n\s+/g, "\n")
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+});
+
+const displayedEpisodes = computed(() => {
+  const list = [...episodes.value];
+  list.sort((left, right) => {
+    if (episodeSortOrder.value === "asc") {
+      return Number(left.episode_number || 0) - Number(right.episode_number || 0);
+    }
+
+    return Number(right.episode_number || 0) - Number(left.episode_number || 0);
+  });
+
+  return list;
+});
+
+const episodeSortLabel = computed(() => {
+  return episodeSortOrder.value === "asc" ? "เก่าไปใหม่" : "ใหม่ไปเก่า";
 });
 
 const displayReadCount = computed(() => {
@@ -776,6 +920,49 @@ const formatEpisodeMeta = (episode: Episode) => {
   if (reads) parts.push(`${reads.toLocaleString()} อ่าน`);
 
   return parts.join(" · ") || "พร้อมอ่าน";
+};
+
+const formatCompactCount = (value: number | string | undefined) => {
+  const count = Number(value || 0);
+  if (!count) return "0";
+  if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+  if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
+  return count.toLocaleString();
+};
+
+const formatEpisodeWords = (episode: Episode) => {
+  const words = Number(episode.word_count || 0);
+  if (!words) return "พร้อมอ่าน";
+  return `${words.toLocaleString()} คำ`;
+};
+
+const estimateEpisodePages = (episode: Episode) => {
+  const words = Number(episode.word_count || 0);
+  if (!words) return "ไม่ระบุหน้า";
+  const pages = Math.max(1, Math.round(words / 230));
+  return `ประมาณ ${pages} หน้า`;
+};
+
+const formatPublishDate = (value?: string) => {
+  if (!value) return "ไม่ระบุ";
+  return new Intl.DateTimeFormat("th-TH", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
+};
+
+const formatPublishTime = (value?: string) => {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat("th-TH", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(value));
+};
+
+const toggleEpisodeSort = () => {
+  episodeSortOrder.value = episodeSortOrder.value === "asc" ? "desc" : "asc";
 };
 
 const canDeleteReview = (review: BookReview) => {
@@ -1010,6 +1197,34 @@ const loadSubscriptionStatus = async () => {
   }
 };
 
+const loadWriterFollowStatus = async () => {
+  try {
+    const user = getUser();
+    const followPayload = getWriterFollowPayload();
+
+    followingId.value = null;
+    isFollowingWriter.value = false;
+
+    if (!user || !followPayload) return;
+
+    const { data } = await api.get("/account/following");
+    const items = Array.isArray(data?.items) ? data.items : [];
+    const matched = items.find((item: any) => {
+      if (String(item?.target_type) !== "writer") return false;
+      if (followPayload.target_id && Number(item?.target_id) === Number(followPayload.target_id)) return true;
+      return String(item?.target_name || "").trim() === followPayload.target_name;
+    });
+
+    if (matched) {
+      followingId.value = Number(matched.id);
+      isFollowingWriter.value = true;
+    }
+  } catch {
+    followingId.value = null;
+    isFollowingWriter.value = false;
+  }
+};
+
 const fetchReviews = async () => {
   if (!book.value?.id) return;
 
@@ -1241,6 +1456,19 @@ const openReaderPage = () => {
   });
 };
 
+const openListenPage = (episode?: Episode | null) => {
+  if (!book.value) return;
+  stopSpeech();
+
+  const query = episode ? { episode: String(episode.id) } : undefined;
+
+  router.push({
+    name: "ReaderListenPage",
+    params: { id: book.value.id },
+    query,
+  });
+};
+
 const openEpisodeReader = (episode: Episode) => {
   if (!book.value) return;
   stopSpeech();
@@ -1250,6 +1478,57 @@ const openEpisodeReader = (episode: Episode) => {
     params: { id: book.value.id },
     query: { episode: String(episode.id) },
   });
+};
+
+const getPrimaryEpisode = () => {
+  return book.value?.content_type === "serial" ? firstEpisode.value : null;
+};
+
+const openPrimaryReaderDestination = () => {
+  const episode = getPrimaryEpisode();
+  if (episode) {
+    openEpisodeReader(episode);
+    return;
+  }
+
+  openReaderPage();
+};
+
+const openPrimaryListenDestination = () => {
+  const episode = getPrimaryEpisode();
+  openListenPage(episode);
+};
+
+const handleReadAction = () => {
+  if (!book.value) return;
+
+  if (canReadImmediately.value) {
+    openPrimaryReaderDestination();
+    return;
+  }
+
+  if (heroDecision.value === "subscribe") {
+    router.push("/subscription-plans");
+    return;
+  }
+
+  purchaseBookNow("read");
+};
+
+const handleListenAction = () => {
+  if (!book.value) return;
+
+  if (canReadImmediately.value) {
+    openPrimaryListenDestination();
+    return;
+  }
+
+  if (heroDecision.value === "subscribe") {
+    router.push("/subscription-plans");
+    return;
+  }
+
+  purchaseBookNow("listen");
 };
 
 const goToWishlist = () => {
@@ -1305,6 +1584,39 @@ const addToWishlist = () => {
     .catch((error) => {
       alert(error?.response?.data?.message || "เพิ่มรายการที่อยากได้ไม่สำเร็จ");
     });
+};
+
+const toggleWriterFollow = async () => {
+  const user = getUser();
+  const followPayload = getWriterFollowPayload();
+
+  if (!user) {
+    alert("กรุณาเข้าสู่ระบบก่อน");
+    router.push({ name: "Login" });
+    return;
+  }
+
+  if (!followPayload) {
+    alert("ยังไม่พบข้อมูลนักเขียนสำหรับติดตาม");
+    return;
+  }
+
+  try {
+    if (isFollowingWriter.value && followingId.value) {
+      await api.delete(`/account/following/${followingId.value}`);
+      followingId.value = null;
+      isFollowingWriter.value = false;
+      alert("ยกเลิกติดตามนักเขียนแล้ว");
+      return;
+    }
+
+    const { data } = await api.post("/account/following", followPayload);
+    followingId.value = Number(data?.id || 0) || null;
+    isFollowingWriter.value = true;
+    alert("ติดตามนักเขียนแล้ว");
+  } catch (error: any) {
+    alert(error?.response?.data?.message || "อัปเดตการติดตามไม่สำเร็จ");
+  }
 };
 
 const addWholeBookToCart = async () => {
@@ -1393,7 +1705,7 @@ const handlePurchaseError = (error: any) => {
   alert(error?.response?.data?.message || "ซื้อไม่สำเร็จ");
 };
 
-const purchaseBookNow = async () => {
+const purchaseBookNow = async (target: "read" | "listen" = "read") => {
   if (!book.value || purchasingBook.value) return;
   if (!ensureLoggedInForPurchase()) return;
 
@@ -1405,8 +1717,14 @@ const purchaseBookNow = async () => {
       payment_method: "coin",
     });
 
+    if (target === "listen") {
+      alert("ซื้อสำเร็จ กำลังเปิดโหมดอ่านให้ฟัง");
+      openPrimaryListenDestination();
+      return;
+    }
+
     alert("ซื้อสำเร็จ กำลังเปิด Reader");
-    openReaderPage();
+    openPrimaryReaderDestination();
   } catch (error: any) {
     handlePurchaseError(error);
   } finally {
@@ -1449,6 +1767,7 @@ onMounted(async () => {
   loadPreviewSettings();
   await fetchBook();
   await loadSubscriptionStatus();
+  await loadWriterFollowStatus();
   loadVoices();
   window.speechSynthesis.onvoiceschanged = loadVoices;
   scrollToCurrent();
@@ -2464,6 +2783,109 @@ input[type="range"] {
   gap: 36px;
 }
 
+.serial-prelude-section {
+  display: grid;
+  gap: 28px;
+}
+
+.serial-prelude-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 36px;
+}
+
+.serial-prelude-card h2 {
+  margin-bottom: 18px;
+}
+
+.serial-prelude-card dl {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+}
+
+.serial-prelude-card dl div {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+}
+
+.serial-prelude-card dt {
+  color: #5c686c;
+  font-weight: 900;
+}
+
+.serial-prelude-card dd {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  color: #202324;
+  font-weight: 800;
+}
+
+.follow-chip {
+  min-height: 38px;
+  border: 1px solid #c8d1d2;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #202324;
+  cursor: pointer;
+  font-weight: 900;
+  padding: 0 16px;
+}
+
+.ebook-promo-card {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr);
+  gap: 22px;
+  align-items: center;
+  border-top: 1px solid #eef2f2;
+  padding-top: 8px;
+}
+
+.ebook-promo-cover {
+  width: 128px;
+  height: 182px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #edf1f1;
+}
+
+.ebook-promo-cover img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.ebook-promo-eyebrow {
+  margin: 0 0 8px;
+  color: #202324;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.ebook-promo-copy h3 {
+  margin: 0;
+  color: #202324;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.ebook-promo-copy p:last-of-type {
+  margin: 10px 0 0;
+  color: #4a5458;
+  line-height: 1.8;
+}
+
+.ebook-promo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
 .info-grid dl {
   display: grid;
   gap: 14px;
@@ -2499,10 +2921,26 @@ input[type="range"] {
   margin: 0;
 }
 
+.episode-table-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
 .section-heading button,
 .episode-buy {
   background: #55c6bd;
   color: #ffffff;
+}
+
+.ghost-sort-btn {
+  border: 0;
+  background: transparent !important;
+  color: #118478 !important;
+  font-weight: 900;
+  min-height: auto;
+  padding: 0 !important;
 }
 
 .episode-table {
@@ -2511,10 +2949,10 @@ input[type="range"] {
 
 .episode-row {
   display: grid;
-  grid-template-columns: 56px minmax(180px, 1fr) 130px minmax(150px, 210px) 120px;
+  grid-template-columns: 64px minmax(240px, 1.8fr) minmax(120px, 140px) minmax(130px, 150px) 88px 96px 120px;
   gap: 12px;
   align-items: center;
-  min-height: 54px;
+  min-height: 72px;
   border-bottom: 1px solid #e6ecec;
 }
 
@@ -2523,6 +2961,17 @@ input[type="range"] {
   color: #667477;
   font-size: 13px;
   font-weight: 800;
+}
+
+.episode-number {
+  color: #18a699;
+  font-size: 24px;
+}
+
+.episode-title-wrap {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
 }
 
 .episode-title {
@@ -2540,6 +2989,30 @@ input[type="range"] {
   color: #118478;
 }
 
+.episode-access {
+  color: #647174;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.episode-meta-stack {
+  display: grid;
+  gap: 2px;
+}
+
+.episode-meta-stack strong,
+.episode-stat {
+  color: #505b5f;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.episode-meta-stack small {
+  color: #7a878b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .episode-buy {
   justify-self: end;
   min-height: 32px;
@@ -2547,9 +3020,21 @@ input[type="range"] {
 }
 
 .ebook-preview-section .reader-box {
-  max-height: 360px;
-  overflow: hidden;
+  min-height: auto;
+  max-height: none;
+  overflow: visible;
   background: #fbfbfb;
+}
+
+.preview-paragraph {
+  margin: 0 0 1.15em;
+  color: #374151;
+  font-size: 15px;
+  line-height: 1.95;
+}
+
+.preview-paragraph:last-child {
+  margin-bottom: 0;
 }
 
 .sticker-row {
@@ -2599,8 +3084,13 @@ input[type="range"] {
   }
 
   .info-grid,
+  .serial-prelude-grid,
   .episode-row {
     grid-template-columns: 1fr;
+  }
+
+  .ebook-promo-card {
+    grid-template-columns: 96px 1fr;
   }
 
   .episode-row {
@@ -2632,9 +3122,22 @@ input[type="range"] {
     grid-template-columns: 44px 1fr 1fr;
   }
 
+  .serial-prelude-card dd,
+  .ebook-promo-card {
+    align-items: start;
+  }
+
   .outline-action,
   .primary-action {
     padding: 0 12px;
   }
 }
 </style>
+
+
+
+
+
+
+
+
