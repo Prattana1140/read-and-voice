@@ -13,7 +13,8 @@ const PUBLIC_BOOK_FIELDS = `SELECT
          ) AS episode_count
        FROM books b
        LEFT JOIN categories c ON c.id = b.category_id
-       WHERE b.is_published = 1`;
+       WHERE b.is_published = 1
+         AND COALESCE(b.approval_status, 'approved') = 'approved'`;
 
 async function listBooks(orderBy, extraWhere = "", params = [], limit = 60) {
   const [rows] = await db.query(
@@ -51,37 +52,52 @@ router.get("/serials", (_req, res) => {
 
 router.get("/best-sellers", (_req, res) => {
   return sendShelf(res, "best-sellers", () =>
-    listBooks("ORDER BY b.id DESC")
+    listBooks("ORDER BY b.is_best_seller DESC, b.id DESC", "AND COALESCE(b.is_best_seller, 0) = 1")
   );
 });
 
 router.get("/new-releases", (_req, res) => {
   return sendShelf(res, "new-releases", () =>
-    listBooks("ORDER BY b.created_at DESC, b.id DESC")
+    listBooks(
+      "ORDER BY b.is_new_release DESC, b.created_at DESC, b.id DESC",
+      "AND COALESCE(b.is_new_release, 0) = 1",
+    )
   );
 });
 
 router.get("/promotions", (_req, res) => {
   return sendShelf(res, "promotions", () =>
-    listBooks("ORDER BY b.price ASC, b.created_at DESC, b.id DESC", "AND COALESCE(b.price, 0) > 0")
+    listBooks(
+      "ORDER BY b.is_promotion DESC, b.price ASC, b.created_at DESC, b.id DESC",
+      "AND COALESCE(b.is_promotion, 0) = 1",
+    )
   );
 });
 
 router.get("/free-books", (_req, res) => {
   return sendShelf(res, "free-books", () =>
-    listBooks("ORDER BY b.created_at DESC, b.id DESC", "AND COALESCE(b.price, 0) <= 0")
+    listBooks(
+      "ORDER BY b.is_free_book DESC, b.created_at DESC, b.id DESC",
+      "AND COALESCE(b.is_free_book, 0) = 1",
+    )
   );
 });
 
 router.get("/hall-of-fame", (_req, res) => {
   return sendShelf(res, "hall-of-fame", () =>
-    listBooks("ORDER BY COALESCE(b.total_pages, 0) DESC, b.id DESC")
+    listBooks(
+      "ORDER BY b.is_hall_of_fame DESC, COALESCE(b.total_pages, 0) DESC, b.id DESC",
+      "AND COALESCE(b.is_hall_of_fame, 0) = 1",
+    )
   );
 });
 
 router.get("/recommended", (_req, res) => {
   return sendShelf(res, "recommended", () =>
-    listBooks("ORDER BY b.updated_at DESC, b.created_at DESC, b.id DESC")
+    listBooks(
+      "ORDER BY b.is_recommended DESC, b.updated_at DESC, b.created_at DESC, b.id DESC",
+      "AND COALESCE(b.is_recommended, 0) = 1",
+    )
   );
 });
 

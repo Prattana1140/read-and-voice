@@ -281,6 +281,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, allowedRoles: adminRoles },
   },
   {
+    path: "/admin/approvals",
+    name: "AdminApprovals",
+    component: () => import("../pages/admin/Approvals.vue"),
+    meta: { requiresAuth: true, allowedRoles: adminRoles },
+  },
+  {
     path: "/admin/page-content",
     name: "AdminPageContent",
     component: () => import("../pages/admin/PageContentManager.vue"),

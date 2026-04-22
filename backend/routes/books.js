@@ -4,7 +4,11 @@ const path = require("path");
 const fs = require("fs");
 
 const db = require("../config/db");
-const { parseBookFile, sanitizeBookText } = require("../services/fileParser");
+const {
+  parseBookFile,
+  sanitizeBookText,
+  splitTextToPages,
+} = require("../services/fileParser");
 const {
   verifyToken,
   optionalVerifyToken,
@@ -102,6 +106,79 @@ function normalizePositiveInt(value, fallback) {
   return Number.isInteger(numberValue) && numberValue > 0
     ? numberValue
     : fallback;
+}
+
+function normalizeFlag(value) {
+  if (typeof value === "string") {
+    return ["1", "true", "yes", "on"].includes(value.toLowerCase()) ? 1 : 0;
+  }
+
+  return Number(Boolean(value));
+}
+
+function getPlacementRequestValues(source = {}) {
+  return {
+    requested_best_seller: normalizeFlag(source.requested_best_seller),
+    requested_new_release: normalizeFlag(source.requested_new_release),
+    requested_promotion: normalizeFlag(source.requested_promotion),
+    requested_free_book: normalizeFlag(source.requested_free_book),
+    requested_hall_of_fame: normalizeFlag(source.requested_hall_of_fame),
+    requested_recommended: normalizeFlag(source.requested_recommended),
+  };
+}
+
+function parseMaybeJson(value, fallback) {
+  if (value === undefined || value === null || value === "") return fallback;
+  if (typeof value !== "string") return value;
+
+  try {
+    return JSON.parse(value);
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function normalizeManualChapters(chapters) {
+  const source = Array.isArray(chapters) ? chapters : [];
+
+  return source
+    .map((chapter, index) => {
+      const title = sanitizeBookText(
+        chapter?.title || chapter?.chapter || `บทที่ ${index + 1}`,
+      );
+      const content = sanitizeBookText(
+        chapter?.content || chapter?.text || chapter?.body || "",
+      );
+
+      return {
+        title: title || `บทที่ ${index + 1}`,
+        content,
+      };
+    })
+    .filter((chapter) => chapter.title || chapter.content);
+}
+
+function buildManualBookContent({ chapters, content }) {
+  const normalizedChapters = normalizeManualChapters(chapters);
+
+  if (normalizedChapters.length > 0) {
+    const fullText = sanitizeBookText(
+      normalizedChapters
+        .map((chapter) => [chapter.title, chapter.content].filter(Boolean).join("\n\n"))
+        .join("\n\n"),
+    );
+
+    return {
+      fullText,
+      pages: splitTextToPages(fullText),
+    };
+  }
+
+  const fullText = sanitizeBookText(content || "");
+  return {
+    fullText,
+    pages: splitTextToPages(fullText),
+  };
 }
 
 function canManageBook(user, book) {
@@ -258,6 +335,8 @@ router.post(
         : [];
       const fullText = sanitizeBookText(parsed.fullText || pages.join("\n\n"));
       const finalCoverImage = getCoverImagePath(coverFile, cover_image);
+      const requestedPlacements = getPlacementRequestValues(req.body);
+      const autoApprove = ["admin", "superadmin"].includes(req.user.role);
 
       await connection.beginTransaction();
 
@@ -265,8 +344,10 @@ router.post(
         `INSERT INTO books
          (title, author, description, category_id, cover_image, source_type, content_type,
           access_type, process_status, full_text, total_pages, is_published, created_by, price,
-          preview_page_limit, preview_char_limit, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?, 1, ?, ?, ?, ?, NOW(), NOW())`,
+          preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
+          requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
+          requested_hall_of_fame, requested_recommended, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
           title,
           author,
@@ -280,10 +361,20 @@ router.post(
           normalizeAccessType(access_type, price),
           fullText,
           pages.length,
+          autoApprove ? 1 : 0,
           req.user.id,
           Number(price || 0),
           normalizePositiveInt(preview_page_limit, GUEST_PREVIEW_PAGE_LIMIT),
           normalizePositiveInt(preview_char_limit, GUEST_PREVIEW_CHAR_LIMIT),
+          autoApprove ? "approved" : "pending",
+          autoApprove ? req.user.id : null,
+          autoApprove ? new Date() : null,
+          requestedPlacements.requested_best_seller,
+          requestedPlacements.requested_new_release,
+          requestedPlacements.requested_promotion,
+          requestedPlacements.requested_free_book,
+          requestedPlacements.requested_hall_of_fame,
+          requestedPlacements.requested_recommended,
         ],
       );
 
@@ -317,8 +408,10 @@ router.post(
   "/serial",
   verifyToken,
   allowRoles("writer", "admin", "superadmin"),
+  uploadBookFiles,
   async (req, res) => {
     try {
+      const coverFile = getUploadedFile(req, [...coverFileFields]);
       const {
         title,
         author,
@@ -330,6 +423,8 @@ router.post(
         preview_page_limit,
         preview_char_limit,
       } = req.body;
+      const requestedPlacements = getPlacementRequestValues(req.body);
+      const autoApprove = ["admin", "superadmin"].includes(req.user.role);
 
       if (!title || !author) {
         return res.status(400).json({
@@ -341,19 +436,31 @@ router.post(
         `INSERT INTO books
          (title, author, description, category_id, cover_image, source_type, content_type,
           access_type, process_status, full_text, total_pages, is_published, created_by, price,
-          preview_page_limit, preview_char_limit, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'manual', 'serial', ?, 'completed', '', 0, 1, ?, ?, ?, ?, NOW(), NOW())`,
+          preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
+          requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
+          requested_hall_of_fame, requested_recommended, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'manual', 'serial', ?, 'completed', '', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
           title,
           author,
           description,
           category_id || null,
-          cover_image,
+          getCoverImagePath(coverFile, cover_image),
           normalizeAccessType(access_type, price),
+          autoApprove ? 1 : 0,
           req.user.id,
           Number(price || 0),
           normalizePositiveInt(preview_page_limit, GUEST_PREVIEW_PAGE_LIMIT),
           normalizePositiveInt(preview_char_limit, GUEST_PREVIEW_CHAR_LIMIT),
+          autoApprove ? "approved" : "pending",
+          autoApprove ? req.user.id : null,
+          autoApprove ? new Date() : null,
+          requestedPlacements.requested_best_seller,
+          requestedPlacements.requested_new_release,
+          requestedPlacements.requested_promotion,
+          requestedPlacements.requested_free_book,
+          requestedPlacements.requested_hall_of_fame,
+          requestedPlacements.requested_recommended,
         ],
       );
 
@@ -364,6 +471,97 @@ router.post(
     } catch (error) {
       console.error("POST /books/serial error:", error);
       return res.status(500).json({ message: "Unable to create serial book" });
+    }
+  },
+);
+
+router.post(
+  "/manual",
+  verifyToken,
+  allowRoles("writer", "admin", "superadmin"),
+  uploadBookFiles,
+  async (req, res) => {
+    try {
+      const coverFile = getUploadedFile(req, [...coverFileFields]);
+      const {
+        title,
+        author,
+        description = "",
+        category_id = null,
+        cover_image = "",
+        price = 0,
+        access_type,
+        preview_page_limit,
+        preview_char_limit,
+        chapters,
+        content = "",
+      } = req.body;
+
+      if (!title || !author) {
+        return res.status(400).json({
+          message: "กรอกชื่อหนังสือและผู้เขียนให้ครบ",
+        });
+      }
+
+      const { fullText, pages } = buildManualBookContent({
+        chapters: parseMaybeJson(chapters, []),
+        content,
+      });
+      const requestedPlacements = getPlacementRequestValues(req.body);
+      const autoApprove = ["admin", "superadmin"].includes(req.user.role);
+
+      if (!fullText) {
+        return res.status(400).json({
+          message: "กรอกเนื้อหาหนังสืออย่างน้อย 1 บทหรือ 1 ย่อหน้า",
+        });
+      }
+
+      const [result] = await db.query(
+        `INSERT INTO books
+         (title, author, description, category_id, cover_image, source_type, content_type,
+          access_type, process_status, full_text, total_pages, is_published, created_by, price,
+          preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
+          requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
+          requested_hall_of_fame, requested_recommended, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'manual', 'ebook', ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        [
+          title,
+          author,
+          description,
+          category_id || null,
+          getCoverImagePath(coverFile, cover_image),
+          normalizeAccessType(access_type, price),
+          fullText,
+          pages.length,
+          autoApprove ? 1 : 0,
+          req.user.id,
+          Number(price || 0),
+          normalizePositiveInt(preview_page_limit, GUEST_PREVIEW_PAGE_LIMIT),
+          normalizePositiveInt(preview_char_limit, GUEST_PREVIEW_CHAR_LIMIT),
+          autoApprove ? "approved" : "pending",
+          autoApprove ? req.user.id : null,
+          autoApprove ? new Date() : null,
+          requestedPlacements.requested_best_seller,
+          requestedPlacements.requested_new_release,
+          requestedPlacements.requested_promotion,
+          requestedPlacements.requested_free_book,
+          requestedPlacements.requested_hall_of_fame,
+          requestedPlacements.requested_recommended,
+        ],
+      );
+
+      await replaceBookPages(result.insertId, pages);
+
+      return res.json({
+        message: "สร้างหนังสือแบบกรอกเนื้อหาสำเร็จ",
+        book_id: result.insertId,
+        total_pages: pages.length,
+      });
+    } catch (error) {
+      console.error("POST /books/manual error:", error);
+      return res.status(500).json({
+        message: "สร้างหนังสือแบบกรอกเนื้อหาไม่สำเร็จ",
+      });
     }
   },
 );
@@ -383,10 +581,61 @@ router.get("/:id", async (req, res) => {
       return res.status(404).json({ message: "ไม่พบหนังสือ" });
     }
 
-    return res.json(rows[0]);
+    let tags = [];
+    try {
+      const [tagRows] = await db.query(
+        `SELECT bt.name
+         FROM book_tag_maps btm
+         JOIN book_tags bt ON bt.id = btm.tag_id
+         WHERE btm.book_id = ?
+         ORDER BY bt.name ASC`,
+        [req.params.id],
+      );
+      tags = tagRows.map((row) => row.name);
+    } catch (_) {}
+
+    return res.json({
+      ...rows[0],
+      tags,
+    });
   } catch (error) {
     console.error("GET /books/:id error:", error);
     return res.status(500).json({ message: "โหลดข้อมูลหนังสือไม่สำเร็จ" });
+  }
+});
+
+router.get("/:id/toc", optionalVerifyToken, async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT
+         bu.id,
+         bu.unit_type,
+         bu.unit_number,
+         bu.title,
+         bu.is_preview,
+         bu.access_type
+       FROM book_units bu
+       WHERE bu.book_id = ?
+         AND bu.lifecycle_status IN ('draft', 'published')
+       ORDER BY bu.unit_number ASC, bu.id ASC`,
+      [req.params.id],
+    );
+
+    return res.json(
+      rows.map((row) => ({
+        id: row.id,
+        unit_type: row.unit_type,
+        unit_number: row.unit_number,
+        title: row.title,
+        is_preview: Number(row.is_preview) === 1,
+        is_locked:
+          !["free", "inherit"].includes(row.access_type) &&
+          Number(row.is_preview) !== 1,
+      })),
+    );
+  } catch (error) {
+    console.error("GET /books/:id/toc error:", error);
+    return res.status(500).json({ message: "โหลดสารบัญไม่สำเร็จ" });
   }
 });
 
@@ -591,27 +840,43 @@ router.put("/:id", verifyToken, async (req, res) => {
       access_type,
       content_type,
       is_published,
+      requested_best_seller,
+      requested_new_release,
+      requested_promotion,
+      requested_free_book,
+      requested_hall_of_fame,
+      requested_recommended,
     } = req.body;
 
     await db.query(
       `UPDATE books
        SET title = ?,
            author = ?,
+           author_name = ?,
            description = ?,
            category_id = ?,
            cover_image = ?,
+           cover_image_url = ?,
            price = ?,
            access_type = ?,
            content_type = ?,
            is_published = ?,
+           requested_best_seller = COALESCE(?, requested_best_seller),
+           requested_new_release = COALESCE(?, requested_new_release),
+           requested_promotion = COALESCE(?, requested_promotion),
+           requested_free_book = COALESCE(?, requested_free_book),
+           requested_hall_of_fame = COALESCE(?, requested_hall_of_fame),
+           requested_recommended = COALESCE(?, requested_recommended),
            updated_at = NOW()
        WHERE id = ?`,
       [
         title || book.title,
         author || book.author,
+        author || book.author_name || book.author,
         description ?? book.description,
         category_id || null,
         cover_image ?? book.cover_image,
+        cover_image ?? book.cover_image_url ?? book.cover_image,
         Number(price ?? book.price ?? 0),
         normalizeAccessType(
           access_type || book.access_type,
@@ -621,6 +886,12 @@ router.put("/:id", verifyToken, async (req, res) => {
         typeof is_published === "number"
           ? is_published
           : Number(book.is_published ?? 1),
+        requested_best_seller === undefined ? null : normalizeFlag(requested_best_seller),
+        requested_new_release === undefined ? null : normalizeFlag(requested_new_release),
+        requested_promotion === undefined ? null : normalizeFlag(requested_promotion),
+        requested_free_book === undefined ? null : normalizeFlag(requested_free_book),
+        requested_hall_of_fame === undefined ? null : normalizeFlag(requested_hall_of_fame),
+        requested_recommended === undefined ? null : normalizeFlag(requested_recommended),
         book.id,
       ],
     );

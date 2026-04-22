@@ -1,13 +1,73 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { computed, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import api from "../utils/api";
 
+const route = useRoute();
 const router = useRouter();
-const email = ref("");
-const submitted = ref(false);
 
-function submitRequest() {
-  submitted.value = true;
+const email = ref("");
+const password = ref("");
+const confirmPassword = ref("");
+const loading = ref(false);
+const errorMessage = ref("");
+const successMessage = ref("");
+const previewResetUrl = ref("");
+
+const resetToken = computed(() => String(route.query.token || "").trim());
+const isResetMode = computed(() => resetToken.value.length > 0);
+
+async function submitRequest() {
+  loading.value = true;
+  errorMessage.value = "";
+  successMessage.value = "";
+  previewResetUrl.value = "";
+
+  try {
+    const { data } = await api.post("/auth/forgot-password", {
+      email: email.value,
+    });
+
+    successMessage.value =
+      data?.message ||
+      "Reset request created successfully.";
+    previewResetUrl.value = String(data?.reset_url || "");
+  } catch (error: any) {
+    errorMessage.value =
+      error?.response?.data?.message || "Could not create reset request.";
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function submitReset() {
+  if (password.value !== confirmPassword.value) {
+    errorMessage.value = "Passwords do not match.";
+    return;
+  }
+
+  loading.value = true;
+  errorMessage.value = "";
+  successMessage.value = "";
+
+  try {
+    const { data } = await api.post("/auth/reset-password", {
+      token: resetToken.value,
+      password: password.value,
+    });
+
+    successMessage.value =
+      data?.message || "Password reset completed successfully.";
+
+    window.setTimeout(() => {
+      router.push("/login");
+    }, 1200);
+  } catch (error: any) {
+    errorMessage.value =
+      error?.response?.data?.message || "Could not reset password.";
+  } finally {
+    loading.value = false;
+  }
 }
 </script>
 
@@ -15,14 +75,18 @@ function submitRequest() {
   <main class="forgot-page">
     <section class="forgot-card">
       <p class="eyebrow">Account Recovery</p>
-      <h1>ลืมรหัสผ่าน</h1>
+      <h1>{{ isResetMode ? "Choose a new password" : "Forgot password" }}</h1>
       <p class="intro">
-        กรอกอีเมลของบัญชี Read and Voice ระบบจะแสดงขั้นตอนติดต่อผู้ดูแลเพื่อรีเซ็ตรหัสผ่านอย่างปลอดภัย
+        {{
+          isResetMode
+            ? "Set a new password for your account. After saving, you will be redirected to the login page."
+            : "Enter your account email to create a password reset request. In this build, the reset link is shown as a preview."
+        }}
       </p>
 
-      <form v-if="!submitted" class="forgot-form" @submit.prevent="submitRequest">
+      <form v-if="!isResetMode" class="forgot-form" @submit.prevent="submitRequest">
         <label>
-          <span>อีเมล</span>
+          <span>Email</span>
           <input
             v-model="email"
             type="email"
@@ -32,24 +96,72 @@ function submitRequest() {
           />
         </label>
 
-        <button type="submit">ขอรีเซ็ตรหัสผ่าน</button>
+        <button type="submit" :disabled="loading">
+          {{ loading ? "Creating request..." : "Create reset request" }}
+        </button>
       </form>
 
-      <div v-else class="result-box">
-        <strong>รับคำขอแล้ว</strong>
-        <span>
-          เพื่อความปลอดภัย ตอนนี้ระบบยังไม่ส่งอีเมลอัตโนมัติ กรุณาติดต่อผู้ดูแลพร้อมอีเมล
-          <b>{{ email }}</b>
-          เพื่อยืนยันตัวตนและรีเซ็ตรหัสผ่าน
-        </span>
+      <form v-else class="forgot-form" @submit.prevent="submitReset">
+        <label>
+          <span>New password</span>
+          <input
+            v-model="password"
+            type="password"
+            autocomplete="new-password"
+            minlength="6"
+            placeholder="At least 6 characters"
+            required
+          />
+        </label>
+
+        <label>
+          <span>Confirm password</span>
+          <input
+            v-model="confirmPassword"
+            type="password"
+            autocomplete="new-password"
+            minlength="6"
+            placeholder="Repeat your new password"
+            required
+          />
+        </label>
+
+        <button type="submit" :disabled="loading">
+          {{ loading ? "Saving..." : "Reset password" }}
+        </button>
+      </form>
+
+      <div v-if="errorMessage" class="state-box error">{{ errorMessage }}</div>
+      <div v-if="successMessage" class="state-box success">
+        <strong>{{ successMessage }}</strong>
+        <a
+          v-if="previewResetUrl"
+          class="preview-link"
+          :href="previewResetUrl"
+        >
+          Open preview reset link
+        </a>
       </div>
 
       <div class="actions">
         <button type="button" class="ghost" @click="router.push('/login')">
-          กลับไปเข้าสู่ระบบ
+          Back to login
         </button>
-        <button type="button" class="ghost" @click="router.push('/register')">
-          สมัครสมาชิกใหม่
+        <button
+          v-if="isResetMode"
+          type="button"
+          class="ghost"
+          @click="router.push('/forgot-password')"
+        >
+          Create another reset link
+        </button>
+        <button
+          v-else
+          type="button"
+          class="ghost"
+          @click="router.push('/register')"
+        >
+          Register
         </button>
       </div>
     </section>
@@ -97,8 +209,7 @@ h1 {
 }
 
 .forgot-form,
-label,
-.result-box {
+label {
   display: grid;
   gap: 10px;
 }
@@ -128,13 +239,35 @@ button {
   padding: 0 16px;
 }
 
-.result-box {
-  border: 1px solid #bbf7d0;
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.state-box {
+  display: grid;
+  gap: 8px;
   border-radius: 14px;
+  line-height: 1.7;
+  margin-top: 16px;
+  padding: 16px;
+}
+
+.state-box.success {
+  border: 1px solid #bbf7d0;
   background: #f0fdf4;
   color: #166534;
-  line-height: 1.7;
-  padding: 16px;
+}
+
+.state-box.error {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.preview-link {
+  color: inherit;
+  font-weight: 800;
 }
 
 .actions {

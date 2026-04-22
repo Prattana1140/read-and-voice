@@ -1,18 +1,53 @@
 <script setup lang="ts">
-import { API_BASE_URL } from "../../utils/api";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import axios from "axios";
+import { api, API_BASE_URL } from "../../utils/api";
 import { getAuthHeaders } from "../../utils/auth";
 
-type UploadMode = "ebook" | "serial";
+type UploadMode = "ebook" | "serial" | "studio";
+type AccessType = "free" | "paid" | "subscription";
+type StudioUnitType = "chapter" | "episode";
 
-const mode = ref<UploadMode>("ebook");
+type StudioUnit = {
+  id: number;
+  unit_number: number;
+  unit_type: StudioUnitType;
+  title: string;
+  sentence_count?: number;
+};
+
+type StudioSentence = {
+  id: number;
+  sentence_uuid: string;
+  display_text: string;
+  tts_text: string;
+};
+
+type StudioBlock = {
+  id: number;
+  block_order: number;
+  block_type: string;
+  display_text: string;
+  speaker_name?: string | null;
+  sentences: StudioSentence[];
+};
+
+const mode = ref<UploadMode>("studio");
+
 const title = ref("");
 const author = ref("");
 const description = ref("");
 const coverImage = ref("");
 const price = ref(0);
-const accessType = ref<"paid" | "free">("paid");
+const accessType = ref<AccessType>("paid");
+const requestedPlacements = ref({
+  requested_best_seller: false,
+  requested_new_release: true,
+  requested_promotion: false,
+  requested_free_book: false,
+  requested_hall_of_fame: false,
+  requested_recommended: false,
+});
 const previewPageLimit = ref(1);
 const previewCharLimit = ref(1500);
 const bookFile = ref<File | null>(null);
@@ -26,13 +61,49 @@ const episodePrice = ref(0);
 const episodeIsFree = ref(true);
 const episodePreviewLimit = ref(1500);
 
+const studioBookId = ref<number | null>(null);
+const studioBookSlug = ref("");
+const studioBookType = ref<"ebook" | "serial">("ebook");
+const studioPreviewMode = ref<"percentage" | "chapter_count" | "sentence_count">(
+  "percentage",
+);
+const studioPreviewValue = ref(10);
+const studioTags = ref("");
+const studioLanguage = ref("th");
+const studioAgeRating = ref("");
+const studioUnits = ref<StudioUnit[]>([]);
+const selectedUnitId = ref<number | null>(null);
+const selectedUnitType = ref<StudioUnitType>("chapter");
+const unitTitle = ref("");
+const unitSummary = ref("");
+const unitRawText = ref("");
+const contentPreview = ref<StudioBlock[]>([]);
+
 const loading = ref(false);
 const message = ref("");
 const error = ref("");
 
+const selectedUnit = computed(() => {
+  return studioUnits.value.find((unit) => unit.id === selectedUnitId.value) || null;
+});
+
+const totalPreviewSentences = computed(() => {
+  return contentPreview.value.reduce((sum, block) => sum + block.sentences.length, 0);
+});
+
 const resetStatus = () => {
   message.value = "";
   error.value = "";
+};
+
+const setError = (err: unknown, fallback: string) => {
+  const maybeAxios = err as {
+    response?: { data?: { message?: string; error?: string } };
+  };
+  error.value =
+    maybeAxios.response?.data?.message ||
+    maybeAxios.response?.data?.error ||
+    fallback;
 };
 
 const onFileChange = (event: Event) => {
@@ -49,7 +120,7 @@ const uploadEbook = async () => {
   resetStatus();
 
   if (!title.value || !author.value || !bookFile.value) {
-    error.value = "กรุณากรอกชื่อหนังสือ ผู้แต่ง และเลือกไฟล์เล่มเต็ม";
+    error.value = "กรุณากรอกชื่อหนังสือ ผู้เขียน และเลือกไฟล์หนังสือ";
     return;
   }
 
@@ -70,6 +141,9 @@ const uploadEbook = async () => {
       "preview_char_limit",
       String(previewCharLimit.value || 1500),
     );
+    Object.entries(requestedPlacements.value).forEach(([key, value]) => {
+      formData.append(key, String(value));
+    });
     formData.append("book_file", bookFile.value);
     if (coverFile.value) {
       formData.append("cover_file", coverFile.value);
@@ -86,11 +160,8 @@ const uploadEbook = async () => {
     message.value = `อัปโหลดเล่มเต็มสำเร็จ: Book #${res.data.book_id}`;
     bookFile.value = null;
     coverFile.value = null;
-  } catch (err: any) {
-    error.value =
-      err.response?.data?.message ||
-      err.response?.data?.error ||
-      "อัปโหลดเล่มเต็มไม่สำเร็จ";
+  } catch (err) {
+    setError(err, "อัปโหลดเล่มเต็มไม่สำเร็จ");
   } finally {
     loading.value = false;
   }
@@ -100,30 +171,27 @@ const createSerialBook = async () => {
   resetStatus();
 
   if (!title.value || !author.value) {
-    error.value = "กรุณากรอกชื่อเรื่องและผู้แต่งก่อนสร้างเรื่องรายตอน";
+    error.value = "กรุณากรอกชื่อเรื่องและผู้เขียนก่อนสร้างเรื่องรายตอน";
     return;
   }
 
   loading.value = true;
 
   try {
-    const res = await axios.post(
-      `${API_BASE_URL}/api/books/serial`,
-      {
-        title: title.value,
-        author: author.value,
-        description: description.value,
-        cover_image: coverImage.value,
-        price: price.value || 0,
-        access_type: accessType.value,
-      },
-      { headers: getAuthHeaders() },
-    );
+    const res = await api.post("/books/serial", {
+      title: title.value,
+      author: author.value,
+      description: description.value,
+      cover_image: coverImage.value,
+      price: price.value || 0,
+      access_type: accessType.value,
+      ...requestedPlacements.value,
+    });
 
     serialBookId.value = Number(res.data.book_id);
     message.value = `สร้างเรื่องรายตอนสำเร็จ: Book #${serialBookId.value}`;
-  } catch (err: any) {
-    error.value = err.response?.data?.message || "สร้างเรื่องรายตอนไม่สำเร็จ";
+  } catch (err) {
+    setError(err, "สร้างเรื่องรายตอนไม่สำเร็จ");
   } finally {
     loading.value = false;
   }
@@ -145,18 +213,14 @@ const addEpisode = async () => {
   loading.value = true;
 
   try {
-    const res = await axios.post(
-      `${API_BASE_URL}/api/books/${serialBookId.value}/episodes`,
-      {
-        episode_number: episodeNumber.value,
-        title: episodeTitle.value,
-        content: episodeContent.value,
-        price: episodeIsFree.value ? 0 : episodePrice.value || 0,
-        is_free: episodeIsFree.value,
-        preview_char_limit: episodePreviewLimit.value || 1500,
-      },
-      { headers: getAuthHeaders() },
-    );
+    const res = await api.post(`/books/${serialBookId.value}/episodes`, {
+      episode_number: episodeNumber.value,
+      title: episodeTitle.value,
+      content: episodeContent.value,
+      price: episodeIsFree.value ? 0 : episodePrice.value || 0,
+      is_free: episodeIsFree.value,
+      preview_char_limit: episodePreviewLimit.value || 1500,
+    });
 
     message.value = `เพิ่มตอนสำเร็จ: Episode #${res.data.episode_id}`;
     episodeNumber.value += 1;
@@ -164,8 +228,223 @@ const addEpisode = async () => {
     episodeContent.value = "";
     episodePrice.value = 0;
     episodeIsFree.value = true;
-  } catch (err: any) {
-    error.value = err.response?.data?.message || "เพิ่มตอนไม่สำเร็จ";
+  } catch (err) {
+    setError(err, "เพิ่มตอนไม่สำเร็จ");
+  } finally {
+    loading.value = false;
+  }
+};
+
+const createStudioBook = async () => {
+  resetStatus();
+
+  if (!title.value || !author.value) {
+    error.value = "กรุณากรอกชื่อหนังสือและผู้เขียนก่อนสร้าง draft";
+    return;
+  }
+
+  loading.value = true;
+
+  try {
+    const res = await api.post("/writer/books", {
+      title: title.value,
+      subtitle: null,
+      author_name: author.value,
+      description: description.value,
+      cover_image_url: coverImage.value || null,
+      language_code: studioLanguage.value,
+      content_type: studioBookType.value,
+      access_type: accessType.value,
+      price: price.value || 0,
+      coin_price: price.value || 0,
+      preview_mode: studioPreviewMode.value,
+      preview_value: studioPreviewValue.value || 10,
+      age_rating: studioAgeRating.value || null,
+      tags: studioTags.value
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+      ...requestedPlacements.value,
+    });
+
+    studioBookId.value = Number(res.data.id);
+    studioBookSlug.value = String(res.data.slug || "");
+    studioUnits.value = [];
+    selectedUnitId.value = null;
+    contentPreview.value = [];
+    message.value = `สร้าง draft พร้อมโครงสร้าง TTS สำเร็จ: Book #${studioBookId.value}`;
+  } catch (err) {
+    setError(err, "สร้าง draft แบบ TTS-first ไม่สำเร็จ");
+  } finally {
+    loading.value = false;
+  }
+};
+
+const addStudioUnit = async () => {
+  resetStatus();
+
+  if (!studioBookId.value) {
+    error.value = "กรุณาสร้าง draft หนังสือก่อนเพิ่มบทหรือตอน";
+    return;
+  }
+
+  if (!unitTitle.value.trim()) {
+    error.value = "กรุณากรอกชื่อบทหรือตอน";
+    return;
+  }
+
+  loading.value = true;
+
+  try {
+    const nextNumber = studioUnits.value.length + 1;
+    const res = await api.post(`/writer/books/${studioBookId.value}/units`, {
+      unit_type: selectedUnitType.value,
+      unit_number: nextNumber,
+      title: unitTitle.value,
+      summary: unitSummary.value,
+      is_preview: nextNumber === 1,
+    });
+
+    studioUnits.value.push({
+      id: Number(res.data.id),
+      unit_number: Number(res.data.unit_number),
+      unit_type: res.data.unit_type as StudioUnitType,
+      title: unitTitle.value,
+      sentence_count: 0,
+    });
+    selectedUnitId.value = Number(res.data.id);
+    unitTitle.value = "";
+    unitSummary.value = "";
+    unitRawText.value = "";
+    contentPreview.value = [];
+    message.value = "เพิ่มบทหรือตอนสำเร็จ";
+  } catch (err) {
+    setError(err, "เพิ่มบทหรือตอนไม่สำเร็จ");
+  } finally {
+    loading.value = false;
+  }
+};
+
+const loadUnitContent = async (unitId: number) => {
+  if (!studioBookId.value) return;
+
+  loading.value = true;
+  resetStatus();
+
+  try {
+    const res = await api.get(
+      `/writer/books/${studioBookId.value}/units/${unitId}/content`,
+    );
+
+    selectedUnitId.value = unitId;
+    contentPreview.value = Array.isArray(res.data.blocks) ? res.data.blocks : [];
+    unitRawText.value = contentPreview.value
+      .map((block) => block.display_text)
+      .join("\n\n");
+  } catch (err) {
+    setError(err, "โหลดเนื้อหาของบทนี้ไม่สำเร็จ");
+  } finally {
+    loading.value = false;
+  }
+};
+
+const importUnitText = async () => {
+  resetStatus();
+
+  if (!studioBookId.value || !selectedUnitId.value) {
+    error.value = "กรุณาเลือกบทหรือตอนก่อน";
+    return;
+  }
+
+  if (!unitRawText.value.trim()) {
+    error.value = "กรุณาใส่ข้อความก่อนนำเข้า";
+    return;
+  }
+
+  loading.value = true;
+
+  try {
+    const res = await api.post(
+      `/writer/books/${studioBookId.value}/units/${selectedUnitId.value}/import-text`,
+      {
+        raw_text: unitRawText.value,
+        preferred_type: "paragraph",
+      },
+    );
+
+    const targetUnit = studioUnits.value.find(
+      (unit) => unit.id === selectedUnitId.value,
+    );
+    if (targetUnit) {
+      targetUnit.sentence_count = Number(res.data.sentences_created || 0);
+    }
+    await loadUnitContent(selectedUnitId.value);
+    message.value = `แปลงเนื้อหาเป็น paragraph/sentence สำเร็จ ${res.data.sentences_created} ประโยค`;
+  } catch (err) {
+    setError(err, "แปลงเนื้อหาไม่สำเร็จ");
+  } finally {
+    loading.value = false;
+  }
+};
+
+const saveUnitAsSingleBlock = async () => {
+  resetStatus();
+
+  if (!studioBookId.value || !selectedUnitId.value) {
+    error.value = "กรุณาเลือกบทหรือตอนก่อน";
+    return;
+  }
+
+  if (!unitRawText.value.trim()) {
+    error.value = "กรุณาใส่ข้อความก่อนบันทึก";
+    return;
+  }
+
+  loading.value = true;
+
+  try {
+    const res = await api.post(
+      `/writer/books/${studioBookId.value}/units/${selectedUnitId.value}/content`,
+      {
+        content_blocks: [
+          {
+            block_type: "paragraph",
+            display_text: unitRawText.value,
+          },
+        ],
+      },
+    );
+
+    const targetUnit = studioUnits.value.find(
+      (unit) => unit.id === selectedUnitId.value,
+    );
+    if (targetUnit) {
+      targetUnit.sentence_count = Number(res.data.sentences_created || 0);
+    }
+    await loadUnitContent(selectedUnitId.value);
+    message.value = "บันทึก structured content สำเร็จ";
+  } catch (err) {
+    setError(err, "บันทึก structured content ไม่สำเร็จ");
+  } finally {
+    loading.value = false;
+  }
+};
+
+const publishStudioBook = async () => {
+  resetStatus();
+
+  if (!studioBookId.value) {
+    error.value = "กรุณาสร้าง draft ก่อน";
+    return;
+  }
+
+  loading.value = true;
+
+  try {
+    await api.post(`/writer/books/${studioBookId.value}/publish`);
+    message.value = "เผยแพร่หนังสือสำเร็จ";
+  } catch (err) {
+    setError(err, "เผยแพร่หนังสือไม่สำเร็จ");
   } finally {
     loading.value = false;
   }
@@ -175,54 +454,236 @@ const addEpisode = async () => {
 <template>
   <div class="writer-page">
     <section class="panel">
-      <p class="eyebrow">นักเขียน</p>
-      <h1>เพิ่มผลงาน</h1>
-      <p class="muted">เลือกอัปโหลดเป็นเล่มเต็ม หรือสร้างเรื่องแบบรายตอน</p>
+      <p class="eyebrow">Writer Studio</p>
+      <h1>สร้างหนังสือสำหรับระบบอ่าน + ฟังเสียง</h1>
+      <p class="muted">
+        โหมดใหม่นี้เพิ่มโครงสร้าง chapter/episode, paragraph, sentence และเตรียมข้อมูลสำหรับ TTS
+        โดยยังคงโหมดอัปโหลดเดิมไว้ให้ใช้งานได้เหมือนเดิม
+      </p>
 
       <div class="mode-tabs">
+        <button :class="{ active: mode === 'studio' }" @click="mode = 'studio'">
+          TTS Studio
+        </button>
         <button :class="{ active: mode === 'ebook' }" @click="mode = 'ebook'">
-          อีบุ๊กทั้งเล่ม
+          อัปโหลดเล่มเต็ม
         </button>
         <button :class="{ active: mode === 'serial' }" @click="mode = 'serial'">
-          รายตอน
+          รายตอนแบบเดิม
         </button>
       </div>
 
       <div class="form-grid">
         <label>
-          <span>ชื่อเรื่อง</span>
+          <span>ชื่อหนังสือ</span>
           <input v-model="title" type="text" />
         </label>
         <label>
-          <span>ผู้แต่ง</span>
+          <span>ผู้เขียน</span>
           <input v-model="author" type="text" />
         </label>
+        <label class="full">
+          <span>คำโปรย</span>
+          <textarea v-model="description" rows="4" />
+        </label>
         <label>
-          <span>สถานะการอ่าน</span>
+          <span>สิทธิ์การเข้าถึง</span>
           <select v-model="accessType">
-            <option value="paid">เสียเงิน</option>
-            <option value="free">อ่านฟรีทั้งเรื่อง</option>
+            <option value="paid">ขายรายเล่ม</option>
+            <option value="free">ฟรี</option>
+            <option value="subscription">สมาชิก</option>
           </select>
         </label>
         <label>
-          <span>ราคาเล่ม/เรื่อง</span>
+          <span>ราคา</span>
           <input v-model.number="price" min="0" type="number" />
         </label>
         <label class="full">
-          <span>คำอธิบาย</span>
-          <textarea v-model="description" rows="4" />
-        </label>
-        <label class="full">
-          <span>ลิงก์รูปปกหนังสือ (ไม่บังคับ)</span>
-          <input
-            v-model="coverImage"
-            type="url"
-            placeholder="วาง URL รูปปก หรืออัปโหลดไฟล์รูปปกด้านล่าง"
-          />
+          <span>URL รูปปก</span>
+          <input v-model="coverImage" type="url" placeholder="https://..." />
         </label>
       </div>
 
-      <div v-if="mode === 'ebook'" class="sub-panel">
+      <div class="placement-panel">
+        <h3>เสนอให้แอดมินพิจารณาแสดงผลในเมนู</h3>
+        <div class="placement-grid">
+          <label class="placement-item"><input v-model="requestedPlacements.requested_best_seller" type="checkbox" />ขายดี</label>
+          <label class="placement-item"><input v-model="requestedPlacements.requested_new_release" type="checkbox" />มาใหม่</label>
+          <label class="placement-item"><input v-model="requestedPlacements.requested_promotion" type="checkbox" />โปรโมชั่น</label>
+          <label class="placement-item"><input v-model="requestedPlacements.requested_free_book" type="checkbox" />ฟรีรายวัน</label>
+          <label class="placement-item"><input v-model="requestedPlacements.requested_hall_of_fame" type="checkbox" />ฮิตขึ้นหิ้ง</label>
+          <label class="placement-item"><input v-model="requestedPlacements.requested_recommended" type="checkbox" />แนะนำ</label>
+        </div>
+        <p class="muted">
+          ค่าที่เลือกตรงนี้เป็นคำขอจากตอนอัปโหลด หนังสือจะไปอยู่ในเมนูจริงเมื่อแอดมินอนุมัติจากหน้าอนุมัติหนังสือ
+        </p>
+      </div>
+
+      <div v-if="mode === 'studio'" class="sub-panel stack">
+        <div class="section-header">
+          <div>
+            <h2>TTS-first Draft</h2>
+            <p class="muted">
+              สร้าง draft แล้วค่อยเพิ่มบทหรือตอน พร้อมแปลงเนื้อหาเป็น sentence-level structure
+            </p>
+          </div>
+          <button class="primary-btn" :disabled="loading" @click="createStudioBook">
+            {{ loading ? "กำลังสร้าง..." : "สร้าง Draft" }}
+          </button>
+        </div>
+
+        <div class="form-grid compact">
+          <label>
+            <span>ประเภทหนังสือ</span>
+            <select v-model="studioBookType">
+              <option value="ebook">ebook</option>
+              <option value="serial">serial</option>
+            </select>
+          </label>
+          <label>
+            <span>ภาษา</span>
+            <input v-model="studioLanguage" type="text" />
+          </label>
+          <label>
+            <span>Preview mode</span>
+            <select v-model="studioPreviewMode">
+              <option value="percentage">percentage</option>
+              <option value="chapter_count">chapter_count</option>
+              <option value="sentence_count">sentence_count</option>
+            </select>
+          </label>
+          <label>
+            <span>Preview value</span>
+            <input v-model.number="studioPreviewValue" min="1" type="number" />
+          </label>
+          <label>
+            <span>Age rating</span>
+            <input v-model="studioAgeRating" type="text" placeholder="เช่น 13+" />
+          </label>
+          <label class="full">
+            <span>Tags</span>
+            <input
+              v-model="studioTags"
+              type="text"
+              placeholder="นิยาย, แฟนตาซี, อบอุ่น"
+            />
+          </label>
+        </div>
+
+        <div v-if="studioBookId" class="status-card">
+          <strong>Draft พร้อมใช้งาน</strong>
+          <span>Book #{{ studioBookId }}<template v-if="studioBookSlug"> · {{ studioBookSlug }}</template></span>
+        </div>
+
+        <div class="studio-grid">
+          <section class="studio-panel">
+            <h3>Step 1: โครงสร้างหนังสือ</h3>
+            <div class="form-grid compact single">
+              <label>
+                <span>ชนิดของหน่วย</span>
+                <select v-model="selectedUnitType">
+                  <option :value="studioBookType === 'serial' ? 'episode' : 'chapter'">
+                    {{ studioBookType === "serial" ? "episode" : "chapter" }}
+                  </option>
+                  <option value="chapter">chapter</option>
+                  <option value="episode">episode</option>
+                </select>
+              </label>
+              <label>
+                <span>ชื่อบท/ตอน</span>
+                <input v-model="unitTitle" type="text" />
+              </label>
+              <label>
+                <span>สรุปสั้น ๆ</span>
+                <textarea v-model="unitSummary" rows="3" />
+              </label>
+            </div>
+            <button class="primary-btn" :disabled="loading || !studioBookId" @click="addStudioUnit">
+              เพิ่มบท/ตอน
+            </button>
+
+            <div class="unit-list">
+              <button
+                v-for="unit in studioUnits"
+                :key="unit.id"
+                class="unit-item"
+                :class="{ active: unit.id === selectedUnitId }"
+                @click="loadUnitContent(unit.id)"
+              >
+                <strong>{{ unit.unit_number }}. {{ unit.title }}</strong>
+                <span>{{ unit.unit_type }} · {{ unit.sentence_count || 0 }} ประโยค</span>
+              </button>
+              <p v-if="!studioUnits.length" class="muted empty-note">
+                ยังไม่มีบทหรือตอน
+              </p>
+            </div>
+          </section>
+
+          <section class="studio-panel">
+            <h3>Step 2: ใส่เนื้อหา</h3>
+            <p class="muted">
+              เลือกบททางซ้าย แล้ววางข้อความเพื่อให้ backend แปลงเป็น paragraph และ sentence
+            </p>
+            <textarea
+              v-model="unitRawText"
+              class="content-editor"
+              rows="18"
+              placeholder="พิมพ์หรือวางเนื้อหาที่นี่"
+            />
+
+            <div class="action-row">
+              <button class="secondary-btn" :disabled="loading || !selectedUnitId" @click="saveUnitAsSingleBlock">
+                บันทึกแบบ block เดียว
+              </button>
+              <button class="primary-btn" :disabled="loading || !selectedUnitId" @click="importUnitText">
+                แยก paragraph + sentence อัตโนมัติ
+              </button>
+            </div>
+          </section>
+
+          <section class="studio-panel">
+            <h3>Step 3: Preview สำหรับ TTS</h3>
+            <div class="preview-stats">
+              <article>
+                <strong>{{ contentPreview.length }}</strong>
+                <span>Blocks</span>
+              </article>
+              <article>
+                <strong>{{ totalPreviewSentences }}</strong>
+                <span>Sentences</span>
+              </article>
+              <article>
+                <strong>{{ selectedUnit?.title || "-" }}</strong>
+                <span>Current unit</span>
+              </article>
+            </div>
+
+            <div class="preview-list">
+              <article v-for="block in contentPreview" :key="block.id" class="preview-block">
+                <header>
+                  <strong>#{{ block.block_order }} · {{ block.block_type }}</strong>
+                  <span v-if="block.speaker_name">{{ block.speaker_name }}</span>
+                </header>
+                <p>{{ block.display_text }}</p>
+                <div class="sentence-list">
+                  <span v-for="sentence in block.sentences" :key="sentence.id">
+                    {{ sentence.display_text }}
+                  </span>
+                </div>
+              </article>
+              <p v-if="!contentPreview.length" class="muted empty-note">
+                ยังไม่มี preview ของ structured content
+              </p>
+            </div>
+
+            <button class="publish-btn" :disabled="loading || !studioBookId" @click="publishStudioBook">
+              Publish หนังสือ
+            </button>
+          </section>
+        </div>
+      </div>
+
+      <div v-else-if="mode === 'ebook'" class="sub-panel">
         <h2>อัปโหลดอีบุ๊กทั้งเล่ม</h2>
         <div class="form-grid">
           <label>
@@ -235,14 +696,10 @@ const addEpisode = async () => {
           </label>
           <label class="full">
             <span>ไฟล์หนังสือ</span>
-            <input
-              type="file"
-              accept=".pdf,.txt,.json"
-              @change="onFileChange"
-            />
+            <input type="file" accept=".pdf,.txt,.json" @change="onFileChange" />
           </label>
           <label class="full">
-            <span>รูปปกหนังสือ</span>
+            <span>ไฟล์รูปปก</span>
             <input
               type="file"
               accept=".jpg,.jpeg,.png,.webp"
@@ -257,14 +714,8 @@ const addEpisode = async () => {
 
       <div v-else class="sub-panel">
         <h2>สร้างเรื่องรายตอน</h2>
-        <button
-          class="primary-btn"
-          :disabled="loading"
-          @click="createSerialBook"
-        >
-          {{
-            serialBookId ? `ใช้เรื่อง #${serialBookId}` : "สร้างเรื่องรายตอน"
-          }}
+        <button class="primary-btn" :disabled="loading" @click="createSerialBook">
+          {{ serialBookId ? `กำลังใช้ Book #${serialBookId}` : "สร้างเรื่องรายตอน" }}
         </button>
 
         <div class="episode-form" :class="{ disabled: !serialBookId }">
@@ -282,7 +733,7 @@ const addEpisode = async () => {
               <span>อ่านฟรี</span>
               <select v-model="episodeIsFree">
                 <option :value="true">ฟรี</option>
-                <option :value="false">ต้องซื้อ</option>
+                <option :value="false">เสียเงิน</option>
               </select>
             </label>
             <label>
@@ -296,22 +747,14 @@ const addEpisode = async () => {
             </label>
             <label class="full">
               <span>ตัวอย่างกี่ตัวอักษร</span>
-              <input
-                v-model.number="episodePreviewLimit"
-                min="1"
-                type="number"
-              />
+              <input v-model.number="episodePreviewLimit" min="1" type="number" />
             </label>
             <label class="full">
               <span>เนื้อหาตอน</span>
               <textarea v-model="episodeContent" rows="10" />
             </label>
           </div>
-          <button
-            class="primary-btn"
-            :disabled="loading || !serialBookId"
-            @click="addEpisode"
-          >
+          <button class="primary-btn" :disabled="loading || !serialBookId" @click="addEpisode">
             เพิ่มตอน
           </button>
         </div>
@@ -325,23 +768,32 @@ const addEpisode = async () => {
 
 <style scoped>
 .writer-page {
-  max-width: 1040px;
+  max-width: 1180px;
   margin: 0 auto;
   padding: 32px 20px 48px;
 }
 
 .panel,
-.sub-panel {
+.sub-panel,
+.studio-panel {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--surface);
   box-shadow: var(--shadow);
+}
+
+.panel {
   padding: 28px;
 }
 
-.sub-panel {
-  margin-top: 20px;
-  background: var(--surface-soft);
+.sub-panel,
+.studio-panel {
+  padding: 24px;
+}
+
+.stack {
+  display: grid;
+  gap: 18px;
 }
 
 .eyebrow {
@@ -363,17 +815,26 @@ h3 {
 
 .mode-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin: 22px 0;
 }
 
-.mode-tabs button {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-soft);
-  color: var(--text-strong);
+.mode-tabs button,
+.primary-btn,
+.secondary-btn,
+.publish-btn,
+.unit-item {
+  border: 0;
+  border-radius: 10px;
   cursor: pointer;
   font-weight: 900;
+}
+
+.mode-tabs button {
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  color: var(--text-strong);
   padding: 10px 14px;
 }
 
@@ -382,11 +843,59 @@ h3 {
   color: var(--on-primary);
 }
 
+.placement-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 6px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.placement-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.placement-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 10px 12px;
+}
+
+.placement-item input {
+  width: 18px;
+  height: 18px;
+}
+
+.section-header,
+.action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   margin: 20px 0;
+}
+
+.form-grid.compact {
+  margin: 14px 0 0;
+}
+
+.form-grid.single {
+  grid-template-columns: 1fr;
 }
 
 label {
@@ -405,10 +914,161 @@ select,
 textarea {
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--surface);
   color: var(--text-strong);
+  font: inherit;
   padding: 12px 14px;
+}
+
+.content-editor {
+  min-height: 340px;
+  resize: vertical;
+}
+
+.primary-btn,
+.secondary-btn,
+.publish-btn {
+  padding: 12px 18px;
+}
+
+.primary-btn,
+.publish-btn {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.secondary-btn {
+  background: var(--surface-soft);
+  color: var(--text-strong);
+  border: 1px solid var(--border);
+}
+
+.publish-btn {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.primary-btn:disabled,
+.secondary-btn:disabled,
+.publish-btn:disabled {
+  opacity: 0.65;
+}
+
+.status-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid rgba(20, 184, 166, 0.18);
+  border-radius: 10px;
+  background: rgba(20, 184, 166, 0.08);
+  padding: 14px 16px;
+}
+
+.status-card strong {
+  color: var(--text-strong);
+}
+
+.status-card span {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.studio-grid {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.unit-list,
+.preview-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.unit-item {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  background: var(--surface-soft);
+  color: var(--text-strong);
+  padding: 14px;
+}
+
+.unit-item.active {
+  outline: 2px solid var(--primary);
+}
+
+.unit-item span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.preview-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.preview-stats article {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  padding: 12px;
+}
+
+.preview-stats strong {
+  color: var(--text-strong);
+  font-size: 18px;
+}
+
+.preview-stats span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.preview-block {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  padding: 14px;
+}
+
+.preview-block header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.preview-block p {
+  margin: 10px 0 0;
+  color: var(--text-strong);
+  line-height: 1.7;
+}
+
+.sentence-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.sentence-list span {
+  border-radius: 999px;
+  background: rgba(20, 184, 166, 0.12);
+  color: var(--text-strong);
+  font-size: 13px;
+  padding: 6px 10px;
+}
+
+.empty-note {
+  margin: 0;
 }
 
 .episode-form {
@@ -417,20 +1077,6 @@ textarea {
 
 .episode-form.disabled {
   opacity: 0.75;
-}
-
-.primary-btn {
-  border: 0;
-  border-radius: 8px;
-  background: var(--primary);
-  color: var(--on-primary);
-  cursor: pointer;
-  font-weight: 900;
-  padding: 12px 18px;
-}
-
-.primary-btn:disabled {
-  opacity: 0.65;
 }
 
 .success {
@@ -443,8 +1089,16 @@ textarea {
   font-weight: 800;
 }
 
+@media (max-width: 1080px) {
+  .studio-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 700px) {
-  .form-grid {
+  .form-grid,
+  .preview-stats,
+  .placement-grid {
     grid-template-columns: 1fr;
   }
 }

@@ -20,6 +20,14 @@ const selectedFile = ref<File | null>(null);
 const selectedCoverFile = ref<File | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const coverInput = ref<HTMLInputElement | null>(null);
+const requestedPlacements = ref({
+  requested_best_seller: false,
+  requested_new_release: true,
+  requested_promotion: false,
+  requested_free_book: false,
+  requested_hall_of_fame: false,
+  requested_recommended: false,
+});
 
 const categories = ref<Category[]>([]);
 
@@ -103,6 +111,14 @@ const resetForm = () => {
   description.value = "";
   selectedFile.value = null;
   selectedCoverFile.value = null;
+  requestedPlacements.value = {
+    requested_best_seller: false,
+    requested_new_release: true,
+    requested_promotion: false,
+    requested_free_book: false,
+    requested_hall_of_fame: false,
+    requested_recommended: false,
+  };
 
   if (categories.value.length > 0) {
     categoryId.value = String(categories.value[0].id);
@@ -159,6 +175,9 @@ const uploadBook = async () => {
     formData.append("description", description.value.trim());
     formData.append("category_id", categoryId.value);
     formData.append("book_file", selectedFile.value);
+    Object.entries(requestedPlacements.value).forEach(([key, value]) => {
+      formData.append(key, String(value));
+    });
     if (selectedCoverFile.value) {
       formData.append("cover_file", selectedCoverFile.value);
     }
@@ -278,6 +297,21 @@ onMounted(() => {
         </p>
       </div>
 
+      <div class="form-group">
+        <label>เสนอหมวดที่อยากให้แอดมินพิจารณา</label>
+        <div class="placement-grid">
+          <label class="placement-item"><input v-model="requestedPlacements.requested_best_seller" type="checkbox" />ขายดี</label>
+          <label class="placement-item"><input v-model="requestedPlacements.requested_new_release" type="checkbox" />มาใหม่</label>
+          <label class="placement-item"><input v-model="requestedPlacements.requested_promotion" type="checkbox" />โปรโมชั่น</label>
+          <label class="placement-item"><input v-model="requestedPlacements.requested_free_book" type="checkbox" />ฟรีรายวัน</label>
+          <label class="placement-item"><input v-model="requestedPlacements.requested_hall_of_fame" type="checkbox" />ฮิตขึ้นหิ้ง</label>
+          <label class="placement-item"><input v-model="requestedPlacements.requested_recommended" type="checkbox" />แนะนำ</label>
+        </div>
+        <p class="helper-text">
+          รายการเหล่านี้จะถูกส่งไปยังหน้าอนุมัติหนังสือ เพื่อให้แอดมินเป็นผู้ตัดสินใจอีกครั้ง
+        </p>
+      </div>
+
       <button class="upload-btn" @click="uploadBook" :disabled="loading">
         {{ loading ? "กำลังอัปโหลด..." : "อัปโหลดหนังสือ" }}
       </button>
@@ -344,6 +378,33 @@ h1 {
 .file-name {
   margin-top: 8px;
   color: var(--text-muted);
+}
+
+.placement-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.placement-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #d8dce7;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.placement-item input {
+  width: 18px;
+  height: 18px;
+}
+
+.helper-text {
+  margin-top: 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .upload-btn {

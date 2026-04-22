@@ -1,6 +1,11 @@
 const express = require("express");
 const db = require("../config/db");
 const { verifyToken } = require("../middleware/auth");
+const {
+  buildBlocksFromRawText,
+  prepareStructuredContent,
+  slugify,
+} = require("../services/contentSegmenter");
 
 const router = express.Router();
 
@@ -18,6 +23,271 @@ async function ensureBookOwner(bookId, user) {
 
   return rows.length > 0;
 }
+
+function normalizePositiveInt(value, fallback = 1) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function normalizeBookAccessType(value, price = 0) {
+  if (["free", "paid", "subscription"].includes(value)) return value;
+  return Number(price || 0) > 0 ? "paid" : "free";
+}
+
+function normalizeUnitAccessType(value) {
+  if (["inherit", "free", "paid", "subscription"].includes(value)) return value;
+  return "inherit";
+}
+
+function normalizeLifecycleStatus(value, fallback = "draft") {
+  if (["draft", "published", "archived"].includes(value)) return value;
+  return fallback;
+}
+
+function normalizeFlag(value) {
+  if (typeof value === "string") {
+    return ["1", "true", "yes", "on"].includes(value.toLowerCase()) ? 1 : 0;
+  }
+
+  return Number(Boolean(value));
+}
+
+async function syncBookAggregates(bookId, connection = db) {
+  const [unitStats] = await connection.query(
+    `SELECT
+       COUNT(*) AS total_units,
+       COALESCE(SUM(sentence_count), 0) AS total_sentences,
+       COALESCE(SUM(word_count), 0) AS total_words
+     FROM book_units
+     WHERE book_id = ?`,
+    [bookId],
+  );
+
+  const [blockStats] = await connection.query(
+    `SELECT
+       COUNT(*) AS total_blocks,
+       COALESCE(SUM(char_count), 0) AS total_characters
+     FROM book_unit_blocks bub
+     JOIN book_units bu ON bu.id = bub.book_unit_id
+     WHERE bu.book_id = ?`,
+    [bookId],
+  );
+
+  const totalWords = Number(unitStats[0]?.total_words || 0);
+  const estimatedReadingMinutes = Math.max(1, Math.ceil(totalWords / 180 || 0));
+
+  await connection.query(
+    `UPDATE books
+     SET total_units = ?,
+         total_blocks = ?,
+         total_sentences = ?,
+         total_words = ?,
+         total_characters = ?,
+         estimated_reading_minutes = ?,
+         updated_at = NOW()
+     WHERE id = ?`,
+    [
+      Number(unitStats[0]?.total_units || 0),
+      Number(blockStats[0]?.total_blocks || 0),
+      Number(unitStats[0]?.total_sentences || 0),
+      totalWords,
+      Number(blockStats[0]?.total_characters || 0),
+      estimatedReadingMinutes,
+      bookId,
+    ],
+  );
+}
+
+async function upsertBookTags(bookId, tags = [], connection = db) {
+  const cleanTags = [...new Set(
+    (Array.isArray(tags) ? tags : [])
+      .map((tag) => String(tag || "").trim())
+      .filter(Boolean),
+  )];
+
+  try {
+    await connection.query("DELETE FROM book_tag_maps WHERE book_id = ?", [bookId]);
+  } catch (_) {
+    return;
+  }
+
+  for (const tagName of cleanTags) {
+    await connection.query("INSERT IGNORE INTO book_tags (name) VALUES (?)", [tagName]);
+    const [tagRows] = await connection.query(
+      "SELECT id FROM book_tags WHERE name = ? LIMIT 1",
+      [tagName],
+    );
+    if (tagRows.length > 0) {
+      await connection.query(
+        "INSERT IGNORE INTO book_tag_maps (book_id, tag_id) VALUES (?, ?)",
+        [bookId, tagRows[0].id],
+      );
+    }
+  }
+}
+
+async function replaceUnitContent(bookId, unitId, blocks, connection) {
+  const structured = prepareStructuredContent({ bookId, unitId, blocks });
+
+  await connection.query("DELETE FROM book_unit_sentences WHERE book_unit_id = ?", [unitId]);
+  await connection.query("DELETE FROM book_unit_blocks WHERE book_unit_id = ?", [unitId]);
+
+  for (const block of structured.blocks) {
+    const [result] = await connection.query(
+      `INSERT INTO book_unit_blocks
+       (book_unit_id, block_order, block_type, display_text, tts_text, speaker_name, char_count, sentence_count, metadata_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [
+        block.book_unit_id,
+        block.block_order,
+        block.block_type,
+        block.display_text,
+        block.tts_text,
+        block.speaker_name,
+        block.char_count,
+        block.sentence_count,
+        block.metadata_json ? JSON.stringify(block.metadata_json) : null,
+      ],
+    );
+
+    const blockSentences = structured.sentences.filter(
+      (sentence) => sentence.block_order === block.block_order,
+    );
+
+    for (const sentence of blockSentences) {
+      await connection.query(
+        `INSERT INTO book_unit_sentences
+         (sentence_uuid, book_id, book_unit_id, block_id, sentence_order, sentence_in_block, display_text, tts_text, plain_text, start_offset, end_offset, duration_ms_estimate, audio_status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'none', NOW(), NOW())`,
+        [
+          sentence.sentence_uuid,
+          sentence.book_id,
+          sentence.book_unit_id,
+          result.insertId,
+          sentence.sentence_order,
+          sentence.sentence_in_block,
+          sentence.display_text,
+          sentence.tts_text,
+          sentence.plain_text,
+          sentence.start_offset,
+          sentence.end_offset,
+          sentence.duration_ms_estimate,
+        ],
+      );
+    }
+  }
+
+  await connection.query(
+    `UPDATE book_units
+     SET sentence_count = ?, word_count = ?, estimated_reading_minutes = ?, updated_at = NOW()
+     WHERE id = ?`,
+    [
+      structured.stats.total_sentences,
+      structured.stats.total_words,
+      Math.max(1, Math.ceil(structured.stats.total_words / 180 || 0)),
+      unitId,
+    ],
+  );
+
+  await syncBookAggregates(bookId, connection);
+
+  return structured.stats;
+}
+
+router.post("/", verifyToken, async (req, res) => {
+  const connection = await db.getConnection();
+
+  try {
+    if (!isWriterLike(req.user.role)) {
+      return res.status(403).json({ message: "ไม่มีสิทธิ์สร้างหนังสือ" });
+    }
+
+    const {
+      title,
+      subtitle = null,
+      author_name,
+      description = "",
+      category_id = null,
+      language_code = "th",
+      content_type = "ebook",
+      access_type = "paid",
+      price = 0,
+      coin_price = 0,
+      preview_mode = "percentage",
+      preview_value = 10,
+      age_rating = null,
+      tags = [],
+      cover_image_url = null,
+      requested_best_seller = false,
+      requested_new_release = false,
+      requested_promotion = false,
+      requested_free_book = false,
+      requested_hall_of_fame = false,
+      requested_recommended = false,
+    } = req.body;
+
+    const safeAuthorName = String(author_name || req.user.name || "").trim();
+
+    if (!title || !safeAuthorName) {
+      return res.status(400).json({ message: "กรุณากรอกชื่อหนังสือและผู้เขียน" });
+    }
+
+    await connection.beginTransaction();
+
+    const [result] = await connection.query(
+      `INSERT INTO books
+       (slug, title, subtitle, author_name, author, description, cover_image_url, cover_image,
+        category_id, language_code, content_type, access_type, lifecycle_status, publishing_status,
+        price, coin_price, preview_mode, preview_value, age_rating, created_by,
+        requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
+        requested_hall_of_fame, requested_recommended, approval_status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'ready', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())`,
+      [
+        slugify(title, `book-${Date.now()}`),
+        title,
+        subtitle,
+        safeAuthorName,
+        safeAuthorName,
+        description,
+        cover_image_url,
+        cover_image_url,
+        category_id || null,
+        language_code || "th",
+        content_type === "serial" ? "serial" : "ebook",
+        normalizeBookAccessType(access_type, price),
+        Number(price || 0),
+        Number(coin_price || 0),
+        ["none", "percentage", "chapter_count", "sentence_count"].includes(preview_mode)
+          ? preview_mode
+          : "percentage",
+        normalizePositiveInt(preview_value, 10),
+        age_rating || null,
+        req.user.id,
+        normalizeFlag(requested_best_seller),
+        normalizeFlag(requested_new_release),
+        normalizeFlag(requested_promotion),
+        normalizeFlag(requested_free_book),
+        normalizeFlag(requested_hall_of_fame),
+        normalizeFlag(requested_recommended),
+      ],
+    );
+
+    await upsertBookTags(result.insertId, tags, connection);
+    await connection.commit();
+
+    return res.status(201).json({
+      id: result.insertId,
+      slug: slugify(title, `book-${result.insertId}`),
+      lifecycle_status: "draft",
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error("POST /writer/books error:", error);
+    return res.status(500).json({ message: "สร้างหนังสือไม่สำเร็จ" });
+  } finally {
+    connection.release();
+  }
+});
 
 router.get("/mine", verifyToken, async (req, res) => {
   try {
@@ -68,32 +338,56 @@ router.put("/:id", verifyToken, async (req, res) => {
     const {
       title,
       author,
+      author_name,
       description,
       category_id,
       cover_image,
+      cover_image_url,
       access_type,
       price,
+      requested_best_seller,
+      requested_new_release,
+      requested_promotion,
+      requested_free_book,
+      requested_hall_of_fame,
+      requested_recommended,
     } = req.body;
 
     await db.query(
       `UPDATE books
        SET title = ?,
            author = COALESCE(?, author),
+           author_name = COALESCE(?, author_name),
            description = ?,
            category_id = ?,
            cover_image = ?,
+           cover_image_url = COALESCE(?, cover_image_url),
            access_type = ?,
            price = ?,
+           requested_best_seller = COALESCE(?, requested_best_seller),
+           requested_new_release = COALESCE(?, requested_new_release),
+           requested_promotion = COALESCE(?, requested_promotion),
+           requested_free_book = COALESCE(?, requested_free_book),
+           requested_hall_of_fame = COALESCE(?, requested_hall_of_fame),
+           requested_recommended = COALESCE(?, requested_recommended),
            updated_at = NOW()
        WHERE id = ?`,
       [
         title,
         author || null,
+        author_name || author || null,
         description || null,
         category_id || null,
         cover_image || null,
+        cover_image_url || cover_image || null,
         access_type || "free",
         Number(price || 0),
+        requested_best_seller === undefined ? null : normalizeFlag(requested_best_seller),
+        requested_new_release === undefined ? null : normalizeFlag(requested_new_release),
+        requested_promotion === undefined ? null : normalizeFlag(requested_promotion),
+        requested_free_book === undefined ? null : normalizeFlag(requested_free_book),
+        requested_hall_of_fame === undefined ? null : normalizeFlag(requested_hall_of_fame),
+        requested_recommended === undefined ? null : normalizeFlag(requested_recommended),
         bookId,
       ]
     );
@@ -153,6 +447,352 @@ router.get("/:bookId/episodes", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("GET /writer/books/:bookId/episodes error:", error);
     return res.status(500).json({ message: "ดึงรายการตอนไม่สำเร็จ" });
+  }
+});
+
+router.post("/:bookId/units", verifyToken, async (req, res) => {
+  try {
+    if (!isWriterLike(req.user.role)) {
+      return res.status(403).json({ message: "ไม่มีสิทธิ์เพิ่มบทหรือตอน" });
+    }
+
+    const bookId = Number(req.params.bookId);
+    const ok = await ensureBookOwner(bookId, req.user);
+    if (!ok) {
+      return res.status(403).json({ message: "ไม่มีสิทธิ์แก้ไขหนังสือเล่มนี้" });
+    }
+
+    const {
+      unit_type,
+      unit_number,
+      title,
+      short_title = null,
+      summary = null,
+      access_type = "inherit",
+      price = 0,
+      coin_price = 0,
+      is_preview = false,
+      lifecycle_status = "draft",
+    } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ message: "กรุณากรอกชื่อบทหรือตอน" });
+    }
+
+    const safeUnitType = unit_type === "episode" ? "episode" : "chapter";
+    const safeUnitNumber = normalizePositiveInt(unit_number, 1);
+
+    const [result] = await db.query(
+      `INSERT INTO book_units
+       (book_id, unit_type, unit_number, slug, title, short_title, summary, access_type, price, coin_price, is_preview, lifecycle_status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [
+        bookId,
+        safeUnitType,
+        safeUnitNumber,
+        slugify(`${safeUnitNumber}-${title}`, `unit-${Date.now()}`),
+        title,
+        short_title,
+        summary,
+        normalizeUnitAccessType(access_type),
+        Number(price || 0),
+        Number(coin_price || 0),
+        Number(Boolean(is_preview)),
+        normalizeLifecycleStatus(lifecycle_status),
+      ],
+    );
+
+    await syncBookAggregates(bookId);
+
+    return res.status(201).json({
+      id: result.insertId,
+      unit_number: safeUnitNumber,
+      unit_type: safeUnitType,
+      title,
+    });
+  } catch (error) {
+    console.error("POST /writer/books/:bookId/units error:", error);
+    return res.status(500).json({ message: "เพิ่มบทหรือตอนไม่สำเร็จ" });
+  }
+});
+
+router.put("/:bookId/units/:unitId", verifyToken, async (req, res) => {
+  try {
+    if (!isWriterLike(req.user.role)) {
+      return res.status(403).json({ message: "ไม่มีสิทธิ์แก้ไขบทหรือตอน" });
+    }
+
+    const bookId = Number(req.params.bookId);
+    const unitId = Number(req.params.unitId);
+    const ok = await ensureBookOwner(bookId, req.user);
+    if (!ok) {
+      return res.status(403).json({ message: "ไม่มีสิทธิ์แก้ไขหนังสือเล่มนี้" });
+    }
+
+    const {
+      title,
+      short_title,
+      summary,
+      unit_number,
+      access_type,
+      price,
+      coin_price,
+      is_preview,
+      lifecycle_status,
+    } = req.body;
+
+    await db.query(
+      `UPDATE book_units
+       SET title = COALESCE(?, title),
+           short_title = COALESCE(?, short_title),
+           summary = COALESCE(?, summary),
+           unit_number = COALESCE(?, unit_number),
+           access_type = COALESCE(?, access_type),
+           price = COALESCE(?, price),
+           coin_price = COALESCE(?, coin_price),
+           is_preview = COALESCE(?, is_preview),
+           lifecycle_status = COALESCE(?, lifecycle_status),
+           updated_at = NOW()
+       WHERE id = ? AND book_id = ?`,
+      [
+        title || null,
+        short_title || null,
+        summary || null,
+        unit_number ? normalizePositiveInt(unit_number, 1) : null,
+        access_type ? normalizeUnitAccessType(access_type) : null,
+        price === undefined ? null : Number(price || 0),
+        coin_price === undefined ? null : Number(coin_price || 0),
+        is_preview === undefined ? null : Number(Boolean(is_preview)),
+        lifecycle_status ? normalizeLifecycleStatus(lifecycle_status) : null,
+        unitId,
+        bookId,
+      ],
+    );
+
+    await syncBookAggregates(bookId);
+    return res.json({ message: "อัปเดตบทหรือตอนสำเร็จ" });
+  } catch (error) {
+    console.error("PUT /writer/books/:bookId/units/:unitId error:", error);
+    return res.status(500).json({ message: "อัปเดตบทหรือตอนไม่สำเร็จ" });
+  }
+});
+
+router.post("/:bookId/units/:unitId/import-text", verifyToken, async (req, res) => {
+  const connection = await db.getConnection();
+
+  try {
+    if (!isWriterLike(req.user.role)) {
+      return res.status(403).json({ message: "ไม่มีสิทธิ์แก้ไขเนื้อหา" });
+    }
+
+    const bookId = Number(req.params.bookId);
+    const unitId = Number(req.params.unitId);
+    const ok = await ensureBookOwner(bookId, req.user);
+    if (!ok) {
+      return res.status(403).json({ message: "ไม่มีสิทธิ์แก้ไขหนังสือเล่มนี้" });
+    }
+
+    const { raw_text = "", preferred_type = "paragraph" } = req.body;
+    const blocks = buildBlocksFromRawText(raw_text, preferred_type);
+
+    await connection.beginTransaction();
+    const stats = await replaceUnitContent(bookId, unitId, blocks, connection);
+    await connection.commit();
+
+    return res.json({
+      unit_id: unitId,
+      blocks_created: stats.total_blocks,
+      sentences_created: stats.total_sentences,
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error("POST /writer/books/:bookId/units/:unitId/import-text error:", error);
+    return res.status(500).json({ message: "นำเข้าข้อความไม่สำเร็จ" });
+  } finally {
+    connection.release();
+  }
+});
+
+router.post("/:bookId/units/:unitId/content", verifyToken, async (req, res) => {
+  const connection = await db.getConnection();
+
+  try {
+    if (!isWriterLike(req.user.role)) {
+      return res.status(403).json({ message: "ไม่มีสิทธิ์แก้ไขเนื้อหา" });
+    }
+
+    const bookId = Number(req.params.bookId);
+    const unitId = Number(req.params.unitId);
+    const ok = await ensureBookOwner(bookId, req.user);
+    if (!ok) {
+      return res.status(403).json({ message: "ไม่มีสิทธิ์แก้ไขหนังสือเล่มนี้" });
+    }
+
+    const blocks = Array.isArray(req.body.content_blocks) ? req.body.content_blocks : [];
+    if (blocks.length === 0) {
+      return res.status(400).json({ message: "กรุณาระบุ content_blocks" });
+    }
+
+    await connection.beginTransaction();
+    const stats = await replaceUnitContent(bookId, unitId, blocks, connection);
+    await connection.commit();
+
+    return res.json({
+      unit_id: unitId,
+      blocks_created: stats.total_blocks,
+      sentences_created: stats.total_sentences,
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error("POST /writer/books/:bookId/units/:unitId/content error:", error);
+    return res.status(500).json({ message: "บันทึกเนื้อหาไม่สำเร็จ" });
+  } finally {
+    connection.release();
+  }
+});
+
+router.get("/:bookId/units/:unitId/content", verifyToken, async (req, res) => {
+  try {
+    if (!isWriterLike(req.user.role)) {
+      return res.status(403).json({ message: "ไม่มีสิทธิ์ดูเนื้อหา" });
+    }
+
+    const bookId = Number(req.params.bookId);
+    const unitId = Number(req.params.unitId);
+    const ok = await ensureBookOwner(bookId, req.user);
+    if (!ok) {
+      return res.status(403).json({ message: "ไม่มีสิทธิ์ดูหนังสือเล่มนี้" });
+    }
+
+    const [unitRows] = await db.query(
+      `SELECT *
+       FROM book_units
+       WHERE id = ? AND book_id = ?
+       LIMIT 1`,
+      [unitId, bookId],
+    );
+
+    if (unitRows.length === 0) {
+      return res.status(404).json({ message: "ไม่พบบทหรือตอน" });
+    }
+
+    const [blockRows] = await db.query(
+      `SELECT id, block_order, block_type, display_text, tts_text, speaker_name, char_count, sentence_count, metadata_json
+       FROM book_unit_blocks
+       WHERE book_unit_id = ?
+       ORDER BY block_order ASC`,
+      [unitId],
+    );
+
+    const [sentenceRows] = await db.query(
+      `SELECT id, block_id, sentence_uuid, sentence_order, sentence_in_block, display_text, tts_text, plain_text, start_offset, end_offset, duration_ms_estimate
+       FROM book_unit_sentences
+       WHERE book_unit_id = ?
+       ORDER BY sentence_order ASC`,
+      [unitId],
+    );
+
+    const blocks = blockRows.map((block) => ({
+      ...block,
+      metadata_json:
+        typeof block.metadata_json === "string" && block.metadata_json
+          ? JSON.parse(block.metadata_json)
+          : block.metadata_json,
+      sentences: sentenceRows.filter((sentence) => sentence.block_id === block.id),
+    }));
+
+    return res.json({
+      unit: unitRows[0],
+      blocks,
+    });
+  } catch (error) {
+    console.error("GET /writer/books/:bookId/units/:unitId/content error:", error);
+    return res.status(500).json({ message: "โหลดเนื้อหาไม่สำเร็จ" });
+  }
+});
+
+router.post("/:bookId/publish", verifyToken, async (req, res) => {
+  try {
+    if (!isWriterLike(req.user.role)) {
+      return res.status(403).json({ message: "ไม่มีสิทธิ์เผยแพร่หนังสือ" });
+    }
+
+    const bookId = Number(req.params.bookId);
+    const ok = await ensureBookOwner(bookId, req.user);
+    if (!ok) {
+      return res.status(403).json({ message: "ไม่มีสิทธิ์แก้ไขหนังสือเล่มนี้" });
+    }
+
+    const [bookRows] = await db.query("SELECT * FROM books WHERE id = ? LIMIT 1", [bookId]);
+    const [unitRows] = await db.query(
+      "SELECT COUNT(*) AS total_units, COALESCE(SUM(sentence_count), 0) AS total_sentences FROM book_units WHERE book_id = ?",
+      [bookId],
+    );
+    const book = bookRows[0];
+    const totalUnits = Number(unitRows[0]?.total_units || 0);
+    const totalSentences = Number(unitRows[0]?.total_sentences || 0);
+
+    if (!book) {
+      return res.status(404).json({ message: "ไม่พบหนังสือ" });
+    }
+
+    if (!book.title || totalUnits === 0 || totalSentences === 0) {
+      return res.status(400).json({
+        message: "หนังสือยังไม่พร้อมเผยแพร่ ต้องมีชื่อหนังสือ หน่วยเนื้อหา และประโยคอย่างน้อย 1 รายการ",
+      });
+    }
+
+    await db.query(
+      `UPDATE books
+       SET lifecycle_status = 'published',
+           is_published = 1,
+           published_at = COALESCE(published_at, NOW()),
+           updated_at = NOW()
+       WHERE id = ?`,
+      [bookId],
+    );
+
+    await db.query(
+      `UPDATE book_units
+       SET lifecycle_status = 'published',
+           published_at = COALESCE(published_at, NOW()),
+           updated_at = NOW()
+       WHERE book_id = ? AND lifecycle_status = 'draft'`,
+      [bookId],
+    );
+
+    return res.json({ message: "เผยแพร่หนังสือสำเร็จ" });
+  } catch (error) {
+    console.error("POST /writer/books/:bookId/publish error:", error);
+    return res.status(500).json({ message: "เผยแพร่หนังสือไม่สำเร็จ" });
+  }
+});
+
+router.post("/:bookId/unpublish", verifyToken, async (req, res) => {
+  try {
+    if (!isWriterLike(req.user.role)) {
+      return res.status(403).json({ message: "ไม่มีสิทธิ์ยกเลิกเผยแพร่" });
+    }
+
+    const bookId = Number(req.params.bookId);
+    const ok = await ensureBookOwner(bookId, req.user);
+    if (!ok) {
+      return res.status(403).json({ message: "ไม่มีสิทธิ์แก้ไขหนังสือเล่มนี้" });
+    }
+
+    await db.query(
+      `UPDATE books
+       SET lifecycle_status = 'draft',
+           is_published = 0,
+           updated_at = NOW()
+       WHERE id = ?`,
+      [bookId],
+    );
+
+    return res.json({ message: "ย้ายหนังสือกลับเป็น draft แล้ว" });
+  } catch (error) {
+    console.error("POST /writer/books/:bookId/unpublish error:", error);
+    return res.status(500).json({ message: "ยกเลิกเผยแพร่ไม่สำเร็จ" });
   }
 });
 

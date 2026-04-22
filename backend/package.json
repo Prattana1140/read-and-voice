@@ -9,6 +9,7 @@
     "db:init": "node services/scripts/initDatabase.js",
     "db:migrate:subscriptions": "node services/scripts/initSubscriptionTables.js",
     "db:migrate:content": "node services/scripts/migrateContentModel.js",
+    "db:migrate:tts-architecture": "node services/scripts/migrateTtsArchitecture.js",
     "db:migrate:commerce": "node services/scripts/migrateCommerceSystem.js",
     "create:superadmin": "node services/scripts/createSuperAdmin.js"
   },

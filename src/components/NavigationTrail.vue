@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed } from "vue";
 import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from "vue-router";
 
 type TrailItem = {
@@ -9,8 +9,6 @@ type TrailItem = {
 
 const route = useRoute();
 const router = useRouter();
-const storageKey = "read-voice-navigation-trail";
-const maxItems = 12;
 
 const homeItem: TrailItem = { fullPath: "/", label: "Home" };
 
@@ -79,57 +77,6 @@ const parentRoutes: Record<string, TrailItem> = {
   SuperAdminSettings: { fullPath: "/superadmin/users", label: "Manage users" },
 };
 
-function isTrailItem(item: unknown): item is TrailItem {
-  return (
-    !!item &&
-    typeof item === "object" &&
-    typeof (item as TrailItem).fullPath === "string" &&
-    typeof (item as TrailItem).label === "string"
-  );
-}
-
-function readTrail() {
-  try {
-    const value = sessionStorage.getItem(storageKey);
-    const parsed = value ? JSON.parse(value) : [];
-    return Array.isArray(parsed) ? parsed.filter(isTrailItem) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeTrail(items: TrailItem[]) {
-  sessionStorage.setItem(storageKey, JSON.stringify(items));
-}
-
-function comparablePath(fullPath: string) {
-  const [path = "/"] = fullPath.split(/[?#]/);
-  return path.replace(/\/+$/, "") || "/";
-}
-
-function comparableLabel(label: string) {
-  return label.trim().toLocaleLowerCase();
-}
-
-function isSameTrailPlace(left: TrailItem, right: TrailItem) {
-  return (
-    comparablePath(left.fullPath) === comparablePath(right.fullPath) ||
-    comparableLabel(left.label) === comparableLabel(right.label)
-  );
-}
-
-function compactTrailItems(items: TrailItem[]) {
-  return items.reduce<TrailItem[]>((result, item) => {
-    const previous = result.at(-1);
-    if (previous && isSameTrailPlace(previous, item)) {
-      result[result.length - 1] = item;
-      return result;
-    }
-
-    return [...result, item];
-  }, []);
-}
-
 function fallbackLabel(currentRoute: RouteLocationNormalizedLoaded) {
   const segment = currentRoute.path.split("/").filter(Boolean).at(-1);
   if (!segment) return homeItem.label;
@@ -183,36 +130,17 @@ function withParentTrail(items: TrailItem[]) {
   return [items[0] || homeItem, parent, ...items.slice(1)];
 }
 
-const trail = ref<TrailItem[]>(readTrail());
-
-watch(
-  () => route.fullPath,
-  () => {
-    if (route.path === "/") {
-      trail.value = [homeItem];
-      writeTrail(trail.value);
-      return;
-    }
-
-    const nextItem = { fullPath: route.fullPath, label: getRouteLabel(route) };
-    const cleanTrail = trail.value.filter(isTrailItem);
-    const existingIndex = cleanTrail.findIndex((item) => isSameTrailPlace(item, nextItem));
-    const nextTrail =
-      existingIndex >= 0
-        ? [...cleanTrail.slice(0, existingIndex), nextItem]
-        : [...cleanTrail, nextItem].slice(-maxItems);
-
-    const compactTrail = compactTrailItems(nextTrail);
-    trail.value = compactTrail;
-    writeTrail(compactTrail);
-  },
-  { immediate: true },
-);
-
 const visibleTrail = computed(() => {
-  const items = trail.value.filter(isTrailItem);
-  const base = items[0]?.fullPath === "/" ? items : [homeItem, ...items];
-  return compactTrailItems(withParentTrail(base));
+  if (route.path === "/") {
+    return [homeItem];
+  }
+
+  const currentItem: TrailItem = {
+    fullPath: route.fullPath,
+    label: getRouteLabel(route),
+  };
+
+  return withParentTrail([homeItem, currentItem]);
 });
 
 const shouldShowTrail = computed(() => route.path !== "/" && visibleTrail.value.length > 1);

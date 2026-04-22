@@ -11,6 +11,7 @@ const libraryRoutes = require("./routes/library");
 const ordersRoutes = require("./routes/orders");
 const progressRoutes = require("./routes/progress");
 const adminUsersRoutes = require("./routes/adminUsers");
+const adminBooksRoutes = require("./routes/adminBooks");
 
 const profileRoutes = require("./routes/profile");
 const subscriptionsRoutes = require("./routes/subscriptions");
@@ -86,6 +87,7 @@ app.use("/api/library", libraryRoutes);
 app.use("/api/orders", ordersRoutes);
 app.use("/api/progress", progressRoutes);
 app.use("/api/admin", adminUsersRoutes);
+app.use("/api/admin/books", adminBooksRoutes);
 
 app.use("/api/profile", profileRoutes);
 app.use("/api/subscriptions", subscriptionsRoutes);

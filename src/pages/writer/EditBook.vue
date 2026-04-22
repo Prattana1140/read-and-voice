@@ -1,46 +1,95 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { api, API_BASE_URL } from "../../utils/api";
+import { api, resolveAssetUrl } from "../../utils/api";
 
-type Book = {
+type Category = {
   id: number;
-  title: string;
-  author: string;
-  description?: string;
-  cover_image?: string;
-  category_name?: string;
-  created_by?: number;
-  is_published?: number;
+  name: string;
 };
 
 const route = useRoute();
 const router = useRouter();
+
 const loading = ref(true);
-const error = ref("");
-const book = ref<Book | null>(null);
+const saving = ref(false);
+const errorMessage = ref("");
+const successMessage = ref("");
+const categories = ref<Category[]>([]);
+
+const form = ref({
+  title: "",
+  author: "",
+  description: "",
+  category_id: "",
+  cover_image: "",
+  access_type: "free",
+  price: 0,
+});
 
 const bookId = computed(() => Number(route.params.id));
+const coverPreview = computed(() => resolveAssetUrl(form.value.cover_image));
 
-const getCoverUrl = (cover?: string) => {
-  if (!cover) return "/no-cover.png";
-  if (cover.startsWith("http://") || cover.startsWith("https://")) return cover;
-  return `${API_BASE_URL}/${cover.replace(/^\/+/, "")}`;
-};
+function handleImageError(event: Event) {
+  const target = event.target as HTMLImageElement;
+  if (!target || target.src.endsWith("/no-cover.png")) return;
+  target.src = "/no-cover.png";
+}
 
-const fetchBook = async () => {
+async function fetchBook() {
   loading.value = true;
-  error.value = "";
+  errorMessage.value = "";
 
   try {
-    const res = await api.get(`/api/books/${bookId.value}`);
-    book.value = res.data;
-  } catch (err: any) {
-    error.value = err.response?.data?.message || "โหลดข้อมูลหนังสือไม่สำเร็จ";
+    const [{ data: book }, { data: categoryRows }] = await Promise.all([
+      api.get(`/books/${bookId.value}`),
+      api.get("/categories"),
+    ]);
+
+    categories.value = Array.isArray(categoryRows) ? categoryRows : [];
+    form.value = {
+      title: String(book?.title || ""),
+      author: String(book?.author_name || book?.author || ""),
+      description: String(book?.description || ""),
+      category_id: book?.category_id ? String(book.category_id) : "",
+      cover_image: String(book?.cover_image_url || book?.cover_image || ""),
+      access_type: String(book?.access_type || "free"),
+      price: Number(book?.price || 0),
+    };
+  } catch (error: any) {
+    errorMessage.value =
+      error?.response?.data?.message || "Could not load book details.";
   } finally {
     loading.value = false;
   }
-};
+}
+
+async function saveBook() {
+  saving.value = true;
+  errorMessage.value = "";
+  successMessage.value = "";
+
+  try {
+    await api.put(`/writer/books/${bookId.value}`, {
+      title: form.value.title,
+      author: form.value.author,
+      author_name: form.value.author,
+      description: form.value.description,
+      category_id: form.value.category_id ? Number(form.value.category_id) : null,
+      cover_image: form.value.cover_image,
+      cover_image_url: form.value.cover_image,
+      access_type: form.value.access_type,
+      price: Number(form.value.price || 0),
+    });
+
+    successMessage.value = "Book updated successfully.";
+  } catch (error: any) {
+    errorMessage.value =
+      error?.response?.data?.message || "Could not save book changes.";
+  } finally {
+    saving.value = false;
+  }
+}
 
 onMounted(fetchBook);
 </script>
@@ -48,41 +97,104 @@ onMounted(fetchBook);
 <template>
   <main class="writer-edit-page">
     <section class="panel">
-      <button class="back-btn" type="button" @click="router.push('/writer/books')">
-        กลับไปหนังสือของฉัน
-      </button>
-
-      <p class="eyebrow">นักเขียน</p>
-      <h1>แก้ไขข้อมูลหนังสือของตัวเอง</h1>
-
-      <p v-if="loading" class="muted">กำลังโหลดข้อมูล...</p>
-      <p v-else-if="error" class="error">{{ error }}</p>
-
-      <div v-else-if="book" class="book-editor">
-        <img :src="getCoverUrl(book.cover_image)" :alt="book.title" />
-        <div class="book-fields">
-          <label>
-            ชื่อหนังสือ
-            <input :value="book.title" readonly />
-          </label>
-          <label>
-            ผู้เขียน
-            <input :value="book.author" readonly />
-          </label>
-          <label>
-            หมวดหมู่
-            <input :value="book.category_name || '-'" readonly />
-          </label>
-          <label>
-            คำอธิบาย
-            <textarea :value="book.description || '-'" readonly rows="5" />
-          </label>
+      <div class="header">
+        <div>
+          <p class="eyebrow">Writer</p>
+          <h1>Edit your book</h1>
+          <p class="muted">
+            Update the main metadata that appears in the store and writer dashboard.
+          </p>
         </div>
+
+        <button class="back-btn" type="button" @click="router.push('/writer/books')">
+          Back to my books
+        </button>
       </div>
 
-      <p class="muted note">
-        หน้านี้เตรียมปลายทางสำหรับแก้ไขหนังสือของนักเขียนแล้ว ส่วนการบันทึกข้อมูลควรต่อ backend endpoint ที่ตรวจว่าเป็นเจ้าของหนังสือจริงก่อนเปิดให้แก้ไข
+      <p v-if="loading" class="muted">Loading book details...</p>
+      <p v-else-if="errorMessage && !saving && !successMessage" class="error">
+        {{ errorMessage }}
       </p>
+
+      <form v-else class="editor-grid" @submit.prevent="saveBook">
+        <div class="cover-card">
+          <img
+            :src="coverPreview"
+            :alt="form.title || 'Book cover'"
+            @error="handleImageError"
+          />
+          <label>
+            <span>Cover image URL</span>
+            <input v-model="form.cover_image" type="text" placeholder="https://..." />
+          </label>
+        </div>
+
+        <div class="book-fields">
+          <label>
+            <span>Title</span>
+            <input v-model="form.title" type="text" required />
+          </label>
+
+          <label>
+            <span>Author</span>
+            <input v-model="form.author" type="text" required />
+          </label>
+
+          <label>
+            <span>Category</span>
+            <select v-model="form.category_id">
+              <option value="">Uncategorized</option>
+              <option v-for="category in categories" :key="category.id" :value="String(category.id)">
+                {{ category.name }}
+              </option>
+            </select>
+          </label>
+
+          <div class="inline-fields">
+            <label>
+              <span>Access type</span>
+              <select v-model="form.access_type">
+                <option value="free">Free</option>
+                <option value="paid">Paid</option>
+                <option value="subscription">Subscription</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Price</span>
+              <input
+                v-model.number="form.price"
+                type="number"
+                min="0"
+                step="1"
+                :disabled="form.access_type === 'free'"
+              />
+            </label>
+          </div>
+
+          <label>
+            <span>Description</span>
+            <textarea v-model="form.description" rows="6" />
+          </label>
+
+          <div v-if="errorMessage" class="state-box error">{{ errorMessage }}</div>
+          <div v-if="successMessage" class="state-box success">{{ successMessage }}</div>
+
+          <div class="actions">
+            <button class="save-btn" type="submit" :disabled="saving">
+              {{ saving ? "Saving..." : "Save changes" }}
+            </button>
+            <button
+              class="ghost-btn"
+              type="button"
+              :disabled="saving"
+              @click="fetchBook"
+            >
+              Reload
+            </button>
+          </div>
+        </div>
+      </form>
     </section>
   </main>
 </template>
@@ -96,94 +208,134 @@ onMounted(fetchBook);
 
 .panel {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 18px;
   background: var(--surface);
   box-shadow: var(--shadow);
   padding: 28px;
 }
 
-.back-btn {
-  min-height: 38px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-soft);
-  color: var(--text-strong);
-  cursor: pointer;
-  font-weight: 900;
-  padding: 8px 12px;
+.header {
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 22px;
 }
 
 .eyebrow {
-  margin: 18px 0 8px;
+  margin: 0 0 8px;
   color: var(--primary-strong);
   font-weight: 900;
 }
 
 h1 {
-  margin: 0 0 18px;
+  margin: 0;
   color: var(--text-strong);
 }
 
-.muted,
-.note {
+.muted {
   color: var(--text-muted);
 }
 
-.error {
-  color: var(--danger);
+.back-btn,
+.save-btn,
+.ghost-btn {
+  min-height: 42px;
+  border-radius: 12px;
+  cursor: pointer;
   font-weight: 900;
+  padding: 0 16px;
 }
 
-.book-editor {
+.back-btn,
+.ghost-btn {
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  color: var(--text-strong);
+}
+
+.save-btn {
+  border: 0;
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.editor-grid {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
-  gap: 20px;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 24px;
 }
 
-.book-editor img {
-  width: 180px;
-  height: 250px;
-  border-radius: 8px;
+.cover-card,
+.book-fields,
+label {
+  display: grid;
+  gap: 8px;
+}
+
+.cover-card img {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 16px;
   object-fit: cover;
   background: var(--surface-soft);
 }
 
-.book-fields {
-  display: grid;
-  gap: 12px;
-}
-
-label {
-  display: grid;
-  gap: 6px;
+label span {
   color: var(--text-strong);
   font-weight: 900;
 }
 
 input,
-textarea {
+textarea,
+select {
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--surface-soft);
   color: var(--text-strong);
   font: inherit;
-  padding: 10px 12px;
+  padding: 12px 14px;
 }
 
-.note {
-  margin: 18px 0 0;
-  line-height: 1.7;
+.inline-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
-@media (max-width: 720px) {
-  .book-editor {
+.state-box {
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.state-box.error {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.state-box.success {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 760px) {
+  .header,
+  .editor-grid,
+  .inline-fields {
     grid-template-columns: 1fr;
   }
 
-  .book-editor img {
-    width: 140px;
-    height: 200px;
+  .header {
+    flex-direction: column;
   }
 }
 </style>

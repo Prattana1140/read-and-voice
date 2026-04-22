@@ -47,3 +47,21 @@ export function getAuthHeaders() {
       }
     : {};
 }
+
+export function resolveAssetUrl(input?: string | null) {
+  const raw = String(input || "").trim();
+
+  if (!raw) {
+    return "/no-cover.png";
+  }
+
+  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    return raw;
+  }
+
+  const normalized = raw.replace(/\\/g, "/");
+  const uploadsIndex = normalized.toLowerCase().indexOf("uploads/");
+  const relativePath = uploadsIndex >= 0 ? normalized.slice(uploadsIndex) : normalized;
+
+  return `${API_BASE_URL}/${relativePath.replace(/^\/+/, "")}`;
+}

@@ -402,4 +402,5 @@ module.exports = {
   normalizeText,
   sanitizeBookText,
   looksLikeMojibake,
+  splitTextToPages,
 };

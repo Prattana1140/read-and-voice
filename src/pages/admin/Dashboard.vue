@@ -89,6 +89,10 @@ const goToAdminUsers = () => {
   router.push({ name: "SuperAdminUsers" });
 };
 
+const goToApprovals = () => {
+  router.push({ name: "AdminApprovals" });
+};
+
 const deleteBook = async (id: number, title: string) => {
   const confirmed = window.confirm(`ต้องการลบหนังสือ "${title}" ใช่หรือไม่?`);
   if (!confirmed) return;
@@ -135,6 +139,7 @@ onMounted(() => {
             จัดการผู้ใช้งาน
           </button>
 
+          <button class="top-btn secondary" @click="goToApprovals">อนุมัติหนังสือ</button>
           <button class="top-btn primary" @click="goToUpload">
             + เพิ่มหนังสือใหม่
           </button>

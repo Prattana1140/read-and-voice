@@ -47,6 +47,27 @@ function sanitizeUser(user, provider = "password") {
   };
 }
 
+async function ensurePasswordResetTable() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      token_hash CHAR(64) NOT NULL,
+      expires_at DATETIME NOT NULL,
+      used_at DATETIME NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_password_reset_tokens_user (user_id),
+      UNIQUE KEY uq_password_reset_tokens_hash (token_hash),
+      CONSTRAINT fk_password_reset_tokens_user
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+}
+
+function hashResetToken(token) {
+  return crypto.createHash("sha256").update(String(token || "")).digest("hex");
+}
+
 function getPublicApiUrl() {
   return process.env.API_PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`;
 }
@@ -386,6 +407,140 @@ router.post("/login", async (req, res) => {
   } catch (error) {
     console.error("LOGIN ERROR:", error);
     return res.status(500).json({ message: error.message || "เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธฃเธฐเธเธ" });
+  }
+});
+
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body.email);
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    await ensurePasswordResetTable();
+
+    const [users] = await db.query(
+      `SELECT id, email, status
+       FROM users
+       WHERE LOWER(TRIM(email)) = ?
+       LIMIT 1`,
+      [email],
+    );
+
+    if (users.length === 0) {
+      return res.status(200).json({
+        message:
+          "If the account exists, a reset link has been prepared for that email.",
+      });
+    }
+
+    const user = users[0];
+    if (user.status && user.status !== "active") {
+      return res.status(200).json({
+        message:
+          "If the account exists, a reset link has been prepared for that email.",
+      });
+    }
+
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = hashResetToken(resetToken);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    await db.query(
+      `UPDATE password_reset_tokens
+       SET used_at = NOW()
+       WHERE user_id = ?
+         AND used_at IS NULL`,
+      [user.id],
+    );
+
+    await db.query(
+      `INSERT INTO password_reset_tokens
+         (user_id, token_hash, expires_at, created_at)
+       VALUES (?, ?, ?, NOW())`,
+      [user.id, tokenHash, expiresAt],
+    );
+
+    const resetUrl = `${getFrontendUrl()}/forgot-password?token=${resetToken}`;
+
+    return res.status(200).json({
+      message:
+        "Reset request created. Open the preview link below to choose a new password.",
+      delivery: "preview",
+      reset_url: resetUrl,
+      expires_at: expiresAt.toISOString(),
+    });
+  } catch (error) {
+    console.error("FORGOT PASSWORD ERROR:", error);
+    return res.status(500).json({
+      message: "Could not create password reset request",
+    });
+  }
+});
+
+router.post("/reset-password", async (req, res) => {
+  try {
+    const token = String(req.body.token || "").trim();
+    const password = normalizePassword(req.body.password);
+
+    if (!token || !password) {
+      return res.status(400).json({ message: "Token and password are required" });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        message: "Password must be at least 6 characters",
+      });
+    }
+
+    await ensurePasswordResetTable();
+
+    const tokenHash = hashResetToken(token);
+    const [tokens] = await db.query(
+      `SELECT id, user_id, expires_at, used_at
+       FROM password_reset_tokens
+       WHERE token_hash = ?
+       LIMIT 1`,
+      [tokenHash],
+    );
+
+    if (tokens.length === 0) {
+      return res.status(400).json({ message: "Reset token is invalid" });
+    }
+
+    const resetRow = tokens[0];
+    const expired = new Date(resetRow.expires_at).getTime() < Date.now();
+
+    if (resetRow.used_at || expired) {
+      return res.status(400).json({ message: "Reset token has expired" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await db.query(
+      `UPDATE users
+       SET password = ?, updated_at = NOW()
+       WHERE id = ?`,
+      [hashedPassword, resetRow.user_id],
+    );
+
+    await db.query(
+      `UPDATE password_reset_tokens
+       SET used_at = NOW()
+       WHERE user_id = ?
+         AND used_at IS NULL`,
+      [resetRow.user_id],
+    );
+
+    return res.status(200).json({
+      message: "Password reset completed successfully",
+    });
+  } catch (error) {
+    console.error("RESET PASSWORD ERROR:", error);
+    return res.status(500).json({
+      message: "Could not reset password",
+    });
   }
 });
 
