@@ -55,8 +55,8 @@ const curatedBooks = [
       isNewRelease: true,
     },
     signals: {
-      readCount: 420,
-      reviewCount: 42,
+      readCount: 120,
+      reviewCount: 16,
       averageRating: 4.8,
     },
     pages: [
@@ -88,8 +88,8 @@ const curatedBooks = [
     promoDiscountPercent: 35,
     promoDurationDays: 10,
     signals: {
-      readCount: 980,
-      reviewCount: 115,
+      readCount: 260,
+      reviewCount: 24,
       averageRating: 4.7,
     },
     pages: [
@@ -118,8 +118,8 @@ const curatedBooks = [
       isRecommended: true,
     },
     signals: {
-      readCount: 610,
-      reviewCount: 58,
+      readCount: 180,
+      reviewCount: 18,
       averageRating: 4.6,
     },
     pages: [
@@ -149,8 +149,8 @@ const curatedBooks = [
       isRecommended: true,
     },
     signals: {
-      readCount: 760,
-      reviewCount: 88,
+      readCount: 220,
+      reviewCount: 20,
       averageRating: 4.9,
     },
     pages: [
@@ -176,11 +176,11 @@ const serialSeries = [
       isRecommended: true,
     },
     signals: {
-      readCount: 1450,
-      reviewCount: 173,
+      readCount: 340,
+      reviewCount: 28,
       averageRating: 4.8,
     },
-    episodeSignals: [410, 395, 380, 350, 320, 305],
+    episodeSignals: [92, 86, 81, 74, 68, 61],
     episodes: [
       "คืนแรกที่ไฟทั้งเมืองดับพร้อมเสียงฝน",
       "เงาสะท้อนในกระจกหน้าร้านที่ไม่มีเจ้าของ",
@@ -205,11 +205,11 @@ const serialSeries = [
       isRecommended: true,
     },
     signals: {
-      readCount: 920,
-      reviewCount: 94,
+      readCount: 240,
+      reviewCount: 18,
       averageRating: 4.7,
     },
-    episodeSignals: [260, 250, 245, 230, 224, 208],
+    episodeSignals: [70, 66, 62, 58, 54, 50],
     episodes: [
       "ช่อแรกของคืนกะดึก",
       "ผู้โดยสารที่ซื้อดอกไม้ทุกวันพฤหัส",
@@ -236,11 +236,11 @@ const serialSeries = [
     promoDiscountPercent: 25,
     promoDurationDays: 14,
     signals: {
-      readCount: 1105,
-      reviewCount: 126,
+      readCount: 300,
+      reviewCount: 22,
       averageRating: 4.9,
     },
-    episodeSignals: [300, 286, 274, 260, 248, 241],
+    episodeSignals: [82, 78, 74, 70, 66, 62],
     episodes: [
       "ประตูไม้บานที่สิบสาม",
       "แฟ้มลับซึ่งไม่มีรหัสผู้ฝาก",
@@ -266,11 +266,11 @@ const serialSeries = [
     promoDiscountPercent: 30,
     promoDurationDays: 8,
     signals: {
-      readCount: 1340,
-      reviewCount: 149,
+      readCount: 320,
+      reviewCount: 24,
       averageRating: 4.6,
     },
-    episodeSignals: [360, 342, 318, 295, 281, 270],
+    episodeSignals: [88, 83, 76, 71, 66, 60],
     episodes: [
       "คืนแรกที่เงาของทุกคนหายไป",
       "เรือประมงลำที่กลับมาพร้อมคนไม่ครบ",
@@ -661,11 +661,23 @@ async function seedViewRows(tableName, foreignKey, targetId, targetCount) {
   const currentCount = Number(rows[0]?.total || 0);
   if (currentCount >= safeCount) return;
 
-  for (let index = currentCount; index < safeCount; index += 1) {
+  const pending = safeCount - currentCount;
+  const batchSize = 50;
+
+  for (let start = 0; start < pending; start += batchSize) {
+    const size = Math.min(batchSize, pending - start);
+    const values = [];
+    const placeholders = [];
+
+    for (let index = 0; index < size; index += 1) {
+      values.push(targetId, (currentCount + start + index) % 240);
+      placeholders.push("(?, NULL, DATE_SUB(NOW(), INTERVAL ? HOUR))");
+    }
+
     await db.query(
       `INSERT INTO ${tableName} (${foreignKey}, user_id, viewed_at)
-       VALUES (?, NULL, DATE_SUB(NOW(), INTERVAL ? HOUR))`,
-      [targetId, index % 240],
+       VALUES ${placeholders.join(", ")}`,
+      values,
     );
   }
 }
@@ -685,18 +697,28 @@ async function seedBookReviews(bookId, title, targetReviewCount, targetAverage, 
   if (currentCount >= safeTarget) return;
 
   const ratings = buildRatings(targetAverage, safeTarget - currentCount);
+  const batchSize = 50;
 
-  for (let index = 0; index < ratings.length; index += 1) {
-    const userId = userIds[index % userIds.length];
-    await db.query(
-      `INSERT INTO book_reviews (user_id, book_id, rating, comment)
-       VALUES (?, ?, ?, ?)`,
-      [
+  for (let start = 0; start < ratings.length; start += batchSize) {
+    const batch = ratings.slice(start, start + batchSize);
+    const values = [];
+    const placeholders = [];
+
+    for (let index = 0; index < batch.length; index += 1) {
+      const userId = userIds[(start + index) % userIds.length];
+      values.push(
         userId,
         bookId,
-        ratings[index],
+        batch[index],
         `รีวิวตัวอย่างสำหรับ "${title}" ที่ใช้เติมข้อมูลคะแนนจาก backend โดยตรง`,
-      ],
+      );
+      placeholders.push("(?, ?, ?, ?)");
+    }
+
+    await db.query(
+      `INSERT INTO book_reviews (user_id, book_id, rating, comment)
+       VALUES ${placeholders.join(", ")}`,
+      values,
     );
   }
 }
@@ -767,7 +789,7 @@ function buildGeneratedCategoryBooks(categories) {
       price: 0,
       tags: ["starter", "free-read"],
       flags: { isFreeBook: true, isRecommended: true },
-      ratings: { average: 4.5, reviews: 26, reads: 180 },
+      ratings: { average: 4.5, reviews: 8, reads: 54 },
     },
     {
       suffix: "เล่มเด่นประจำซีซัน",
@@ -778,7 +800,7 @@ function buildGeneratedCategoryBooks(categories) {
       flags: { isPromotion: true, isBestSeller: true },
       promoDiscountPercent: 20,
       promoDurationDays: 7,
-      ratings: { average: 4.7, reviews: 44, reads: 320 },
+      ratings: { average: 4.7, reviews: 12, reads: 86 },
     },
     {
       suffix: "ฉบับลึกสำหรับสมาชิก",
@@ -787,7 +809,7 @@ function buildGeneratedCategoryBooks(categories) {
       price: 99,
       tags: ["subscription", "deep-dive"],
       flags: { isNewRelease: true, isRecommended: true, isHallOfFame: true },
-      ratings: { average: 4.8, reviews: 36, reads: 250 },
+      ratings: { average: 4.8, reviews: 10, reads: 68 },
     },
   ];
 
@@ -861,8 +883,7 @@ async function ensureUserSampleData() {
   const [users] = await db.query(
     `SELECT id, name, email, role
      FROM users
-     ORDER BY FIELD(role, 'user', 'writer', 'admin', 'superadmin'), id ASC
-     LIMIT 4`,
+     ORDER BY FIELD(role, 'user', 'writer', 'admin', 'superadmin'), id ASC`,
   );
 
   if (!users.length) return;
@@ -881,7 +902,7 @@ async function ensureUserSampleData() {
      FROM books
      WHERE source_type = 'seed'
      ORDER BY id ASC
-     LIMIT 6`,
+     LIMIT 12`,
   );
 
   for (const [index, user] of users.entries()) {
@@ -931,11 +952,24 @@ async function ensureUserSampleData() {
       "SELECT COUNT(*) AS total FROM account_follows WHERE user_id = ?",
       [user.id],
     );
-    if (Number(followRows[0]?.total || 0) === 0 && bookRows[0]) {
+    if (Number(followRows[0]?.total || 0) === 0 && bookRows.length > 0) {
+      const pickedBook = bookRows[index % bookRows.length];
+      const pickedCategory = index % 2 === 0 ? "นิยาย" : "ความรู้";
       await db.query(
         `INSERT INTO account_follows (user_id, target_type, target_id, target_name)
-         VALUES (?, 'book', ?, ?)`,
-        [user.id, bookRows[index % bookRows.length].id, bookRows[index % bookRows.length].title],
+         VALUES
+         (?, 'book', ?, ?),
+         (?, 'category', NULL, ?),
+         (?, 'author', NULL, ?)`,
+        [
+          user.id,
+          pickedBook.id,
+          pickedBook.title,
+          user.id,
+          pickedCategory,
+          user.id,
+          index % 2 === 0 ? "ทีม Read and Voice" : "นักเขียนแนะนำ",
+        ],
       );
     }
 
@@ -955,12 +989,31 @@ async function ensureUserSampleData() {
       "SELECT COUNT(*) AS total FROM user_subscriptions WHERE user_id = ?",
       [user.id],
     );
-    if (preferredPlan && Number(subscriptionRows[0]?.total || 0) === 0 && index === 0) {
+    if (preferredPlan && Number(subscriptionRows[0]?.total || 0) === 0) {
+      const assignedPlan = planRows[index % planRows.length] || preferredPlan;
       await db.query(
         `INSERT INTO user_subscriptions
          (user_id, plan_id, status, payment_status, start_at, end_at)
          VALUES (?, ?, 'active', 'paid', DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_ADD(NOW(), INTERVAL ? DAY))`,
-        [user.id, preferredPlan.id, Number(preferredPlan.duration_days || 30)],
+        [user.id, assignedPlan.id, Number(assignedPlan.duration_days || 30)],
+      );
+    }
+
+    const [reviewRows] = await db.query(
+      "SELECT COUNT(*) AS total FROM book_reviews WHERE user_id = ?",
+      [user.id],
+    );
+    if (Number(reviewRows[0]?.total || 0) === 0 && bookRows.length > 0) {
+      const reviewBook = bookRows[(index + 1) % bookRows.length];
+      await db.query(
+        `INSERT INTO book_reviews (user_id, book_id, rating, comment)
+         VALUES (?, ?, ?, ?)`,
+        [
+          user.id,
+          reviewBook.id,
+          4 + (index % 2),
+          `รีวิวตัวอย่างของผู้ใช้ ${user.name || user.id} สำหรับ "${reviewBook.title}"`,
+        ],
       );
     }
   }

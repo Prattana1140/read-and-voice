@@ -1,5 +1,28 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
+import { computed } from "vue";
 import logoUrl from "../assets/Logo-transparent.png";
+import { getAuthUser, isAuthenticated } from "../utils/auth";
+
+type UserRole = "user" | "writer" | "admin" | "superadmin";
+
+const isLoggedIn = computed(() => isAuthenticated());
+const authUser = computed(() => getAuthUser() as { role?: string } | null);
+const currentRole = computed<UserRole | null>(() => {
+  const role = authUser.value?.role?.trim().toLowerCase();
+
+  if (role === "user" || role === "writer" || role === "admin" || role === "superadmin") {
+    return role;
+  }
+
+  return null;
+});
+
+const canManageCategories = computed(() => currentRole.value === "admin" || currentRole.value === "superadmin");
+const canWriteBooks = computed(() => currentRole.value === "writer");
+const memberLink = computed(() => (isLoggedIn.value ? "/my-library" : "/login"));
+const recentLink = computed(() => (isLoggedIn.value ? "/profile" : "/login"));
+const walletLink = computed(() => (isLoggedIn.value ? "/coin-wallet" : "/login"));
+const notificationSettingsLink = computed(() => (isLoggedIn.value ? "/notification-settings" : "/login"));
 </script>
 
 <template>
@@ -10,16 +33,16 @@ import logoUrl from "../assets/Logo-transparent.png";
         <router-link to="/store">นิยาย</router-link>
         <router-link to="/subscription-plans">แฟนฟิค</router-link>
         <router-link to="/serials">การ์ตูน</router-link>
-        <router-link to="/admin/categories">หมวดหมู่นิยาย</router-link>
+        <router-link v-if="canManageCategories" to="/admin/categories">หมวดหมู่นิยาย</router-link>
         <router-link to="/recommended">นิยายแช็ก ออริจินอล</router-link>
       </section>
 
       <section class="footer-column">
         <h3>เมนูของฉัน</h3>
-        <router-link to="/my-library">My Reading</router-link>
-        <router-link to="/profile">อ่านล่าสุด</router-link>
-        <router-link to="/writer/books">My Writing</router-link>
-        <router-link to="/writer/upload">เพิ่มงานเขียนใหม่</router-link>
+        <router-link :to="memberLink">My Reading</router-link>
+        <router-link :to="recentLink">อ่านล่าสุด</router-link>
+        <router-link v-if="canWriteBooks" to="/writer/books">My Writing</router-link>
+        <router-link v-if="canWriteBooks" to="/writer/upload">เพิ่มงานเขียนใหม่</router-link>
       </section>
 
       <section class="footer-column footer-about">
@@ -29,8 +52,8 @@ import logoUrl from "../assets/Logo-transparent.png";
           <router-link to="/terms">เงื่อนไขการใช้บริการ</router-link>
           <router-link to="/privacy-policy">นโยบายความเป็นส่วนตัว</router-link>
           <router-link to="/data-privacy">รู้จัก readAwrite และ meb</router-link>
-          <router-link to="/coin-wallet">วิธีการเติมคอยน์</router-link>
-          <router-link to="/notification-settings">Proof ตรวจคำผิดอัตโนมัติ</router-link>
+          <router-link :to="walletLink">วิธีการเติมคอยน์</router-link>
+          <router-link :to="notificationSettingsLink">Proof ตรวจคำผิดอัตโนมัติ</router-link>
         </div>
 
         <div class="footer-logo-wrap">

@@ -9,6 +9,12 @@ const {
   sanitizeBookText,
   splitTextToPages,
 } = require("../services/fileParser");
+const {
+  ensureBookCover,
+  ensureBooksHaveCovers,
+  getCoverImagePath,
+  isMissingCover,
+} = require("../services/bookCover");
 const { notifyWriterFollowersAboutEpisode } = require("../services/notifications");
 const {
   verifyToken,
@@ -143,11 +149,6 @@ function getUploadedFile(req, fieldNames) {
   return files.find((file) => names.includes(file.fieldname)) || null;
 }
 
-function getCoverImagePath(file, fallback = "") {
-  if (!file) return fallback;
-  return `uploads/book-covers/${file.filename}`;
-}
-
 function normalizeAccessType(value, price = 0) {
   if (["free", "paid", "subscription"].includes(value)) return value;
   return Number(price || 0) <= 0 ? "free" : "paid";
@@ -279,6 +280,7 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
   const autoApprove = ["admin", "superadmin"].includes(user.role);
 
   if (normalizedContentType === "serial") {
+    const initialCoverImage = getCoverImagePath(coverFile, cover_image);
     const [result] = await db.query(
       `INSERT INTO books
        (title, author, description, category_id, cover_image, source_type, content_type,
@@ -292,7 +294,7 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
         author,
         description,
         category_id || null,
-        getCoverImagePath(coverFile, cover_image),
+        initialCoverImage,
         normalizeAccessType(access_type, price),
         autoApprove ? 1 : 0,
         user.id,
@@ -310,6 +312,21 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
         requestedPlacements.requested_recommended,
       ],
     );
+
+    if (isMissingCover(initialCoverImage)) {
+      await ensureBookCover(
+        {
+          id: result.insertId,
+          title,
+          subtitle: payload.subtitle,
+          author,
+          author_name: payload.author_name || author,
+          cover_image: initialCoverImage,
+          cover_image_url: "",
+        },
+        db,
+      );
+    }
 
     return {
       status: 201,
@@ -332,6 +349,7 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
     };
   }
 
+  const initialCoverImage = getCoverImagePath(coverFile, cover_image);
   const [result] = await db.query(
     `INSERT INTO books
      (title, author, description, category_id, cover_image, source_type, content_type,
@@ -345,7 +363,7 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
       author,
       description,
       category_id || null,
-      getCoverImagePath(coverFile, cover_image),
+      initialCoverImage,
       normalizeAccessType(access_type, price),
       fullText,
       pages.length,
@@ -367,6 +385,20 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
   );
 
   await replaceBookPages(result.insertId, pages);
+  if (isMissingCover(initialCoverImage)) {
+    await ensureBookCover(
+      {
+        id: result.insertId,
+        title,
+        subtitle: payload.subtitle,
+        author,
+        author_name: payload.author_name || author,
+        cover_image: initialCoverImage,
+        cover_image_url: "",
+      },
+      db,
+    );
+  }
 
   return {
     status: 201,
@@ -630,6 +662,7 @@ router.get("/", async (_req, res) => {
        ORDER BY b.created_at DESC`,
     );
 
+    await ensureBooksHaveCovers(rows, db);
     return res.json(rows.map(toPublicBookSummary));
   } catch (error) {
     console.error("GET /books error:", error);
@@ -727,6 +760,20 @@ router.post(
 
       await saveBookFile(result.insertId, bookFile, connection);
       await replaceBookPages(result.insertId, pages, connection);
+      if (isMissingCover(finalCoverImage)) {
+        await ensureBookCover(
+          {
+            id: result.insertId,
+            title,
+            subtitle: req.body.subtitle,
+            author,
+            author_name: req.body.author_name || author,
+            cover_image: finalCoverImage,
+            cover_image_url: "",
+          },
+          connection,
+        );
+      }
       await connection.commit();
 
       return res.json({
@@ -772,6 +819,7 @@ router.post(
       } = req.body;
       const requestedPlacements = getPlacementRequestValues(req.body);
       const autoApprove = ["admin", "superadmin"].includes(req.user.role);
+      const initialCoverImage = getCoverImagePath(coverFile, cover_image);
 
       if (!title || !author) {
         return res.status(400).json({
@@ -792,7 +840,7 @@ router.post(
           author,
           description,
           category_id || null,
-          getCoverImagePath(coverFile, cover_image),
+          initialCoverImage,
           normalizeAccessType(access_type, price),
           autoApprove ? 1 : 0,
           req.user.id,
@@ -810,6 +858,21 @@ router.post(
           requestedPlacements.requested_recommended,
         ],
       );
+
+      if (isMissingCover(initialCoverImage)) {
+        await ensureBookCover(
+          {
+            id: result.insertId,
+            title,
+            subtitle: req.body.subtitle,
+            author,
+            author_name: req.body.author_name || author,
+            cover_image: initialCoverImage,
+            cover_image_url: "",
+          },
+          db,
+        );
+      }
 
       return res.json({
         message: "Serial book created successfully",
@@ -856,6 +919,7 @@ router.post(
       });
       const requestedPlacements = getPlacementRequestValues(req.body);
       const autoApprove = ["admin", "superadmin"].includes(req.user.role);
+      const initialCoverImage = getCoverImagePath(coverFile, cover_image);
 
       if (!fullText) {
         return res.status(400).json({
@@ -876,7 +940,7 @@ router.post(
           author,
           description,
           category_id || null,
-          getCoverImagePath(coverFile, cover_image),
+          initialCoverImage,
           normalizeAccessType(access_type, price),
           fullText,
           pages.length,
@@ -898,6 +962,21 @@ router.post(
       );
 
       await replaceBookPages(result.insertId, pages);
+
+      if (isMissingCover(initialCoverImage)) {
+        await ensureBookCover(
+          {
+            id: result.insertId,
+            title,
+            subtitle: req.body.subtitle,
+            author,
+            author_name: req.body.author_name || author,
+            cover_image: initialCoverImage,
+            cover_image_url: "",
+          },
+          db,
+        );
+      }
 
       return res.json({
         message: "สร้างหนังสือแบบกรอกเนื้อหาสำเร็จ",
@@ -1017,6 +1096,7 @@ router.get("/:id", optionalVerifyToken, async (req, res) => {
     }
 
     const book = rows[0];
+    await ensureBookCover(book, db);
     const canReadFull = await canReadFullBook(req.user, book);
 
     let tags = [];

@@ -16,6 +16,26 @@
       @mouseenter="pauseCarousel"
       @mouseleave="startCarousel"
     >
+      <button
+        v-if="bannerPages > 1"
+        type="button"
+        class="hero-arrow hero-arrow-left"
+        aria-label="แบนเนอร์ก่อนหน้า"
+        @click="goToPrevBanner"
+      >
+        ‹
+      </button>
+
+      <button
+        v-if="bannerPages > 1"
+        type="button"
+        class="hero-arrow hero-arrow-right"
+        aria-label="แบนเนอร์ถัดไป"
+        @click="goToNextBanner"
+      >
+        ›
+      </button>
+
       <div
         class="hero-track"
         :style="{ transform: `translateX(-${activeBannerIndex * bannerShiftPercent}%)` }"
@@ -61,7 +81,7 @@
     </section>
 
     <main class="storefront">
-      <div v-if="books.length === 0" class="empty-box">
+      <div v-if="homeSections.length === 0" class="empty-box">
         ยังไม่มีหนังสือแสดงผล
       </div>
 
@@ -132,8 +152,8 @@ const activeBannerIndex = ref(0);
 let carouselTimer: ReturnType<typeof window.setInterval> | undefined;
 
 const bannerLabels = ["อ่านและฟัง", "ขายดี", "ออกใหม่", "โปรโมชัน", "อ่านฟรี", "แนะนำ"];
-const bannerShiftPercent = 16.6667;
-const visibleBannerCount = 6;
+const bannerShiftPercent = 25;
+const visibleBannerCount = 4;
 
 const sectionDefinitions = [
   { title: "ออกใหม่", to: "/new-releases", endpoint: "/new-releases", limit: 5 },
@@ -204,6 +224,17 @@ const pauseCarousel = () => {
 
 const setActiveBanner = (index: number) => {
   activeBannerIndex.value = Math.min(Math.max(index, 0), bannerPages.value - 1);
+  startCarousel();
+};
+
+const goToPrevBanner = () => {
+  activeBannerIndex.value =
+    activeBannerIndex.value === 0 ? bannerPages.value - 1 : activeBannerIndex.value - 1;
+  startCarousel();
+};
+
+const goToNextBanner = () => {
+  activeBannerIndex.value = (activeBannerIndex.value + 1) % bannerPages.value;
   startCarousel();
 };
 
@@ -298,7 +329,7 @@ onUnmounted(() => {
   overflow: hidden;
   background: color-mix(in srgb, var(--surface) 90%, var(--bg));
   border-bottom: 1px solid var(--border);
-  padding: 10px 0 24px;
+  padding: 10px 0 28px;
 }
 
 .hero-track {
@@ -306,25 +337,28 @@ onUnmounted(() => {
   width: 100%;
   transition: transform 0.55s ease;
   will-change: transform;
+  gap: 10px;
+  padding: 0 18px;
 }
 
 .promo-banner {
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px;
+  grid-template-columns: minmax(0, 1fr) 86px;
   align-items: center;
-  flex: 0 0 calc(100% / 6);
-  min-height: 120px;
+  flex: 0 0 calc((100% - 30px) / 4);
+  min-height: 132px;
   overflow: hidden;
-  border: 4px solid color-mix(in srgb, var(--surface) 92%, transparent);
-  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, white);
+  border-radius: 14px;
   background:
-    radial-gradient(circle at 82% 28%, rgba(255, 255, 255, 0.62), transparent 28%),
+    radial-gradient(circle at 82% 28%, rgba(255, 255, 255, 0.58), transparent 28%),
     linear-gradient(130deg, #b6f3e7, #fff7c8 52%, #ffcad4);
   color: #163b37;
   cursor: pointer;
-  padding: 14px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  padding: 14px 16px;
 }
 
 .promo-banner::before {
@@ -377,13 +411,13 @@ onUnmounted(() => {
 
 .promo-copy span {
   display: inline-flex;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.72);
   color: #078367;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 900;
-  padding: 4px 8px;
+  padding: 3px 8px;
 }
 
 .promo-copy h1 {
@@ -391,9 +425,9 @@ onUnmounted(() => {
   margin: 0;
   overflow: hidden;
   color: #0b2f2b;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 900;
-  line-height: 1.2;
+  line-height: 1.28;
   line-clamp: 2;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -401,10 +435,10 @@ onUnmounted(() => {
 
 .promo-copy p {
   display: -webkit-box;
-  margin: 7px 0 0;
+  margin: 6px 0 0;
   overflow: hidden;
   color: rgba(11, 47, 43, 0.72);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   line-clamp: 1;
   -webkit-box-orient: vertical;
@@ -415,25 +449,56 @@ onUnmounted(() => {
   position: relative;
   z-index: 1;
   justify-self: end;
-  width: 64px;
+  width: 72px;
   aspect-ratio: 3 / 4;
-  border-radius: 4px;
+  border-radius: 10px;
   object-fit: cover;
   box-shadow: 0 8px 16px rgba(8, 47, 43, 0.18);
 }
 
+.hero-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.42);
+  color: rgba(15, 23, 42, 0.26);
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 1;
+  transform: translateY(-58%);
+  transition: background 0.18s ease, color 0.18s ease;
+  backdrop-filter: blur(6px);
+}
+
+.hero-arrow:hover {
+  background: rgba(255, 255, 255, 0.74);
+  color: rgba(15, 23, 42, 0.58);
+}
+
+.hero-arrow-left {
+  left: 12px;
+}
+
+.hero-arrow-right {
+  right: 12px;
+}
+
 .hero-dots {
   position: absolute;
-  bottom: 7px;
+  bottom: 8px;
   left: 50%;
   display: flex;
-  gap: 9px;
+  gap: 7px;
   transform: translateX(-50%);
 }
 
 .hero-dots button {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border: 0;
   border-radius: 999px;
   background: color-mix(in srgb, var(--border) 88%, var(--surface));
@@ -446,7 +511,7 @@ onUnmounted(() => {
 }
 
 .hero-dots button.active {
-  width: 18px;
+  width: 14px;
   background: var(--primary);
 }
 
@@ -739,9 +804,13 @@ onUnmounted(() => {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
   margin-top: 10px;
+  align-items: stretch;
 }
 
 .book-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   overflow: hidden;
   border-radius: 2px;
   cursor: pointer;
@@ -759,18 +828,25 @@ onUnmounted(() => {
   display: block;
   width: 100%;
   aspect-ratio: 3 / 4;
+  flex: 0 0 auto;
   height: auto;
   object-fit: cover;
   background: var(--surface-soft);
 }
 
 .book-info {
+  display: grid;
+  grid-template-rows: minmax(34px, auto) 16px auto;
+  align-content: start;
+  gap: 5px;
+  flex: 1 1 auto;
   padding: 8px 7px 9px;
 }
 
 .book-info p {
   display: -webkit-box;
-  margin: 0 0 5px;
+  min-height: 34px;
+  margin: 0;
   overflow: hidden;
   color: var(--text-strong);
   font-size: 12px;
@@ -783,13 +859,15 @@ onUnmounted(() => {
 
 .book-info small {
   display: block;
+  min-height: 16px;
   color: var(--text-muted);
   font-size: 11px;
 }
 
 .book-info strong {
   display: inline-flex;
-  margin-top: 7px;
+  align-self: start;
+  margin-top: 2px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--primary) 90%, white);
   color: var(--on-primary);
@@ -860,6 +938,11 @@ onUnmounted(() => {
 }
 
 @media (max-width: 640px) {
+  .promo-banner {
+    flex: 0 0 82%;
+    border-radius: 12px;
+  }
+
   .book-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -877,8 +960,14 @@ onUnmounted(() => {
 
   .promo-banner {
     grid-template-columns: minmax(0, 1fr) 112px;
-    min-height: 220px;
+    min-height: 184px;
     padding: 20px;
+  }
+
+  .hero-arrow {
+    width: 32px;
+    height: 32px;
+    font-size: 22px;
   }
 
   .promo-copy h1 {

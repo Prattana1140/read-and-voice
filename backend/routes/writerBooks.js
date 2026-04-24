@@ -6,6 +6,7 @@ const {
   prepareStructuredContent,
   slugify,
 } = require("../services/contentSegmenter");
+const { ensureBookCover, ensureBooksHaveCovers, generateBookCoverPath } = require("../services/bookCover");
 const { notifyWriterFollowersAboutEpisode } = require("../services/notifications");
 
 const router = express.Router();
@@ -228,6 +229,14 @@ router.post("/", verifyToken, async (req, res) => {
     } = req.body;
 
     const safeAuthorName = String(author_name || req.user.name || "").trim();
+    const initialCoverImage =
+      String(cover_image_url || "").trim() ||
+      generateBookCoverPath({
+        title,
+        subtitle,
+        author: safeAuthorName,
+        seed: `${title || ""}:${safeAuthorName}:${Date.now()}`,
+      });
 
     if (!title || !safeAuthorName) {
       return res.status(400).json({ message: "กรุณากรอกชื่อหนังสือและผู้เขียน" });
@@ -250,8 +259,8 @@ router.post("/", verifyToken, async (req, res) => {
         safeAuthorName,
         safeAuthorName,
         description,
-        cover_image_url,
-        cover_image_url,
+        initialCoverImage,
+        initialCoverImage,
         category_id || null,
         language_code || "th",
         content_type === "serial" ? "serial" : "ebook",
@@ -274,6 +283,18 @@ router.post("/", verifyToken, async (req, res) => {
     );
 
     await upsertBookTags(result.insertId, tags, connection);
+    await ensureBookCover(
+      {
+        id: result.insertId,
+        title,
+        subtitle,
+        author: safeAuthorName,
+        author_name: safeAuthorName,
+        cover_image: initialCoverImage,
+        cover_image_url: initialCoverImage,
+      },
+      connection,
+    );
     await connection.commit();
 
     return res.status(201).json({
@@ -315,6 +336,7 @@ router.get("/mine", verifyToken, async (req, res) => {
       [req.user.id]
     );
 
+    await ensureBooksHaveCovers(rows, db);
     return res.json(rows);
   } catch (error) {
     console.error("GET /writer/books/mine error:", error);
@@ -354,6 +376,14 @@ router.put("/:id", verifyToken, async (req, res) => {
       requested_recommended,
     } = req.body;
 
+    const nextCoverImage =
+      String(cover_image || cover_image_url || "").trim() ||
+      generateBookCoverPath({
+        bookId,
+        title: title || `book-${bookId}`,
+        author: author_name || author || req.user.name || "Read and Voice",
+      });
+
     await db.query(
       `UPDATE books
        SET title = ?,
@@ -379,8 +409,8 @@ router.put("/:id", verifyToken, async (req, res) => {
         author_name || author || null,
         description || null,
         category_id || null,
-        cover_image || null,
-        cover_image_url || cover_image || null,
+        nextCoverImage,
+        nextCoverImage,
         access_type || "free",
         Number(price || 0),
         requested_best_seller === undefined ? null : normalizeFlag(requested_best_seller),
@@ -391,6 +421,19 @@ router.put("/:id", verifyToken, async (req, res) => {
         requested_recommended === undefined ? null : normalizeFlag(requested_recommended),
         bookId,
       ]
+    );
+
+    await ensureBookCover(
+      {
+        id: Number(bookId),
+        title: title || `book-${bookId}`,
+        subtitle: null,
+        author: author_name || author || req.user.name || "Read and Voice",
+        author_name: author_name || author || req.user.name || "Read and Voice",
+        cover_image: nextCoverImage,
+        cover_image_url: nextCoverImage,
+      },
+      db,
     );
 
     return res.json({ message: "แก้ไขหนังสือสำเร็จ" });

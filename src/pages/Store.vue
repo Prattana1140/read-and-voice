@@ -315,11 +315,17 @@ const goToCart = () => {
 
 .book-card {
   border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   padding: 14px;
 }
 
 .book-clickable {
   cursor: pointer;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
 }
 
 .book-card img {
@@ -335,26 +341,35 @@ const goToCart = () => {
   margin: 0 0 8px;
   color: var(--text-strong);
   font-size: 18px;
+  min-height: 52px;
 }
 
 .book-card p {
   margin: 0 0 4px;
   color: var(--text);
+  min-height: 24px;
 }
 
 .book-card small {
   color: var(--text-muted);
+  min-height: 20px;
 }
 
 .card-actions {
   display: flex;
   gap: 8px;
-  margin-top: 14px;
-  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 14px;
+  flex-wrap: nowrap;
 }
 
 .mini-btn {
   flex: 1;
+  min-height: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   padding: 10px 12px;
 }
 

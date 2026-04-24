@@ -1,15 +1,15 @@
 <template>
   <nav class="nav">
     <div class="nav-inner">
-      <div class="all-books">อีบุ๊กทั้งหมด ▼</div>
+      <div class="all-books">อีบุ๊กทั้งหมด</div>
 
       <router-link to="/" class="nav-link">หน้าแรก</router-link>
       <router-link to="/store" class="nav-link">ขายดี</router-link>
-      <a href="#" class="nav-link">มาใหม่</a>
-      <a href="#" class="nav-link">โปรโมชั่น</a>
-      <a href="#" class="nav-link">ฟรีรายวัน</a>
-      <a href="#" class="nav-link">ฮิตขึ้นหิ้ง</a>
-      <a href="#" class="nav-link">แนะนำ</a>
+      <router-link to="/new-releases" class="nav-link">มาใหม่</router-link>
+      <router-link to="/promotions" class="nav-link">โปรโมชัน</router-link>
+      <router-link to="/free-books" class="nav-link">ฟรีรายวัน</router-link>
+      <router-link to="/hall-of-fame" class="nav-link">ฮิตขึ้นหิ้ง</router-link>
+      <router-link to="/recommended" class="nav-link">แนะนำ</router-link>
     </div>
   </nav>
 </template>
