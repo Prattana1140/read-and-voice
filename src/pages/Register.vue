@@ -1,7 +1,8 @@
 <script setup>
-import { reactive, ref } from "vue";
+import { reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { api } from "../utils/api";
+import { announceAccessibilityMessage } from "../utils/accessibility";
 
 const emit = defineEmits(["close", "success"]);
 const router = useRouter();
@@ -68,6 +69,7 @@ const submitRegister = async () => {
     });
 
     success.value = "สมัครสมาชิกสำเร็จ";
+    announceAccessibilityMessage(success.value);
     emit("success");
 
     setTimeout(() => {
@@ -81,11 +83,16 @@ const submitRegister = async () => {
     loading.value = false;
   }
 };
+
+watch(error, (message) => {
+  if (message) announceAccessibilityMessage(message);
+});
 </script>
 
 <template>
   <div class="register-modal" @click.self="closeModal">
-    <section class="register-card">
+    <section class="register-card" role="dialog" aria-modal="true" aria-labelledby="register-title" aria-describedby="register-status">
+      <span id="register-title" class="sr-only">สมัครสมาชิก Read and Voice</span>
       <div class="register-header">
         <div class="title-wrap">
           <h1 class="register-title">สมัครสมาชิก Read and Voice Account</h1>
@@ -186,8 +193,8 @@ const submitRegister = async () => {
         </div>
       </div>
 
-      <p v-if="error" class="error-text">{{ error }}</p>
-      <p v-if="success" class="success-text">{{ success }}</p>
+      <p id="register-status" v-if="error" class="error-text" aria-live="assertive">{{ error }}</p>
+      <p id="register-status" v-if="success" class="success-text" aria-live="polite">{{ success }}</p>
     </section>
   </div>
 </template>
@@ -202,6 +209,18 @@ const submitRegister = async () => {
   z-index: 9999;
   padding: 24px;
   box-sizing: border-box;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  padding: 0;
 }
 
 .register-card {

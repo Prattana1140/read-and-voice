@@ -23,7 +23,7 @@ onMounted(loadItems);
       <table>
         <thead><tr><th>Device Name</th><th>Login Date</th><th>Application</th><th>App Platform</th></tr></thead>
         <tbody>
-          <tr v-for="item in items" :key="item.id"><td>{{ item.device_name }}</td><td>{{ formatDate(item.last_used_at || item.created_at) }}</td><td>MEB E-Books</td><td>{{ item.platform || '-' }}</td></tr>
+          <tr v-for="item in items" :key="item.id"><td>{{ item.device_name }}</td><td>{{ formatDate(item.last_used_at || item.created_at) }}</td><td>Read and Voice</td><td>{{ item.platform || '-' }}</td></tr>
         </tbody>
       </table>
       <div class="actions"><button type="button" :disabled="saving" @click="logoutAllDevices">{{ saving ? 'กำลังดำเนินการ...' : 'Logout all devices' }}</button></div>

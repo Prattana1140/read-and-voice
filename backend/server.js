@@ -27,6 +27,7 @@ const reviewsRoutes = require("./routes/reviews");
 const episodeCommentsRoutes = require("./routes/episodeComments");
 const notificationsRoutes = require("./routes/notifications");
 const paymentsRoutes = require("./routes/payments");
+const writersRoutes = require("./routes/writers");
 
 const app = express();
 const allowedOrigins = [
@@ -63,6 +64,8 @@ app.get("/api", (_req, res) => {
     status: "ok",
     endpoints: [
       "/api/books",
+      "/api/books/:id",
+      "/api/books/:id/content",
       "/api/ebooks",
       "/api/serials",
       "/api/best-sellers",
@@ -73,8 +76,16 @@ app.get("/api", (_req, res) => {
       "/api/recommended",
       "/api/subscription",
       "/api/subscriptions/plans",
+      "/api/subscriptions/me",
       "/api/page-content",
+      "/api/page-content/subscription-hero",
       "/api/account/following",
+      "/api/account/notifications",
+      "/api/writers/:slug",
+      "/api/writers/me/profile",
+      "/api/reader/books/:bookId/content",
+      "/api/reader/settings/tts",
+      "/api/payments/status/:orderId",
       "/api/wishlist",
       "/api/books/:bookId/reviews",
       "/api/reviews/:reviewId",
@@ -102,6 +113,7 @@ app.use("/api/coins", coinsRoutes);
 app.use("/api/page-content", pageContentRoutes);
 app.use("/api/account", accountRoutes);
 app.use("/api/account/notifications", notificationsRoutes);
+app.use("/api/writers", writersRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api", reviewsRoutes);
 app.use("/api", episodeCommentsRoutes);

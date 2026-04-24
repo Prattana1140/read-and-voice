@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("../config/db");
 const { optionalVerifyToken } = require("../middleware/auth");
 const { sanitizeBookText } = require("../services/fileParser");
+const { ensureCatalogAnalyticsSchema } = require("../services/catalogSchema");
 
 const router = express.Router();
 
@@ -123,6 +124,7 @@ async function getBookFullText(bookId, fullText) {
 
 router.get("/books/:bookId/content", optionalVerifyToken, async (req, res) => {
   try {
+    await ensureCatalogAnalyticsSchema();
     const { bookId } = req.params;
 
     const [books] = await db.query(
@@ -165,6 +167,12 @@ router.get("/books/:bookId/content", optionalVerifyToken, async (req, res) => {
       });
     }
 
+    await db.query(
+      `INSERT INTO book_views (book_id, user_id, viewed_at)
+       VALUES (?, ?, NOW())`,
+      [book.id, req.user?.id || null],
+    );
+
     return res.json({
       is_locked: false,
       title: book.title,
@@ -179,6 +187,7 @@ router.get("/books/:bookId/content", optionalVerifyToken, async (req, res) => {
 
 router.get("/episodes/:episodeId/content", optionalVerifyToken, async (req, res) => {
   try {
+    await ensureCatalogAnalyticsSchema();
     const { episodeId } = req.params;
 
     const [episodes] = await db.query(
@@ -233,6 +242,12 @@ router.get("/episodes/:episodeId/content", optionalVerifyToken, async (req, res)
         content: "",
       });
     }
+
+    await db.query(
+      `INSERT INTO episode_views (episode_id, user_id, viewed_at)
+       VALUES (?, ?, NOW())`,
+      [episode.id, req.user?.id || null],
+    );
 
     return res.json({
       is_locked: false,

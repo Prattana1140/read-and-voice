@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import api, { API_BASE_URL } from "../utils/api";
+import api, { resolveAssetUrl } from "../utils/api";
 
 type Book = {
   id: number;
@@ -12,39 +12,78 @@ type Book = {
   description?: string;
 };
 
+type Episode = {
+  id: number;
+  title: string;
+  episode_number?: number;
+  access_type?: string;
+  price?: number;
+};
+
+type ShelfResponse = {
+  books: Book[];
+};
+
 const router = useRouter();
 const books = ref<Book[]>([]);
+const episodes = ref<Episode[]>([]);
 const loading = ref(true);
 
 const mainStory = computed(() => books.value[0] || null);
-const episodePreview = computed(() => {
-  const title = mainStory.value?.title || "รายตอน";
-  return Array.from({ length: 12 }, (_, index) => ({
-    id: index + 1,
-    title: `${title} ตอนที่ ${index + 1}`,
-    meta: index < 3 ? "อ่านฟรี" : "ใช้ coin / VIP",
-  }));
-});
+const episodePreview = computed(() =>
+  episodes.value.map((episode) => ({
+    id: episode.id,
+    title: `ตอนที่ ${episode.episode_number || episode.id} ${episode.title}`,
+    meta:
+      episode.access_type === "free"
+        ? "อ่านฟรี"
+        : episode.access_type === "subscription"
+          ? "สมาชิกอ่านได้"
+          : `${Number(episode.price || 0)} coin`,
+  })),
+);
 
-const getBookCover = (book: Book) => {
-  const cover = book.cover_url || book.cover_image;
-  if (!cover) return "/no-cover.png";
-  if (cover.startsWith("http://") || cover.startsWith("https://")) return cover;
-  return `${API_BASE_URL}/${cover.replace(/^\/+/, "")}`;
-};
+const getBookCover = (book: Book) =>
+  resolveAssetUrl(book.cover_url || book.cover_image);
 
 const goToBook = (id: number) => {
   router.push({ name: "BookDetail", params: { id } });
 };
 
+async function loadEpisodes(bookId?: number | null) {
+  if (!bookId) {
+    episodes.value = [];
+    return;
+  }
+
+  try {
+    const { data } = await api.get(`/books/${bookId}/episodes`);
+    episodes.value = Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error("โหลดรายการตอนไม่สำเร็จ", error);
+    episodes.value = [];
+  }
+}
+
 onMounted(async () => {
   try {
-    const { data } = await api.get("/books");
-    books.value = Array.isArray(data) ? data : [];
+    const { data } = await api.get<ShelfResponse>("/serials");
+    books.value = Array.isArray(data?.books) ? data.books : [];
+  } catch (error) {
+    console.error("โหลดนิยายรายตอนไม่สำเร็จ", error);
+    books.value = [];
   } finally {
     loading.value = false;
   }
 });
+
+watch(
+  mainStory,
+  (book) => {
+    void loadEpisodes(book?.id);
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
@@ -73,7 +112,7 @@ onMounted(async () => {
         <div class="hero-copy">
           <p>Read and Voice รายตอน</p>
           <h1>{{ loading ? "กำลังโหลดรายตอน..." : "ยังไม่มีรายตอน" }}</h1>
-          <span>เมื่อเพิ่มหนังสือรายตอนในระบบแล้ว รายการจะแสดงที่หน้านี้</span>
+          <span>เมื่อมีหนังสือรายตอนในระบบ รายการจะแสดงที่หน้านี้</span>
         </div>
       </div>
     </section>
@@ -89,7 +128,7 @@ onMounted(async () => {
       <p>
         {{
           mainStory?.description ||
-          "พื้นที่สำหรับคำโปรย เรื่องย่อ และข้อมูลสำคัญของนิยายรายตอน ผู้ดูแลระบบสามารถต่อยอดให้เชื่อมกับข้อมูลตอนจริงจาก backend ได้"
+          "พื้นที่นี้ใช้แสดงคำโปรยและข้อมูลสรุปของนิยายรายตอนจาก backend โดยตรง"
         }}
       </p>
     </section>
@@ -105,6 +144,9 @@ onMounted(async () => {
         <span>{{ episode.title }}</span>
         <small>{{ episode.meta }}</small>
       </button>
+      <p v-if="!episodePreview.length && !loading" class="episode-empty">
+        เรื่องนี้ยังไม่มีตอนที่เผยแพร่
+      </p>
     </section>
   </main>
 </template>
@@ -252,6 +294,11 @@ onMounted(async () => {
 .episode-list small {
   color: #0f766e;
   font-weight: 900;
+}
+
+.episode-empty {
+  margin: 0;
+  color: var(--text-muted);
 }
 
 @media (max-width: 680px) {

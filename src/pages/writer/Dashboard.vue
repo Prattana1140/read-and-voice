@@ -153,6 +153,7 @@ onMounted(fetchBooks);
         <button type="button" @click="router.push('/writer/upload')">อัปโหลดหนังสือ</button>
         <button type="button" @click="router.push('/writer/books')">หนังสือของฉัน</button>
         <button type="button" @click="router.push('/writer/stats')">สถิติหนังสือ</button>
+        <button type="button" @click="router.push('/writer/profile')">หน้าสาธารณะนักเขียน</button>
       </aside>
     </section>
   </main>

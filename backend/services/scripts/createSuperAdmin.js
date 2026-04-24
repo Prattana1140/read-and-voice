@@ -51,3 +51,4 @@ async function createOrUpdateSuperAdmin() {
 }
 
 createOrUpdateSuperAdmin();
+np

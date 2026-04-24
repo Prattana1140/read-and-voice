@@ -7,6 +7,10 @@ export type AuthUser = {
   role: UserRole;
   status?: string;
   provider?: string;
+  avatar_url?: string;
+  phone?: string;
+  bio?: string;
+  created_at?: string;
 };
 
 export const AUTH_CHANGED_EVENT = "read-and-voice-auth-changed";

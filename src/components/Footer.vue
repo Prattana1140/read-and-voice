@@ -1,49 +1,184 @@
-﻿<template>
+﻿<script setup lang="ts">
+import logoUrl from "../assets/Logo-transparent.png";
+</script>
+
+<template>
   <footer class="footer">
     <div class="footer-inner">
-      <section class="footer-brand">
-        <h2>Read and Voice</h2>
-        <p>พื้นที่อ่านและฟัง e-book ที่ออกแบบให้ใช้งานง่าย อ่านสบาย และเข้าถึงหน้าบริการสำคัญได้ครบ</p>
-      </section>
-      <section>
-        <h3>เลือกหมวดหมู่</h3>
+      <section class="footer-column">
+        <h3>ดูเนื้อหา</h3>
         <router-link to="/store">นิยาย</router-link>
+        <router-link to="/subscription-plans">แฟนฟิค</router-link>
         <router-link to="/serials">การ์ตูน</router-link>
-        <router-link to="/new-releases">นิตยสาร</router-link>
-        <router-link to="/recommended">ทั่วไป</router-link>
-        <router-link to="/free-books">หนังสือเสียง</router-link>
-        <router-link to="/subscription-plans">บุฟเฟต์</router-link>
+        <router-link to="/admin/categories">หมวดหมู่นิยาย</router-link>
+        <router-link to="/recommended">นิยายแช็ก ออริจินอล</router-link>
       </section>
-      <section>
-        <h3>บริการช่วยเหลือ</h3>
-        <router-link to="/profile">วิธีการใช้งาน</router-link>
-        <router-link to="/account/buffet">สถานะสมาชิก</router-link>
-        <router-link to="/coin-wallet">meb coin</router-link>
-        <router-link to="/account/gift-codes">Gift Code คืออะไร?</router-link>
-        <router-link to="/terms">เงื่อนไขในการใช้บริการ</router-link>
-        <router-link to="/privacy-policy">นโยบายความเป็นส่วนตัว</router-link>
-        <router-link to="/notification-settings">ตั้งค่าการแจ้งเตือน</router-link>
+
+      <section class="footer-column">
+        <h3>เมนูของฉัน</h3>
+        <router-link to="/my-library">My Reading</router-link>
+        <router-link to="/profile">อ่านล่าสุด</router-link>
+        <router-link to="/writer/books">My Writing</router-link>
+        <router-link to="/writer/upload">เพิ่มงานเขียนใหม่</router-link>
       </section>
-      <section>
-        <h3>เกี่ยวกับเรา</h3>
-        <router-link to="/promotions">ข่าวสารและกิจกรรม</router-link>
-        <router-link to="/data-privacy">ติดต่อเรา</router-link>
+
+      <section class="footer-column footer-about">
+        <div class="footer-about-links">
+          <h3>เกี่ยวกับเรา</h3>
+          <router-link to="/data-privacy">ติดต่อเรา</router-link>
+          <router-link to="/terms">เงื่อนไขการใช้บริการ</router-link>
+          <router-link to="/privacy-policy">นโยบายความเป็นส่วนตัว</router-link>
+          <router-link to="/data-privacy">รู้จัก readAwrite และ meb</router-link>
+          <router-link to="/coin-wallet">วิธีการเติมคอยน์</router-link>
+          <router-link to="/notification-settings">Proof ตรวจคำผิดอัตโนมัติ</router-link>
+        </div>
+
+        <div class="footer-logo-wrap">
+          <img class="footer-logo" :src="logoUrl" alt="Read and Voice" />
+        </div>
       </section>
     </div>
-    <div class="footer-bottom"><span>© 2026 Read and Voice</span><span>อ่านชัด ฟังสบาย ในทุกโหมด</span></div>
+
+    <div class="footer-bottom">
+      <span>© 2026 Read and Voice</span>
+      <span>อ่านชัด ฟังสบาย และต่อยอดเป็น ecosystem ได้จริง</span>
+    </div>
   </footer>
 </template>
 
 <style scoped>
-.footer { margin-top: auto; background: color-mix(in srgb, #e7fbf7 88%, white); color: #244b47; border-top: 1px solid rgba(17, 156, 145, 0.16); box-shadow: 0 -10px 28px rgba(17, 156, 145, 0.08); }
-.footer-inner { max-width: var(--content-width); margin: 0 auto; display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 28px; padding: 40px 20px; }
-.footer-brand h2,h3 { color: #0b5f59; }
-.footer-brand h2 { margin: 0 0 10px; font-size: 26px; }
-.footer-brand p { margin: 0; color: #4f8f88; line-height: 1.7; }
-h3 { margin: 0 0 12px; font-size: 16px; }
-a { display: block; width: fit-content; margin: 8px 0; color: #244b47; text-decoration: none; }
-a:hover { color: #0f766e; }
-.footer-bottom { max-width: var(--content-width); margin: 0 auto; display: flex; justify-content: space-between; gap: 14px; padding: 16px 20px 24px; border-top: 1px solid rgba(17, 156, 145, 0.16); color: #4f8f88; font-size: 14px; }
-@media (max-width: 820px) { .footer-inner { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 560px) { .footer-inner { grid-template-columns: 1fr; } .footer-bottom { flex-direction: column; } }
+.footer {
+  margin-top: auto;
+  background: #eef3f2;
+  color: #111827;
+  border-top: 1px solid #d8e2e1;
+}
+
+.footer-inner,
+.footer-bottom {
+  max-width: 1220px;
+  margin: 0 auto;
+  padding-inline: 28px;
+}
+
+.footer-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(420px, 1.45fr);
+  gap: 72px;
+  padding-top: 48px;
+  padding-bottom: 30px;
+}
+
+.footer-column {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.footer-column h3 {
+  margin: 0 0 10px;
+  color: #111827;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.footer-column a {
+  width: fit-content;
+  color: #111827;
+  font-size: 15px;
+  line-height: 1.75;
+  text-decoration: none;
+  transition: color 0.18s ease;
+}
+
+.footer-column a:hover {
+  color: #0f766e;
+}
+
+.footer-about {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) 280px;
+  align-items: center;
+  gap: 92px;
+}
+
+.footer-about-links {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.footer-about-links h3,
+.footer-about-links a {
+  white-space: nowrap;
+}
+
+.footer-logo-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100%;
+}
+
+.footer-logo {
+  width: 260px;
+  height: auto;
+  object-fit: contain;
+}
+
+.footer-bottom {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 22px;
+  color: #5b6468;
+  font-size: 13px;
+  text-align: center;
+}
+
+@media (max-width: 1080px) {
+  .footer-inner {
+    grid-template-columns: 1fr 1fr;
+    gap: 36px;
+  }
+
+  .footer-about {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(280px, 1fr) 240px;
+    gap: 48px;
+  }
+}
+
+@media (max-width: 560px) {
+  .footer-inner {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .footer-about {
+    grid-column: auto;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .footer-about-links h3,
+  .footer-about-links a {
+    white-space: normal;
+  }
+
+  .footer-logo {
+    width: 190px;
+  }
+
+  .footer-logo-wrap {
+    justify-content: center;
+    order: -1;
+  }
+
+  .footer-bottom {
+    gap: 10px;
+  }
+}
 </style>

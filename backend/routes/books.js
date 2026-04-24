@@ -16,6 +16,7 @@ const {
   allowRoles,
 } = require("../middleware/auth");
 const { requireAdmin } = require("../middleware/admin");
+const { ensureCatalogAnalyticsSchema } = require("../services/catalogSchema");
 
 const router = express.Router();
 
@@ -67,6 +68,7 @@ const upload = multer({
 });
 
 let episodeCommentsTableReady;
+let writerProfilesTableReady;
 
 async function ensureEpisodeCommentsTable() {
   if (!episodeCommentsTableReady) {
@@ -89,6 +91,34 @@ async function ensureEpisodeCommentsTable() {
   }
 
   return episodeCommentsTableReady;
+}
+
+async function ensureWriterProfilesTable() {
+  if (!writerProfilesTableReady) {
+    writerProfilesTableReady = db
+      .query(`
+        CREATE TABLE IF NOT EXISTS writer_profiles (
+          user_id INT PRIMARY KEY,
+          pen_name VARCHAR(120) NULL,
+          page_slug VARCHAR(160) NULL,
+          tagline VARCHAR(255) NULL,
+          bio TEXT NULL,
+          avatar_url TEXT NULL,
+          banner_url TEXT NULL,
+          facebook_url VARCHAR(255) NULL,
+          x_url VARCHAR(255) NULL,
+          pinned_book_id INT NULL,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          UNIQUE KEY uq_writer_profiles_page_slug (page_slug),
+          CONSTRAINT fk_writer_profiles_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          CONSTRAINT fk_writer_profiles_pinned_book FOREIGN KEY (pinned_book_id) REFERENCES books(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `)
+      .then(() => true);
+  }
+
+  return writerProfilesTableReady;
 }
 
 function uploadBookFiles(req, res, next) {
@@ -140,6 +170,20 @@ function normalizeFlag(value) {
   }
 
   return Number(Boolean(value));
+}
+
+function normalizeOptionalPublished(value, fallback) {
+  if (value === undefined || value === null || value === "") {
+    return Number(fallback ?? 1);
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["1", "true", "yes", "on"].includes(normalized)) return 1;
+    if (["0", "false", "no", "off"].includes(normalized)) return 0;
+  }
+
+  return Number(value) === 1 ? 1 : 0;
 }
 
 function getPlacementRequestValues(source = {}) {
@@ -204,6 +248,133 @@ function buildManualBookContent({ chapters, content }) {
   return {
     fullText,
     pages: splitTextToPages(fullText),
+  };
+}
+
+async function createBookFromPayload(payload = {}, user, coverFile = null) {
+  const {
+    title,
+    author,
+    description = "",
+    category_id = null,
+    cover_image = "",
+    price = 0,
+    access_type,
+    content_type,
+    preview_page_limit,
+    preview_char_limit,
+    chapters,
+    content = "",
+  } = payload;
+
+  if (!title || !author) {
+    return {
+      status: 400,
+      body: { message: "กรอกชื่อหนังสือและผู้เขียนให้ครบ" },
+    };
+  }
+
+  const normalizedContentType = normalizeContentType(content_type);
+  const requestedPlacements = getPlacementRequestValues(payload);
+  const autoApprove = ["admin", "superadmin"].includes(user.role);
+
+  if (normalizedContentType === "serial") {
+    const [result] = await db.query(
+      `INSERT INTO books
+       (title, author, description, category_id, cover_image, source_type, content_type,
+        access_type, process_status, full_text, total_pages, is_published, created_by, price,
+        preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
+        requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
+        requested_hall_of_fame, requested_recommended, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'manual', 'serial', ?, 'completed', '', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [
+        title,
+        author,
+        description,
+        category_id || null,
+        getCoverImagePath(coverFile, cover_image),
+        normalizeAccessType(access_type, price),
+        autoApprove ? 1 : 0,
+        user.id,
+        Number(price || 0),
+        normalizePositiveInt(preview_page_limit, GUEST_PREVIEW_PAGE_LIMIT),
+        normalizePositiveInt(preview_char_limit, GUEST_PREVIEW_CHAR_LIMIT),
+        autoApprove ? "approved" : "pending",
+        autoApprove ? user.id : null,
+        autoApprove ? new Date() : null,
+        requestedPlacements.requested_best_seller,
+        requestedPlacements.requested_new_release,
+        requestedPlacements.requested_promotion,
+        requestedPlacements.requested_free_book,
+        requestedPlacements.requested_hall_of_fame,
+        requestedPlacements.requested_recommended,
+      ],
+    );
+
+    return {
+      status: 201,
+      body: {
+        message: "สร้างหนังสือแบบรายตอนสำเร็จ",
+        book_id: result.insertId,
+      },
+    };
+  }
+
+  const { fullText, pages } = buildManualBookContent({
+    chapters: parseMaybeJson(chapters, []),
+    content,
+  });
+
+  if (!fullText) {
+    return {
+      status: 400,
+      body: { message: "กรอกเนื้อหาหนังสืออย่างน้อย 1 บทหรือ 1 ย่อหน้า" },
+    };
+  }
+
+  const [result] = await db.query(
+    `INSERT INTO books
+     (title, author, description, category_id, cover_image, source_type, content_type,
+      access_type, process_status, full_text, total_pages, is_published, created_by, price,
+      preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
+      requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
+      requested_hall_of_fame, requested_recommended, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'manual', 'ebook', ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+    [
+      title,
+      author,
+      description,
+      category_id || null,
+      getCoverImagePath(coverFile, cover_image),
+      normalizeAccessType(access_type, price),
+      fullText,
+      pages.length,
+      autoApprove ? 1 : 0,
+      user.id,
+      Number(price || 0),
+      normalizePositiveInt(preview_page_limit, GUEST_PREVIEW_PAGE_LIMIT),
+      normalizePositiveInt(preview_char_limit, GUEST_PREVIEW_CHAR_LIMIT),
+      autoApprove ? "approved" : "pending",
+      autoApprove ? user.id : null,
+      autoApprove ? new Date() : null,
+      requestedPlacements.requested_best_seller,
+      requestedPlacements.requested_new_release,
+      requestedPlacements.requested_promotion,
+      requestedPlacements.requested_free_book,
+      requestedPlacements.requested_hall_of_fame,
+      requestedPlacements.requested_recommended,
+    ],
+  );
+
+  await replaceBookPages(result.insertId, pages);
+
+  return {
+    status: 201,
+    body: {
+      message: "สร้างหนังสือแบบกรอกเนื้อหาสำเร็จ",
+      book_id: result.insertId,
+      total_pages: pages.length,
+    },
   };
 }
 
@@ -301,6 +472,7 @@ function toPublicBookSummary(book) {
     author: book.author,
     author_name: book.author_name,
     author_id: book.author_id,
+    writer_page_slug: book.writer_page_slug || "",
     description: book.description,
     category_id: book.category_id,
     category_name: book.category_name,
@@ -318,6 +490,10 @@ function toPublicBookSummary(book) {
     created_by: book.created_by,
     price: book.price,
     coin_price: book.coin_price,
+    promo_discount_percent: Number(book.promo_discount_percent || 0),
+    promo_start_at: book.promo_start_at,
+    promo_end_at: book.promo_end_at,
+    promo_days_left: Number(book.promo_days_left || 0),
     preview_mode: book.preview_mode,
     preview_value: book.preview_value,
     age_rating: book.age_rating,
@@ -339,6 +515,10 @@ function toPublicBookSummary(book) {
     created_at: book.created_at,
     updated_at: book.updated_at,
     episode_count: book.episode_count,
+    review_count: Number(book.review_count || 0),
+    average_rating: Number(book.average_rating || 0),
+    read_count: Number(book.read_count || 0),
+    view_count: Number(book.read_count || 0),
   };
 }
 
@@ -363,6 +543,9 @@ function toPublicBookDetail(book, options = {}) {
 
 router.get("/", async (_req, res) => {
   try {
+    await ensureCatalogAnalyticsSchema();
+    await ensureWriterProfilesTable();
+
     const [rows] = await db.query(
       `SELECT
          b.id,
@@ -372,6 +555,7 @@ router.get("/", async (_req, res) => {
          b.author,
          b.author_name,
          b.author_id,
+         wp.page_slug AS writer_page_slug,
          b.description,
          b.category_id,
          b.language_code,
@@ -388,6 +572,10 @@ router.get("/", async (_req, res) => {
          b.created_by,
          b.price,
          b.coin_price,
+         b.promo_discount_percent,
+         b.promo_start_at,
+         b.promo_end_at,
+         GREATEST(COALESCE(TIMESTAMPDIFF(DAY, NOW(), b.promo_end_at), 0), 0) AS promo_days_left,
          b.preview_mode,
          b.preview_value,
          b.age_rating,
@@ -411,11 +599,33 @@ router.get("/", async (_req, res) => {
          c.name AS category_name,
          (
            SELECT COUNT(*)
+           FROM book_reviews r
+           WHERE r.book_id = b.id
+         ) AS review_count,
+         ROUND(
+           COALESCE(
+             (
+               SELECT AVG(r.rating)
+               FROM book_reviews r
+               WHERE r.book_id = b.id
+             ),
+             0
+           ),
+           1
+         ) AS average_rating,
+         (
+           SELECT COUNT(*)
+           FROM book_views v
+           WHERE v.book_id = b.id
+         ) AS read_count,
+         (
+           SELECT COUNT(*)
            FROM book_episodes e
            WHERE e.book_id = b.id AND e.is_published = 1
          ) AS episode_count
        FROM books b
        LEFT JOIN categories c ON c.id = b.category_id
+       LEFT JOIN writer_profiles wp ON wp.user_id = b.created_by
        WHERE b.is_published = 1
        ORDER BY b.created_at DESC`,
     );
@@ -705,6 +915,9 @@ router.post(
 
 router.get("/:id", optionalVerifyToken, async (req, res) => {
   try {
+    await ensureCatalogAnalyticsSchema();
+    await ensureWriterProfilesTable();
+
     const [rows] = await db.query(
       `SELECT
          b.id,
@@ -714,6 +927,7 @@ router.get("/:id", optionalVerifyToken, async (req, res) => {
          b.author,
          b.author_name,
          b.author_id,
+         wp.page_slug AS writer_page_slug,
          b.description,
          b.category_id,
          b.language_code,
@@ -730,6 +944,10 @@ router.get("/:id", optionalVerifyToken, async (req, res) => {
          b.created_by,
          b.price,
          b.coin_price,
+         b.promo_discount_percent,
+         b.promo_start_at,
+         b.promo_end_at,
+         GREATEST(COALESCE(TIMESTAMPDIFF(DAY, NOW(), b.promo_end_at), 0), 0) AS promo_days_left,
          b.preview_mode,
          b.preview_value,
          b.total_units,
@@ -759,9 +977,36 @@ router.get("/:id", optionalVerifyToken, async (req, res) => {
          b.preview_char_limit,
          b.created_at,
          b.updated_at,
-         c.name AS category_name
+         c.name AS category_name,
+         (
+           SELECT COUNT(*)
+           FROM book_reviews r
+           WHERE r.book_id = b.id
+         ) AS review_count,
+         ROUND(
+           COALESCE(
+             (
+               SELECT AVG(r.rating)
+               FROM book_reviews r
+               WHERE r.book_id = b.id
+             ),
+             0
+           ),
+           1
+         ) AS average_rating,
+         (
+           SELECT COUNT(*)
+           FROM book_views v
+           WHERE v.book_id = b.id
+         ) AS read_count,
+         (
+           SELECT COUNT(*)
+           FROM book_episodes e
+           WHERE e.book_id = b.id AND e.is_published = 1
+         ) AS episode_count
        FROM books b
        LEFT JOIN categories c ON c.id = b.category_id
+       LEFT JOIN writer_profiles wp ON wp.user_id = b.created_by
        WHERE b.id = ?
        LIMIT 1`,
       [req.params.id],
@@ -811,6 +1056,21 @@ router.get("/:id", optionalVerifyToken, async (req, res) => {
     return res.status(500).json({ message: "โหลดข้อมูลหนังสือไม่สำเร็จ" });
   }
 });
+
+router.post(
+  "/",
+  verifyToken,
+  allowRoles("writer", "admin", "superadmin"),
+  async (req, res) => {
+    try {
+      const result = await createBookFromPayload(req.body, req.user);
+      return res.status(result.status).json(result.body);
+    } catch (error) {
+      console.error("POST /books error:", error);
+      return res.status(500).json({ message: "สร้างหนังสือไม่สำเร็จ" });
+    }
+  },
+);
 
 router.get("/:id/toc", optionalVerifyToken, async (req, res) => {
   try {
@@ -919,6 +1179,7 @@ router.get("/:id/content", optionalVerifyToken, async (req, res) => {
 
 router.get("/:id/episodes", async (req, res) => {
   try {
+    await ensureCatalogAnalyticsSchema();
     await ensureEpisodeCommentsTable();
     const [rows] = await db.query(
       `SELECT
@@ -935,6 +1196,11 @@ router.get("/:id/episodes", async (req, res) => {
            FROM episode_comments ec
            WHERE ec.episode_id = book_episodes.id
          ) AS comment_count,
+         (
+           SELECT COUNT(*)
+           FROM episode_views ev
+           WHERE ev.episode_id = book_episodes.id
+         ) AS read_count,
          created_at,
          updated_at
        FROM book_episodes
@@ -1094,7 +1360,7 @@ router.put("/:id", verifyToken, async (req, res) => {
         author || book.author,
         author || book.author_name || book.author,
         description ?? book.description,
-        category_id || null,
+        category_id ?? book.category_id,
         cover_image ?? book.cover_image,
         cover_image ?? book.cover_image_url ?? book.cover_image,
         Number(price ?? book.price ?? 0),
@@ -1103,9 +1369,7 @@ router.put("/:id", verifyToken, async (req, res) => {
           price ?? book.price,
         ),
         normalizeContentType(content_type || book.content_type),
-        typeof is_published === "number"
-          ? is_published
-          : Number(book.is_published ?? 1),
+        normalizeOptionalPublished(is_published, book.is_published),
         requested_best_seller === undefined ? null : normalizeFlag(requested_best_seller),
         requested_new_release === undefined ? null : normalizeFlag(requested_new_release),
         requested_promotion === undefined ? null : normalizeFlag(requested_promotion),

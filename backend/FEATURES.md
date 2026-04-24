@@ -55,6 +55,8 @@
 ### Auth
 - `POST /api/auth/register`
 - `POST /api/auth/login`
+- `POST /api/auth/forgot-password`
+- `POST /api/auth/reset-password`
 - `GET /api/auth/oauth/status`
 - `GET /api/auth/oauth/:provider/start`
 - `GET /api/auth/oauth/:provider/callback`
@@ -69,6 +71,7 @@
 - `POST /api/books/manual`
 - `POST /api/books/serial`
 - `GET /api/books/:id`
+- `GET /api/books/:id/toc`
 - `GET /api/books/:id/content`
 - `GET /api/books/:id/episodes`
 - `POST /api/books/:id/episodes`
@@ -76,6 +79,12 @@
 - `DELETE /api/books/:id`
 - `GET /api/reader/books/:bookId/content`
 - `GET /api/reader/episodes/:episodeId/content`
+- `GET /api/reader/books/:bookId/access`
+- `GET /api/reader/books/:bookId/units/:unitId`
+- `GET /api/reader/books/:bookId/progress`
+- `POST /api/reader/books/:bookId/progress`
+- `GET /api/reader/settings/tts`
+- `PUT /api/reader/settings/tts`
 - `GET /api/books/:bookId/reviews`
 - `POST /api/books/:bookId/reviews`
 - `PUT /api/reviews/:reviewId`
@@ -104,11 +113,16 @@
 - `GET /api/account/buffet`
 - `GET /api/account/devices`
 - `POST /api/account/devices`
+- `PUT /api/account/devices/:id`
+- `DELETE /api/account/devices/:id`
 - `GET /api/account/benefits`
 - `GET /api/account/reviews`
 - `POST /api/account/reviews`
 - `GET /api/account/age-verification`
 - `POST /api/account/age-verification`
+- `GET /api/account/notifications`
+- `POST /api/account/notifications/:id/read`
+- `POST /api/account/notifications/read-all`
 
 ### Cart / Orders / Library / Wishlist / Progress
 - `POST /api/cart`
@@ -117,6 +131,9 @@
 - `POST /api/orders/checkout`
 - `POST /api/orders/purchase`
 - `GET /api/orders/history`
+- `GET /api/payments/status/:orderId`
+- `POST /api/payments/mock/create`
+- `POST /api/payments/mock/webhook`
 - `POST /api/library`
 - `GET /api/library/me`
 - `DELETE /api/library/:bookId`
@@ -141,6 +158,7 @@
 - `POST /api/coins/topup`
 
 ### Writer / Admin
+- `POST /api/writer/books`
 - `GET /api/writer/books/mine`
 - `PUT /api/writer/books/:id`
 - `DELETE /api/writer/books/:id`
@@ -168,9 +186,17 @@
 - `PATCH /api/admin/users/:id/approve-admin`
 - `PATCH /api/admin/users/:id/revoke-admin`
 - `GET /api/admin/stats/summary`
+- `GET /api/admin/books/pending`
+- `GET /api/admin/books/:id`
+- `PUT /api/admin/books/:id/approval`
+- `PUT /api/admin/books/:id/requested-placements`
 - `GET /api/page-content`
-- `POST /api/page-content`
+- `POST /api/page-content/subscription-hero`
 - `DELETE /api/page-content/subscription-hero`
+- `GET /api/episodes/:episodeId/comments`
+- `POST /api/episodes/:episodeId/comments`
+- `PUT /api/episode-comments/:commentId`
+- `DELETE /api/episode-comments/:commentId`
 
 ## 3. ฟอร์มที่มีในระบบ
 
@@ -231,8 +257,8 @@
 | `/login/facebook` | FacebookLogin | social login page | ไม่มีฟอร์มหลัก | OAuth flow | พร้อมใช้งาน |
 | `/oauth/callback` | OAuthCallback | รับ callback หลัง social login | ไม่มี | OAuth flow | พร้อมใช้งาน |
 | `/register` | Register | สมัครสมาชิก | register | `POST /api/auth/register` | พร้อมใช้งาน |
-| `/forgot-password` | ForgotPassword | ขอรีเซ็ตรหัสผ่าน | email form | ไม่มี API จริงในระบบ | ขาด backend |
-| `/reader/:id` | ReaderPage | อ่านหนังสือ, TTS, resume progress | ควบคุมเสียง / ตอน | `GET /api/books/:id`, `GET /api/books/:id/episodes`, `GET /api/progress/:bookId`, `GET /api/reader/*` | พร้อมใช้งาน |
+| `/forgot-password` | ForgotPassword | ขอรีเซ็ตรหัสผ่าน | email form | `POST /api/auth/forgot-password`, `POST /api/auth/reset-password` | พร้อมใช้งาน |
+| `/reader/:id` | ReaderPage | อ่านหนังสือ, TTS, resume progress | ควบคุมเสียง / ตอน | `GET /api/books/:id`, `GET /api/books/:id/episodes`, `GET /api/progress/:bookId`, `GET /api/reader/books/:bookId/content`, `GET /api/reader/episodes/:episodeId/content`, `GET /api/reader/books/:bookId/access`, `GET /api/reader/books/:bookId/units/:unitId`, `GET /api/reader/settings/tts`, `PUT /api/reader/settings/tts` | พร้อมใช้งาน |
 | `/my-library` | MyLibrary | ดูหนังสือที่มีสิทธิ์อ่าน | ค้นหา | `GET /api/library/me`, `DELETE /api/library/:bookId` | พร้อมใช้งาน |
 | `/wishlist` | Wishlist | รายการที่อยากได้ | ไม่มีฟอร์มหลัก | `GET /api/wishlist`, `DELETE /api/wishlist/:bookId` | พร้อมใช้งาน |
 | `/cart` | Cart | ดูตะกร้า, ลบ, checkout | checkout | `GET /api/cart`, `DELETE /api/cart/:id`, `GET /api/coins/wallet`, `POST /api/orders/checkout` | พร้อมใช้งาน |
@@ -248,17 +274,17 @@
 | `/writer` | WriterDashboard | dashboard นักเขียน | ไม่มีฟอร์มหลัก | `GET /api/books` | พร้อมใช้งาน |
 | `/writer/books` | WriterBooks | รายการหนังสือของนักเขียน | ไม่มีฟอร์มหลัก | `GET /api/writer/books/mine` | พร้อมใช้งาน |
 | `/writer/upload` | WriterUpload | อัปโหลด ebook/serial/manual | ฟอร์มอัปโหลดเต็มรูปแบบ | `GET /api/categories`, `POST /api/books/upload`, `POST /api/books/manual`, `POST /api/books/serial`, `POST /api/books/:id/episodes` | พร้อมใช้งานแบบ partial |
-| `/writer/books/:id/edit` | WriterEditBook | ดูข้อมูลหนังสือก่อนแก้ไข | ยังไม่มีฟอร์มบันทึกจริง | `GET /api/books/:id` | ขาด backend สำหรับ save |
+| `/writer/books/:id/edit` | WriterEditBook | ดูข้อมูลหนังสือก่อนแก้ไข | ฟอร์มแก้ไข/บันทึก | `GET /api/books/:id`, `PUT /api/books/:id` | พร้อมใช้งาน |
 | `/writer/stats` | WriterStats | ดูสถิติหนังสือเบื้องต้น | ไม่มี | `GET /api/books` | พร้อมใช้งานแบบ partial |
 | `/admin` | AdminDashboard | จัดการหนังสือแบบรวม | ค้นหา, ลบหนังสือ | `GET /api/books`, `DELETE /api/books/:id` | พร้อมใช้งาน |
 | `/admin/books` | AdminBooks | รายการหนังสือแอดมิน | ไม่มีฟอร์มหลัก | ใช้ข้อมูลหนังสือ | พร้อมใช้งาน |
-| `/admin/page-content` | AdminPageContent | จัดการภาพ/คอนเทนต์บางส่วน | upload image / delete | `GET /api/books`, `GET /api/page-content`, `POST /api/page-content`, `DELETE /api/page-content/subscription-hero` | พร้อมใช้งาน |
+| `/admin/page-content` | AdminPageContent | จัดการภาพ/คอนเทนต์บางส่วน | upload image / delete | `GET /api/books`, `GET /api/page-content`, `POST /api/page-content/subscription-hero`, `DELETE /api/page-content/subscription-hero` | พร้อมใช้งาน |
 | `/admin/books/edit/:id` | AdminEditBook | แก้ไขข้อมูลหนังสือ | edit form | `GET /api/books/:id`, `PUT /api/books/:id` | พร้อมใช้งาน |
 | `/admin/upload-book` | UploadBook | อัปโหลดหนังสือฝั่งแอดมิน | upload form | `GET /api/categories`, `POST /api/books/upload` | พร้อมใช้งาน |
 | `/admin/categories` | AdminCategories | จัดการหมวดหมู่ | add/edit category | `GET /api/categories`, `POST /api/categories`, `PUT /api/categories/:id`, `DELETE /api/categories/:id` | พร้อมใช้งาน |
 | `/admin/members` | AdminMembers | จัดการสถานะสมาชิก | เปลี่ยน status | `GET /api/admin/users`, `PUT /api/admin/users/:id/status` | พร้อมใช้งาน |
 | `/superadmin/roles` | SuperAdminRoles | จัดการ role | เปลี่ยน role | `GET /api/admin/users`, `PATCH /api/admin/users/:id/role` | พร้อมใช้งาน |
-| `/superadmin/users` | SuperAdminUsers | จัดการ user ระดับสูง | เปลี่ยน role/status | `GET /api/admin/users`, `PATCH /api/admin/users/:id/*` | พร้อมใช้งาน |
+| `/superadmin/users` | SuperAdminUsers | จัดการ user ระดับสูง | เปลี่ยน role/status | `GET /api/admin/users`, `PATCH /api/admin/users/:id/status`, `PATCH /api/admin/users/:id/role`, `PATCH /api/admin/users/:id/approve-admin`, `PATCH /api/admin/users/:id/revoke-admin` | พร้อมใช้งาน |
 | `/superadmin/settings` | SuperAdminSettings | หน้า settings ระดับระบบ | ไม่มี | ไม่มี API ผูกอยู่ | Placeholder |
 
 ## 5. Audit สถานะหน้า
@@ -296,8 +322,8 @@
 ### C. มีหน้าแล้ว แต่ยังขาด backend หรือยังไม่ครบ flow
 | หน้า | ที่ขาด |
 |---|---|
-| ForgotPassword | ยังไม่มี endpoint reset password จริง |
-| WriterEditBook | ตอนนี้เป็นหน้าอ่านข้อมูล ยังไม่มี save/update flow สำหรับเจ้าของหนังสือ |
+| ForgotPassword | มี backend แล้วผ่าน `POST /api/auth/forgot-password` และ `POST /api/auth/reset-password` |
+| WriterEditBook | มี backend save/update แล้วผ่าน `PUT /api/books/:id` |
 | WriterUpload | ใช้งานได้มากขึ้นแล้ว แต่ schema ยังขาด `language`, `tags`, TOC แยก, sentence-level storage, TTS preset persistence |
 | WriterStats | ใช้ข้อมูลรวมจาก `/api/books` ยังไม่ใช่สถิติเฉพาะนักเขียนแบบละเอียด |
 
@@ -314,5 +340,5 @@
 ตอนนี้ระบบมีโครงสร้างหลักครบแล้วทั้งฝั่งผู้อ่าน, นักเขียน, แอดมิน, และซูเปอร์แอดมิน แต่ยังมี 3 กลุ่มที่ควรทำต่อเป็นลำดับแรก
 
 1. ทำหน้ากลุ่ม `account/*` ให้เลิกใช้ placeholder แยกเป็นหน้าจริง
-2. เติม backend ให้ `ForgotPassword` และ `WriterEditBook`
+2. ปรับปรุง UX ของ `ForgotPassword` และ `WriterEditBook` ให้สอดคล้องกับ backend ที่มีแล้ว
 3. ขยาย schema ฝั่ง writer upload ให้รองรับ `language`, `tags`, TOC, sentence-level content, และ TTS presets แบบถาวร

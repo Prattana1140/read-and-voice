@@ -22,7 +22,10 @@
       type="text"
       placeholder="ค้นหาชื่อหนังสือหรือผู้เขียน"
       class="search-box"
+      aria-label="ค้นหาหนังสือหรือผู้เขียน"
     />
+
+    <p class="sr-status" aria-live="polite">{{ statusMessage }}</p>
 
     <div v-if="filteredBooks.length === 0" class="empty-state">
       ยังไม่มีหนังสือแสดงผล
@@ -30,7 +33,7 @@
 
     <div v-else class="book-grid">
       <article v-for="book in filteredBooks" :key="book.id" class="book-card">
-        <div class="book-clickable" @click="goToBook(book.id)">
+        <div class="book-clickable" tabindex="0" role="button" :aria-label="`เปิดรายละเอียดหนังสือ ${book.title}`" @click="goToBook(book.id)" @keydown.enter.prevent="goToBook(book.id)" @keydown.space.prevent="goToBook(book.id)">
           <img
             :src="getBookCover(book)"
             :alt="book.title"
@@ -55,10 +58,11 @@
 </template>
 
 <script setup lang="ts">
-import api, { API_BASE_URL } from "../utils/api";
+import api, { API_BASE_URL, resolveAssetUrl } from "../utils/api";
 import { ref, onMounted, computed, watch } from "vue";
 import axios from "axios";
 import { useRoute, useRouter } from "vue-router";
+import { announceAccessibilityMessage } from "../utils/accessibility";
 
 type Book = {
   id: number;
@@ -68,6 +72,7 @@ type Book = {
   cover_image?: string;
   category_name?: string;
   price?: number;
+  access_type?: string;
 };
 
 const router = useRouter();
@@ -75,20 +80,19 @@ const route = useRoute();
 
 const books = ref<Book[]>([]);
 const search = ref(String(route.query.q || ""));
+const statusMessage = ref("");
 
-const getBookCover = (book: Book) => {
-  const cover = book.cover_url || book.cover_image;
-
-  if (!cover) {
-    return "/no-cover.png";
-  }
-
-  if (cover.startsWith("http://") || cover.startsWith("https://")) {
-    return cover;
-  }
-
-  return `${API_BASE_URL}/${cover.replace(/^\/+/, "")}`;
+const notifyStoreStatus = (message: string) => {
+  statusMessage.value = message;
+  announceAccessibilityMessage(message);
 };
+
+const alert = (message?: string) => {
+  if (message) notifyStoreStatus(String(message));
+};
+
+const getBookCover = (book: Book) =>
+  resolveAssetUrl(book.cover_url || book.cover_image);
 
 const handleImgError = (event: Event) => {
   const target = event.target as HTMLImageElement;
@@ -164,8 +168,8 @@ const addToCart = async (bookId: number) => {
 
 onMounted(async () => {
   try {
-    const res = await axios.get(`${API_BASE_URL}/api/books`);
-    books.value = Array.isArray(res.data) ? res.data : [];
+    const { data } = await api.get("/ebooks");
+    books.value = Array.isArray(data?.books) ? data.books : [];
   } catch (error) {
     console.error("โหลดหนังสือไม่สำเร็จ", error);
   }
@@ -191,6 +195,7 @@ const filteredBooks = computed(() => {
 });
 
 const goToBook = (id: number) => {
+  notifyStoreStatus("เปิดรายละเอียดหนังสือ");
   router.push({ name: "BookDetail", params: { id } });
 };
 
@@ -286,6 +291,13 @@ const goToCart = () => {
   background: var(--surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
+}
+
+.sr-status {
+  min-height: 24px;
+  margin: -10px 0 16px;
+  color: var(--primary-strong);
+  font-weight: 700;
 }
 
 .empty-state {

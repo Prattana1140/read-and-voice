@@ -1,6 +1,7 @@
 ﻿<template>
   <div class="book-detail-page">
     <div class="container">
+      <p class="sr-status" aria-live="polite">{{ statusMessage }}</p>
       <div v-if="loading" class="state-box">
         กำลังโหลดข้อมูลหนังสือ...
       </div>
@@ -25,7 +26,14 @@
 
               <h1>{{ book.title }}</h1>
               <p class="story-author">
-                {{ book.author || "ไม่ระบุผู้เขียน" }}
+                <button
+                  type="button"
+                  class="author-link"
+                  :disabled="!getWriterPagePath()"
+                  @click="getWriterPagePath() && router.push(getWriterPagePath())"
+                >
+                  {{ book.author || "ไม่ระบุผู้เขียน" }}
+                </button>
                 <button type="button" @click="toggleWriterFollow">
                   {{ isFollowingWriter ? "ติดตามแล้ว" : "ติดตาม" }}
                 </button>
@@ -98,11 +106,29 @@
               <dl>
                 <div>
                   <dt>นามปากกา</dt>
-                  <dd>{{ book.author || "ไม่ระบุ" }}</dd>
+                  <dd>
+                    <button
+                      type="button"
+                      class="author-link inline-author-link"
+                      :disabled="!getWriterPagePath()"
+                      @click="getWriterPagePath() && router.push(getWriterPagePath())"
+                    >
+                      {{ book.author || "ไม่ระบุ" }}
+                    </button>
+                  </dd>
                 </div>
                 <div>
                   <dt>นักเขียน</dt>
-                  <dd>{{ book.author || "ไม่ระบุ" }}</dd>
+                  <dd>
+                    <button
+                      type="button"
+                      class="author-link inline-author-link"
+                      :disabled="!getWriterPagePath()"
+                      @click="getWriterPagePath() && router.push(getWriterPagePath())"
+                    >
+                      {{ book.author || "ไม่ระบุ" }}
+                    </button>
+                  </dd>
                 </div>
               </dl>
             </div>
@@ -612,6 +638,7 @@ import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
 import { getAuthHeaders, getUser } from "../utils/auth";
 import api from "../utils/api";
+import { announceAccessibilityMessage } from "../utils/accessibility";
 import {
   canOpenBookNow,
   getBookAccessPresentation,
@@ -642,6 +669,7 @@ type Book = {
   read_count?: number;
   author_id?: number;
   created_by?: number;
+  writer_page_slug?: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -693,6 +721,7 @@ const book = ref<Book | null>(null);
 const episodes = ref<Episode[]>([]);
 const loading = ref(true);
 const error = ref("");
+const statusMessage = ref("");
 const previewNotice = ref("");
 const followingId = ref<number | null>(null);
 const isFollowingWriter = ref(false);
@@ -736,6 +765,15 @@ const reviewSummary = ref({
   review_count: 0,
   average_rating: 0,
 });
+
+const notifyBookStatus = (message: string) => {
+  statusMessage.value = message;
+  announceAccessibilityMessage(message);
+};
+
+const alert = (message?: string) => {
+  if (message) notifyBookStatus(String(message));
+};
 
 // =========================
 // computed
@@ -813,6 +851,16 @@ const getWriterFollowPayload = () => {
     target_id: targetId > 0 ? targetId : null,
     target_name: targetName,
   };
+};
+
+const getWriterPagePath = () => {
+  if (!book.value) return "";
+
+  const slug = String(book.value.writer_page_slug || "").trim();
+  if (slug) return `/writers/${slug}`;
+
+  const targetId = Number(book.value.author_id || book.value.created_by || 0);
+  return targetId > 0 ? `/writers/user-${targetId}` : "";
 };
 
 const bookAccessType = computed(() => {
@@ -1760,6 +1808,14 @@ watch([fontSize, rate, pitch, volume, selectedVoice], () => {
   savePreviewSettings();
 });
 
+watch(error, (message) => {
+  if (message) announceAccessibilityMessage(message);
+});
+
+watch(reviewError, (message) => {
+  if (message) announceAccessibilityMessage(message);
+});
+
 // =========================
 // lifecycle
 // =========================
@@ -1782,6 +1838,13 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.sr-status {
+  min-height: 24px;
+  margin: 0 0 8px;
+  color: #0f766e;
+  font-weight: 700;
+}
+
 .book-detail-page {
   min-height: 100vh;
   background: #f7f8fc;
@@ -2658,6 +2721,19 @@ input[type="range"] {
   padding: 0 14px;
 }
 
+.story-author .author-link {
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 0;
+  min-height: auto;
+  padding: 0;
+}
+
+.story-author .author-link:disabled {
+  opacity: 0.72;
+  cursor: default;
+}
+
 .story-description {
   max-width: 720px;
   margin: 18px 0 0;
@@ -2907,6 +2983,16 @@ input[type="range"] {
   margin: 0;
   color: #202324;
   font-weight: 800;
+}
+
+.inline-author-link {
+  min-height: auto;
+  border: 0;
+  background: transparent;
+  color: #118478;
+  cursor: pointer;
+  font-weight: 900;
+  padding: 0;
 }
 
 .section-heading {

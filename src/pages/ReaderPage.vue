@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api, { resolveAssetUrl } from "../utils/api";
+import { accessibilityState, announceAccessibilityMessage } from "../utils/accessibility";
 
 type ReaderResponse = {
   is_locked?: boolean;
@@ -121,6 +122,11 @@ const commentPanelTitle = computed(() => {
   if (!isEpisodeMode.value) return "ความคิดเห็น";
   return `ความคิดเห็นตอน ${title.value || ""}`.trim();
 });
+const readerContentStyle = computed(() => ({
+  fontSize: `${Math.max(fontSize.value, Math.round(20 * accessibilityState.fontScale))}px`,
+  lineHeight: Math.max(lineHeight.value, accessibilityState.lineSpacing),
+  letterSpacing: `${accessibilityState.letterSpacing}em`,
+}));
 
 function splitSentences(text: string) {
   return text
@@ -339,6 +345,27 @@ function stopSpeech() {
   isPaused.value = false;
 }
 
+function toggleSpeechPlayback() {
+  if (!sentences.value.length) return;
+
+  if (isSpeaking.value && !isPaused.value && window.speechSynthesis.speaking) {
+    window.speechSynthesis.pause();
+    isPaused.value = true;
+    announceAccessibilityMessage("หยุดการอ่านชั่วคราวแล้ว");
+    return;
+  }
+
+  if (isPaused.value) {
+    window.speechSynthesis.resume();
+    isPaused.value = false;
+    isSpeaking.value = true;
+    announceAccessibilityMessage("อ่านต่อจากตำแหน่งเดิมแล้ว");
+    return;
+  }
+
+  speakFrom(currentIndex.value);
+}
+
 function speakFrom(index: number) {
   if (!sentences.value.length || index < 0 || index >= sentences.value.length) return;
 
@@ -359,6 +386,7 @@ function speakFrom(index: number) {
     isSpeaking.value = true;
     isPaused.value = false;
     scrollToCurrent();
+    announceAccessibilityMessage(`กำลังอ่านย่อหน้าที่ ${index + 1}`);
   };
 
   utterance.onend = () => {
@@ -398,6 +426,16 @@ function goPreviousEpisode() {
 
 function goNextEpisode() {
   if (nextEpisode.value) openEpisode(nextEpisode.value);
+}
+
+function moveReadingFocus(step: number) {
+  if (!sentences.value.length) return;
+
+  const nextIndexValue = Math.min(sentences.value.length - 1, Math.max(0, currentIndex.value + step));
+  currentIndex.value = nextIndexValue;
+  saveProgress();
+  scrollToCurrent();
+  announceAccessibilityMessage(`เลือกย่อหน้าที่ ${nextIndexValue + 1}`);
 }
 
 function toggleComments() {
@@ -450,6 +488,8 @@ async function submitComment() {
       commentSuccess.value = "ส่งความคิดเห็นแล้ว";
     }
 
+    announceAccessibilityMessage(commentSuccess.value);
+
     resetCommentForm();
     await loadEpisodeComments();
   } catch (err: any) {
@@ -473,6 +513,7 @@ async function deleteComment(commentId: number) {
     }
 
     commentSuccess.value = "ลบความคิดเห็นแล้ว";
+    announceAccessibilityMessage(commentSuccess.value);
     await loadEpisodeComments();
   } catch (err: any) {
     commentError.value = err?.response?.data?.message || "ลบความคิดเห็นไม่สำเร็จ";
@@ -497,13 +538,48 @@ async function shareReader() {
 
     await navigator.clipboard.writeText(window.location.href);
     shareStatus.value = "คัดลอกลิงก์แล้ว";
+    announceAccessibilityMessage(shareStatus.value);
   } catch {
     shareStatus.value = "แชร์ไม่สำเร็จ";
+    announceAccessibilityMessage(shareStatus.value);
   }
 }
 
 function isEpisodeFree(episode: Episode) {
   return Number(episode.is_free) === 1 || episode.access_type === "free" || Number(episode.price) <= 0;
+}
+
+function handleReaderKeydown(event: KeyboardEvent) {
+  const target = event.target as HTMLElement | null;
+  const tagName = target?.tagName?.toLowerCase();
+
+  if (tagName === "input" || tagName === "textarea" || tagName === "select" || target?.isContentEditable) {
+    return;
+  }
+
+  if (event.code === "Space") {
+    event.preventDefault();
+    toggleSpeechPlayback();
+    return;
+  }
+
+  if (event.code === "ArrowRight" || event.code === "KeyK") {
+    event.preventDefault();
+    moveReadingFocus(1);
+    return;
+  }
+
+  if (event.code === "ArrowLeft" || event.code === "KeyJ") {
+    event.preventDefault();
+    moveReadingFocus(-1);
+    return;
+  }
+
+  if (event.code === "Escape") {
+    isTocOpen.value = false;
+    isSettingsOpen.value = false;
+    isCommentsOpen.value = false;
+  }
 }
 
 watch(
@@ -519,8 +595,13 @@ watch(contentRouteKey, async () => {
 
 onMounted(async () => {
   loadReaderSettings();
+  if (accessibilityState.enabled) {
+    fontSize.value = Math.max(fontSize.value, 24);
+    lineHeight.value = Math.max(lineHeight.value, accessibilityState.lineSpacing);
+  }
   loadVoices();
   window.speechSynthesis.onvoiceschanged = loadVoices;
+  window.addEventListener("keydown", handleReaderKeydown);
   await Promise.all([loadBookTitle(), loadEpisodes()]);
   await fetchContent();
   await loadEpisodeComments();
@@ -531,11 +612,12 @@ onBeforeUnmount(() => {
   saveReaderSettings();
   stopSpeech();
   window.speechSynthesis.onvoiceschanged = null;
+  window.removeEventListener("keydown", handleReaderKeydown);
 });
 </script>
 
 <template>
-  <main class="reader-page" :class="[colorMode, readingMode]">
+  <main class="reader-page" :class="[colorMode, readingMode, { 'accessibility-reader': accessibilityState.enabled }]">
     <div class="reader-wrap">
       <header class="mobile-reader-appbar">
         <button type="button" aria-label="ย้อนกลับ" @click="router.back()">←</button>
@@ -616,10 +698,10 @@ onBeforeUnmount(() => {
         </div>
       </section>
 
-      <p v-if="shareStatus" class="share-status">{{ shareStatus }}</p>
+      <p v-if="shareStatus" class="share-status" aria-live="polite">{{ shareStatus }}</p>
 
       <section v-if="loading" class="state-card">กำลังโหลดเนื้อหา...</section>
-      <section v-else-if="error" class="state-card error">{{ error }}</section>
+      <section v-else-if="error" class="state-card error" aria-live="assertive">{{ error }}</section>
 
       <section v-else-if="lockReason" class="locked-card">
         <h2>ยังไม่สามารถอ่านหน้านี้ได้</h2>
@@ -631,14 +713,16 @@ onBeforeUnmount(() => {
       </section>
 
       <div v-else class="reader-main-grid">
-        <article class="reader-content" :class="{ focus: readingMode === 'focus' }" :style="{ fontSize: fontSize + 'px', lineHeight }">
+        <article id="reader-content" class="reader-content" :class="{ focus: readingMode === 'focus' }" :style="readerContentStyle">
           <h2 v-if="isEpisodeMode">{{ title }}</h2>
           <p
             v-for="(paragraph, index) in paragraphs"
             :key="index"
             class="reader-paragraph"
             :class="{ 'is-active': index === currentIndex }"
+            :tabindex="0"
             @click="speakFrom(Math.min(index, sentences.length - 1))"
+            @keydown.enter.prevent="speakFrom(Math.min(index, sentences.length - 1))"
           >
             {{ paragraph }}
           </p>
@@ -751,6 +835,10 @@ onBeforeUnmount(() => {
 .reader-page.dark {
   background: #151311;
   color: #f2ebdd;
+}
+
+.reader-page.accessibility-reader {
+  padding-bottom: 120px;
 }
 
 .reader-wrap {
@@ -1010,8 +1098,20 @@ onBeforeUnmount(() => {
   background: rgba(207, 170, 99, 0.12);
 }
 
+.reader-paragraph:focus-visible {
+  outline: 3px solid #0f766e;
+  outline-offset: 2px;
+}
+
 .reader-paragraph.is-active {
   background: rgba(255, 232, 170, 0.54);
+}
+
+.accessibility-reader .gold-btn,
+.accessibility-reader .reader-footer-nav button,
+.accessibility-reader .listen-floating-cta,
+.accessibility-reader .mobile-comment-float {
+  min-height: 50px;
 }
 
 .comments-panel {

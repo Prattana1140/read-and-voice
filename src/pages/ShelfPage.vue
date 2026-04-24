@@ -19,7 +19,7 @@
         @click="goToBook(book.id)"
       >
         <div>
-          <span>meb</span>
+          <span>Read and Voice</span>
           <strong>{{ book.title }}</strong>
         </div>
         <img :src="getBookCover(book)" :alt="book.title" @error="handleImgError" />
@@ -81,7 +81,7 @@
               </div>
 
               <h3>{{ book.title }}</h3>
-              <p>{{ book.author || 'Read and Voice' }}</p>
+              <p>{{ book.author || "Read and Voice" }}</p>
 
               <div class="meta-line">
                 <span>★★★★★</span>
@@ -143,7 +143,7 @@
                 </div>
 
                 <h3>{{ book.title }}</h3>
-                <p>{{ book.author || 'Read and Voice' }}</p>
+                <p>{{ book.author || "Read and Voice" }}</p>
 
                 <div class="meta-line">
                   <span>★★★★★</span>
@@ -203,9 +203,8 @@
 </template>
 
 <script setup lang="ts">
-import { API_BASE_URL } from "../utils/api";
-import axios from "axios";
-import { computed, onMounted, ref } from "vue";
+import api, { resolveAssetUrl } from "../utils/api";
+import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 type Book = {
@@ -218,19 +217,37 @@ type Book = {
   price?: number;
   created_at?: string;
   total_pages?: number;
+  average_rating?: number;
+  review_count?: number;
+  read_count?: number;
+  promo_discount_percent?: number;
+  promo_days_left?: number;
+  is_best_seller?: number;
+  is_new_release?: number;
+  is_promotion?: number;
+  is_free_book?: number;
+  is_hall_of_fame?: number;
+  is_recommended?: number;
 };
 
 type ShelfConfig = {
   title: string;
   badge: string;
   mode: "best" | "new" | "promo" | "free" | "classic" | "recommended";
+  endpoint: string;
+};
+
+type ShelfResponse = {
+  shelf: string;
+  books: Book[];
+  count: number;
 };
 
 const shelfTabs = [
   { label: "หน้าแรก", to: "/", name: "Home" },
   { label: "ขายดี", to: "/best-sellers", name: "BestSellers" },
   { label: "มาใหม่", to: "/new-releases", name: "NewReleases" },
-  { label: "โปรโมชั่น", to: "/promotions", name: "Promotions" },
+  { label: "โปรโมชัน", to: "/promotions", name: "Promotions" },
   { label: "ฟรีกระจาย", to: "/free-books", name: "FreeBooks" },
   { label: "ฮิตขึ้นหิ้ง", to: "/hall-of-fame", name: "HallOfFame" },
   { label: "แนะนำ", to: "/recommended", name: "Recommended" },
@@ -241,31 +258,37 @@ const shelves: Record<string, ShelfConfig> = {
     title: "ขายดี",
     badge: "Best Seller",
     mode: "best",
+    endpoint: "/best-sellers",
   },
   NewReleases: {
     title: "มาใหม่",
     badge: "New",
     mode: "new",
+    endpoint: "/new-releases",
   },
   Promotions: {
-    title: "โปรโมชั่น",
+    title: "โปรโมชัน",
     badge: "Sale",
     mode: "promo",
+    endpoint: "/promotions",
   },
   FreeBooks: {
     title: "ฟรีกระจาย",
     badge: "Free",
     mode: "free",
+    endpoint: "/free-books",
   },
   HallOfFame: {
     title: "ฮิตขึ้นหิ้ง",
     badge: "Best Seller",
     mode: "classic",
+    endpoint: "/hall-of-fame",
   },
   Recommended: {
     title: "แนะนำ",
     badge: "Pick",
     mode: "recommended",
+    endpoint: "/recommended",
   },
 };
 
@@ -275,17 +298,15 @@ const books = ref<Book[]>([]);
 const loading = ref(true);
 const search = ref("");
 
-const shelf = computed(() => {
-  return shelves[String(route.name)] || shelves.Recommended;
-});
+const shelf = computed(() => shelves[String(route.name)] || shelves.Recommended);
 
 const sortedBooks = computed(() => {
   const items = [...books.value];
 
   if (shelf.value.mode === "new") {
-    return items.sort((a, b) => {
-      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-    });
+    return items.sort(
+      (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime(),
+    );
   }
 
   if (shelf.value.mode === "free") {
@@ -294,7 +315,12 @@ const sortedBooks = computed(() => {
   }
 
   if (shelf.value.mode === "promo") {
-    return items.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+    return items.sort((a, b) => {
+      const discountGap =
+        Number(b.promo_discount_percent || 0) - Number(a.promo_discount_percent || 0);
+      if (discountGap !== 0) return discountGap;
+      return Number(a.promo_days_left || 0) - Number(b.promo_days_left || 0);
+    });
   }
 
   if (shelf.value.mode === "classic") {
@@ -302,7 +328,7 @@ const sortedBooks = computed(() => {
   }
 
   if (shelf.value.mode === "best") {
-    return items.sort((a, b) => Number(b.id) - Number(a.id));
+    return items.sort((a, b) => Number(b.read_count || 0) - Number(a.read_count || 0));
   }
 
   return items;
@@ -337,13 +363,13 @@ const freeSections = computed(() => {
       books: fallbackItems.slice(0, 5),
     },
     {
-      title: "ฟรีในหมวด นิยายโรแมนซ์",
-      badge: "ฟรี",
+      title: "ฟรีในหมวดนิยายและวรรณกรรม",
+      badge: "Free",
       books: fallbackItems.slice(5, 10),
     },
     {
-      title: "ฟรีในหมวด นิยายรักวัยรุ่น",
-      badge: "ฟรี",
+      title: "ฟรีในหมวดความรู้และพัฒนาตัวเอง",
+      badge: "Free",
       books: fallbackItems.slice(10, 15),
     },
   ].filter((section) => section.books.length > 0);
@@ -356,62 +382,43 @@ const promoHeroBooks = computed(() => {
 
 const promoSections = computed(() => {
   const items = sortedBooks.value.length ? sortedBooks.value : books.value;
+  const chunks = [items.slice(0, 9), items.slice(9, 18), items.slice(18, 27)].filter(
+    (chunk) => chunk.length > 0,
+  );
 
-  return [
-    {
-      title: "Amarin World Book Sale อีบุ๊กนานาชาติ",
-      daysLeft: 12,
-      feature: items[0],
-      books: items.slice(1, 9),
-    },
-    {
-      title: "วีเลิร์น & นำพูสำนักพิมพ์",
-      daysLeft: 23,
-      feature: items[9] || items[0],
-      books: items.slice(10, 18),
-    },
-    {
-      title: "โปรโมชัน",
-      daysLeft: 6,
-      feature: items[18] || items[0],
-      books: items.slice(19, 27),
-    },
-  ].filter((section) => section.feature && section.books.length > 0);
+  return chunks.map((chunk, index) => ({
+    title:
+      index === 0
+        ? "โปรโมชันเด่นประจำสัปดาห์"
+        : index === 1
+          ? "ชุดลดราคาที่ผู้อ่านกดบ่อย"
+          : "โปรโมชันเพิ่มเติม",
+    daysLeft: Number(chunk[0]?.promo_days_left || 0),
+    feature: chunk[0],
+    books: chunk.slice(1),
+  }));
 });
 
-const getBookCover = (book: Book) => {
-  const cover = book.cover_url || book.cover_image;
-
-  if (!cover) return "/no-cover.png";
-  if (cover.startsWith("http://") || cover.startsWith("https://")) return cover;
-
-  return `${API_BASE_URL}/${cover.replace(/^\/+/, "")}`;
-};
+const getBookCover = (book: Book) => resolveAssetUrl(book.cover_url || book.cover_image);
 
 const getRatingText = (book: Book) => {
-  if (shelf.value.mode === "new") return "No Rating";
-  return `${(Number(book.id || 1) * 37) % 480 + 7} Rating`;
+  const reviewCount = Number(book.review_count || 0);
+  const averageRating = Number(book.average_rating || 0);
+
+  if (reviewCount <= 0) return "ยังไม่มีรีวิว";
+  return `${averageRating.toFixed(1)} (${reviewCount} รีวิว)`;
 };
 
-const getDiscount = (book: Book) => {
-  return 15 + (Number(book.id || 1) * 7) % 45;
-};
+const getDiscount = (book: Book) => Number(book.promo_discount_percent || 0);
 
-const getPromoRemaining = (book: Book) => {
-  return 1 + (Number(book.id || 1) % 12);
-};
+const getPromoRemaining = (book: Book) => Number(book.promo_days_left || 0);
 
 const getRibbonText = (book: Book) => {
-  if (shelf.value.mode === "recommended") {
-    if (Number(book.id || 0) % 5 === 0) return "Award";
-    if (Number(book.id || 0) % 3 === 0) return "Movie";
-    return "Best Seller";
-  }
-
-  if (shelf.value.mode === "classic" && Number(book.id || 0) % 7 === 0) {
-    return "Movie";
-  }
-
+  if (Number(book.is_hall_of_fame || 0) === 1) return "Award";
+  if (Number(book.is_best_seller || 0) === 1) return "Best Seller";
+  if (Number(book.is_new_release || 0) === 1) return "New";
+  if (Number(book.is_free_book || 0) === 1) return "Free";
+  if (Number(book.is_recommended || 0) === 1) return "Pick";
   return shelf.value.badge;
 };
 
@@ -425,16 +432,28 @@ const goToBook = (id: number) => {
   router.push({ name: "BookDetail", params: { id } });
 };
 
-onMounted(async () => {
+async function loadShelfBooks() {
+  loading.value = true;
+
   try {
-    const res = await axios.get(`${API_BASE_URL}/api/books`);
-    books.value = Array.isArray(res.data) ? res.data : [];
+    const { data } = await api.get<ShelfResponse>(shelf.value.endpoint);
+    books.value = Array.isArray(data?.books) ? data.books : [];
   } catch (error) {
     console.error("โหลดหนังสือไม่สำเร็จ", error);
+    books.value = [];
   } finally {
     loading.value = false;
   }
-});
+}
+
+watch(
+  () => route.name,
+  () => {
+    search.value = "";
+    void loadShelfBooks();
+  },
+  { immediate: true },
+);
 </script>
 
 <style scoped>
@@ -523,7 +542,6 @@ onMounted(async () => {
   font-size: 24px;
   font-weight: 900;
   line-height: 1.15;
-  line-clamp: 2;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -551,21 +569,11 @@ onMounted(async () => {
   padding-bottom: 13px;
 }
 
-.shelf-toolbar > div:first-child {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
 .shelf-toolbar h2 {
   margin: 0;
   color: var(--text-strong);
   font-size: 22px;
   font-weight: 900;
-}
-
-.shelf-toolbar span {
-  font-size: 14px;
 }
 
 .pager {
@@ -643,22 +651,20 @@ onMounted(async () => {
   row-gap: 44px;
 }
 
-.free-shelves {
+.free-shelves,
+.promo-shelves {
   display: grid;
   gap: 42px;
 }
 
-.promo-shelves {
-  display: grid;
-  gap: 46px;
-}
-
-.promo-section {
+.promo-section,
+.free-section {
   display: grid;
   gap: 16px;
 }
 
-.promo-section-head {
+.promo-section-head,
+.free-section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -667,13 +673,8 @@ onMounted(async () => {
   padding-bottom: 8px;
 }
 
-.promo-section-head > div {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-
-.promo-section-head h3 {
+.promo-section-head h3,
+.free-section-head h3 {
   margin: 0;
   color: var(--text-strong);
   font-size: 21px;
@@ -687,7 +688,8 @@ onMounted(async () => {
   font-weight: 800;
 }
 
-.promo-section-head a {
+.promo-section-head a,
+.free-section-head a {
   color: #008e72;
   font-size: 13px;
   font-weight: 900;
@@ -748,7 +750,6 @@ onMounted(async () => {
   overflow: hidden;
   font-size: 15px;
   font-weight: 900;
-  line-clamp: 2;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -777,8 +778,8 @@ onMounted(async () => {
   content: "โปรโมชัน";
   position: absolute;
   left: 0;
-  bottom: 0;
   right: 0;
+  bottom: 0;
   background: rgba(229, 9, 36, 0.18);
   color: #b91c1c;
   font-size: 11px;
@@ -787,42 +788,11 @@ onMounted(async () => {
   text-align: center;
 }
 
-.free-section {
-  display: grid;
-  gap: 16px;
-}
-
-.free-section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  border-bottom: 1px solid #8f9895;
-  padding-bottom: 8px;
-}
-
-.free-section-head h3 {
-  margin: 0;
-  color: var(--text-strong);
-  font-size: 21px;
-  font-weight: 900;
-}
-
-.free-section-head a {
-  color: #008e72;
-  font-size: 13px;
-  font-weight: 900;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
 .book-card {
   position: relative;
   min-width: 0;
   cursor: pointer;
-  transition:
-    transform 0.18s ease,
-    filter 0.18s ease;
+  transition: transform 0.18s ease, filter 0.18s ease;
 }
 
 .book-card:hover {
@@ -894,7 +864,6 @@ onMounted(async () => {
   font-size: 14px;
   font-weight: 900;
   line-height: 1.35;
-  line-clamp: 2;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -908,7 +877,6 @@ onMounted(async () => {
   font-size: 12px;
   font-weight: 700;
   line-height: 1.3;
-  line-clamp: 1;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
 }
@@ -922,7 +890,6 @@ onMounted(async () => {
 .meta-line span {
   color: #ef3f7a;
   font-size: 10px;
-  letter-spacing: 0;
   line-height: 1;
 }
 
@@ -967,10 +934,7 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
 
-  .promo-feature {
-    min-height: 240px;
-  }
-
+  .promo-feature,
   .promo-feature img {
     min-height: 240px;
   }

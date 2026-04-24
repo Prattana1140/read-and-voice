@@ -1,8 +1,9 @@
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { api } from "../utils/api";
 import { saveAuth } from "../utils/auth";
+import { announceAccessibilityMessage } from "../utils/accessibility";
 import { redirectAfterLogin } from "../utils/loginRedirect";
 import { loginWithSocialProvider } from "../utils/socialLogin";
 import logoUrl from "../assets/Logo-transparent.png";
@@ -93,6 +94,7 @@ const handleLogin = async () => {
       localStorage.removeItem("rememberedEmail");
     }
 
+    announceAccessibilityMessage("เข้าสู่ระบบสำเร็จ");
     await redirectAfterLogin(router, user);
   } catch (err) {
     error.value =
@@ -159,6 +161,10 @@ onMounted(() => {
 
   loadOAuthStatus();
 });
+
+watch(error, (message) => {
+  if (message) announceAccessibilityMessage(message);
+});
 </script>
 
 <template>
@@ -175,21 +181,27 @@ onMounted(() => {
         :autocomplete="wasLoggedOut ? 'off' : 'on'"
         @submit.prevent="handleLogin"
       >
+        <label class="sr-only" for="login-email">อีเมล</label>
         <input
+          id="login-email"
           v-model="email"
           type="email"
           placeholder="อีเมลของฉัน"
           class="login-input"
           :autocomplete="wasLoggedOut ? 'off' : 'email'"
+          aria-describedby="login-status"
         />
 
         <div class="password-field">
+          <label class="sr-only" for="login-password">รหัสผ่าน</label>
           <input
+            id="login-password"
             v-model="password"
             :type="showPassword ? 'text' : 'password'"
             placeholder="รหัสผ่าน"
             class="login-input"
             :autocomplete="wasLoggedOut ? 'new-password' : 'current-password'"
+            aria-describedby="login-status"
           />
           <button
             type="button"
@@ -255,7 +267,7 @@ onMounted(() => {
         <button type="button" @click="goToRegister">สมัครสมาชิก</button>
       </p>
 
-      <p v-if="error" class="login-error">{{ error }}</p>
+      <p id="login-status" v-if="error" class="login-error" aria-live="assertive">{{ error }}</p>
     </section>
   </main>
 </template>
@@ -268,6 +280,18 @@ onMounted(() => {
   background: var(--bg);
   padding: 32px 24px;
   box-sizing: border-box;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  padding: 0;
 }
 
 .login-card {

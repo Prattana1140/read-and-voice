@@ -101,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import { API_BASE_URL } from "../utils/api";
+import api, { resolveAssetUrl } from "../utils/api";
 import { computed, ref, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 
@@ -113,8 +113,21 @@ type Book = {
   cover_image?: string;
 };
 
+type HomeSection = {
+  title: string;
+  to: string;
+  books: Book[];
+};
+
+type ShelfResponse = {
+  shelf: string;
+  books: Book[];
+  count: number;
+};
+
 const router = useRouter();
-const books = ref<Book[]>([]);
+const bannerSourceBooks = ref<Book[]>([]);
+const homeSectionItems = ref<HomeSection[]>([]);
 const activeBannerIndex = ref(0);
 let carouselTimer: ReturnType<typeof window.setInterval> | undefined;
 
@@ -122,49 +135,24 @@ const bannerLabels = ["อ่านและฟัง", "ขายดี", "อ�
 const bannerShiftPercent = 16.6667;
 const visibleBannerCount = 6;
 
-const bannerBooks = computed(() => books.value.slice(0, 12));
+const sectionDefinitions = [
+  { title: "ออกใหม่", to: "/new-releases", endpoint: "/new-releases", limit: 5 },
+  { title: "ขายดี", to: "/best-sellers", endpoint: "/best-sellers", limit: 5 },
+  { title: "อ่านฟรี", to: "/free-books", endpoint: "/free-books", limit: 5 },
+  { title: "แนะนำ", to: "/recommended", endpoint: "/recommended", limit: 5 },
+] as const;
+
+const bannerBooks = computed(() => bannerSourceBooks.value.slice(0, 12));
 const bannerPages = computed(() =>
   Math.max(1, bannerBooks.value.length - visibleBannerCount + 1),
 );
 
-const homeSections = computed(() => {
-  const sectionBooks = books.value;
-  return [
-    {
-      title: "ออกใหม่",
-      to: "/store",
-      books: sectionBooks.slice(0, 5),
-    },
-    {
-      title: "ขายดี",
-      to: "/best-sellers",
-      books: sectionBooks.slice(5, 10),
-    },
-    {
-      title: "อ่านฟรี",
-      to: "/free-books",
-      books: sectionBooks.slice(10, 15),
-    },
-    {
-      title: "แนะนำ",
-      to: "/recommended",
-      books: sectionBooks.slice(15, 20),
-    },
-  ].filter((section) => section.books.length > 0);
-});
+const homeSections = computed(() =>
+  homeSectionItems.value.filter((section) => section.books.length > 0),
+);
 
 const getBookCover = (book: Book) => {
-  const cover = book.cover_url || book.cover_image;
-
-  if (!cover) {
-    return "/no-cover.png";
-  }
-
-  if (cover.startsWith("http://") || cover.startsWith("https://")) {
-    return cover;
-  }
-
-  return `${API_BASE_URL}/${cover.replace(/^\/+/, "")}`;
+  return resolveAssetUrl(book.cover_url || book.cover_image);
 };
 
 const handleImgError = (event: Event) => {
@@ -219,12 +207,39 @@ const setActiveBanner = (index: number) => {
   startCarousel();
 };
 
+async function fetchShelfBooks(endpoint: string) {
+  const { data } = await api.get<ShelfResponse>(endpoint);
+  return Array.isArray(data?.books) ? data.books : [];
+}
+
+async function loadHomeContent() {
+  const [recommendedBooks, ...sectionBooks] = await Promise.all([
+    fetchShelfBooks("/recommended").catch(() => []),
+    ...sectionDefinitions.map((section) =>
+      fetchShelfBooks(section.endpoint).catch(() => []),
+    ),
+  ]);
+
+  const mergedBannerSource = [
+    ...recommendedBooks,
+    ...sectionBooks.flat(),
+  ].filter(
+    (book, index, books) =>
+      books.findIndex((candidate) => candidate.id === book.id) === index,
+  );
+
+  bannerSourceBooks.value = mergedBannerSource;
+  homeSectionItems.value = sectionDefinitions.map((section, index) => ({
+    title: section.title,
+    to: section.to,
+    books: sectionBooks[index].slice(0, section.limit),
+  }));
+  activeBannerIndex.value = 0;
+}
+
 onMounted(async () => {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/books`);
-    const data = await res.json();
-    books.value = Array.isArray(data) ? data.slice(0, 24) : [];
-    activeBannerIndex.value = 0;
+    await loadHomeContent();
     startCarousel();
   } catch (error) {
     console.error("โหลดข้อมูลหนังสือไม่สำเร็จ:", error);

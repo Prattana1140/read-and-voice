@@ -1,11 +1,37 @@
 const express = require("express");
 const db = require("../config/db");
+const { ensureCatalogAnalyticsSchema } = require("../services/catalogSchema");
 
 const router = express.Router();
 
 const PUBLIC_BOOK_FIELDS = `SELECT
          b.*,
          c.name AS category_name,
+         (
+           SELECT COUNT(*)
+           FROM book_reviews r
+           WHERE r.book_id = b.id
+         ) AS review_count,
+         ROUND(
+           COALESCE(
+             (
+               SELECT AVG(r.rating)
+               FROM book_reviews r
+               WHERE r.book_id = b.id
+             ),
+             0
+           ),
+           1
+         ) AS average_rating,
+         (
+           SELECT COUNT(*)
+           FROM book_views v
+           WHERE v.book_id = b.id
+         ) AS read_count,
+         GREATEST(
+           COALESCE(TIMESTAMPDIFF(DAY, NOW(), b.promo_end_at), 0),
+           0
+         ) AS promo_days_left,
          (
            SELECT COUNT(*)
            FROM book_episodes e
@@ -30,6 +56,7 @@ async function listBooks(orderBy, extraWhere = "", params = [], limit = 60) {
 
 async function sendShelf(res, shelf, loader) {
   try {
+    await ensureCatalogAnalyticsSchema();
     const books = await loader();
     return res.json({ shelf, books, count: books.length });
   } catch (error) {
@@ -68,8 +95,8 @@ router.get("/new-releases", (_req, res) => {
 router.get("/promotions", (_req, res) => {
   return sendShelf(res, "promotions", () =>
     listBooks(
-      "ORDER BY b.is_promotion DESC, b.price ASC, b.created_at DESC, b.id DESC",
-      "AND COALESCE(b.is_promotion, 0) = 1",
+      "ORDER BY COALESCE(b.promo_discount_percent, 0) DESC, b.promo_end_at ASC, b.created_at DESC, b.id DESC",
+      "AND COALESCE(b.is_promotion, 0) = 1 AND (b.promo_end_at IS NULL OR b.promo_end_at >= NOW())",
     )
   );
 });

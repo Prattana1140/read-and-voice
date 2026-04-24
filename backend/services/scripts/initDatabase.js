@@ -37,6 +37,9 @@ const statements = [
     is_published TINYINT(1) NOT NULL DEFAULT 1,
     created_by INT NULL,
     price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    promo_discount_percent INT NOT NULL DEFAULT 0,
+    promo_start_at DATETIME NULL,
+    promo_end_at DATETIME NULL,
     preview_page_limit INT NOT NULL DEFAULT 1,
     preview_char_limit INT NOT NULL DEFAULT 1500,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -219,6 +222,16 @@ const statements = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `,
   `
+  CREATE TABLE IF NOT EXISTS episode_views (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    episode_id INT NOT NULL,
+    user_id INT NULL,
+    viewed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_episode_views_episode_id (episode_id),
+    INDEX idx_episode_views_user_id (user_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `,
+  `
   CREATE TABLE IF NOT EXISTS bookmarks (
     id INT AUTO_INCREMENT PRIMARY KEY,
     book_id INT NOT NULL,
@@ -386,6 +399,33 @@ const seedCategories = [
   "เด็กและเยาวชน",
 ];
 
+const seedSubscriptionPlans = [
+  {
+    name: "Starter Reader",
+    description: "อ่านหนังสือและตอนที่กำหนดเป็น subscription ได้ 7 วัน",
+    price: 49.0,
+    durationDays: 7,
+  },
+  {
+    name: "Monthly Plus",
+    description: "อ่านคอนเทนต์ subscription ได้ 30 วัน",
+    price: 199.0,
+    durationDays: 30,
+  },
+  {
+    name: "Quarterly Premium",
+    description: "อ่านต่อเนื่องได้ 90 วัน สำหรับผู้อ่านประจำ",
+    price: 499.0,
+    durationDays: 90,
+  },
+  {
+    name: "Annual Unlimited",
+    description: "แพ็กเกจรายปีสำหรับการอ่านคอนเทนต์ subscription ได้ 365 วัน",
+    price: 1790.0,
+    durationDays: 365,
+  },
+];
+
 async function main() {
   for (const statement of statements) {
     await db.query(statement);
@@ -395,11 +435,19 @@ async function main() {
     await db.query("INSERT IGNORE INTO categories (name) VALUES (?)", [name]);
   }
 
-  await db.query(
-    `INSERT INTO subscription_plans (name, description, price, duration_days)
-     SELECT 'Monthly Plus', 'อ่านคอนเทนต์ subscription ได้ 30 วัน', 199.00, 30
-     WHERE NOT EXISTS (SELECT 1 FROM subscription_plans LIMIT 1)`
+  const [existingPlans] = await db.query(
+    "SELECT COUNT(*) AS total FROM subscription_plans"
   );
+
+  if (Number(existingPlans[0]?.total || 0) === 0) {
+    for (const plan of seedSubscriptionPlans) {
+      await db.query(
+        `INSERT INTO subscription_plans (name, description, price, duration_days)
+         VALUES (?, ?, ?, ?)`,
+        [plan.name, plan.description, plan.price, plan.durationDays]
+      );
+    }
+  }
 
   console.log("Database schema initialized.");
   await db.end();

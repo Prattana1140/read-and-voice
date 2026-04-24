@@ -1,8 +1,57 @@
 const express = require("express");
+const crypto = require("crypto");
+
 const db = require("../config/db");
 const { verifyToken } = require("../middleware/auth");
 
 const router = express.Router();
+
+function getMockWebhookSecret() {
+  return String(process.env.MOCK_PAYMENT_WEBHOOK_SECRET || "").trim();
+}
+
+function isProduction() {
+  return String(process.env.NODE_ENV || "").toLowerCase() === "production";
+}
+
+function hasValidMockWebhookSecret(req) {
+  const configuredSecret = getMockWebhookSecret();
+  if (!configuredSecret) return !isProduction();
+
+  const headerSecret = String(req.headers["x-mock-webhook-secret"] || "");
+  if (!headerSecret) return false;
+
+  const configuredBuffer = Buffer.from(configuredSecret, "utf8");
+  const headerBuffer = Buffer.from(headerSecret, "utf8");
+
+  if (configuredBuffer.length !== headerBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(configuredBuffer, headerBuffer);
+}
+
+function ensureMockWebhookAuthorized(req, res) {
+  const configuredSecret = getMockWebhookSecret();
+
+  if (!configuredSecret && isProduction()) {
+    res.status(503).json({
+      message: "ปิดการใช้งาน mock webhook ใน production เพราะยังไม่ได้ตั้งค่า secret",
+    });
+    return false;
+  }
+
+  if (!hasValidMockWebhookSecret(req)) {
+    res.status(401).json({
+      message: configuredSecret
+        ? "x-mock-webhook-secret ไม่ถูกต้อง"
+        : "mock webhook อนุญาตเฉพาะ non-production หรือเมื่อกำหนด secret แล้ว",
+    });
+    return false;
+  }
+
+  return true;
+}
 
 async function addBookToLibrary(connection, userId, bookId) {
   if (!bookId) return;
@@ -21,7 +70,9 @@ router.post("/mock/create", verifyToken, async (req, res) => {
     const { book_id, episode_id } = req.body;
 
     if (!book_id && !episode_id) {
-      return res.status(400).json({ message: "ต้องระบุหนังสือหรือรายตอนที่ต้องการชำระ" });
+      return res.status(400).json({
+        message: "ต้องระบุหนังสือหรือตอนที่ต้องการชำระ",
+      });
     }
 
     let item = null;
@@ -98,6 +149,10 @@ router.post("/mock/create", verifyToken, async (req, res) => {
 });
 
 router.post("/mock/webhook", async (req, res) => {
+  if (!ensureMockWebhookAuthorized(req, res)) {
+    return;
+  }
+
   const connection = await db.getConnection();
 
   try {
@@ -106,6 +161,10 @@ router.post("/mock/webhook", async (req, res) => {
 
     if (!Number.isInteger(orderId) || orderId <= 0) {
       return res.status(400).json({ message: "order_id ไม่ถูกต้อง" });
+    }
+
+    if (!["paid", "failed", "cancelled"].includes(status)) {
+      return res.status(400).json({ message: "status ไม่ถูกต้อง" });
     }
 
     await connection.beginTransaction();

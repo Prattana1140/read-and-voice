@@ -106,6 +106,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import("../pages/PrivacyPolicy.vue"),
   },
   {
+    path: "/data-privacy",
+    name: "DataPrivacy",
+    component: () => import("../pages/DataPrivacy.vue"),
+  },
+  {
     path: "/subscription-plans",
     name: "SubscriptionPlans",
     component: SubscriptionPlans,
@@ -204,6 +209,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, allowedRoles: memberRoles },
   },
   {
+    path: "/notification-settings",
+    name: "NotificationSettings",
+    component: () => import("../pages/NotificationSettings.vue"),
+    meta: { requiresAuth: true, allowedRoles: memberRoles },
+  },
+  {
     path: "/account/notifications",
     name: "AccountNotifications",
     component: () => import("../pages/account/Notifications.vue"),
@@ -258,6 +269,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, allowedRoles: writerRoles },
   },
   {
+    path: "/writer/profile",
+    name: "WriterProfileSettings",
+    component: () => import("../pages/writer/ProfileSettings.vue"),
+    meta: { requiresAuth: true, allowedRoles: writerRoles },
+  },
+  {
     path: "/writer/books",
     name: "WriterBooks",
     component: () => import("../pages/writer/WriterBooks.vue"),
@@ -280,6 +297,12 @@ const routes: RouteRecordRaw[] = [
     name: "WriterStats",
     component: () => import("../pages/writer/Stats.vue"),
     meta: { requiresAuth: true, allowedRoles: writerRoles },
+  },
+  {
+    path: "/writers/:slug",
+    name: "WriterPublicProfile",
+    component: () => import("../pages/writer/PublicProfile.vue"),
+    props: true,
   },
   {
     path: "/admin",
@@ -331,6 +354,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, allowedRoles: adminRoles },
   },
   {
+    path: "/superadmin",
+    name: "SuperAdminDashboard",
+    component: () => import("../pages/superadmin/Dashboard.vue"),
+    meta: { requiresAuth: true, allowedRoles: superAdminRoles },
+  },
+  {
     path: "/superadmin/roles",
     name: "SuperAdminRoles",
     component: () => import("../pages/superadmin/Roles.vue"),
@@ -367,7 +396,7 @@ router.beforeEach((to, _from, next) => {
   if (to.meta.guestOnly && isLoggedIn) {
     if (role === "writer") return next("/writer");
     if (role === "admin") return next("/admin");
-    if (role === "superadmin") return next("/superadmin/roles");
+    if (role === "superadmin") return next("/superadmin");
     return next("/");
   }
 
@@ -384,7 +413,7 @@ router.beforeEach((to, _from, next) => {
 
       if (role === "writer") return next("/writer");
       if (role === "admin") return next("/admin");
-      if (role === "superadmin") return next("/superadmin/roles");
+      if (role === "superadmin") return next("/superadmin");
 
       return next("/");
     }
