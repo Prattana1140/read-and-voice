@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { api } from "../utils/api";
@@ -21,47 +21,22 @@ const loading = ref(false);
 const socialLoading = ref("");
 const statusLoading = ref(true);
 const error = ref("");
-const oauthStatus = ref({});
+const oauthStatus = ref<Record<string, { configured: boolean }>>({});
 
-const socialProviders = [
-  {
-    id: "facebook",
-    label: "Facebook",
-    icon: "f",
-    title: "เข้าสู่ระบบด้วย Facebook",
-    description: "ใช้บัญชี Facebook เพื่อสมัครหรือเข้าสู่ระบบทันที",
-    className: "facebook",
-  },
-  {
-    id: "line",
-    label: "LINE",
-    icon: "LINE",
-    title: "เข้าสู่ระบบด้วย LINE",
-    description: "ใช้บัญชี LINE เพื่อสมัครหรือเข้าสู่ระบบทันที",
-    className: "line",
-  },
-];
-
-const providerStatus = computed(() => {
-  return socialProviders.reduce((statusMap, provider) => {
-    statusMap[provider.id] = oauthStatus.value[provider.id] || {
-      configured: false,
-      callbackUrl: "",
-      requiredEnv: [],
-    };
-    return statusMap;
-  }, {});
-});
+const thaidReady = computed(() => !!oauthStatus.value.thaid?.configured);
 
 const loadOAuthStatus = async () => {
   statusLoading.value = true;
 
   try {
     const res = await api.get("/api/auth/oauth/status");
-    oauthStatus.value = (res.data.providers || []).reduce((statusMap, provider) => {
-      statusMap[provider.provider] = provider;
-      return statusMap;
-    }, {});
+    oauthStatus.value = (res.data.providers || []).reduce(
+      (statusMap: Record<string, { configured: boolean }>, provider: any) => {
+        statusMap[provider.provider] = provider;
+        return statusMap;
+      },
+      {},
+    );
   } catch {
     oauthStatus.value = {};
   } finally {
@@ -96,7 +71,7 @@ const handleLogin = async () => {
 
     announceAccessibilityMessage("เข้าสู่ระบบสำเร็จ");
     await redirectAfterLogin(router, user);
-  } catch (err) {
+  } catch (err: any) {
     error.value =
       err?.response?.data?.message || "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่";
   } finally {
@@ -104,34 +79,23 @@ const handleLogin = async () => {
   }
 };
 
-const socialLogin = async (provider) => {
+const socialLogin = async () => {
   error.value = "";
 
-  if (!providerStatus.value[provider]?.configured) {
-    const providerLabel =
-      socialProviders.find((item) => item.id === provider)?.label || "Social login";
-    error.value = `ระบบ ${providerLabel} ยังไม่พร้อมใช้งาน กรุณาลองเข้าสู่ระบบด้วยอีเมลก่อน`;
+  if (!thaidReady.value) {
+    error.value = "ระบบ ThaiD ยังไม่ได้ตั้งค่า endpoint และ credentials";
     return;
   }
 
-  socialLoading.value = provider;
+  socialLoading.value = "thaid";
 
   try {
-    await loginWithSocialProvider(router, provider);
-  } catch (err) {
+    await loginWithSocialProvider(router, "thaid");
+  } catch (err: any) {
     error.value =
-      err?.response?.data?.message || "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่";
+      err?.response?.data?.message || "เริ่มต้นการเข้าสู่ระบบด้วย ThaiD ไม่สำเร็จ";
     socialLoading.value = "";
   }
-};
-
-const isProviderReady = (provider) => {
-  return !!providerStatus.value[provider]?.configured;
-};
-
-const getProviderStatusText = (provider) => {
-  if (statusLoading.value) return "กำลังตรวจสอบการเชื่อมต่อ...";
-  return isProviderReady(provider) ? "พร้อมใช้งาน" : "ยังไม่พร้อมใช้งาน";
 };
 
 const goToRegister = () => {
@@ -209,14 +173,14 @@ watch(error, (message) => {
             :aria-label="showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'"
             @click="showPassword = !showPassword"
           >
-            {{ showPassword ? "🙈" : "👁" }}
+            {{ showPassword ? "ซ่อน" : "แสดง" }}
           </button>
         </div>
 
         <div class="login-options">
           <label class="remember-me">
             <input v-model="rememberMe" type="checkbox" />
-            <span>จำและลงชื่อเข้าใช้</span>
+            <span>จดจำอีเมลนี้</span>
           </label>
 
           <button type="button" class="forgot-link" @click="goToForgotPassword">
@@ -225,31 +189,29 @@ watch(error, (message) => {
         </div>
 
         <button class="login-submit" type="submit" :disabled="loading || !!socialLoading">
-          {{ loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ" }}
+          {{ loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบด้วยอีเมล" }}
         </button>
       </form>
 
       <div class="social-divider">
-        <span>เข้าสู่ระบบ / สมัครสมาชิก ผ่าน Social Login</span>
+        <span>หรือ</span>
       </div>
 
-      <div class="social-buttons">
-        <button
-          v-for="provider in socialProviders"
-          :key="provider.id"
-          class="social-btn"
-          :class="[provider.className, { ready: isProviderReady(provider.id) }]"
-          type="button"
-          :disabled="loading || !!socialLoading || statusLoading"
-          :aria-label="`เข้าสู่ระบบด้วย ${provider.label}`"
-          @click="socialLogin(provider.id)"
-        >
-          <span class="social-icon" :class="provider.className">{{ provider.icon }}</span>
-          <span class="social-label">
-            {{ socialLoading === provider.id ? "กำลังเชื่อมต่อ..." : provider.label }}
-          </span>
-        </button>
-      </div>
+      <button
+        class="thaid-submit"
+        type="button"
+        :disabled="loading || !!socialLoading || statusLoading"
+        @click="socialLogin"
+      >
+        <strong>{{ socialLoading === "thaid" ? "กำลังเชื่อมต่อ ThaiD..." : "เข้าสู่ระบบด้วย ThaiD" }}</strong>
+        <small>
+          {{ statusLoading
+            ? "กำลังตรวจสอบสถานะการเชื่อมต่อ"
+            : thaidReady
+              ? "พร้อมใช้งานเมื่อระบบเชื่อมต่อ ThaiD จริง"
+              : "ยังไม่ได้ตั้งค่า endpoint และ credentials ของ ThaiD" }}
+        </small>
+      </button>
 
       <p class="login-policy">
         เมื่อคุณสมัครสมาชิกถือว่ายอมรับ
@@ -361,7 +323,7 @@ watch(error, (message) => {
 }
 
 .password-field .login-input {
-  padding-right: 52px;
+  padding-right: 74px;
 }
 
 .toggle-password {
@@ -373,7 +335,8 @@ watch(error, (message) => {
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 16px;
+  font-size: 14px;
+  font-weight: 800;
   padding: 0;
 }
 
@@ -422,7 +385,8 @@ watch(error, (message) => {
   opacity: 0.95;
 }
 
-.login-submit:disabled {
+.login-submit:disabled,
+.thaid-submit:disabled {
   cursor: not-allowed;
   opacity: 0.7;
 }
@@ -452,83 +416,27 @@ watch(error, (message) => {
   padding: 0 10px;
 }
 
-.social-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 18px;
-}
-
-.social-btn {
-  width: 58px;
-  height: 58px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-strong);
-  cursor: pointer;
-  display: inline-grid;
-  place-items: center;
-  padding: 0;
-  position: relative;
-  transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    transform 0.18s ease,
-    opacity 0.18s ease;
-}
-
-.social-btn.facebook.ready {
-  border-color: color-mix(in srgb, #1877f2 38%, var(--border));
-  background: #1877f2;
-  color: #ffffff;
-}
-
-.social-btn.line.ready {
-  border-color: color-mix(in srgb, #06c755 38%, var(--border));
-  background: #06c755;
-  color: #ffffff;
-}
-
-.social-btn:hover:not(:disabled) {
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.14);
-  transform: translateY(-2px);
-}
-
-.social-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.social-icon {
-  width: 100%;
-  height: 100%;
-  border-radius: 999px;
-  background: transparent;
+.thaid-submit {
+  min-height: 72px;
+  border-radius: 18px;
+  border: 2px solid #111827;
+  background: linear-gradient(180deg, #ffd60a 0%, #ffca0a 100%);
+  color: #111827;
+  text-align: left;
+  padding: 14px 16px;
   display: grid;
-  place-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.thaid-submit strong {
+  font-size: 18px;
   font-weight: 900;
-  line-height: 1;
-  box-shadow: none;
 }
 
-.social-icon.facebook {
-  color: currentColor;
-  font-size: 24px;
-}
-
-.social-icon.line {
-  color: currentColor;
-  font-size: 11px;
-  letter-spacing: 0.3px;
-}
-
-.social-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
+.thaid-submit small {
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .login-policy {

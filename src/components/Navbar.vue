@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import logoUrl from "../assets/Logo-transparent.png";
@@ -57,7 +57,7 @@ const isNotificationsOpen = ref(false);
 const search = ref("");
 const authVersion = ref(0);
 const walletBalance = ref(0);
-const membershipLabel = ref("ยังไม่มีแพ็กเกจ");
+const membershipLabel = ref("เน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธ•เน€เธยเน€เธยเน€เธยเน€เธยเน€เธโฌเน€เธยเน€เธย");
 const notificationItems = ref<NotificationItem[]>([]);
 const notificationLoading = ref(false);
 const notificationError = ref("");
@@ -88,17 +88,6 @@ const currentRole = computed<UserRole>(() => {
   return isLoggedIn.value ? normalizeRole(user.value?.role) : "guest";
 });
 
-const currentRoleLabel = computed(() => {
-  const labels: Record<UserRole, string> = {
-    guest: "ผู้เยี่ยมชม",
-    user: "สมาชิก",
-    writer: "นักเขียน",
-    admin: "แอดมิน",
-    superadmin: "ซูเปอร์แอดมิน",
-  };
-
-  return labels[currentRole.value];
-});
 
 const memberRoles: UserRole[] = ["user", "writer", "admin", "superadmin"];
 
@@ -112,23 +101,23 @@ const userMeta = computed(() => {
     return `member-${String(user.value.id).padStart(6, "0")}`;
   }
 
-  return "สมาชิกของ Read and Voice";
+  return "เน€เธเธเน€เธเธเน€เธเธ’เน€เธยเน€เธเธ”เน€เธยเน€เธยเน€เธเธเน€เธย Read and Voice";
 });
 
 const accountQuickLinks = computed<NavItem[]>(() => {
   if (!isLoggedIn.value) return [];
 
   return [
-    { label: "ชั้นหนังสือของฉัน", to: "/my-library", roles: memberRoles },
-    { label: "รายการที่อยากได้", to: "/wishlist", roles: memberRoles },
-    { label: "รายการที่ติดตาม", to: "/account/following", roles: memberRoles },
+    { label: "เน€เธยเน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธ‘เน€เธยเน€เธเธเน€เธเธ—เน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธ‘เน€เธย", to: "/my-library", roles: memberRoles },
+    { label: "เน€เธเธเน€เธเธ’เน€เธเธเน€เธยเน€เธเธ’เน€เธเธเน€เธโ€”เน€เธเธ•เน€เธยเน€เธเธเน€เธเธเน€เธเธ’เน€เธยเน€เธยเน€เธโ€เน€เธย", to: "/wishlist", roles: memberRoles },
+    { label: "เน€เธเธเน€เธเธ’เน€เธเธเน€เธยเน€เธเธ’เน€เธเธเน€เธโ€”เน€เธเธ•เน€เธยเน€เธโ€ขเน€เธเธ”เน€เธโ€เน€เธโ€ขเน€เธเธ’เน€เธเธ", to: "/account/following", roles: memberRoles },
   ].filter((item) => item.roles.includes(currentRole.value));
 });
 
 const themeOptions: { label: string; value: ThemeMode }[] = [
-  { label: "ปกติ", value: "normal" },
-  { label: "กลางคืน", value: "dark" },
-  { label: "โหมดอ่าน", value: "reading" },
+  { label: "เน€เธยเน€เธยเน€เธโ€ขเน€เธเธ”", value: "normal" },
+  { label: "เน€เธยเน€เธเธ…เน€เธเธ’เน€เธยเน€เธยเน€เธเธ—เน€เธย", value: "dark" },
+  { label: "เน€เธยเน€เธเธเน€เธเธเน€เธโ€เน€เธเธเน€เธยเน€เธเธ’เน€เธย", value: "reading" },
 ];
 
 const selectTheme = (theme: ThemeMode) => {
@@ -142,9 +131,9 @@ const selectTheme = (theme: ThemeMode) => {
 };
 
 const publicNavItems: NavItem[] = [
-  { label: "หน้าแรก", to: "/", roles: allRoles },
-  { label: "อีบุ๊ก", to: "/store", roles: allRoles },
-  { label: "นิยายรายตอน", to: "/serials", roles: allRoles },
+  { label: "เน€เธเธเน€เธยเน€เธยเน€เธเธ’เน€เธยเน€เธเธเน€เธย", to: "/", roles: allRoles },
+  { label: "เน€เธเธเน€เธเธ•เน€เธยเน€เธเธเน€เธยเน€เธย", to: "/store", roles: allRoles },
+  { label: "เน€เธยเน€เธเธ”เน€เธเธเน€เธเธ’เน€เธเธเน€เธเธเน€เธเธ’เน€เธเธเน€เธโ€ขเน€เธเธเน€เธย", to: "/serials", roles: allRoles },
 ];
 
 const mainNavItems = computed(() => publicNavItems.filter((item) => item.roles.includes(currentRole.value)));
@@ -153,43 +142,43 @@ const accountGroups = computed<NavGroup[]>(() => {
   const role = currentRole.value;
   const groups: NavGroup[] = [
     {
-      title: "บัญชีของฉัน",
+      title: "เน€เธยเน€เธเธ‘เน€เธยเน€เธยเน€เธเธ•เน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธ‘เน€เธย",
       items: [
-        { label: "โปรไฟล์", to: "/profile", roles: memberRoles },
-        { label: "สมาชิกและแพ็กเกจ", to: "/account/buffet", roles: memberRoles },
-        { label: "อุปกรณ์ของฉัน", to: "/account/devices", roles: memberRoles },
-        { label: "สิทธิพิเศษของฉัน", to: "/account/benefits", roles: memberRoles },
-        { label: "การแจ้งเตือนของฉัน", to: "/account/notifications", roles: memberRoles },
-        { label: "ประวัติการสั่งซื้อของฉัน", to: "/orders/history", roles: ["user", "writer"] },
-        { label: "รีวิวของฉัน", to: "/account/reviews", roles: memberRoles },
-        { label: "การยืนยันอายุด้วยบัตรประชาชน", to: "/account/age-verification", roles: memberRoles },
+        { label: "เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธ…เน€เธย", to: "/profile", roles: memberRoles },
+        { label: "เน€เธเธเน€เธเธเน€เธเธ’เน€เธยเน€เธเธ”เน€เธยเน€เธยเน€เธเธ…เน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธโฌเน€เธยเน€เธย", to: "/account/buffet", roles: memberRoles },
+        { label: "เน€เธเธเน€เธเธเน€เธยเน€เธยเน€เธเธเน€เธโ€เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธ‘เน€เธย", to: "/account/devices", roles: memberRoles },
+        { label: "เน€เธเธเน€เธเธ”เน€เธโ€”เน€เธยเน€เธเธ”เน€เธยเน€เธเธ”เน€เธโฌเน€เธเธเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธ‘เน€เธย", to: "/account/benefits", roles: memberRoles },
+        { label: "เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธโฌเน€เธโ€ขเน€เธเธ—เน€เธเธเน€เธยเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธ‘เน€เธย", to: "/account/notifications", roles: memberRoles },
+        { label: "เน€เธยเน€เธเธเน€เธเธเน€เธเธเน€เธเธ‘เน€เธโ€ขเน€เธเธ”เน€เธยเน€เธเธ’เน€เธเธเน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธยเน€เธเธ—เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธ‘เน€เธย", to: "/orders/history", roles: ["user", "writer"] },
+        { label: "เน€เธเธเน€เธเธ•เน€เธเธเน€เธเธ”เน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธ‘เน€เธย", to: "/account/reviews", roles: memberRoles },
+        { label: "เน€เธยเน€เธเธ’เน€เธเธเน€เธเธเน€เธเธ—เน€เธยเน€เธเธเน€เธเธ‘เน€เธยเน€เธเธเน€เธเธ’เน€เธเธเน€เธเธเน€เธโ€เน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธเธ‘เน€เธโ€ขเน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธเธ’เน€เธยเน€เธย", to: "/account/age-verification", roles: memberRoles },
       ],
       defaultOpen: true,
     },
     {
-      title: "การใช้งาน",
+      title: "เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธเธ’เน€เธย",
       items: [
-        { label: "กิฟต์โค้ด", to: "/account/gift-codes", roles: memberRoles },
-        { label: "ตั้งค่าการแจ้งเตือน", to: "/notification-settings", roles: memberRoles },
+        { label: "เน€เธยเน€เธเธ”เน€เธยเน€เธโ€ขเน€เธยเน€เธยเน€เธยเน€เธยเน€เธโ€", to: "/account/gift-codes", roles: memberRoles },
+        { label: "เน€เธโ€ขเน€เธเธ‘เน€เธยเน€เธยเน€เธยเน€เธยเน€เธเธ’เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธโฌเน€เธโ€ขเน€เธเธ—เน€เธเธเน€เธย", to: "/notification-settings", roles: memberRoles },
       ],
       defaultOpen: true,
     },
     {
-      title: "เครื่องมือผู้เขียน",
+      title: "เน€เธโฌเน€เธยเน€เธเธเน€เธเธ—เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธ—เน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธโฌเน€เธยเน€เธเธ•เน€เธเธเน€เธย",
       items: [
-        { label: "แดชบอร์ดนักเขียน", to: "/writer", roles: ["writer"] },
+        { label: "เน€เธยเน€เธโ€เน€เธยเน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธโ€เน€เธยเน€เธเธ‘เน€เธยเน€เธโฌเน€เธยเน€เธเธ•เน€เธเธเน€เธย", to: "/writer", roles: ["writer"] },
       ],
     },
     {
-      title: "จัดการระบบ",
+      title: "เน€เธยเน€เธเธ‘เน€เธโ€เน€เธยเน€เธเธ’เน€เธเธเน€เธเธเน€เธเธเน€เธยเน€เธย",
       items: [
-        { label: "แดชบอร์ดแอดมิน", to: "/admin", roles: ["admin", "superadmin"] },
+        { label: "เน€เธยเน€เธโ€เน€เธยเน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธโ€เน€เธยเน€เธเธเน€เธโ€เน€เธเธเน€เธเธ”เน€เธย", to: "/admin", roles: ["admin", "superadmin"] },
       ],
     },
     {
-      title: "ซูเปอร์แอดมิน",
+      title: "เน€เธยเน€เธเธเน€เธโฌเน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธยเน€เธเธเน€เธโ€เน€เธเธเน€เธเธ”เน€เธย",
       items: [
-        { label: "แดชบอร์ด", to: "/superadmin", roles: ["superadmin"] },
+        { label: "เน€เธยเน€เธโ€เน€เธยเน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธโ€", to: "/superadmin", roles: ["superadmin"] },
       ],
     },
   ];
@@ -229,6 +218,11 @@ const closeFloatingMenus = () => {
   document.querySelectorAll<HTMLDetailsElement>(".icon-dropdown[open]").forEach((item) => {
     item.open = false;
   });
+};
+
+const openAccessibilityPanel = () => {
+  closeFloatingMenus();
+  window.dispatchEvent(new CustomEvent("read-voice:open-accessibility-panel"));
 };
 
 const handleDocumentPointerDown = (event: PointerEvent) => {
@@ -288,7 +282,7 @@ const loadNotifications = async () => {
     const { data } = await api.get("/account/notifications");
     notificationItems.value = Array.isArray(data?.items) ? data.items : [];
   } catch (error: any) {
-    notificationError.value = error?.response?.data?.message || "โหลดการแจ้งเตือนไม่สำเร็จ";
+    notificationError.value = error?.response?.data?.message || "เน€เธยเน€เธเธเน€เธเธ…เน€เธโ€เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธโฌเน€เธโ€ขเน€เธเธ—เน€เธเธเน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธ“เน€เธโฌเน€เธเธเน€เธยเน€เธย";
   } finally {
     notificationLoading.value = false;
   }
@@ -306,7 +300,7 @@ const markNotificationAsRead = async (item: NotificationItem) => {
       router.push(item.action_url);
     }
   } catch (error: any) {
-    notificationError.value = error?.response?.data?.message || "อัปเดตการแจ้งเตือนไม่สำเร็จ";
+    notificationError.value = error?.response?.data?.message || "เน€เธเธเน€เธเธ‘เน€เธยเน€เธโฌเน€เธโ€เน€เธโ€ขเน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธโฌเน€เธโ€ขเน€เธเธ—เน€เธเธเน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธ“เน€เธโฌเน€เธเธเน€เธยเน€เธย";
   }
 };
 
@@ -315,7 +309,7 @@ const markAllNotificationsRead = async () => {
     await api.post("/account/notifications/read-all");
     notificationItems.value = notificationItems.value.map((item) => ({ ...item, is_read: 1 }));
   } catch (error: any) {
-    notificationError.value = error?.response?.data?.message || "อ่านการแจ้งเตือนทั้งหมดไม่สำเร็จ";
+    notificationError.value = error?.response?.data?.message || "เน€เธเธเน€เธยเน€เธเธ’เน€เธยเน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธโฌเน€เธโ€ขเน€เธเธ—เน€เธเธเน€เธยเน€เธโ€”เน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธเธเน€เธโ€เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธ“เน€เธโฌเน€เธเธเน€เธยเน€เธย";
   }
 };
 
@@ -335,7 +329,7 @@ const loadWalletBalance = async () => {
 
 const loadMembershipLabel = async () => {
   if (!isLoggedIn.value) {
-    membershipLabel.value = "ยังไม่มีแพ็กเกจ";
+    membershipLabel.value = "เน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธ•เน€เธยเน€เธยเน€เธยเน€เธยเน€เธโฌเน€เธยเน€เธย";
     return;
   }
 
@@ -345,18 +339,18 @@ const loadMembershipLabel = async () => {
     const activeItem = items.find((item) => item.status === "active" || item.payment_status === "paid");
 
     if (!activeItem) {
-      membershipLabel.value = "ยังไม่มีแพ็กเกจ";
+      membershipLabel.value = "เน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธ•เน€เธยเน€เธยเน€เธยเน€เธยเน€เธโฌเน€เธยเน€เธย";
       return;
     }
 
-    const planName = activeItem.title?.trim() || "สมาชิก VIP";
+    const planName = activeItem.title?.trim() || "เน€เธเธเน€เธเธเน€เธเธ’เน€เธยเน€เธเธ”เน€เธย VIP";
     const expiry = activeItem.end_at
-      ? `ถึง ${new Date(activeItem.end_at).toLocaleDateString("th-TH")}`
-      : "กำลังใช้งาน";
+      ? `เน€เธโ€“เน€เธเธ–เน€เธย ${new Date(activeItem.end_at).toLocaleDateString("th-TH")}`
+      : "เน€เธยเน€เธเธ“เน€เธเธ…เน€เธเธ‘เน€เธยเน€เธยเน€เธยเน€เธยเน€เธยเน€เธเธ’เน€เธย";
 
-    membershipLabel.value = `${planName} · ${expiry}`;
+    membershipLabel.value = `${planName} เธขเธ— ${expiry}`;
   } catch {
-    membershipLabel.value = "ตรวจสอบสถานะสมาชิก";
+    membershipLabel.value = "เน€เธโ€ขเน€เธเธเน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธเธเน€เธโ€“เน€เธเธ’เน€เธยเน€เธเธเน€เธเธเน€เธเธเน€เธเธ’เน€เธยเน€เธเธ”เน€เธย";
   }
 };
 
@@ -398,7 +392,7 @@ watch(isLoggedIn, () => {
           type="button"
           :aria-expanded="isMenuOpen"
           aria-controls="mobile-menu"
-          aria-label="เปิดเมนู"
+          aria-label="เน€เธโฌเน€เธยเน€เธเธ”เน€เธโ€เน€เธโฌเน€เธเธเน€เธยเน€เธเธ"
           @click="isMenuOpen = !isMenuOpen"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -406,12 +400,12 @@ watch(isLoggedIn, () => {
           </svg>
         </button>
 
-        <router-link class="brand" to="/" aria-label="กลับหน้าแรก" @click="closeMenu">
+        <router-link class="brand" to="/" aria-label="เน€เธยเน€เธเธ…เน€เธเธ‘เน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธ’เน€เธยเน€เธเธเน€เธย" @click="closeMenu">
           <img class="brand-logo" :src="logoUrl" alt="Read and Voice" />
         </router-link>
 
         <router-link class="subscription-link" to="/subscription-plans" @click="closeMenu">
-          สมัครรายเดือน
+          เน€เธเธเน€เธเธเน€เธเธ‘เน€เธยเน€เธเธเน€เธเธเน€เธเธ’เน€เธเธเน€เธโฌเน€เธโ€เน€เธเธ—เน€เธเธเน€เธย
         </router-link>
 
         <router-link class="coin-link" to="/coin-wallet" @click="closeMenu">
@@ -422,8 +416,11 @@ watch(isLoggedIn, () => {
               <ellipse cx="9.2" cy="8.4" rx="2.2" ry="1.5" class="coin-shine" />
             </svg>
           </span>
-          เติม Coin
+          เน€เธโฌเน€เธโ€ขเน€เธเธ”เน€เธเธ Coin
         </router-link>
+        <button class="accessibility-link" type="button" aria-label="เปิดตัวช่วยการเข้าถึง" @click="openAccessibilityPanel">
+          การเข้าถึง
+        </button>
       </div>
 
       <nav class="desktop-public-nav" aria-label="Main navigation">
@@ -433,14 +430,14 @@ watch(isLoggedIn, () => {
       </nav>
 
       <div class="top-actions">
-        <button class="icon-button" type="button" aria-label="ค้นหาหนังสือ" @click="openSearch">
+        <button class="icon-button" type="button" aria-label="เน€เธยเน€เธยเน€เธยเน€เธเธเน€เธเธ’เน€เธเธเน€เธยเน€เธเธ‘เน€เธยเน€เธเธเน€เธเธ—เน€เธเธ" @click="openSearch">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M10.8 4.2a6.6 6.6 0 1 1 0 13.2 6.6 6.6 0 0 1 0-13.2Zm0 2a4.6 4.6 0 1 0 0 9.2 4.6 4.6 0 0 0 0-9.2Zm5.4 9 4 4-1.4 1.4-4-4 1.4-1.4Z" />
           </svg>
         </button>
 
         <details ref="themeDropdownRef" class="icon-dropdown">
-          <summary class="icon-button" aria-label="เปลี่ยนธีม">
+          <summary class="icon-button" aria-label="เน€เธโฌเน€เธยเน€เธเธ…เน€เธเธ•เน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธ•เน€เธเธ">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 3a9 9 0 0 0 0 18h.4a3.1 3.1 0 0 0 2.2-5.3 1.1 1.1 0 0 1 .8-1.9H17a4 4 0 0 0 0-8h-.5A8.9 8.9 0 0 0 12 3Zm-5 9.2a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8Zm3.1-4.1a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8Zm4.6.1a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8Z" />
             </svg>
@@ -462,7 +459,7 @@ watch(isLoggedIn, () => {
           <button
             class="notification-button"
             type="button"
-            aria-label="การแจ้งเตือน"
+            aria-label="เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธโฌเน€เธโ€ขเน€เธเธ—เน€เธเธเน€เธย"
             :aria-expanded="isNotificationsOpen"
             @click="toggleNotifications"
           >
@@ -476,11 +473,11 @@ watch(isLoggedIn, () => {
 
           <div v-if="isNotificationsOpen" class="notification-panel">
             <div class="notification-panel__header">
-              <h3>การแจ้งเตือน</h3>
+              <h3>เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธโฌเน€เธโ€ขเน€เธเธ—เน€เธเธเน€เธย</h3>
               <div class="notification-panel__actions">
                 <button
                   type="button"
-                  aria-label="อ่านการแจ้งเตือนทั้งหมดแล้ว"
+                  aria-label="เน€เธเธเน€เธยเน€เธเธ’เน€เธยเน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธโฌเน€เธโ€ขเน€เธเธ—เน€เธเธเน€เธยเน€เธโ€”เน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธเธเน€เธโ€เน€เธยเน€เธเธ…เน€เธยเน€เธเธ"
                   :disabled="notificationCount === 0"
                   @click="markAllNotificationsRead"
                 >
@@ -488,7 +485,7 @@ watch(isLoggedIn, () => {
                     <path d="m9.2 12.8 1.9 1.9 3.9-4.8 1.6 1.3-5 6.1a1 1 0 0 1-1.5.1l-2.3-2.4 1.4-1.2Zm2.8-9.3a9 9 0 1 1 0 18 9 9 0 0 1 0-18Z" />
                   </svg>
                 </button>
-                <button type="button" aria-label="ตั้งค่าการแจ้งเตือน" @click="openNotificationSettings">
+                <button type="button" aria-label="เน€เธโ€ขเน€เธเธ‘เน€เธยเน€เธยเน€เธยเน€เธยเน€เธเธ’เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธโฌเน€เธโ€ขเน€เธเธ—เน€เธเธเน€เธย" @click="openNotificationSettings">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="m19.4 13.5 1.4 1.1-2 3.5-1.8-.7c-.5.4-1 .7-1.6.9L15.1 20h-4.2l-.3-1.7c-.6-.2-1.1-.5-1.6-.9l-1.8.7-2-3.5 1.4-1.1a6 6 0 0 1 0-1.8l-1.4-1.1 2-3.5 1.8.7c.5-.4 1-.7 1.6-.9l.3-1.7h4.2l.3 1.7c.6.2 1.1.5 1.6.9l1.8-.7 2 3.5-1.4 1.1a6 6 0 0 1 0 1.8ZM12 15.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
                   </svg>
@@ -497,7 +494,7 @@ watch(isLoggedIn, () => {
             </div>
 
             <p v-if="notificationError" class="notification-empty">{{ notificationError }}</p>
-            <p v-else-if="notificationLoading" class="notification-empty">กำลังโหลดการแจ้งเตือน...</p>
+            <p v-else-if="notificationLoading" class="notification-empty">เน€เธยเน€เธเธ“เน€เธเธ…เน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธเธ…เน€เธโ€เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธโฌเน€เธโ€ขเน€เธเธ—เน€เธเธเน€เธย...</p>
             <div v-else-if="notificationItems.length" class="notification-list">
               <article
                 v-for="item in notificationItems"
@@ -512,19 +509,19 @@ watch(isLoggedIn, () => {
                   <time>{{ formatNotificationTime(item.created_at) }}</time>
                 </div>
                 <button class="notification-open" type="button" @click="markNotificationAsRead(item)">
-                  {{ item.action_url ? "เปิด" : "อ่านแล้ว" }}
+                  {{ item.action_url ? "เน€เธโฌเน€เธยเน€เธเธ”เน€เธโ€" : "เน€เธเธเน€เธยเน€เธเธ’เน€เธยเน€เธยเน€เธเธ…เน€เธยเน€เธเธ" }}
                 </button>
               </article>
             </div>
-            <p v-else class="notification-empty">ยังไม่มีการแจ้งเตือน</p>
+            <p v-else class="notification-empty">เน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธ•เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธโฌเน€เธโ€ขเน€เธเธ—เน€เธเธเน€เธย</p>
             <router-link class="notification-footer-link" to="/account/notifications" @click="closeFloatingMenus">
-              ดูการแจ้งเตือนทั้งหมด
+              เน€เธโ€เน€เธเธเน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธโฌเน€เธโ€ขเน€เธเธ—เน€เธเธเน€เธยเน€เธโ€”เน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธเธเน€เธโ€
             </router-link>
           </div>
         </div>
 
         <details class="icon-dropdown account-dropdown" @toggle="loadWalletBalance(); loadMembershipLabel()">
-          <summary class="avatar-button" aria-label="บัญชีผู้ใช้">
+          <summary class="avatar-button" aria-label="เน€เธยเน€เธเธ‘เน€เธยเน€เธยเน€เธเธ•เน€เธยเน€เธเธเน€เธยเน€เธยเน€เธยเน€เธย">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 12a4.4 4.4 0 1 0 0-8.8 4.4 4.4 0 0 0 0 8.8Zm0 2c-4.2 0-7.6 2.2-7.6 5v1.2h15.2V19c0-2.8-3.4-5-7.6-5Z" />
             </svg>
@@ -536,7 +533,7 @@ watch(isLoggedIn, () => {
                 <img
                   v-if="userAvatarUrl"
                   :src="userAvatarUrl"
-                  alt="รูปโปรไฟล์"
+                  alt="เน€เธเธเน€เธเธเน€เธยเน€เธยเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธ…เน€เธย"
                   class="account-avatar account-avatar-image"
                 />
                 <div v-else class="account-avatar" aria-hidden="true">
@@ -547,7 +544,7 @@ watch(isLoggedIn, () => {
                   <span>{{ userMeta }}</span>
                   <small class="account-membership">{{ membershipLabel }}</small>
                 </div>
-                <button class="logout-chip" type="button" @click="logout">ออกจากระบบ</button>
+                <button class="logout-chip" type="button" @click="logout">เน€เธเธเน€เธเธเน€เธยเน€เธยเน€เธเธ’เน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธย</button>
               </div>
 
               <div class="wallet-row">
@@ -556,7 +553,7 @@ watch(isLoggedIn, () => {
                   <strong>{{ walletBalance.toFixed(2) }}</strong>
                 </div>
                 <router-link class="wallet-link" to="/coin-wallet" @click="closeFloatingMenus">
-                  เติม Coin
+                  เน€เธโฌเน€เธโ€ขเน€เธเธ”เน€เธเธ Coin
                 </router-link>
               </div>
 
@@ -600,9 +597,9 @@ watch(isLoggedIn, () => {
 
             <template v-else>
               <div class="guest-actions">
-                <router-link class="guest-auth-link" to="/login">เข้าสู่ระบบ</router-link>
+                <router-link class="guest-auth-link" to="/login">เน€เธโฌเน€เธยเน€เธยเน€เธเธ’เน€เธเธเน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธย</router-link>
                 <span>/</span>
-                <router-link class="guest-auth-link" to="/register">สมัครสมาชิก</router-link>
+                <router-link class="guest-auth-link" to="/register">เน€เธเธเน€เธเธเน€เธเธ‘เน€เธยเน€เธเธเน€เธเธเน€เธเธเน€เธเธ’เน€เธยเน€เธเธ”เน€เธย</router-link>
               </div>
             </template>
           </div>
@@ -615,8 +612,8 @@ watch(isLoggedIn, () => {
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M10.8 4.2a6.6 6.6 0 1 1 0 13.2 6.6 6.6 0 0 1 0-13.2Zm0 2a4.6 4.6 0 1 0 0 9.2 4.6 4.6 0 0 0 0-9.2Zm5.4 9 4 4-1.4 1.4-4-4 1.4-1.4Z" />
         </svg>
-        <input v-model="search" type="search" placeholder="ค้นหาหนังสือ" aria-label="ค้นหาหนังสือ" />
-        <button class="search-close" type="button" aria-label="ปิดการค้นหา" @click="closeSearch">
+        <input v-model="search" type="search" placeholder="เน€เธยเน€เธยเน€เธยเน€เธเธเน€เธเธ’เน€เธเธเน€เธยเน€เธเธ‘เน€เธยเน€เธเธเน€เธเธ—เน€เธเธ" aria-label="เน€เธยเน€เธยเน€เธยเน€เธเธเน€เธเธ’เน€เธเธเน€เธยเน€เธเธ‘เน€เธยเน€เธเธเน€เธเธ—เน€เธเธ" />
+        <button class="search-close" type="button" aria-label="เน€เธยเน€เธเธ”เน€เธโ€เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธยเน€เธยเน€เธเธเน€เธเธ’" @click="closeSearch">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z" />
           </svg>
@@ -628,7 +625,7 @@ watch(isLoggedIn, () => {
 
     <div id="mobile-menu" class="mobile-panel" :class="{ open: isMenuOpen }">
       <div class="mobile-panel-header">
-        <button class="mobile-close" type="button" aria-label="ปิดเมนู" @click="closeMenu">
+        <button class="mobile-close" type="button" aria-label="เน€เธยเน€เธเธ”เน€เธโ€เน€เธโฌเน€เธเธเน€เธยเน€เธเธ" @click="closeMenu">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z" />
           </svg>
@@ -637,7 +634,7 @@ watch(isLoggedIn, () => {
       </div>
 
       <section class="mobile-group mobile-card">
-        <h3>เมนูหลัก</h3>
+        <h3>เน€เธโฌเน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธเธ…เน€เธเธ‘เน€เธย</h3>
         <router-link v-for="item in mainNavItems" :key="item.to" :to="item.to" @click="closeMenu">
           {{ item.label }}
         </router-link>
@@ -645,7 +642,7 @@ watch(isLoggedIn, () => {
 
       <section class="mobile-group mobile-card mobile-cta-group">
         <router-link class="subscription-link mobile-pill-link" to="/subscription-plans" @click="closeMenu">
-          สมัครรายเดือน
+          เน€เธเธเน€เธเธเน€เธเธ‘เน€เธยเน€เธเธเน€เธเธเน€เธเธ’เน€เธเธเน€เธโฌเน€เธโ€เน€เธเธ—เน€เธเธเน€เธย
         </router-link>
         <router-link class="coin-link mobile-pill-link" to="/coin-wallet" @click="closeMenu">
           <span class="coin-mark" aria-hidden="true">
@@ -655,8 +652,11 @@ watch(isLoggedIn, () => {
               <ellipse cx="9.2" cy="8.4" rx="2.2" ry="1.5" class="coin-shine" />
             </svg>
           </span>
-          เติม Coin
+          เน€เธโฌเน€เธโ€ขเน€เธเธ”เน€เธเธ Coin
         </router-link>
+        <button class="accessibility-link mobile-pill-link" type="button" @click="openAccessibilityPanel">
+          การเข้าถึง
+        </button>
       </section>
     </div>
 
@@ -673,9 +673,10 @@ watch(isLoggedIn, () => {
 .desktop-public-nav { display: flex; align-items: center; justify-content: center; gap: clamp(18px, 2vw, 44px); }
 .desktop-public-nav a { color: #1f2937; font-weight: 800; }
 .desktop-public-nav a.router-link-active { color: #0f766e; }
-.subscription-link, .coin-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 999px; font-weight: 900; white-space: nowrap; }
+.subscription-link, .coin-link, .accessibility-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 999px; font-weight: 900; white-space: nowrap; }
 .subscription-link { padding: 0 18px; background: linear-gradient(135deg, #15b8c7, #0ea5a8); color: #fff; }
 .coin-link { gap: 10px; padding: 0 22px; background: linear-gradient(180deg, #ff9d10 0%, #f28a00 100%); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 4px 10px rgba(200, 112, 0, 0.18); }
+.accessibility-link { padding: 0 18px; border: 1px solid rgba(15,118,110,0.16); background: rgba(255,255,255,0.82); color: #0f766e; cursor: pointer; }
 .coin-mark { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 999px; background: radial-gradient(circle at 35% 35%, #ffe48a 0%, #ffc933 45%, #e59a00 100%); box-shadow: inset 0 1px 1px rgba(255,255,255,0.42), 0 1px 2px rgba(181, 118, 0, 0.3); }
 .coin-mark svg { width: 16px; height: 16px; filter: drop-shadow(0 1px 0 rgba(181, 118, 0, 0.18)); }
 .coin-face { fill: #ffd24d; }
@@ -750,5 +751,5 @@ watch(isLoggedIn, () => {
 .mobile-cta-group { display: none; grid-template-columns: 1fr 1fr; gap: 10px; background: transparent; padding: 0; }
 .mobile-pill-link { width: 100%; justify-content: center; }
 @media (max-width: 1100px) { .top-bar { grid-template-columns: 1fr auto; } .desktop-public-nav { display: none; } .menu-toggle { display: inline-grid; } }
-@media (max-width: 780px) { .top-bar { gap: 16px; padding: 12px 16px; } .left-cluster { gap: 10px; } .subscription-link, .coin-link { display: none; } .brand-logo { width: 164px; transform: scale(1.3); } .mobile-panel { left: 8px; width: calc(100vw - 16px); } .mobile-cta-group { display: grid; grid-template-columns: 1fr; } }
+@media (max-width: 780px) { .top-bar { gap: 16px; padding: 12px 16px; } .left-cluster { gap: 10px; } .subscription-link, .coin-link, .accessibility-link { display: none; } .brand-logo { width: 164px; transform: scale(1.3); } .mobile-panel { left: 8px; width: calc(100vw - 16px); } .mobile-cta-group { display: grid; grid-template-columns: 1fr; } .mobile-pill-link.accessibility-link { display: inline-flex; } }
 </style>

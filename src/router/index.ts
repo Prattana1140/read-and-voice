@@ -13,9 +13,8 @@ import ReaderListenPage from "../pages/ReaderListenPage.vue";
 import Login from "../pages/Login.vue";
 import Register from "../pages/Register.vue";
 import AccountLogin from "../pages/AccountLogin.vue";
-import LineLogin from "../pages/LineLogin.vue";
-import FacebookLogin from "../pages/FacebookLogin.vue";
 import OAuthCallback from "../pages/OAuthCallback.vue";
+import AccessibleHome from "../pages/AccessibleHome.vue";
 
 import MyLibrary from "../pages/MyLibrary.vue";
 import WishList from "../pages/Wishlist.vue";
@@ -138,16 +137,16 @@ const routes: RouteRecordRaw[] = [
     meta: { guestOnly: true },
   },
   {
+    path: "/login/thaid",
+    redirect: "/login",
+  },
+  {
     path: "/login/line",
-    name: "LineLogin",
-    component: LineLogin,
-    meta: { guestOnly: true },
+    redirect: "/login",
   },
   {
     path: "/login/facebook",
-    name: "FacebookLogin",
-    component: FacebookLogin,
-    meta: { guestOnly: true },
+    redirect: "/login",
   },
   {
     path: "/oauth/callback",
@@ -159,6 +158,12 @@ const routes: RouteRecordRaw[] = [
     name: "Register",
     component: Register,
     meta: { guestOnly: true },
+  },
+  {
+    path: "/accessible-home",
+    name: "AccessibleHome",
+    component: AccessibleHome,
+    meta: { requiresAuth: true, allowedRoles: memberRoles },
   },
   {
     path: "/forgot-password",

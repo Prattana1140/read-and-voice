@@ -131,6 +131,17 @@ export const toggleAccessibilityMode = () => {
   announceAccessibilityMessage(nextEnabled ? "เปิดโหมดช่วยการเข้าถึงแล้ว" : "ปิดโหมดช่วยการเข้าถึงแล้ว");
 };
 
+export const enableVisualAssistPreset = () => {
+  updateAccessibilitySettings({
+    enabled: true,
+    highContrast: true,
+    speakUi: true,
+    fontScale: 1.22,
+    lineSpacing: 2.1,
+    letterSpacing: 0.03,
+  });
+};
+
 export const initializeAccessibility = () => {
   if (initialized || typeof window === "undefined") return;
   initialized = true;

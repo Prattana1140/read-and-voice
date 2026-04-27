@@ -10,6 +10,9 @@ export type AuthUser = {
   avatar_url?: string;
   phone?: string;
   bio?: string;
+  accessibility_mode?: boolean;
+  accessibility_label?: string;
+  visual_impairment_verified?: boolean;
   created_at?: string;
 };
 

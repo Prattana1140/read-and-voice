@@ -14,6 +14,10 @@ const handleExternalToggle = () => {
   toggleAccessibilityMode();
 };
 
+const openPanel = () => {
+  isOpen.value = true;
+};
+
 const fontPercent = computed(() => `${Math.round(accessibilityState.fontScale * 100)}%`);
 
 const increaseFont = () => {
@@ -54,34 +58,31 @@ const toggleUiSpeech = () => {
 
 onMounted(() => {
   window.addEventListener("read-voice:toggle-accessibility", handleExternalToggle);
+  window.addEventListener("read-voice:open-accessibility-panel", openPanel);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("read-voice:toggle-accessibility", handleExternalToggle);
+  window.removeEventListener("read-voice:open-accessibility-panel", openPanel);
 });
 </script>
 
 <template>
   <div class="a11y-widget">
-    <button
-      class="a11y-trigger"
-      type="button"
-      aria-label="เปิดแผงช่วยการเข้าถึง"
-      :aria-expanded="isOpen"
-      @click="isOpen = !isOpen"
-    >
-      การเข้าถึง
-    </button>
-
     <section v-if="isOpen" class="a11y-panel" aria-label="ตัวช่วยการเข้าถึง">
       <div class="a11y-panel__head">
         <div>
           <strong>โหมดช่วยการเข้าถึง</strong>
           <small>ปรับทั้งเว็บให้ใช้งานง่ายขึ้นทันที</small>
         </div>
-        <button class="a11y-pill" type="button" @click="toggleAccessibilityMode">
-          {{ accessibilityState.enabled ? "ปิดโหมด" : "เปิดโหมด" }}
-        </button>
+        <div class="a11y-panel__actions">
+          <button class="a11y-pill" type="button" @click="toggleAccessibilityMode">
+            {{ accessibilityState.enabled ? "ปิดโหมด" : "เปิดโหมด" }}
+          </button>
+          <button class="a11y-close" type="button" aria-label="ปิดแผงการเข้าถึง" @click="isOpen = false">
+            ปิด
+          </button>
+        </div>
       </div>
 
       <div class="a11y-grid">
@@ -123,30 +124,19 @@ onBeforeUnmount(() => {
 .a11y-widget {
   position: fixed;
   right: 18px;
-  bottom: 18px;
+  top: 88px;
   z-index: 90;
   display: grid;
   justify-items: end;
-  gap: 10px;
 }
 
-.a11y-trigger,
 .a11y-pill,
+.a11y-close,
 .a11y-card,
 .a11y-inline button {
   border: 0;
   cursor: pointer;
   font: inherit;
-}
-
-.a11y-trigger {
-  min-height: 48px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #0f766e, #0ea5a8);
-  color: #fff;
-  font-weight: 900;
-  padding: 0 18px;
-  box-shadow: 0 14px 30px rgba(15, 118, 110, 0.26);
 }
 
 .a11y-panel {
@@ -161,6 +151,7 @@ onBeforeUnmount(() => {
 }
 
 .a11y-panel__head,
+.a11y-panel__actions,
 .a11y-inline {
   display: flex;
   align-items: center;
@@ -181,6 +172,7 @@ onBeforeUnmount(() => {
 }
 
 .a11y-pill,
+.a11y-close,
 .a11y-inline button {
   min-height: 40px;
   border-radius: 999px;
@@ -188,6 +180,11 @@ onBeforeUnmount(() => {
   color: #0f766e;
   font-weight: 800;
   padding: 0 14px;
+}
+
+.a11y-close {
+  background: #eef2f7;
+  color: #334155;
 }
 
 .a11y-grid {
@@ -234,7 +231,7 @@ kbd {
 @media (max-width: 640px) {
   .a11y-widget {
     right: 12px;
-    bottom: 12px;
+    top: 78px;
   }
 
   .a11y-grid {

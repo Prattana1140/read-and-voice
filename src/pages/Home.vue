@@ -189,14 +189,6 @@ const goToShelf = (name: string) => {
   router.push({ name });
 };
 
-const goToMyLibrary = () => {
-  router.push({ name: "MyLibrary" });
-};
-
-const goToCoinWallet = () => {
-  router.push({ name: "CoinWallet" });
-};
-
 const goToBook = (id: number) => {
   router.push({ name: "BookDetail", params: { id } });
 };

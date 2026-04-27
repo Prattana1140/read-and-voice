@@ -67,12 +67,30 @@ async function ensureUserProfilesTable() {
           avatar_url TEXT NULL,
           phone VARCHAR(50) NULL,
           bio TEXT NULL,
+          accessibility_mode TINYINT(1) NOT NULL DEFAULT 0,
+          visual_impairment_verified TINYINT(1) NOT NULL DEFAULT 0,
           created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
           CONSTRAINT fk_user_profiles_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `)
-      .then(() => true);
+      .then(async () => {
+        try {
+          await db.query(
+            "ALTER TABLE user_profiles ADD COLUMN accessibility_mode TINYINT(1) NOT NULL DEFAULT 0 AFTER bio",
+          );
+        } catch (error) {
+          if (error.code !== "ER_DUP_FIELDNAME") throw error;
+        }
+        try {
+          await db.query(
+            "ALTER TABLE user_profiles ADD COLUMN visual_impairment_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER accessibility_mode",
+          );
+        } catch (error) {
+          if (error.code !== "ER_DUP_FIELDNAME") throw error;
+        }
+        return true;
+      });
   }
 
   return userProfilesTableReady;
@@ -91,6 +109,8 @@ function serializeProfile(row) {
     avatar_url: row.avatar_url || "",
     phone: row.phone || "",
     bio: row.bio || "",
+    accessibility_mode: Number(row.accessibility_mode || 0) === 1,
+    visual_impairment_verified: Number(row.visual_impairment_verified || 0) === 1,
   };
 }
 
@@ -107,7 +127,9 @@ async function fetchProfile(userId) {
        u.created_at,
        p.avatar_url,
        p.phone,
-       p.bio
+       p.bio,
+       p.accessibility_mode,
+       p.visual_impairment_verified
      FROM users u
      LEFT JOIN user_profiles p ON p.user_id = u.id
      WHERE u.id = ?
