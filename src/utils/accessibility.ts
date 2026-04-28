@@ -9,7 +9,12 @@ export type AccessibilitySettings = {
   letterSpacing: number;
 };
 
+type StoredAccessibilitySettings = Partial<AccessibilitySettings> & {
+  settingsVersion?: number;
+};
+
 const STORAGE_KEY = "read-voice-accessibility";
+const SETTINGS_VERSION = 2;
 
 const defaultSettings: AccessibilitySettings = {
   enabled: false,
@@ -27,14 +32,28 @@ let lastSpokenLabel = "";
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-const normalizeSettings = (raw: Partial<AccessibilitySettings> | null | undefined): AccessibilitySettings => ({
-  enabled: Boolean(raw?.enabled),
-  highContrast: Boolean(raw?.highContrast),
-  speakUi: Boolean(raw?.speakUi),
-  fontScale: clamp(Number(raw?.fontScale ?? defaultSettings.fontScale), 1, 1.5),
-  lineSpacing: clamp(Number(raw?.lineSpacing ?? defaultSettings.lineSpacing), 1.5, 2.4),
-  letterSpacing: clamp(Number(raw?.letterSpacing ?? defaultSettings.letterSpacing), 0, 0.08),
-});
+const readNumber = (value: unknown, fallback: number) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+};
+
+const normalizeSettings = (
+  raw: StoredAccessibilitySettings | null | undefined,
+  options: { migrateLegacyStorage?: boolean } = {},
+): AccessibilitySettings => {
+  const defaultVersion = options.migrateLegacyStorage ? 1 : SETTINGS_VERSION;
+  const savedVersion = readNumber(raw?.settingsVersion, defaultVersion);
+  const migratedFromAutoContrast = Boolean(options.migrateLegacyStorage && savedVersion < SETTINGS_VERSION);
+
+  return {
+    enabled: Boolean(raw?.enabled),
+    highContrast: migratedFromAutoContrast ? false : Boolean(raw?.highContrast),
+    speakUi: migratedFromAutoContrast ? false : Boolean(raw?.speakUi),
+    fontScale: clamp(readNumber(raw?.fontScale, defaultSettings.fontScale), 1, 1.5),
+    lineSpacing: clamp(readNumber(raw?.lineSpacing, defaultSettings.lineSpacing), 1.5, 2.4),
+    letterSpacing: clamp(readNumber(raw?.letterSpacing, defaultSettings.letterSpacing), 0, 0.08),
+  };
+};
 
 export const applyAccessibilitySettings = () => {
   const root = document.documentElement;
@@ -46,7 +65,7 @@ export const applyAccessibilitySettings = () => {
 };
 
 const persistAccessibilitySettings = () => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...accessibilityState }));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...accessibilityState, settingsVersion: SETTINGS_VERSION }));
 };
 
 export const announceToScreenReader = (message: string) => {
@@ -121,11 +140,11 @@ export const toggleAccessibilityMode = () => {
   const nextEnabled = !accessibilityState.enabled;
   updateAccessibilitySettings({
     enabled: nextEnabled,
-    highContrast: nextEnabled ? true : accessibilityState.highContrast,
-    speakUi: nextEnabled ? true : accessibilityState.speakUi,
-    fontScale: nextEnabled ? Math.max(1.12, accessibilityState.fontScale) : accessibilityState.fontScale,
-    lineSpacing: nextEnabled ? Math.max(1.9, accessibilityState.lineSpacing) : accessibilityState.lineSpacing,
-    letterSpacing: nextEnabled ? Math.max(0.02, accessibilityState.letterSpacing) : accessibilityState.letterSpacing,
+    highContrast: nextEnabled ? accessibilityState.highContrast : false,
+    speakUi: nextEnabled ? accessibilityState.speakUi : false,
+    fontScale: nextEnabled ? Math.max(1.08, accessibilityState.fontScale) : defaultSettings.fontScale,
+    lineSpacing: nextEnabled ? Math.max(1.8, accessibilityState.lineSpacing) : defaultSettings.lineSpacing,
+    letterSpacing: nextEnabled ? accessibilityState.letterSpacing : defaultSettings.letterSpacing,
   });
 
   announceAccessibilityMessage(nextEnabled ? "เปิดโหมดช่วยการเข้าถึงแล้ว" : "ปิดโหมดช่วยการเข้าถึงแล้ว");
@@ -149,7 +168,7 @@ export const initializeAccessibility = () => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : null;
-    Object.assign(accessibilityState, normalizeSettings(parsed));
+    Object.assign(accessibilityState, normalizeSettings(parsed, { migrateLegacyStorage: true }));
   } catch {
     Object.assign(accessibilityState, defaultSettings);
   }

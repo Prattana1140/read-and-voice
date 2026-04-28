@@ -122,7 +122,8 @@ onMounted(() => {
         <div>
           <h1>Admin Dashboard</h1>
           <p>
-            จัดการหนังสือในระบบ ดูรายการทั้งหมด เพิ่ม แก้ไข และลบข้อมูลได้จากหน้านี้
+            จัดการหนังสือในระบบ ดูรายการทั้งหมด เพิ่ม แก้ไข
+            และลบข้อมูลได้จากหน้านี้
           </p>
         </div>
 
@@ -139,7 +140,9 @@ onMounted(() => {
             จัดการผู้ใช้งาน
           </button>
 
-          <button class="top-btn secondary" @click="goToApprovals">อนุมัติหนังสือ</button>
+          <button class="top-btn secondary" @click="goToApprovals">
+            อนุมัติหนังสือ
+          </button>
           <button class="top-btn primary" @click="goToUpload">
             + เพิ่มหนังสือใหม่
           </button>
@@ -198,7 +201,9 @@ onMounted(() => {
                   :src="getCoverUrl(book.cover_image)"
                   :alt="book.title"
                   class="cover-thumb"
-                  @error="($event.target as HTMLImageElement).src = '/no-cover.png'"
+                  @error="
+                    ($event.target as HTMLImageElement).src = '/no-cover.png'
+                  "
                 />
               </td>
 
@@ -409,13 +414,16 @@ onMounted(() => {
 }
 
 .status-badge {
-  display: inline-block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: #eef1f7;
   color: #667085;
-  border-radius: 999px;
-  padding: 6px 10px;
-  font-size: 12px;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 16px;
   font-weight: 700;
+  min-width: 80px;
 }
 
 .status-badge.active {

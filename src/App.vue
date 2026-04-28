@@ -32,7 +32,7 @@ const handleGlobalAccessibilityKeys = (event: KeyboardEvent) => {
 
   if (event.code === "KeyA") {
     event.preventDefault();
-    window.dispatchEvent(new CustomEvent("read-voice:open-accessibility-panel"));
+    window.dispatchEvent(new CustomEvent("read-voice:toggle-accessibility"));
   }
 };
 

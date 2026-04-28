@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="page">
     <section class="category-bar" aria-label="หมวดหนังสือ">
       <button type="button" class="active" @click="goToStore">ทั้งหมด</button>
@@ -6,7 +6,7 @@
       <button type="button" @click="goToShelf('NewReleases')">ออกใหม่</button>
       <button type="button" @click="goToShelf('Promotions')">โปรโมชัน</button>
       <button type="button" @click="goToShelf('FreeBooks')">อ่านฟรี</button>
-      <button type="button" @click="goToShelf('HallOfFame')">หอเกียรติยศ</button>
+      <button type="button" @click="goToShelf('HallOfFame')">ขึ้นหิ้ง</button>
       <button type="button" @click="goToShelf('Recommended')">แนะนำ</button>
     </section>
 
@@ -38,7 +38,9 @@
 
       <div
         class="hero-track"
-        :style="{ transform: `translateX(-${activeBannerIndex * bannerShiftPercent}%)` }"
+        :style="{
+          transform: `translateX(-${activeBannerIndex * bannerShiftPercent}%)`,
+        }"
       >
         <article
           v-for="(book, index) in bannerBooks"
@@ -59,7 +61,10 @@
           />
         </article>
 
-        <article v-if="bannerBooks.length === 0" class="promo-banner tone-1 empty-banner">
+        <article
+          v-if="bannerBooks.length === 0"
+          class="promo-banner tone-1 empty-banner"
+        >
           <div class="promo-copy">
             <span>Read and Voice</span>
             <h1>อ่านและฟัง E-Book ได้ทุกที่</h1>
@@ -151,12 +156,24 @@ const homeSectionItems = ref<HomeSection[]>([]);
 const activeBannerIndex = ref(0);
 let carouselTimer: ReturnType<typeof window.setInterval> | undefined;
 
-const bannerLabels = ["อ่านและฟัง", "ขายดี", "ออกใหม่", "โปรโมชัน", "อ่านฟรี", "แนะนำ"];
+const bannerLabels = [
+  "อ่านและฟัง",
+  "ขายดี",
+  "ออกใหม่",
+  "โปรโมชัน",
+  "อ่านฟรี",
+  "แนะนำ",
+];
 const bannerShiftPercent = 25;
 const visibleBannerCount = 4;
 
 const sectionDefinitions = [
-  { title: "ออกใหม่", to: "/new-releases", endpoint: "/new-releases", limit: 5 },
+  {
+    title: "ออกใหม่",
+    to: "/new-releases",
+    endpoint: "/new-releases",
+    limit: 5,
+  },
   { title: "ขายดี", to: "/best-sellers", endpoint: "/best-sellers", limit: 5 },
   { title: "อ่านฟรี", to: "/free-books", endpoint: "/free-books", limit: 5 },
   { title: "แนะนำ", to: "/recommended", endpoint: "/recommended", limit: 5 },
@@ -205,8 +222,7 @@ const startCarousel = () => {
   if (bannerPages.value <= 1) return;
 
   carouselTimer = window.setInterval(() => {
-    activeBannerIndex.value =
-      (activeBannerIndex.value + 1) % bannerPages.value;
+    activeBannerIndex.value = (activeBannerIndex.value + 1) % bannerPages.value;
   }, 4200);
 };
 
@@ -221,7 +237,9 @@ const setActiveBanner = (index: number) => {
 
 const goToPrevBanner = () => {
   activeBannerIndex.value =
-    activeBannerIndex.value === 0 ? bannerPages.value - 1 : activeBannerIndex.value - 1;
+    activeBannerIndex.value === 0
+      ? bannerPages.value - 1
+      : activeBannerIndex.value - 1;
   startCarousel();
 };
 
@@ -279,8 +297,16 @@ onUnmounted(() => {
   min-height: 100%;
   padding-bottom: 56px;
   background:
-    radial-gradient(circle at top, color-mix(in srgb, var(--primary-soft) 58%, transparent), transparent 42%),
-    linear-gradient(180deg, color-mix(in srgb, var(--surface) 94%, var(--bg)) 0%, var(--bg) 100%);
+    radial-gradient(
+      circle at top,
+      color-mix(in srgb, var(--primary-soft) 58%, transparent),
+      transparent 42%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface) 94%, var(--bg)) 0%,
+      var(--bg) 100%
+    );
 }
 
 .category-bar {
@@ -345,7 +371,11 @@ onUnmounted(() => {
   border: 1px solid color-mix(in srgb, var(--border) 82%, white);
   border-radius: 14px;
   background:
-    radial-gradient(circle at 82% 28%, rgba(255, 255, 255, 0.58), transparent 28%),
+    radial-gradient(
+      circle at 82% 28%,
+      rgba(255, 255, 255, 0.58),
+      transparent 28%
+    ),
     linear-gradient(130deg, #b6f3e7, #fff7c8 52%, #ffcad4);
   color: #163b37;
   cursor: pointer;
@@ -366,31 +396,51 @@ onUnmounted(() => {
 
 .promo-banner.tone-2 {
   background:
-    radial-gradient(circle at 76% 24%, rgba(255, 255, 255, 0.66), transparent 26%),
+    radial-gradient(
+      circle at 76% 24%,
+      rgba(255, 255, 255, 0.66),
+      transparent 26%
+    ),
     linear-gradient(135deg, #bde9ff, #d8f7ff 48%, #ffe5a8);
 }
 
 .promo-banner.tone-3 {
   background:
-    radial-gradient(circle at 76% 24%, rgba(255, 255, 255, 0.62), transparent 26%),
+    radial-gradient(
+      circle at 76% 24%,
+      rgba(255, 255, 255, 0.62),
+      transparent 26%
+    ),
     linear-gradient(135deg, #b5f7bc, #f0ffd9 48%, #fff2a8);
 }
 
 .promo-banner.tone-4 {
   background:
-    radial-gradient(circle at 78% 26%, rgba(255, 255, 255, 0.64), transparent 28%),
+    radial-gradient(
+      circle at 78% 26%,
+      rgba(255, 255, 255, 0.64),
+      transparent 28%
+    ),
     linear-gradient(135deg, #d7f7ff, #d9ffe8 48%, #ffd9ea);
 }
 
 .promo-banner.tone-5 {
   background:
-    radial-gradient(circle at 78% 26%, rgba(255, 255, 255, 0.64), transparent 28%),
+    radial-gradient(
+      circle at 78% 26%,
+      rgba(255, 255, 255, 0.64),
+      transparent 28%
+    ),
     linear-gradient(135deg, #e3f1ff, #fff0c9 48%, #d7ffe3);
 }
 
 .promo-banner.tone-6 {
   background:
-    radial-gradient(circle at 78% 26%, rgba(255, 255, 255, 0.64), transparent 28%),
+    radial-gradient(
+      circle at 78% 26%,
+      rgba(255, 255, 255, 0.64),
+      transparent 28%
+    ),
     linear-gradient(135deg, #ccfff4, #f5fdd1 48%, #e8dcff);
 }
 
@@ -441,7 +491,7 @@ onUnmounted(() => {
   position: relative;
   z-index: 1;
   justify-self: end;
-  width: 72px;
+  width: 150px;
   aspect-ratio: 3 / 4;
   border-radius: 10px;
   object-fit: cover;
@@ -462,7 +512,9 @@ onUnmounted(() => {
   font-size: 24px;
   line-height: 1;
   transform: translateY(-58%);
-  transition: background 0.18s ease, color 0.18s ease;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
   backdrop-filter: blur(6px);
 }
 
@@ -491,6 +543,7 @@ onUnmounted(() => {
 .hero-dots button {
   width: 6px;
   height: 6px;
+  min-height: 0;
   border: 0;
   border-radius: 999px;
   background: color-mix(in srgb, var(--border) 88%, var(--surface));
@@ -508,7 +561,7 @@ onUnmounted(() => {
 }
 
 .storefront {
-  width: min(100% - 28px, 760px);
+  width: min(100% - 28px, 1000px);
   margin: 0 auto;
   padding-top: 22px;
 }
@@ -537,15 +590,27 @@ onUnmounted(() => {
 }
 
 .quick-card.read {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--secondary) 92%, white), var(--secondary));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--secondary) 92%, white),
+    var(--secondary)
+  );
 }
 
 .quick-card.library {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 92%, white), var(--primary-strong));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary) 92%, white),
+    var(--primary-strong)
+  );
 }
 
 .quick-card.coin {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--primary-strong) 72%, #1f7a8c), #1f7a8c);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary-strong) 72%, #1f7a8c),
+    #1f7a8c
+  );
 }
 
 .quick-card:hover {
@@ -936,7 +1001,7 @@ onUnmounted(() => {
   }
 
   .book-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .category-bar,
@@ -952,7 +1017,7 @@ onUnmounted(() => {
 
   .promo-banner {
     grid-template-columns: minmax(0, 1fr) 112px;
-    min-height: 184px;
+    min-height: 200px;
     padding: 20px;
   }
 
@@ -997,4 +1062,3 @@ onUnmounted(() => {
   }
 }
 </style>
-
