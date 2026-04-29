@@ -92,12 +92,12 @@ const register = async () => {
 
         <!-- LOGIN -->
         <div v-if="mode === 'login'">
-          <button class="btn line" @click="socialLogin('line')">LINE Login</button>
-          <button class="btn fb" @click="socialLogin('facebook')">Facebook Login</button>
+          <button class="btn line" @click="socialLogin('line')">เข้าสู่ระบบด้วย LINE</button>
+          <button class="btn fb" @click="socialLogin('facebook')">เข้าสู่ระบบด้วย Facebook</button>
 
           <div class="form">
-            <input v-model="email" placeholder="Email" />
-            <input v-model="password" type="password" placeholder="Password" />
+            <input v-model="email" placeholder="อีเมล" />
+            <input v-model="password" type="password" placeholder="รหัสผ่าน" />
 
             <button class="submit" @click="login">
               {{ loading ? "กำลังเข้า..." : "เข้าสู่ระบบ" }}
@@ -114,9 +114,9 @@ const register = async () => {
         <div v-else>
           <div class="form">
             <input v-model="name" placeholder="ชื่อ" />
-            <input v-model="regEmail" placeholder="Email" />
-            <input v-model="regPassword" type="password" placeholder="Password" />
-            <input v-model="confirmPassword" type="password" placeholder="Confirm Password" />
+            <input v-model="regEmail" placeholder="อีเมล" />
+            <input v-model="regPassword" type="password" placeholder="รหัสผ่าน" />
+            <input v-model="confirmPassword" type="password" placeholder="ยืนยันรหัสผ่าน" />
 
             <button class="submit" @click="register">
               {{ loading ? "กำลังสมัคร..." : "สมัครสมาชิก" }}
