@@ -946,8 +946,9 @@ watch(isCompactNav, (compact) => {
   backdrop-filter: blur(16px);
 }
 .top-bar {
+  position: relative;
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: clamp(18px, 2.4vw, 42px);
   min-height: 94px;
@@ -958,6 +959,7 @@ watch(isCompactNav, (compact) => {
   grid-row: 1;
   display: flex;
   align-items: center;
+  justify-self: start;
   min-width: 0;
   gap: 18px;
 }
@@ -998,6 +1000,7 @@ watch(isCompactNav, (compact) => {
 .desktop-public-nav a {
   color: #1f2937;
   font-weight: 800;
+  white-space: nowrap;
 }
 .desktop-public-nav a.router-link-active {
   color: #0f766e;
@@ -1067,6 +1070,8 @@ watch(isCompactNav, (compact) => {
 .top-actions {
   grid-column: 3;
   grid-row: 1;
+  position: relative;
+  z-index: 2;
   justify-self: end;
   display: flex;
   align-items: center;
