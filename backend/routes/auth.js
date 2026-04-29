@@ -12,6 +12,16 @@ const router = express.Router();
 const ALLOWED_ROLES = ["user", "writer", "admin", "superadmin"];
 const SOCIAL_PROVIDERS = ["line"];
 const DEFAULT_FACEBOOK_API_VERSION = "v25.0";
+const USERNAME_PATTERN = /^[A-Za-z0-9._@-]{4,32}$/;
+const GENDER_VALUES = new Set(["male", "female", "other", "prefer_not_to_say"]);
+const VISUAL_IMPAIRMENT_VALUES = new Set([
+  "none",
+  "blind",
+  "low_vision",
+  "other",
+  "prefer_not_to_say",
+]);
+const READING_MODE_VALUES = new Set(["ebook", "audio", "both", "not_sure"]);
 
 let userProfilesTableReady;
 
@@ -21,6 +31,64 @@ function normalizeEmail(email) {
 
 function normalizePassword(password) {
   return String(password || "");
+}
+
+function normalizeOptionalText(value, maxLength) {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  if (!normalized) return null;
+  return maxLength ? normalized.slice(0, maxLength) : normalized;
+}
+
+function normalizeUsername(value) {
+  return String(value || "").trim();
+}
+
+function normalizeChoice(value, allowedValues, fallback = null) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return fallback;
+  return allowedValues.has(normalized) ? normalized : fallback;
+}
+
+function normalizeBoolean(value) {
+  if (typeof value === "boolean") return value;
+  const normalized = String(value || "").trim().toLowerCase();
+  return ["1", "true", "yes", "on"].includes(normalized);
+}
+
+function normalizeBirthDate(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+
+  const date = new Date(`${raw}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const [, year, month, day] = match;
+  if (
+    date.getUTCFullYear() !== Number(year) ||
+    date.getUTCMonth() + 1 !== Number(month) ||
+    date.getUTCDate() !== Number(day)
+  ) {
+    return null;
+  }
+
+  return raw;
+}
+
+function calculateAge(birthDate) {
+  const birth = new Date(`${birthDate}T00:00:00.000Z`);
+  const today = new Date();
+  let age = today.getUTCFullYear() - birth.getUTCFullYear();
+  const monthDiff = today.getUTCMonth() - birth.getUTCMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getUTCDate() < birth.getUTCDate())) {
+    age -= 1;
+  }
+
+  return age;
 }
 
 function createHttpError(status, message) {
@@ -78,38 +146,59 @@ async function ensureUserProfilesTable() {
       await db.query(`
         CREATE TABLE IF NOT EXISTS user_profiles (
           user_id INT PRIMARY KEY,
+          username VARCHAR(64) NULL,
           avatar_url TEXT NULL,
           phone VARCHAR(50) NULL,
+          gender VARCHAR(30) NULL,
+          birth_date DATE NULL,
+          age_verified TINYINT(1) NOT NULL DEFAULT 0,
+          visual_impairment_status VARCHAR(40) NOT NULL DEFAULT 'not_specified',
+          uses_screen_reader TINYINT(1) NOT NULL DEFAULT 0,
+          assistive_technology VARCHAR(255) NULL,
+          preferred_reading_mode VARCHAR(40) NULL,
+          province VARCHAR(100) NULL,
           bio TEXT NULL,
           accessibility_mode TINYINT(1) NOT NULL DEFAULT 0,
           visual_impairment_verified TINYINT(1) NOT NULL DEFAULT 0,
+          terms_accepted_at DATETIME NULL,
           created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
           CONSTRAINT fk_user_profiles_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 
+      const profileColumnStatements = [
+        "ALTER TABLE user_profiles ADD COLUMN avatar_url TEXT NULL FIRST",
+        "ALTER TABLE user_profiles ADD COLUMN username VARCHAR(64) NULL AFTER user_id",
+        "ALTER TABLE user_profiles ADD COLUMN phone VARCHAR(50) NULL AFTER avatar_url",
+        "ALTER TABLE user_profiles ADD COLUMN gender VARCHAR(30) NULL AFTER phone",
+        "ALTER TABLE user_profiles ADD COLUMN birth_date DATE NULL AFTER gender",
+        "ALTER TABLE user_profiles ADD COLUMN age_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER birth_date",
+        "ALTER TABLE user_profiles ADD COLUMN visual_impairment_status VARCHAR(40) NOT NULL DEFAULT 'not_specified' AFTER age_verified",
+        "ALTER TABLE user_profiles ADD COLUMN uses_screen_reader TINYINT(1) NOT NULL DEFAULT 0 AFTER visual_impairment_status",
+        "ALTER TABLE user_profiles ADD COLUMN assistive_technology VARCHAR(255) NULL AFTER uses_screen_reader",
+        "ALTER TABLE user_profiles ADD COLUMN preferred_reading_mode VARCHAR(40) NULL AFTER assistive_technology",
+        "ALTER TABLE user_profiles ADD COLUMN province VARCHAR(100) NULL AFTER preferred_reading_mode",
+        "ALTER TABLE user_profiles ADD COLUMN accessibility_mode TINYINT(1) NOT NULL DEFAULT 0 AFTER bio",
+        "ALTER TABLE user_profiles ADD COLUMN visual_impairment_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER accessibility_mode",
+        "ALTER TABLE user_profiles ADD COLUMN terms_accepted_at DATETIME NULL AFTER visual_impairment_verified",
+      ];
+
+      for (const statement of profileColumnStatements) {
         try {
-          await db.query(
-            "ALTER TABLE user_profiles ADD COLUMN avatar_url TEXT NULL FIRST",
-          );
+          await db.query(statement);
         } catch (error) {
           if (error.code !== "ER_DUP_FIELDNAME") throw error;
         }
-        try {
-          await db.query(
-            "ALTER TABLE user_profiles ADD COLUMN accessibility_mode TINYINT(1) NOT NULL DEFAULT 0 AFTER bio",
-          );
-        } catch (error) {
-          if (error.code !== "ER_DUP_FIELDNAME") throw error;
-        }
-        try {
-          await db.query(
-            "ALTER TABLE user_profiles ADD COLUMN visual_impairment_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER accessibility_mode",
-          );
-        } catch (error) {
-          if (error.code !== "ER_DUP_FIELDNAME") throw error;
-        }
+      }
+
+      try {
+        await db.query(
+          "ALTER TABLE user_profiles ADD UNIQUE KEY uq_user_profiles_username (username)",
+        );
+      } catch (error) {
+        if (error.code !== "ER_DUP_KEYNAME") throw error;
+      }
       })();
   }
 
@@ -131,18 +220,43 @@ async function setAccessibilityMode(userId, enabled) {
 async function hydrateUser(user) {
   await ensureUserProfilesTable();
   const [rows] = await db.query(
-    `SELECT avatar_url, accessibility_mode, visual_impairment_verified
+    `SELECT
+       avatar_url,
+       username,
+       phone,
+       gender,
+       birth_date,
+       age_verified,
+       visual_impairment_status,
+       uses_screen_reader,
+       assistive_technology,
+       preferred_reading_mode,
+       province,
+       accessibility_mode,
+       visual_impairment_verified
      FROM user_profiles
      WHERE user_id = ?
      LIMIT 1`,
     [user.id],
   );
 
+  const profile = rows[0] || {};
+
   return {
     ...user,
-    avatar_url: rows[0]?.avatar_url || user.avatar_url || null,
-    accessibility_mode: Number(rows[0]?.accessibility_mode || 0) === 1,
-    visual_impairment_verified: Number(rows[0]?.visual_impairment_verified || 0) === 1,
+    avatar_url: profile.avatar_url || user.avatar_url || null,
+    username: profile.username || null,
+    phone: profile.phone || null,
+    gender: profile.gender || null,
+    birth_date: profile.birth_date || null,
+    age_verified: Number(profile.age_verified || 0) === 1,
+    visual_impairment_status: profile.visual_impairment_status || "not_specified",
+    uses_screen_reader: Number(profile.uses_screen_reader || 0) === 1,
+    assistive_technology: profile.assistive_technology || null,
+    preferred_reading_mode: profile.preferred_reading_mode || null,
+    province: profile.province || null,
+    accessibility_mode: Number(profile.accessibility_mode || 0) === 1,
+    visual_impairment_verified: Number(profile.visual_impairment_verified || 0) === 1,
   };
 }
 
@@ -155,6 +269,16 @@ function sanitizeUser(user, provider = "password") {
     status: user.status || "active",
     provider,
     avatar_url: user.avatar_url || null,
+    username: user.username || null,
+    phone: user.phone || null,
+    gender: user.gender || null,
+    birth_date: user.birth_date || null,
+    age_verified: Boolean(user.age_verified),
+    visual_impairment_status: user.visual_impairment_status || "not_specified",
+    uses_screen_reader: Boolean(user.uses_screen_reader),
+    assistive_technology: user.assistive_technology || null,
+    preferred_reading_mode: user.preferred_reading_mode || null,
+    province: user.province || null,
     accessibility_mode: Boolean(user.accessibility_mode),
     accessibility_label: Boolean(user.accessibility_mode)
       ? "visual_assist"
@@ -924,14 +1048,67 @@ function assertActiveUser(user) {
 
 router.post("/register", async (req, res) => {
   try {
-    const name = String(req.body.name || "").trim();
+    const displayName = normalizeOptionalText(
+      req.body.display_name ?? req.body.displayName ?? req.body.name,
+      255,
+    );
+    const username = normalizeUsername(req.body.username);
     const email = normalizeEmail(req.body.email);
     const password = normalizePassword(req.body.password);
-    const accessibilityMode = Boolean(req.body.accessibility_mode);
+    const gender = normalizeChoice(req.body.gender, GENDER_VALUES);
+    const birthDate = normalizeBirthDate(req.body.birth_date ?? req.body.birthDate);
+    const visualImpairmentStatus = normalizeChoice(
+      req.body.visual_impairment_status ?? req.body.visualImpairmentStatus,
+      VISUAL_IMPAIRMENT_VALUES,
+    );
+    const phone = normalizeOptionalText(req.body.phone, 50);
+    const province = normalizeOptionalText(req.body.province, 100);
+    const usesScreenReader = normalizeBoolean(
+      req.body.uses_screen_reader ?? req.body.usesScreenReader,
+    );
+    const assistiveTechnology = normalizeOptionalText(
+      req.body.assistive_technology ?? req.body.assistiveTechnology,
+      255,
+    );
+    const preferredReadingMode = normalizeChoice(
+      req.body.preferred_reading_mode ?? req.body.preferredReadingMode,
+      READING_MODE_VALUES,
+      "both",
+    );
+    const termsAccepted = normalizeBoolean(
+      req.body.terms_accepted ?? req.body.termsAccepted,
+    );
 
-    if (!name || !email || !password) {
+    if (!displayName || !username || !email || !password || !birthDate || !visualImpairmentStatus) {
       return res.status(400).json({ message: "กรอกข้อมูลให้ครบ" });
     }
+
+    if (!USERNAME_PATTERN.test(username)) {
+      return res.status(400).json({
+        message: "ยูสเซอร์เนมต้องมี 4-32 ตัวอักษร และใช้ได้เฉพาะ A-Z, a-z, 0-9, ., _, @, -",
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร" });
+    }
+
+    const age = calculateAge(birthDate);
+    if (age < 0) {
+      return res.status(400).json({ message: "วันเกิดต้องไม่เป็นวันที่ในอนาคต" });
+    }
+
+    if (age > 120) {
+      return res.status(400).json({ message: "กรุณาตรวจสอบวันเกิดอีกครั้ง" });
+    }
+
+    if (!termsAccepted) {
+      return res.status(400).json({
+        message: "กรุณายอมรับเงื่อนไขการใช้งานและนโยบายความเป็นส่วนตัว",
+      });
+    }
+
+    await ensureUserProfilesTable();
 
     const [existingUsers] = await db.query(
       "SELECT id FROM users WHERE LOWER(TRIM(email)) = ? LIMIT 1",
@@ -942,18 +1119,86 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ message: "อีเมลนี้ถูกใช้งานแล้ว" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const [result] = await db.query(
-      `INSERT INTO users (name, email, password, role, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
-      [name, email, hashedPassword, "user", "active"],
+    const [existingUsernames] = await db.query(
+      "SELECT user_id FROM user_profiles WHERE LOWER(TRIM(username)) = ? LIMIT 1",
+      [username.toLowerCase()],
     );
 
-    await setAccessibilityMode(result.insertId, accessibilityMode);
+    if (existingUsernames.length > 0) {
+      return res.status(400).json({ message: "ยูสเซอร์เนมนี้ถูกใช้งานแล้ว" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const visualImpairmentVerified = !["none", "prefer_not_to_say"].includes(
+      visualImpairmentStatus,
+    );
+    const accessibilityMode =
+      normalizeBoolean(req.body.accessibility_mode) ||
+      usesScreenReader ||
+      visualImpairmentVerified;
+
+    const conn = await db.getConnection();
+
+    try {
+      await conn.beginTransaction();
+
+      const [result] = await conn.query(
+        `INSERT INTO users (name, email, password, role, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+        [displayName, email, hashedPassword, "user", "active"],
+      );
+
+      await conn.query(
+        `INSERT INTO user_profiles (
+           user_id,
+           username,
+           phone,
+           gender,
+           birth_date,
+           age_verified,
+           visual_impairment_status,
+           uses_screen_reader,
+           assistive_technology,
+           preferred_reading_mode,
+           province,
+           accessibility_mode,
+           visual_impairment_verified,
+           terms_accepted_at
+         )
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [
+          result.insertId,
+          username,
+          phone,
+          gender,
+          birthDate,
+          1,
+          visualImpairmentStatus,
+          usesScreenReader ? 1 : 0,
+          assistiveTechnology,
+          preferredReadingMode,
+          province,
+          accessibilityMode ? 1 : 0,
+          visualImpairmentVerified ? 1 : 0,
+        ],
+      );
+
+      await conn.commit();
+    } catch (error) {
+      await conn.rollback();
+      throw error;
+    } finally {
+      conn.release();
+    }
 
     return res.status(201).json({ message: "สมัครสมาชิกสำเร็จ" });
   } catch (error) {
+    if (error.code === "ER_DUP_ENTRY") {
+      return res.status(400).json({
+        message: "อีเมลหรือยูสเซอร์เนมนี้ถูกใช้งานแล้ว",
+      });
+    }
+
     console.error("REGISTER ERROR:", error);
     return res.status(error.status || 500).json({
       message: error.message || "เกิดข้อผิดพลาดในระบบ",

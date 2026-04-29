@@ -3,6 +3,7 @@ const cors = require("cors");
 const path = require("path");
 require("dotenv").config({ quiet: true });
 
+const db = require("./config/db");
 const authRoutes = require("./routes/auth");
 const booksRoutes = require("./routes/books");
 const cartRoutes = require("./routes/cart");
@@ -28,6 +29,7 @@ const episodeCommentsRoutes = require("./routes/episodeComments");
 const notificationsRoutes = require("./routes/notifications");
 const paymentsRoutes = require("./routes/payments");
 const writersRoutes = require("./routes/writers");
+const { generateBookCoverPath } = require("./services/bookCover");
 
 const app = express();
 const allowedOrigins = [
@@ -47,6 +49,48 @@ app.use(
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+app.get("/uploads/book-covers/:filename", async (req, res, next) => {
+  const filename = path.basename(req.params.filename || "");
+  if (!filename || filename !== req.params.filename || !filename.endsWith(".svg")) {
+    return next();
+  }
+
+  const coverPath = path.join(__dirname, "uploads", "book-covers", filename);
+  if (require("fs").existsSync(coverPath)) {
+    return res.sendFile(coverPath);
+  }
+
+  try {
+    const relativePath = `uploads/book-covers/${filename}`;
+    const [rows] = await db.query(
+      `SELECT b.id, b.title, b.subtitle, b.author, b.author_name, b.description, c.name AS category_name
+       FROM books b
+       LEFT JOIN categories c ON c.id = b.category_id
+       WHERE TRIM(LEADING '/' FROM COALESCE(b.cover_image_url, b.cover_image, '')) = ?
+          OR TRIM(LEADING '/' FROM COALESCE(b.cover_image, b.cover_image_url, '')) = ?
+       LIMIT 1`,
+      [relativePath, relativePath],
+    );
+
+    if (rows.length === 0) return next();
+
+    const book = rows[0];
+    const generatedPath = generateBookCoverPath({
+      bookId: book.id,
+      title: book.title,
+      subtitle: book.subtitle,
+      author: book.author_name || book.author,
+      seed: `${book.category_name || ""}:${book.description || ""}`,
+      force: true,
+    });
+
+    if (path.basename(generatedPath) !== filename) return next();
+    return res.sendFile(coverPath);
+  } catch (error) {
+    return next(error);
+  }
+});
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 

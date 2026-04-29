@@ -300,7 +300,7 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
         preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
         requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
         requested_hall_of_fame, requested_recommended, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'manual', 'serial', ?, 'completed', '', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+       VALUES (?, ?, ?, ?, ?, 'manual', 'serial', ?, 'completed', '', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         title,
         author,
@@ -369,7 +369,7 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
       preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
       requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
       requested_hall_of_fame, requested_recommended, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'manual', 'ebook', ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+     VALUES (?, ?, ?, ?, ?, 'manual', 'ebook', ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
     [
       title,
       author,
@@ -739,7 +739,7 @@ router.post(
           preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
           requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
           requested_hall_of_fame, requested_recommended, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
           title,
           author,
@@ -846,7 +846,7 @@ router.post(
           preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
           requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
           requested_hall_of_fame, requested_recommended, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'manual', 'serial', ?, 'completed', '', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+         VALUES (?, ?, ?, ?, ?, 'manual', 'serial', ?, 'completed', '', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
           title,
           author,
@@ -946,7 +946,7 @@ router.post(
           preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
           requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
           requested_hall_of_fame, requested_recommended, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'manual', 'ebook', ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+         VALUES (?, ?, ?, ?, ?, 'manual', 'ebook', ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
           title,
           author,

@@ -42,22 +42,20 @@ const sortedPlans = computed(() => {
 
 const activePlanText = computed(() => {
   if (!currentPlan.value?.isActive) return "";
-  const planName =
-    currentPlan.value.subscription?.plan_name ||
-    currentPlan.value.subscription?.name ||
-    "สมาชิกพิเศษ";
   const endAt = currentPlan.value.subscription?.end_at
     ? new Date(currentPlan.value.subscription.end_at).toLocaleDateString("th-TH")
     : "";
 
-  return endAt ? `คุณใช้ ${planName} ถึงวันที่ ${endAt}` : `คุณใช้ ${planName} อยู่`;
+  return endAt
+    ? `แพ็กเกจสมาชิกของคุณใช้งานได้ถึงวันที่ ${endAt}`
+    : "แพ็กเกจสมาชิกของคุณกำลังใช้งานอยู่";
 });
 
 function getPlanTitle(plan: Plan) {
-  if (plan.duration_days >= 365) return "สมาชิกพิเศษ 365 วัน";
-  if (plan.duration_days >= 90) return "สมาชิกพิเศษ 90 วัน";
-  if (plan.duration_days >= 30) return "สมาชิกพิเศษ 30 วัน";
-  return `สมาชิกพิเศษ ${plan.duration_days} วัน`;
+  if (plan.duration_days >= 365) return "แพ็กเกจสมาชิก 365 วัน";
+  if (plan.duration_days >= 90) return "แพ็กเกจสมาชิก 90 วัน";
+  if (plan.duration_days >= 30) return "แพ็กเกจสมาชิก 30 วัน";
+  return `แพ็กเกจสมาชิก ${plan.duration_days} วัน`;
 }
 
 function getDiscount(plan: Plan) {

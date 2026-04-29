@@ -110,15 +110,13 @@ function getRouteLabel(currentRoute: RouteLocationNormalizedLoaded) {
         ? "เข้าสู่ระบบ"
         : name === "LineLogin"
           ? "เข้าสู่ระบบด้วย LINE"
-          : name === "FacebookLogin"
-            ? "เข้าสู่ระบบด้วย Facebook"
-            : name === "Register"
-              ? "สมัครสมาชิก"
-              : name === "ForgotPassword"
-                ? "ลืมรหัสผ่าน"
-                : name === "OAuthCallback"
-                  ? "เข้าสู่ระบบ"
-                  : fallbackLabel(currentRoute))
+          : name === "Register"
+            ? "สมัครสมาชิก"
+            : name === "ForgotPassword"
+              ? "ลืมรหัสผ่าน"
+              : name === "OAuthCallback"
+                ? "เข้าสู่ระบบ"
+                : fallbackLabel(currentRoute))
   );
 }
 

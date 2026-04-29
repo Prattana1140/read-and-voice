@@ -3032,6 +3032,8 @@ input[type="range"] {
 
 .episode-table {
   border-top: 1px solid #e6ecec;
+  min-width: 0;
+  overflow-x: clip;
 }
 
 .episode-row {
@@ -3182,6 +3184,7 @@ input[type="range"] {
 
   .episode-row {
     gap: 6px;
+    min-width: 0;
     padding: 12px 0;
   }
 
@@ -3250,6 +3253,36 @@ input[type="range"] {
 
   .story-section {
     padding: 20px 14px;
+  }
+
+  .episode-table {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  .episode-row {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 12px 10px;
+  }
+
+  .episode-title,
+  .episode-title-wrap,
+  .episode-meta,
+  .episode-stat {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .episode-buy {
+    justify-self: stretch;
+    width: min(100%, 156px);
+    min-height: 38px;
+    margin-top: 4px;
+    padding: 0 12px;
+    white-space: normal;
+    line-height: 1.25;
+    text-align: center;
   }
 }
 </style>

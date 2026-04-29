@@ -14,6 +14,7 @@
     "db:migrate:tts-architecture": "node services/scripts/migrateTtsArchitecture.js",
     "db:migrate:commerce": "node services/scripts/migrateCommerceSystem.js",
     "db:backfill:covers": "node services/scripts/backfillBookCovers.js",
+    "db:regenerate:covers": "node services/scripts/regenerateBookCovers.js",
     "create:superadmin": "node services/scripts/createSuperAdmin.js"
   },
   "dependencies": {

@@ -9,6 +9,17 @@ const { verifyToken } = require("../middleware/auth");
 
 const router = express.Router();
 const uploadDir = path.join(__dirname, "../uploads/profile-images");
+const USERNAME_PATTERN = /^[A-Za-z0-9._@-]{4,32}$/;
+const GENDER_VALUES = new Set(["male", "female", "other", "prefer_not_to_say"]);
+const VISUAL_IMPAIRMENT_VALUES = new Set([
+  "not_specified",
+  "none",
+  "blind",
+  "low_vision",
+  "other",
+  "prefer_not_to_say",
+]);
+const READING_MODE_VALUES = new Set(["ebook", "audio", "both", "not_sure"]);
 
 fs.mkdirSync(uploadDir, { recursive: true });
 
@@ -45,6 +56,57 @@ function normalizeOptionalText(value, maxLength) {
   return maxLength ? normalized.slice(0, maxLength) : normalized;
 }
 
+function normalizeChoice(value, allowedValues, fallback = null) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return fallback;
+  return allowedValues.has(normalized) ? normalized : fallback;
+}
+
+function normalizeBoolean(value) {
+  if (typeof value === "boolean") return value;
+  const normalized = String(value || "").trim().toLowerCase();
+  return ["1", "true", "yes", "on"].includes(normalized);
+}
+
+function normalizeBirthDate(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+
+  const dateOnly = raw.slice(0, 10);
+  const match = dateOnly.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+
+  const date = new Date(`${dateOnly}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const [, year, month, day] = match;
+  if (
+    date.getUTCFullYear() !== Number(year) ||
+    date.getUTCMonth() + 1 !== Number(month) ||
+    date.getUTCDate() !== Number(day)
+  ) {
+    return null;
+  }
+
+  return dateOnly;
+}
+
+function calculateAge(birthDate) {
+  if (!birthDate) return null;
+  const birth = new Date(birthDate);
+  if (Number.isNaN(birth.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getUTCFullYear() - birth.getUTCFullYear();
+  const monthDiff = today.getUTCMonth() - birth.getUTCMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getUTCDate() < birth.getUTCDate())) {
+    age -= 1;
+  }
+
+  return age;
+}
+
 function toAvatarUrl(file) {
   if (!file) return null;
   return `uploads/profile-images/${file.filename}`;
@@ -64,31 +126,60 @@ async function ensureUserProfilesTable() {
       .query(`
         CREATE TABLE IF NOT EXISTS user_profiles (
           user_id INT PRIMARY KEY,
+          username VARCHAR(64) NULL,
           avatar_url TEXT NULL,
           phone VARCHAR(50) NULL,
+          gender VARCHAR(30) NULL,
+          birth_date DATE NULL,
+          age_verified TINYINT(1) NOT NULL DEFAULT 0,
+          visual_impairment_status VARCHAR(40) NOT NULL DEFAULT 'not_specified',
+          uses_screen_reader TINYINT(1) NOT NULL DEFAULT 0,
+          assistive_technology VARCHAR(255) NULL,
+          preferred_reading_mode VARCHAR(40) NULL,
+          province VARCHAR(100) NULL,
           bio TEXT NULL,
           accessibility_mode TINYINT(1) NOT NULL DEFAULT 0,
           visual_impairment_verified TINYINT(1) NOT NULL DEFAULT 0,
+          terms_accepted_at DATETIME NULL,
           created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
           CONSTRAINT fk_user_profiles_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `)
       .then(async () => {
+        const profileColumnStatements = [
+          "ALTER TABLE user_profiles ADD COLUMN avatar_url TEXT NULL FIRST",
+          "ALTER TABLE user_profiles ADD COLUMN username VARCHAR(64) NULL AFTER user_id",
+          "ALTER TABLE user_profiles ADD COLUMN phone VARCHAR(50) NULL AFTER avatar_url",
+          "ALTER TABLE user_profiles ADD COLUMN gender VARCHAR(30) NULL AFTER phone",
+          "ALTER TABLE user_profiles ADD COLUMN birth_date DATE NULL AFTER gender",
+          "ALTER TABLE user_profiles ADD COLUMN age_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER birth_date",
+          "ALTER TABLE user_profiles ADD COLUMN visual_impairment_status VARCHAR(40) NOT NULL DEFAULT 'not_specified' AFTER age_verified",
+          "ALTER TABLE user_profiles ADD COLUMN uses_screen_reader TINYINT(1) NOT NULL DEFAULT 0 AFTER visual_impairment_status",
+          "ALTER TABLE user_profiles ADD COLUMN assistive_technology VARCHAR(255) NULL AFTER uses_screen_reader",
+          "ALTER TABLE user_profiles ADD COLUMN preferred_reading_mode VARCHAR(40) NULL AFTER assistive_technology",
+          "ALTER TABLE user_profiles ADD COLUMN province VARCHAR(100) NULL AFTER preferred_reading_mode",
+          "ALTER TABLE user_profiles ADD COLUMN accessibility_mode TINYINT(1) NOT NULL DEFAULT 0 AFTER bio",
+          "ALTER TABLE user_profiles ADD COLUMN visual_impairment_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER accessibility_mode",
+          "ALTER TABLE user_profiles ADD COLUMN terms_accepted_at DATETIME NULL AFTER visual_impairment_verified",
+        ];
+
+        for (const statement of profileColumnStatements) {
+          try {
+            await db.query(statement);
+          } catch (error) {
+            if (error.code !== "ER_DUP_FIELDNAME") throw error;
+          }
+        }
+
         try {
           await db.query(
-            "ALTER TABLE user_profiles ADD COLUMN accessibility_mode TINYINT(1) NOT NULL DEFAULT 0 AFTER bio",
+            "ALTER TABLE user_profiles ADD UNIQUE KEY uq_user_profiles_username (username)",
           );
         } catch (error) {
-          if (error.code !== "ER_DUP_FIELDNAME") throw error;
+          if (error.code !== "ER_DUP_KEYNAME") throw error;
         }
-        try {
-          await db.query(
-            "ALTER TABLE user_profiles ADD COLUMN visual_impairment_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER accessibility_mode",
-          );
-        } catch (error) {
-          if (error.code !== "ER_DUP_FIELDNAME") throw error;
-        }
+
         return true;
       });
   }
@@ -107,7 +198,17 @@ function serializeProfile(row) {
     status: row.status,
     created_at: row.created_at,
     avatar_url: row.avatar_url || "",
+    username: row.username || "",
     phone: row.phone || "",
+    gender: row.gender || "",
+    birth_date: row.birth_date || null,
+    age: calculateAge(row.birth_date),
+    age_verified: Number(row.age_verified || 0) === 1,
+    visual_impairment_status: row.visual_impairment_status || "not_specified",
+    uses_screen_reader: Number(row.uses_screen_reader || 0) === 1,
+    assistive_technology: row.assistive_technology || "",
+    preferred_reading_mode: row.preferred_reading_mode || "",
+    province: row.province || "",
     bio: row.bio || "",
     accessibility_mode: Number(row.accessibility_mode || 0) === 1,
     visual_impairment_verified: Number(row.visual_impairment_verified || 0) === 1,
@@ -126,7 +227,16 @@ async function fetchProfile(userId) {
        u.status,
        u.created_at,
        p.avatar_url,
+       p.username,
        p.phone,
+       p.gender,
+       p.birth_date,
+       p.age_verified,
+       p.visual_impairment_status,
+       p.uses_screen_reader,
+       p.assistive_technology,
+       p.preferred_reading_mode,
+       p.province,
        p.bio,
        p.accessibility_mode,
        p.visual_impairment_verified
@@ -171,7 +281,29 @@ router.put("/me", verifyToken, handleProfileUpload, async (req, res) => {
     const email = normalizeEmail(req.body.email || req.user.email);
     const currentPassword = String(req.body.currentPassword || "");
     const newPassword = String(req.body.newPassword || "");
+    const confirmPassword = String(req.body.confirmPassword || "");
+    const username = String(req.body.username || "").trim();
     const phone = normalizeOptionalText(req.body.phone, 50);
+    const gender = normalizeChoice(req.body.gender, GENDER_VALUES);
+    const birthDate = normalizeBirthDate(req.body.birth_date || req.body.birthDate);
+    const visualImpairmentStatus = normalizeChoice(
+      req.body.visual_impairment_status || req.body.visualImpairmentStatus,
+      VISUAL_IMPAIRMENT_VALUES,
+      "not_specified",
+    );
+    const usesScreenReader = normalizeBoolean(
+      req.body.uses_screen_reader ?? req.body.usesScreenReader,
+    );
+    const assistiveTechnology = normalizeOptionalText(
+      req.body.assistive_technology || req.body.assistiveTechnology,
+      255,
+    );
+    const preferredReadingMode = normalizeChoice(
+      req.body.preferred_reading_mode || req.body.preferredReadingMode,
+      READING_MODE_VALUES,
+      "both",
+    );
+    const province = normalizeOptionalText(req.body.province, 100);
     const bio = normalizeOptionalText(req.body.bio, 2000);
     const avatarUrlInput = normalizeOptionalText(req.body.avatar_url);
     const shouldRemoveAvatar =
@@ -184,6 +316,32 @@ router.put("/me", verifyToken, handleProfileUpload, async (req, res) => {
         deleteOwnedUpload(toAvatarUrl(req.file));
       }
       return res.status(400).json({ message: "กรุณากรอกชื่อและอีเมล" });
+    }
+
+    if (username && !USERNAME_PATTERN.test(username)) {
+      if (req.file) {
+        deleteOwnedUpload(toAvatarUrl(req.file));
+      }
+      return res.status(400).json({
+        message: "ยูสเซอร์เนมต้องมี 4-32 ตัวอักษร และใช้ได้เฉพาะ A-Z, a-z, 0-9, ., _, @, -",
+      });
+    }
+
+    if (birthDate) {
+      const age = calculateAge(birthDate);
+      if (age === null || age < 0) {
+        if (req.file) {
+          deleteOwnedUpload(toAvatarUrl(req.file));
+        }
+        return res.status(400).json({ message: "กรุณาเลือกวันเกิดที่ถูกต้อง" });
+      }
+
+      if (age > 120) {
+        if (req.file) {
+          deleteOwnedUpload(toAvatarUrl(req.file));
+        }
+        return res.status(400).json({ message: "กรุณาตรวจสอบวันเกิดอีกครั้ง" });
+      }
     }
 
     const [users] = await db.query(
@@ -208,6 +366,23 @@ router.put("/me", verifyToken, handleProfileUpload, async (req, res) => {
 
     const currentUser = users[0];
 
+    if (username) {
+      const [usernameDuplicates] = await db.query(
+        `SELECT user_id
+         FROM user_profiles
+         WHERE LOWER(TRIM(username)) = ? AND user_id <> ?
+         LIMIT 1`,
+        [username.toLowerCase(), req.user.id],
+      );
+
+      if (usernameDuplicates.length > 0) {
+        if (req.file) {
+          deleteOwnedUpload(toAvatarUrl(req.file));
+        }
+        return res.status(400).json({ message: "ยูสเซอร์เนมนี้ถูกใช้งานแล้ว" });
+      }
+    }
+
     if (email !== normalizeEmail(currentUser.email)) {
       const [duplicates] = await db.query(
         "SELECT id FROM users WHERE LOWER(TRIM(email)) = ? AND id <> ? LIMIT 1",
@@ -224,6 +399,13 @@ router.put("/me", verifyToken, handleProfileUpload, async (req, res) => {
 
     let passwordHash = currentUser.password;
 
+    if (currentPassword && !newPassword) {
+      if (req.file) {
+        deleteOwnedUpload(toAvatarUrl(req.file));
+      }
+      return res.status(400).json({ message: "กรุณากรอกรหัสผ่านใหม่" });
+    }
+
     if (newPassword) {
       if (!currentPassword) {
         if (req.file) {
@@ -232,6 +414,20 @@ router.put("/me", verifyToken, handleProfileUpload, async (req, res) => {
         return res.status(400).json({
           message: "กรุณากรอกรหัสผ่านปัจจุบันก่อนเปลี่ยนรหัสใหม่",
         });
+      }
+
+      if (newPassword.length < 6) {
+        if (req.file) {
+          deleteOwnedUpload(toAvatarUrl(req.file));
+        }
+        return res.status(400).json({ message: "รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร" });
+      }
+
+      if (confirmPassword && newPassword !== confirmPassword) {
+        if (req.file) {
+          deleteOwnedUpload(toAvatarUrl(req.file));
+        }
+        return res.status(400).json({ message: "ยืนยันรหัสผ่านใหม่ไม่ตรงกัน" });
       }
 
       const passwordText = String(currentUser.password || "");
@@ -253,6 +449,13 @@ router.put("/me", verifyToken, handleProfileUpload, async (req, res) => {
       passwordHash = await bcrypt.hash(newPassword, 10);
     }
 
+    const visualImpairmentVerified = ["blind", "low_vision", "other"].includes(
+      visualImpairmentStatus,
+    );
+    const accessibilityMode =
+      usesScreenReader ||
+      visualImpairmentVerified ||
+      normalizeBoolean(req.body.accessibility_mode);
     const previousAvatarUrl = String(currentUser.avatar_url || "").trim();
     let nextAvatarUrl = previousAvatarUrl;
 
@@ -272,14 +475,57 @@ router.put("/me", verifyToken, handleProfileUpload, async (req, res) => {
     );
 
     await db.query(
-      `INSERT INTO user_profiles (user_id, avatar_url, phone, bio)
-       VALUES (?, ?, ?, ?)
+      `INSERT INTO user_profiles (
+         user_id,
+         username,
+         avatar_url,
+         phone,
+         gender,
+         birth_date,
+         age_verified,
+         visual_impairment_status,
+         uses_screen_reader,
+         assistive_technology,
+         preferred_reading_mode,
+         province,
+         bio,
+         accessibility_mode,
+         visual_impairment_verified
+       )
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
+         username = VALUES(username),
          avatar_url = VALUES(avatar_url),
          phone = VALUES(phone),
+         gender = VALUES(gender),
+         birth_date = VALUES(birth_date),
+         age_verified = VALUES(age_verified),
+         visual_impairment_status = VALUES(visual_impairment_status),
+         uses_screen_reader = VALUES(uses_screen_reader),
+         assistive_technology = VALUES(assistive_technology),
+         preferred_reading_mode = VALUES(preferred_reading_mode),
+         province = VALUES(province),
          bio = VALUES(bio),
+         accessibility_mode = VALUES(accessibility_mode),
+         visual_impairment_verified = VALUES(visual_impairment_verified),
          updated_at = NOW()`,
-      [req.user.id, nextAvatarUrl, phone, bio],
+      [
+        req.user.id,
+        username || null,
+        nextAvatarUrl,
+        phone,
+        gender,
+        birthDate,
+        birthDate ? 1 : 0,
+        visualImpairmentStatus,
+        usesScreenReader ? 1 : 0,
+        assistiveTechnology,
+        preferredReadingMode,
+        province,
+        bio,
+        accessibilityMode ? 1 : 0,
+        visualImpairmentVerified ? 1 : 0,
+      ],
     );
 
     if (
@@ -299,6 +545,9 @@ router.put("/me", verifyToken, handleProfileUpload, async (req, res) => {
   } catch (error) {
     if (req.file) {
       deleteOwnedUpload(toAvatarUrl(req.file));
+    }
+    if (error.code === "ER_DUP_ENTRY") {
+      return res.status(400).json({ message: "อีเมลหรือยูสเซอร์เนมนี้ถูกใช้งานแล้ว" });
     }
     console.error("PUT /profile/me error:", error);
     return res.status(500).json({ message: "อัปเดตโปรไฟล์ไม่สำเร็จ" });

@@ -14,6 +14,30 @@ const statements = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `,
   `
+  CREATE TABLE IF NOT EXISTS user_profiles (
+    user_id INT PRIMARY KEY,
+    username VARCHAR(64) NULL,
+    avatar_url TEXT NULL,
+    phone VARCHAR(50) NULL,
+    gender VARCHAR(30) NULL,
+    birth_date DATE NULL,
+    age_verified TINYINT(1) NOT NULL DEFAULT 0,
+    visual_impairment_status VARCHAR(40) NOT NULL DEFAULT 'not_specified',
+    uses_screen_reader TINYINT(1) NOT NULL DEFAULT 0,
+    assistive_technology VARCHAR(255) NULL,
+    preferred_reading_mode VARCHAR(40) NULL,
+    province VARCHAR(100) NULL,
+    bio TEXT NULL,
+    accessibility_mode TINYINT(1) NOT NULL DEFAULT 0,
+    visual_impairment_verified TINYINT(1) NOT NULL DEFAULT 0,
+    terms_accepted_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_user_profiles_username (username),
+    CONSTRAINT fk_user_profiles_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `,
+  `
   CREATE TABLE IF NOT EXISTS categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,

@@ -33,6 +33,22 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.delete("/", async (req, res) => {
+  try {
+    await ensureNotificationTables();
+    await db.query(
+      `DELETE FROM user_notifications
+       WHERE user_id = ?`,
+      [req.user.id],
+    );
+
+    return res.json({ message: "ลบการแจ้งเตือนทั้งหมดแล้ว" });
+  } catch (error) {
+    console.error("DELETE /account/notifications error:", error);
+    return res.status(500).json({ message: "ลบการแจ้งเตือนไม่สำเร็จ" });
+  }
+});
+
 router.post("/:id/read", async (req, res) => {
   try {
     await ensureNotificationTables();

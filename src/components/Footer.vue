@@ -163,46 +163,99 @@ const notificationSettingsLink = computed(() => (isLoggedIn.value ? "/notificati
 
 @media (max-width: 1080px) {
   .footer-inner {
-    grid-template-columns: 1fr 1fr;
-    gap: 36px;
-  }
-
-  .footer-about {
-    grid-column: 1 / -1;
-    grid-template-columns: minmax(280px, 1fr) 240px;
-    gap: 48px;
-  }
-}
-
-@media (max-width: 560px) {
-  .footer-inner {
+    grid-template-columns:
+      minmax(96px, 0.8fr)
+      minmax(112px, 0.85fr)
+      minmax(220px, 1.35fr);
+    gap: clamp(14px, 3vw, 28px);
     padding-top: 34px;
     padding-bottom: 24px;
   }
 
-  .footer-inner {
-    grid-template-columns: 1fr;
-    gap: 24px;
+  .footer-column h3 {
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+
+  .footer-column a {
+    font-size: 13px;
+    line-height: 1.65;
   }
 
   .footer-about {
     grid-column: auto;
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-
-  .footer-about-links h3,
-  .footer-about-links a {
-    white-space: normal;
+    grid-template-columns: minmax(130px, 1fr) minmax(92px, 120px);
+    gap: clamp(12px, 3vw, 24px);
   }
 
   .footer-logo {
-    width: 190px;
+    width: 128px;
+  }
+}
+
+@media (max-width: 640px) {
+  .footer-inner {
+    grid-template-columns:
+      minmax(88px, 0.8fr)
+      minmax(104px, 0.85fr)
+      minmax(190px, 1.25fr);
+    gap: 12px;
+    padding-inline: 18px;
+    padding-top: 28px;
+    padding-bottom: 24px;
+  }
+
+  .footer-about {
+    grid-template-columns: minmax(118px, 1fr) 96px;
+    gap: 12px;
+  }
+
+  .footer-logo {
+    width: 104px;
   }
 
   .footer-logo-wrap {
     justify-content: center;
-    order: -1;
+  }
+}
+
+@media (max-width: 460px) {
+  .footer-inner {
+    grid-template-columns:
+      minmax(58px, 0.75fr)
+      minmax(68px, 0.78fr)
+      minmax(138px, 1.4fr);
+    gap: 6px;
+    padding-inline: 10px;
+    padding-top: 24px;
+  }
+
+  .footer-about {
+    grid-template-columns: minmax(84px, 1fr) 46px;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .footer-column {
+    gap: 4px;
+  }
+
+  .footer-column h3 {
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+
+  .footer-column a {
+    font-size: 10px;
+    line-height: 1.55;
+  }
+
+  .footer-logo {
+    width: 52px;
+  }
+
+  .footer-logo-wrap {
+    justify-content: center;
   }
 
   .footer-bottom {

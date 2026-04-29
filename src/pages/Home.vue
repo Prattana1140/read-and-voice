@@ -1005,8 +1005,31 @@ onUnmounted(() => {
   }
 
   .book-grid {
-    grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .book-info {
+    grid-template-rows: minmax(26px, auto) 12px auto;
+    gap: 3px;
+    padding: 5px 4px 6px;
+  }
+
+  .book-info p {
+    min-height: 26px;
+    font-size: 9px;
+    line-height: 1.35;
+  }
+
+  .book-info small {
+    min-height: 12px;
+    font-size: 8px;
+  }
+
+  .book-info strong {
+    font-size: 8px;
+    padding: 2px 4px;
   }
 
   .category-bar,
@@ -1068,6 +1091,23 @@ onUnmounted(() => {
 }
 
 @media (max-width: 420px) {
+  .book-grid {
+    gap: 4px;
+  }
+
+  .book-info {
+    padding: 4px 3px 5px;
+  }
+
+  .book-info p {
+    font-size: 8px;
+  }
+
+  .book-info small,
+  .book-info strong {
+    font-size: 7px;
+  }
+
   .hero-track {
     padding-inline: 10px;
   }

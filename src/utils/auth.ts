@@ -8,7 +8,16 @@ export type AuthUser = {
   status?: string;
   provider?: string;
   avatar_url?: string;
+  username?: string | null;
   phone?: string;
+  gender?: string | null;
+  birth_date?: string | null;
+  age_verified?: boolean;
+  visual_impairment_status?: string;
+  uses_screen_reader?: boolean;
+  assistive_technology?: string | null;
+  preferred_reading_mode?: string | null;
+  province?: string | null;
   bio?: string;
   accessibility_mode?: boolean;
   accessibility_label?: string;

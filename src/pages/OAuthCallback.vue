@@ -64,7 +64,7 @@ onMounted(async () => {
       <p class="eyebrow">เข้าสู่ระบบ Read and Voice</p>
       <h1>{{ error ? "เข้าสู่ระบบไม่สำเร็จ" : "กำลังเชื่อมต่อบัญชี" }}</h1>
       <p v-if="!error">
-        ระบบกำลังตรวจสอบบัญชี Facebook/LINE และพาคุณไปยังหน้าที่เหมาะสม
+        ระบบกำลังตรวจสอบบัญชี LINE และพาคุณไปยังหน้าที่เหมาะสม
       </p>
       <p v-else class="error-text">{{ error }}</p>
       <button v-if="error" type="button" @click="router.push('/login')">

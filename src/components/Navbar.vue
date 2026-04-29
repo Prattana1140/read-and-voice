@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import logoUrl from "../assets/Logo-transparent.png";
 import api, { resolveAssetUrl } from "../utils/api";
@@ -57,6 +57,7 @@ const router = useRouter();
 const navbarRef = ref<HTMLElement | null>(null);
 const topBarRef = ref<HTMLElement | null>(null);
 const themeDropdownRef = ref<HTMLDetailsElement | null>(null);
+const searchInputRef = ref<HTMLInputElement | null>(null);
 const isCompactNav = ref(false);
 const isMenuOpen = ref(false);
 const isSearchOpen = ref(false);
@@ -65,6 +66,7 @@ const search = ref("");
 const authVersion = ref(0);
 const walletBalance = ref(0);
 const membershipLabel = ref("ยังไม่มีแพ็กเกจสมาชิก");
+const isMembershipActive = ref(false);
 const notificationItems = ref<NotificationItem[]>([]);
 const notificationLoading = ref(false);
 const notificationError = ref("");
@@ -270,7 +272,12 @@ const scheduleCompactNavMeasure = () => {
 };
 
 const openSearch = () => {
+  closeMenu();
+  closeFloatingMenus();
   isSearchOpen.value = true;
+  nextTick(() => {
+    searchInputRef.value?.focus();
+  });
 };
 
 const closeSearch = () => {
@@ -405,6 +412,22 @@ const markAllNotificationsRead = async () => {
   }
 };
 
+const deleteAllNotifications = async () => {
+  if (!notificationItems.value.length) return;
+
+  const confirmed = window.confirm("ต้องการลบการแจ้งเตือนทั้งหมดใช่ไหม?");
+  if (!confirmed) return;
+
+  try {
+    await api.delete("/account/notifications");
+    notificationItems.value = [];
+    notificationError.value = "";
+  } catch (error: any) {
+    notificationError.value =
+      error?.response?.data?.message || "ลบการแจ้งเตือนไม่สำเร็จ";
+  }
+};
+
 const loadWalletBalance = async () => {
   if (!isLoggedIn.value) {
     walletBalance.value = 0;
@@ -422,6 +445,7 @@ const loadWalletBalance = async () => {
 const loadMembershipLabel = async () => {
   if (!isLoggedIn.value) {
     membershipLabel.value = "ยังไม่มีแพ็กเกจสมาชิก";
+    isMembershipActive.value = false;
     return;
   }
 
@@ -436,6 +460,7 @@ const loadMembershipLabel = async () => {
 
     if (!activeItem) {
       membershipLabel.value = "ยังไม่มีแพ็กเกจสมาชิก";
+      isMembershipActive.value = false;
       return;
     }
 
@@ -444,9 +469,11 @@ const loadMembershipLabel = async () => {
       ? `ถึงวันที่ ${new Date(activeItem.end_at).toLocaleDateString("th-TH")}`
       : "ยังไม่ระบุวันสิ้นสุด";
 
+    isMembershipActive.value = true;
     membershipLabel.value = `${planName} · ${expiry}`;
   } catch {
     membershipLabel.value = "ตรวจสอบสถานะแพ็กเกจไม่สำเร็จ";
+    isMembershipActive.value = false;
   }
 };
 
@@ -650,26 +677,47 @@ watch(isCompactNav, (compact) => {
               <h3>การแจ้งเตือน</h3>
               <div class="notification-panel__actions">
                 <button
-                  type="button"
-                  aria-label="ทำเครื่องหมายว่าอ่านแล้วทั้งหมด"
-                  :disabled="notificationCount === 0"
-                  @click="markAllNotificationsRead"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="m9.2 12.8 1.9 1.9 3.9-4.8 1.6 1.3-5 6.1a1 1 0 0 1-1.5.1l-2.3-2.4 1.4-1.2Zm2.8-9.3a9 9 0 1 1 0 18 9 9 0 0 1 0-18Z"
-                    />
-                  </svg>
-                </button>
-                <button
+                  class="notification-icon-action"
                   type="button"
                   aria-label="ตั้งค่าการแจ้งเตือน"
                   @click="openNotificationSettings"
                 >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
                     <path
-                      d="m19.4 13.5 1.4 1.1-2 3.5-1.8-.7c-.5.4-1 .7-1.6.9L15.1 20h-4.2l-.3-1.7c-.6-.2-1.1-.5-1.6-.9l-1.8.7-2-3.5 1.4-1.1a6 6 0 0 1 0-1.8l-1.4-1.1 2-3.5 1.8.7c.5-.4 1-.7 1.6-.9l.3-1.7h4.2l.3 1.7c.6.2 1.1.5 1.6.9l1.8-.7 2 3.5-1.4 1.1a6 6 0 0 1 0 1.8ZM12 15.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
+                      d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.2a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.6a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.2a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.2a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.6a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.2a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2Z"
                     />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+                <button
+                  class="notification-icon-action notification-icon-action--danger"
+                  type="button"
+                  aria-label="ลบการแจ้งเตือนทั้งหมด"
+                  :disabled="notificationItems.length === 0"
+                  @click="deleteAllNotifications"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M3 6h18" />
+                    <path d="M8 6V4h8v2" />
+                    <path d="m19 6-1 14H6L5 6" />
+                    <path d="M10 11v6" />
+                    <path d="M14 11v6" />
                   </svg>
                 </button>
               </div>
@@ -725,8 +773,19 @@ watch(isCompactNav, (compact) => {
             loadMembershipLabel();
           "
         >
-          <summary class="avatar-button" aria-label="เมนูบัญชี">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
+          <summary
+            class="avatar-button"
+            :class="{ 'avatar-button--member': isMembershipActive }"
+            aria-label="เมนูบัญชี"
+          >
+            <img
+              v-if="userAvatarUrl"
+              :src="userAvatarUrl"
+              alt=""
+              class="nav-avatar-image"
+              aria-hidden="true"
+            />
+            <svg v-else viewBox="0 0 24 24" aria-hidden="true">
               <path
                 d="M12 12a4.4 4.4 0 1 0 0-8.8 4.4 4.4 0 0 0 0 8.8Zm0 2c-4.2 0-7.6 2.2-7.6 5v1.2h15.2V19c0-2.8-3.4-5-7.6-5Z"
               />
@@ -741,8 +800,14 @@ watch(isCompactNav, (compact) => {
                   :src="userAvatarUrl"
                   alt="รูปโปรไฟล์"
                   class="account-avatar account-avatar-image"
+                  :class="{ 'account-avatar--member': isMembershipActive }"
                 />
-                <div v-else class="account-avatar" aria-hidden="true">
+                <div
+                  v-else
+                  class="account-avatar"
+                  :class="{ 'account-avatar--member': isMembershipActive }"
+                  aria-hidden="true"
+                >
                   {{ userDisplayName.slice(0, 1).toUpperCase() }}
                 </div>
                 <div class="account-summary-copy">
@@ -832,6 +897,8 @@ watch(isCompactNav, (compact) => {
       class="search-overlay"
       :class="{ open: isSearchOpen }"
       role="search"
+      @click.self="closeSearch"
+      @keydown.esc="closeSearch"
       @submit.prevent="submitSearch"
     >
       <div class="search-box">
@@ -841,6 +908,7 @@ watch(isCompactNav, (compact) => {
           />
         </svg>
         <input
+          ref="searchInputRef"
           v-model="search"
           type="search"
           placeholder="ค้นหาหนังสือ นักเขียน หรือหมวดหมู่"
@@ -950,9 +1018,9 @@ watch(isCompactNav, (compact) => {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: clamp(18px, 2.4vw, 42px);
-  min-height: 94px;
-  padding: 12px clamp(28px, 4vw, 72px);
+  gap: clamp(14px, 2vw, 34px);
+  min-height: 76px;
+  padding: 8px clamp(24px, 3.4vw, 58px);
 }
 .left-cluster {
   grid-column: 1;
@@ -961,7 +1029,7 @@ watch(isCompactNav, (compact) => {
   align-items: center;
   justify-self: start;
   min-width: 0;
-  gap: 18px;
+  gap: 14px;
 }
 .brand,
 .desktop-public-nav a,
@@ -995,10 +1063,11 @@ watch(isCompactNav, (compact) => {
   align-items: center;
   justify-content: center;
   min-width: 0;
-  gap: clamp(18px, 2vw, 44px);
+  gap: clamp(14px, 1.6vw, 34px);
 }
 .desktop-public-nav a {
   color: #1f2937;
+  font-size: 15px;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -1011,19 +1080,20 @@ watch(isCompactNav, (compact) => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
+  min-height: 38px;
   border-radius: 999px;
+  font-size: 14px;
   font-weight: 900;
   white-space: nowrap;
 }
 .subscription-link {
-  padding: 0 18px;
+  padding: 0 16px;
   background: linear-gradient(135deg, #15b8c7, #0ea5a8);
   color: #fff;
 }
 .coin-link {
-  gap: 10px;
-  padding: 0 22px;
+  gap: 8px;
+  padding: 0 18px;
   background: linear-gradient(180deg, #ff9d10 0%, #f28a00 100%);
   color: #fff;
   box-shadow:
@@ -1031,7 +1101,7 @@ watch(isCompactNav, (compact) => {
     0 4px 10px rgba(200, 112, 0, 0.18);
 }
 .accessibility-link {
-  padding: 0 18px;
+  padding: 0 16px;
   border: 1px solid rgba(15, 118, 110, 0.16);
   background: rgba(255, 255, 255, 0.82);
   color: #0f766e;
@@ -1040,8 +1110,8 @@ watch(isCompactNav, (compact) => {
 .coin-mark {
   display: inline-grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 21px;
+  height: 21px;
   border-radius: 999px;
   background: radial-gradient(
     circle at 35% 35%,
@@ -1054,8 +1124,8 @@ watch(isCompactNav, (compact) => {
     0 1px 2px rgba(181, 118, 0, 0.3);
 }
 .coin-mark svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   filter: drop-shadow(0 1px 0 rgba(181, 118, 0, 0.18));
 }
 .coin-face {
@@ -1103,6 +1173,51 @@ watch(isCompactNav, (compact) => {
   fill: currentColor;
   stroke: currentColor;
   stroke-width: 1.2;
+}
+.avatar-button {
+  position: relative;
+  overflow: visible;
+}
+.avatar-button--member {
+  border: 0;
+  padding: 3px;
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    conic-gradient(from 210deg, #00b3a4, #9bf6e8, #ffd166, #f59e0b, #00b3a4)
+      border-box;
+  box-shadow:
+    0 0 0 1px rgba(15, 118, 110, 0.08),
+    0 8px 20px rgba(13, 148, 136, 0.24),
+    0 0 22px rgba(245, 158, 11, 0.18);
+}
+.avatar-button--member::after,
+.account-avatar--member::after {
+  content: "";
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 13px;
+  height: 13px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ffd166, #f59e0b);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
+}
+.nav-avatar-image {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  object-fit: cover;
+  background: #fff;
+}
+.avatar-button--member svg {
+  position: relative;
+  z-index: 1;
+  border-radius: 999px;
+  background: #fff;
+  padding: 6px;
 }
 .menu-toggle {
   display: none;
@@ -1177,6 +1292,44 @@ watch(isCompactNav, (compact) => {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+}
+.notification-panel__actions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.notification-icon-action {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #0f766e;
+  cursor: pointer;
+  padding: 0;
+}
+.notification-icon-action svg {
+  width: 19px;
+  height: 19px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+}
+.notification-icon-action:hover {
+  background: #e8f8f6;
+}
+.notification-icon-action--danger {
+  color: #dc2626;
+}
+.notification-icon-action--danger:hover {
+  background: #fee2e2;
+}
+.notification-icon-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 .notification-panel__header h3,
 .mobile-group h3 {
@@ -1271,6 +1424,7 @@ watch(isCompactNav, (compact) => {
   border-bottom: 1px solid #e5e7eb;
 }
 .account-avatar {
+  position: relative;
   display: grid;
   place-items: center;
   width: 52px;
@@ -1284,6 +1438,17 @@ watch(isCompactNav, (compact) => {
 .account-avatar-image {
   object-fit: cover;
   border: 1px solid rgba(15, 118, 110, 0.12);
+}
+.account-avatar--member {
+  border: 3px solid transparent;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    conic-gradient(from 200deg, #14b8a6, #99f6e4, #ffd166, #f59e0b, #14b8a6)
+      border-box;
+  box-shadow:
+    0 0 0 1px rgba(20, 184, 166, 0.08),
+    0 10px 26px rgba(20, 184, 166, 0.22),
+    0 0 22px rgba(245, 158, 11, 0.18);
 }
 .account-summary-copy {
   display: grid;
@@ -1402,34 +1567,56 @@ watch(isCompactNav, (compact) => {
   color: #0f766e;
 }
 .search-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  display: none;
-  align-items: center;
+  z-index: 5000;
+  display: flex;
+  align-items: flex-start;
   justify-content: center;
-  padding: 18px;
-  background: rgba(230, 255, 251, 0.92);
+  padding: max(18px, env(safe-area-inset-top)) 18px 18px;
+  background:
+    linear-gradient(180deg, rgba(231, 251, 247, 0.98), rgba(231, 251, 247, 0.82) 120px),
+    rgba(15, 23, 42, 0.38);
+  backdrop-filter: blur(14px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
 }
 .search-overlay.open {
-  display: flex;
+  opacity: 1;
+  pointer-events: auto;
 }
 .search-box {
   display: grid;
   grid-template-columns: 24px 1fr 42px;
   align-items: center;
   gap: 12px;
-  width: min(720px, 100%);
-  padding: 10px 12px;
-  border-radius: 18px;
+  width: min(860px, calc(100vw - 36px));
+  min-height: 68px;
+  padding: 12px 14px 12px 18px;
+  border: 1px solid rgba(15, 118, 110, 0.12);
+  border-radius: 999px;
   background: #fff;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.24);
+  transform: translateY(-8px);
+  transition: transform 0.16s ease;
+}
+.search-overlay.open .search-box {
+  transform: translateY(0);
 }
 .search-box input {
   width: 100%;
   border: 0;
   outline: 0;
   background: transparent;
-  font-size: 16px;
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 700;
+  min-width: 0;
+}
+.search-box input::placeholder {
+  color: #64748b;
+  font-weight: 600;
 }
 .mobile-backdrop {
   position: fixed;
@@ -1518,13 +1705,18 @@ watch(isCompactNav, (compact) => {
 }
 .navbar--compact .left-cluster {
   min-width: 0;
-  gap: 12px;
+  gap: 8px;
 }
 .navbar--compact .left-cluster > .subscription-link,
 .navbar--compact .left-cluster > .coin-link,
-.navbar--compact .left-cluster > .accessibility-link,
 .navbar--compact .desktop-public-nav {
   display: none;
+}
+.navbar--compact .left-cluster > .accessibility-link {
+  display: inline-flex;
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 12px;
 }
 .navbar--compact .menu-toggle {
   display: inline-grid;
@@ -1546,15 +1738,16 @@ watch(isCompactNav, (compact) => {
   grid-template-columns: 1fr;
 }
 .navbar--compact .mobile-cta-group .subscription-link,
-.navbar--compact .mobile-cta-group .coin-link,
-.navbar--compact .mobile-pill-link.accessibility-link {
+.navbar--compact .mobile-cta-group .coin-link {
   display: inline-flex;
 }
 .navbar--compact .mobile-cta-group .subscription-link,
-.navbar--compact .mobile-cta-group .coin-link,
-.navbar--compact .mobile-cta-group .accessibility-link {
+.navbar--compact .mobile-cta-group .coin-link {
   min-height: 44px;
   padding: 0 14px;
+}
+.navbar--compact .mobile-cta-group .mobile-pill-link.accessibility-link {
+  display: none;
 }
 
 @media (max-width: 1240px) {
@@ -1566,16 +1759,21 @@ watch(isCompactNav, (compact) => {
   }
   .left-cluster {
     min-width: 0;
-    gap: 12px;
+    gap: 8px;
   }
   .top-actions {
     grid-column: 2;
   }
   .left-cluster > .subscription-link,
   .left-cluster > .coin-link,
-  .left-cluster > .accessibility-link,
   .desktop-public-nav {
     display: none;
+  }
+  .left-cluster > .accessibility-link {
+    display: inline-flex;
+    min-height: 36px;
+    padding: 0 14px;
+    font-size: 12px;
   }
   .menu-toggle {
     display: inline-grid;
@@ -1594,65 +1792,71 @@ watch(isCompactNav, (compact) => {
     grid-template-columns: 1fr;
   }
   .mobile-cta-group .subscription-link,
-  .mobile-cta-group .coin-link,
-  .mobile-pill-link.accessibility-link {
+  .mobile-cta-group .coin-link {
     display: inline-flex;
   }
   .mobile-cta-group .subscription-link,
-  .mobile-cta-group .coin-link,
-  .mobile-cta-group .accessibility-link {
+  .mobile-cta-group .coin-link {
     min-height: 44px;
     padding: 0 14px;
+  }
+  .mobile-cta-group .mobile-pill-link.accessibility-link {
+    display: none;
   }
 }
 @media (max-width: 780px) {
   .top-bar {
     display: flex;
     justify-content: space-between;
-    gap: 8px;
+    gap: 6px;
     min-height: 76px;
     padding: 10px 8px;
   }
   .left-cluster {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-width: 0;
-    gap: 6px;
+    gap: 4px;
   }
   .subscription-link,
-  .coin-link,
-  .accessibility-link {
+  .coin-link {
     display: none;
+  }
+  .left-cluster > .accessibility-link {
+    display: inline-flex;
+    min-height: 32px;
+    padding: 0 11px;
+    font-size: 11px;
   }
   .mobile-accessibility-button {
     display: none;
   }
   .top-actions {
-    flex: 0 0 162px;
-    width: 162px;
-    gap: 6px;
+    flex: 0 0 auto;
+    width: auto;
+    gap: 4px;
     justify-self: auto;
     min-width: 0;
   }
   .top-actions > .icon-button,
   .top-actions > .icon-dropdown,
   .top-actions > .notification-wrapper {
-    flex: 0 0 36px;
-    width: 36px;
+    flex: 0 0 34px;
+    width: 34px;
   }
   .brand {
-    flex: 0 0 96px;
-    width: 96px;
+    flex: 0 0 88px;
+    width: 88px;
     height: 44px;
   }
   .brand-logo {
-    width: 146px;
-    transform: scale(1.45);
+    width: 138px;
+    transform: scale(1.42);
   }
   .icon-button,
   .notification-button,
   .avatar-button {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
   }
   .icon-button svg,
   .notification-button svg,
@@ -1677,15 +1881,16 @@ watch(isCompactNav, (compact) => {
     grid-template-columns: 1fr;
   }
   .mobile-cta-group .subscription-link,
-  .mobile-cta-group .coin-link,
-  .mobile-pill-link.accessibility-link {
+  .mobile-cta-group .coin-link {
     display: inline-flex;
   }
   .mobile-cta-group .subscription-link,
-  .mobile-cta-group .coin-link,
-  .mobile-cta-group .accessibility-link {
+  .mobile-cta-group .coin-link {
     min-height: 44px;
     padding: 0 14px;
+  }
+  .mobile-cta-group .mobile-pill-link.accessibility-link {
+    display: none;
   }
 }
 
@@ -1697,38 +1902,45 @@ watch(isCompactNav, (compact) => {
   }
 
   .left-cluster {
-    flex: 1 1 112px;
+    flex: 0 1 auto;
+    gap: 3px;
+  }
+
+  .left-cluster > .accessibility-link {
+    min-height: 30px;
+    padding: 0 9px;
+    font-size: 10px;
   }
 
   .top-actions {
     flex: 0 1 auto;
     width: auto;
-    gap: 4px;
+    gap: 3px;
   }
 
   .top-actions > .icon-button,
   .top-actions > .icon-dropdown,
   .top-actions > .notification-wrapper {
-    flex: 0 0 34px;
-    width: 34px;
+    flex: 0 0 31px;
+    width: 31px;
   }
 
   .brand {
-    flex: 0 0 80px;
-    width: 80px;
+    flex: 0 0 72px;
+    width: 72px;
     height: 40px;
   }
 
   .brand-logo {
-    width: 126px;
-    transform: scale(1.36);
+    width: 116px;
+    transform: scale(1.32);
   }
 
   .icon-button,
   .notification-button,
   .avatar-button {
-    width: 34px;
-    height: 34px;
+    width: 31px;
+    height: 31px;
   }
 
   .dropdown-panel,
@@ -1750,17 +1962,23 @@ watch(isCompactNav, (compact) => {
   }
 
   .left-cluster {
-    gap: 4px;
+    gap: 3px;
+  }
+
+  .left-cluster > .accessibility-link {
+    min-height: 28px;
+    padding: 0 7px;
+    font-size: 9px;
   }
 
   .brand {
-    flex-basis: 72px;
-    width: 72px;
+    flex-basis: 64px;
+    width: 64px;
   }
 
   .brand-logo {
-    width: 112px;
-    transform: scale(1.32);
+    width: 104px;
+    transform: scale(1.28);
   }
 
   .top-actions > .icon-button,
@@ -1769,9 +1987,9 @@ watch(isCompactNav, (compact) => {
   .icon-button,
   .notification-button,
   .avatar-button {
-    flex-basis: 32px;
-    width: 32px;
-    height: 32px;
+    flex-basis: 30px;
+    width: 30px;
+    height: 30px;
   }
 
   .icon-button svg,
