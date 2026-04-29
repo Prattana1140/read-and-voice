@@ -10,7 +10,7 @@ require("dotenv").config({ quiet: true });
 const router = express.Router();
 
 const ALLOWED_ROLES = ["user", "writer", "admin", "superadmin"];
-const SOCIAL_PROVIDERS = ["line", "facebook"];
+const SOCIAL_PROVIDERS = ["line"];
 const DEFAULT_FACEBOOK_API_VERSION = "v25.0";
 
 let userProfilesTableReady;
@@ -357,6 +357,47 @@ function createFacebookAppSecretProof(accessToken, clientSecret) {
     .digest("hex");
 }
 
+function base64UrlDecode(value) {
+  const text = String(value || "").replace(/-/g, "+").replace(/_/g, "/");
+  const padded = text.padEnd(
+    text.length + ((4 - (text.length % 4)) % 4),
+    "=",
+  );
+  return Buffer.from(padded, "base64");
+}
+
+function parseFacebookSignedRequest(signedRequest, appSecret) {
+  const [encodedSignature, encodedPayload] = String(signedRequest || "").split(
+    ".",
+    2,
+  );
+
+  if (!encodedSignature || !encodedPayload) {
+    throw createHttpError(400, "Invalid Facebook signed_request");
+  }
+
+  const signature = base64UrlDecode(encodedSignature);
+  const expectedSignature = crypto
+    .createHmac("sha256", appSecret)
+    .update(encodedPayload)
+    .digest();
+
+  if (
+    signature.length !== expectedSignature.length ||
+    !crypto.timingSafeEqual(signature, expectedSignature)
+  ) {
+    throw createHttpError(400, "Invalid Facebook signed_request signature");
+  }
+
+  const payload = JSON.parse(base64UrlDecode(encodedPayload).toString("utf8"));
+
+  if (payload.algorithm && payload.algorithm.toUpperCase() !== "HMAC-SHA256") {
+    throw createHttpError(400, "Unsupported Facebook signed_request algorithm");
+  }
+
+  return payload;
+}
+
 async function exchangeOAuthCode(provider, code, decodedState = {}) {
   const config = getProviderConfig(provider);
   if (!config) {
@@ -592,6 +633,25 @@ async function ensureLoginEventsTable() {
   `);
 }
 
+async function ensureDataDeletionRequestsTable() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS data_deletion_requests (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NULL,
+      provider VARCHAR(40) NOT NULL,
+      provider_user_id VARCHAR(191) NOT NULL,
+      confirmation_code VARCHAR(80) NOT NULL,
+      status VARCHAR(40) NOT NULL DEFAULT 'completed',
+      requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      completed_at DATETIME NULL,
+      UNIQUE KEY uq_data_deletion_confirmation (confirmation_code),
+      INDEX idx_data_deletion_provider_user (provider, provider_user_id),
+      INDEX idx_data_deletion_user (user_id),
+      CONSTRAINT fk_data_deletion_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+}
+
 function getRequestIp(req) {
   const forwardedFor = req.headers["x-forwarded-for"];
   const rawIp = Array.isArray(forwardedFor)
@@ -621,6 +681,49 @@ async function recordLoginEvent(req, event) {
   } catch (error) {
     console.error("LOGIN EVENT ERROR:", error.message);
   }
+}
+
+async function deleteFacebookDerivedData(providerUserId) {
+  await ensureSocialConnectionsTable();
+  await ensureDataDeletionRequestsTable();
+
+  const [connections] = await db.query(
+    `SELECT user_id
+     FROM social_connections
+     WHERE provider = 'facebook'
+       AND provider_user_id = ?
+     LIMIT 1`,
+    [providerUserId],
+  );
+  const userId = connections[0]?.user_id || null;
+
+  await db.query(
+    `DELETE FROM social_connections
+     WHERE provider = 'facebook'
+       AND provider_user_id = ?`,
+    [providerUserId],
+  );
+
+  if (userId) {
+    await ensureUserProfilesTable();
+    await db.query(
+      `UPDATE user_profiles
+       SET avatar_url = NULL,
+           updated_at = NOW()
+       WHERE user_id = ?`,
+      [userId],
+    );
+  }
+
+  const confirmationCode = crypto.randomBytes(16).toString("hex");
+  await db.query(
+    `INSERT INTO data_deletion_requests
+       (user_id, provider, provider_user_id, confirmation_code, status, completed_at)
+     VALUES (?, 'facebook', ?, ?, 'completed', NOW())`,
+    [userId, providerUserId, confirmationCode],
+  );
+
+  return confirmationCode;
 }
 
 async function saveUserAvatar(userId, avatarUrl) {
@@ -1064,6 +1167,74 @@ router.post("/reset-password", async (req, res) => {
   }
 });
 
+router.get("/facebook/data-deletion", (_req, res) => {
+  return res.status(200).json({
+    app: "Read and Voice",
+    provider: "facebook",
+    message:
+      "Facebook data deletion callback is active. Meta should send POST requests with signed_request to this URL.",
+  });
+});
+
+router.get("/facebook/data-deletion/status/:code", async (req, res) => {
+  try {
+    await ensureDataDeletionRequestsTable();
+    const [rows] = await db.query(
+      `SELECT provider, status, requested_at, completed_at
+       FROM data_deletion_requests
+       WHERE confirmation_code = ?
+       LIMIT 1`,
+      [String(req.params.code || "").trim()],
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ status: "not_found" });
+    }
+
+    return res.status(200).json(rows[0]);
+  } catch (error) {
+    console.error("FACEBOOK DATA DELETION STATUS ERROR:", error);
+    return res.status(500).json({ message: "Could not load deletion status" });
+  }
+});
+
+router.post("/facebook/data-deletion", async (req, res) => {
+  try {
+    const appSecret = readEnv("FACEBOOK_CLIENT_SECRET");
+    if (!isUsableConfigValue(appSecret)) {
+      return res.status(503).json({
+        message: "FACEBOOK_CLIENT_SECRET is not configured",
+      });
+    }
+
+    const signedRequest = req.body.signed_request;
+    if (!signedRequest) {
+      return res.status(400).json({ message: "signed_request is required" });
+    }
+
+    const payload = parseFacebookSignedRequest(signedRequest, appSecret);
+    const providerUserId = String(payload.user_id || "").trim();
+
+    if (!providerUserId) {
+      return res.status(400).json({
+        message: "Facebook signed_request did not include user_id",
+      });
+    }
+
+    const confirmationCode = await deleteFacebookDerivedData(providerUserId);
+
+    return res.status(200).json({
+      url: `${getPublicApiUrl()}/api/auth/facebook/data-deletion/status/${confirmationCode}`,
+      confirmation_code: confirmationCode,
+    });
+  } catch (error) {
+    console.error("FACEBOOK DATA DELETION ERROR:", error);
+    return res.status(error.status || 500).json({
+      message: error.message || "Could not process Facebook data deletion",
+    });
+  }
+});
+
 router.get("/oauth/status", (_req, res) => {
   return res.status(200).json({
     frontendUrl: getFrontendUrl(),
@@ -1141,9 +1312,9 @@ router.get("/oauth/:provider/start", (req, res) => {
 
 const handleOAuthCallback = async (req, res) => {
   const provider = String(req.params.provider || "").toLowerCase();
-  const code = req.query.code || req.body.code;
-  const state = req.query.state || req.body.state;
-  const providerError = req.query.error || req.body.error;
+  const code = req.query.code || req.body?.code;
+  const state = req.query.state || req.body?.state;
+  const providerError = req.query.error || req.body?.error;
 
   try {
     if (!SOCIAL_PROVIDERS.includes(provider)) {

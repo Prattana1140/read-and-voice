@@ -74,7 +74,7 @@ onMounted(fetchBooks);
   <main class="writer-page">
     <section class="page-header">
       <div>
-        <p class="eyebrow">Creator Dashboard</p>
+        <p class="eyebrow">แดชบอร์ดนักเขียน</p>
         <h1>แดชบอร์ดนักเขียน</h1>
         <p>ติดตามผลงาน หนังสือที่กำลังตรวจ และหนังสือที่เผยแพร่แล้ว</p>
       </div>
@@ -94,7 +94,7 @@ onMounted(fetchBooks);
         <strong>{{ publishedBooks.length }}</strong>
       </article>
       <article>
-        <span>Draft / Pending</span>
+        <span>ร่าง / รอตรวจ</span>
         <strong>{{ draftBooks.length }}</strong>
       </article>
       <article>

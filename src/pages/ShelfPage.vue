@@ -177,8 +177,8 @@
             <span
               class="ribbon"
               :class="{
-                movie: getRibbonText(book) === 'Movie',
-                award: getRibbonText(book) === 'Award',
+                movie: getRibbonText(book) === 'ภาพยนตร์',
+                award: getRibbonText(book) === 'รางวัล',
               }"
             >
               {{ getRibbonText(book) }}
@@ -256,37 +256,37 @@ const shelfTabs = [
 const shelves: Record<string, ShelfConfig> = {
   BestSellers: {
     title: "ขายดี",
-    badge: "Best Seller",
+    badge: "ขายดี",
     mode: "best",
     endpoint: "/best-sellers",
   },
   NewReleases: {
     title: "มาใหม่",
-    badge: "New",
+    badge: "มาใหม่",
     mode: "new",
     endpoint: "/new-releases",
   },
   Promotions: {
     title: "โปรโมชัน",
-    badge: "Sale",
+    badge: "ลดราคา",
     mode: "promo",
     endpoint: "/promotions",
   },
   FreeBooks: {
     title: "ฟรีกระจาย",
-    badge: "Free",
+    badge: "ฟรี",
     mode: "free",
     endpoint: "/free-books",
   },
   HallOfFame: {
     title: "ฮิตขึ้นหิ้ง",
-    badge: "Best Seller",
+    badge: "ขายดี",
     mode: "classic",
     endpoint: "/hall-of-fame",
   },
   Recommended: {
     title: "แนะนำ",
-    badge: "Pick",
+    badge: "แนะนำ",
     mode: "recommended",
     endpoint: "/recommended",
   },
@@ -359,17 +359,17 @@ const freeSections = computed(() => {
   return [
     {
       title: "ฟรีกระจาย",
-      badge: "Best Seller",
+      badge: "ขายดี",
       books: fallbackItems.slice(0, 5),
     },
     {
       title: "ฟรีในหมวดนิยายและวรรณกรรม",
-      badge: "Free",
+      badge: "ฟรี",
       books: fallbackItems.slice(5, 10),
     },
     {
       title: "ฟรีในหมวดความรู้และพัฒนาตัวเอง",
-      badge: "Free",
+      badge: "ฟรี",
       books: fallbackItems.slice(10, 15),
     },
   ].filter((section) => section.books.length > 0);
@@ -414,11 +414,11 @@ const getDiscount = (book: Book) => Number(book.promo_discount_percent || 0);
 const getPromoRemaining = (book: Book) => Number(book.promo_days_left || 0);
 
 const getRibbonText = (book: Book) => {
-  if (Number(book.is_hall_of_fame || 0) === 1) return "Award";
-  if (Number(book.is_best_seller || 0) === 1) return "Best Seller";
-  if (Number(book.is_new_release || 0) === 1) return "New";
-  if (Number(book.is_free_book || 0) === 1) return "Free";
-  if (Number(book.is_recommended || 0) === 1) return "Pick";
+  if (Number(book.is_hall_of_fame || 0) === 1) return "รางวัล";
+  if (Number(book.is_best_seller || 0) === 1) return "ขายดี";
+  if (Number(book.is_new_release || 0) === 1) return "มาใหม่";
+  if (Number(book.is_free_book || 0) === 1) return "ฟรี";
+  if (Number(book.is_recommended || 0) === 1) return "แนะนำ";
   return shelf.value.badge;
 };
 

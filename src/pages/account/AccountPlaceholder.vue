@@ -25,10 +25,10 @@ const pageMap: Record<string, PageConfig> = {
     emptyText: "ยังไม่มีรายการที่ติดตาม",
   },
   AccountGiftCodes: {
-    title: "Gift Code",
-    text: "ตรวจสอบ Gift Code ที่ได้รับและสถานะการใช้งานทั้งหมด",
+    title: "โค้ดของขวัญ",
+    text: "ตรวจสอบโค้ดของขวัญที่ได้รับและสถานะการใช้งานทั้งหมด",
     endpoint: "/account/gift-codes",
-    emptyText: "ยังไม่มี Gift Code",
+    emptyText: "ยังไม่มีโค้ดของขวัญ",
   },
   AccountBuffet: {
     title: "บุฟเฟต์ของฉัน",
@@ -141,7 +141,7 @@ onMounted(loadData);
 <template>
   <main class="placeholder-page">
     <section class="placeholder-card">
-      <p>Read and Voice Account</p>
+      <p>บัญชี Read and Voice</p>
       <h1>{{ page.title }}</h1>
       <span>{{ page.text }}</span>
 

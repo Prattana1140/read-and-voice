@@ -45,7 +45,7 @@ const activePlanText = computed(() => {
   const planName =
     currentPlan.value.subscription?.plan_name ||
     currentPlan.value.subscription?.name ||
-    "VIP";
+    "สมาชิกพิเศษ";
   const endAt = currentPlan.value.subscription?.end_at
     ? new Date(currentPlan.value.subscription.end_at).toLocaleDateString("th-TH")
     : "";
@@ -54,10 +54,10 @@ const activePlanText = computed(() => {
 });
 
 function getPlanTitle(plan: Plan) {
-  if (plan.duration_days >= 365) return "VIP 365 วัน";
-  if (plan.duration_days >= 90) return "VIP 90 วัน";
-  if (plan.duration_days >= 30) return "VIP 30 วัน";
-  return `VIP ${plan.duration_days} วัน`;
+  if (plan.duration_days >= 365) return "สมาชิกพิเศษ 365 วัน";
+  if (plan.duration_days >= 90) return "สมาชิกพิเศษ 90 วัน";
+  if (plan.duration_days >= 30) return "สมาชิกพิเศษ 30 วัน";
+  return `สมาชิกพิเศษ ${plan.duration_days} วัน`;
 }
 
 function getDiscount(plan: Plan) {
@@ -124,7 +124,7 @@ async function subscribe(planId: number) {
     await loadPlans();
   } catch (error: any) {
     if (error?.response?.status === 402) {
-      errorMessage.value = "coin ไม่พอ กรุณาเติม coin ก่อนสมัครแพ็กเกจ";
+      errorMessage.value = "คอยน์ไม่พอ กรุณาเติมคอยน์ก่อนสมัครแพ็กเกจ";
       router.push({ name: "CoinWallet" });
       return;
     }
@@ -144,7 +144,7 @@ onMounted(loadPlans);
     <nav class="crumb" aria-label="breadcrumb">
       <router-link to="/">หน้าแรก</router-link>
       <span>›</span>
-      <strong>Pinto VIP</strong>
+      <strong>สมาชิกพิเศษ Pinto</strong>
     </nav>
 
     <section class="vip-hero" :class="{ 'has-admin-image': heroImageUrl }">
@@ -152,12 +152,12 @@ onMounted(loadPlans);
         v-if="heroImageUrl"
         class="admin-hero-image"
         :src="heroImageUrl"
-        alt="Pinto VIP"
+        alt="สมาชิกพิเศษ Pinto"
       />
       <div class="hero-copy">
-        <p>Pinto VIP</p>
+        <p>สมาชิกพิเศษ Pinto</p>
         <h1>สมัครไว้ซื้ออีบุ๊กได้คุ้มกว่าใคร</h1>
-        <span>รับสิทธิพิเศษทุกเดือน ใช้ coin สมัคร แล้วเริ่มอ่านได้ทันที</span>
+        <span>รับสิทธิพิเศษทุกเดือน ใช้คอยน์สมัคร แล้วเริ่มอ่านได้ทันที</span>
       </div>
 
       <div class="benefit-board" aria-label="สิทธิพิเศษ">
@@ -167,12 +167,12 @@ onMounted(loadPlans);
           <span>ซื้ออีบุ๊กคุ้มขึ้น</span>
         </article>
         <article>
-          <small>VIP Code</small>
+          <small>โค้ดสมาชิกพิเศษ</small>
           <strong>โค้ดพิเศษ</strong>
           <span>รับสิทธิทุกเดือน</span>
         </article>
         <article>
-          <small>Coin Back</small>
+          <small>คืนคอยน์</small>
           <strong>คืนกำไร</strong>
           <span>มีโปรพิเศษตามช่วงเวลา</span>
         </article>
@@ -203,12 +203,12 @@ onMounted(loadPlans);
         >
           <span class="discount">-{{ getDiscount(plan) }}%</span>
           <h3>{{ getPlanTitle(plan) }}</h3>
-          <strong>{{ plan.price }} coin</strong>
-          <del>{{ getOldPrice(plan) }} coin</del>
+          <strong>{{ plan.price }} คอยน์</strong>
+          <del>{{ getOldPrice(plan) }} คอยน์</del>
           <ul>
-            <li>อ่านคอนเทนต์แบบ subscription ได้ {{ plan.duration_days }} วัน</li>
-            <li>รับสิทธิส่วนลด VIP ในหน้าร้าน</li>
-            <li>ใช้ร่วมกับระบบ coin ของ Read and Voice</li>
+            <li>อ่านคอนเทนต์แบบแพ็กเกจสมาชิกได้ {{ plan.duration_days }} วัน</li>
+            <li>รับสิทธิส่วนลดสมาชิกพิเศษในหน้าร้าน</li>
+            <li>ใช้ร่วมกับระบบคอยน์ของ Read and Voice</li>
           </ul>
           <button
             type="button"
@@ -227,7 +227,7 @@ onMounted(loadPlans);
           <tr>
             <th>รายละเอียด</th>
             <th>สมาชิกทั่วไป</th>
-            <th>สมาชิก Pinto VIP</th>
+            <th>สมาชิกพิเศษ Pinto</th>
           </tr>
         </thead>
         <tbody>
@@ -239,30 +239,30 @@ onMounted(loadPlans);
           <tr>
             <td>อ่านคอนเทนต์รายเดือน</td>
             <td>×</td>
-            <td>✓ เมื่อหนังสือกำหนดเป็น subscription</td>
+            <td>✓ เมื่อหนังสือกำหนดเป็นแพ็กเกจสมาชิก</td>
           </tr>
           <tr>
-            <td>ซื้อหนังสือด้วย coin</td>
+            <td>ซื้อหนังสือด้วยคอยน์</td>
             <td>✓</td>
-            <td>✓ พร้อมสิทธิ VIP ตามโปรโมชัน</td>
+            <td>✓ พร้อมสิทธิสมาชิกพิเศษตามโปรโมชัน</td>
           </tr>
           <tr>
             <td>สิทธิพิเศษ</td>
             <td>ตามโปรปกติ</td>
-            <td>โค้ดและแคมเปญสำหรับ VIP</td>
+            <td>โค้ดและแคมเปญสำหรับสมาชิกพิเศษ</td>
           </tr>
         </tbody>
       </table>
     </section>
 
     <section class="details-section">
-      <h2>ข้อกำหนดและเงื่อนไขการสมัครสมาชิก Pinto VIP</h2>
+      <h2>ข้อกำหนดและเงื่อนไขการสมัครสมาชิกพิเศษ Pinto</h2>
       <p>
-        แพ็กเกจ VIP ใช้ coin ในการสมัคร สิทธิจะเริ่มนับทันทีหลังสมัครสำเร็จ
-        และใช้กับหนังสือหรือตอนที่ระบบกำหนดเป็น subscription เท่านั้น
+        แพ็กเกจสมาชิกพิเศษใช้คอยน์ในการสมัคร สิทธิจะเริ่มนับทันทีหลังสมัครสำเร็จ
+        และใช้กับหนังสือหรือตอนที่ระบบกำหนดเป็นแพ็กเกจสมาชิกเท่านั้น
       </p>
       <ul>
-        <li>หาก coin ไม่พอ ระบบจะพาไปหน้าเติม coin ก่อนสมัคร</li>
+        <li>หากคอยน์ไม่พอ ระบบจะพาไปหน้าเติมคอยน์ก่อนสมัคร</li>
         <li>เมื่อสมัครซ้ำ ระบบจะขยายวันใช้งานต่อจากแพ็กเกจเดิม</li>
         <li>สิทธิพิเศษอาจเปลี่ยนแปลงตามช่วงโปรโมชันของระบบ</li>
       </ul>
@@ -272,15 +272,15 @@ onMounted(loadPlans);
       <h2>คำถามที่พบบ่อย</h2>
       <details open>
         <summary>อ่านแบบรายเดือนคืออะไร?</summary>
-        <p>คือการสมัครแพ็กเกจเพื่ออ่านหนังสือหรือรายตอนที่กำหนดสิทธิ์เป็น subscription</p>
+        <p>คือการสมัครแพ็กเกจเพื่ออ่านหนังสือหรือรายตอนที่กำหนดสิทธิ์เป็นแพ็กเกจสมาชิก</p>
       </details>
       <details>
         <summary>สมัครแล้วอ่านหนังสือได้ทุกเล่มไหม?</summary>
-        <p>อ่านได้เฉพาะเล่มที่ตั้งค่าเป็น subscription หรือเล่มฟรี ส่วนเล่มขายแยกยังใช้ coin ซื้อได้ตามปกติ</p>
+        <p>อ่านได้เฉพาะเล่มที่ตั้งค่าเป็นแพ็กเกจสมาชิกหรือเล่มฟรี ส่วนเล่มขายแยกยังใช้คอยน์ซื้อได้ตามปกติ</p>
       </details>
       <details>
-        <summary>coin ไม่พอต้องทำอย่างไร?</summary>
-        <p>เติม coin ที่หน้า wallet แล้วกลับมาสมัครแพ็กเกจอีกครั้ง</p>
+        <summary>คอยน์ไม่พอต้องทำอย่างไร?</summary>
+        <p>เติมคอยน์ที่หน้ากระเป๋าคอยน์ แล้วกลับมาสมัครแพ็กเกจอีกครั้ง</p>
       </details>
     </section>
   </main>

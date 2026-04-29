@@ -60,6 +60,20 @@ const currentStepTitle = computed(() => {
   }
 });
 
+function formatAccessType(value: string) {
+  if (value === "free") return "ฟรี";
+  if (value === "paid") return "ชำระเงิน";
+  if (value === "subscription") return "แพ็กเกจสมาชิก";
+  return value;
+}
+
+function formatLifecycleStatus(value: string) {
+  if (value === "draft") return "ร่าง";
+  if (value === "published") return "เผยแพร่แล้ว";
+  if (value === "pending") return "รอตรวจ";
+  return value;
+}
+
 function handleImageError(event: Event) {
   const target = event.target as HTMLImageElement;
   if (!target || target.src.endsWith("/no-cover.png")) return;
@@ -114,7 +128,7 @@ async function fetchBook() {
 
     await fetchEpisodes();
   } catch (error: any) {
-    errorMessage.value = error?.response?.data?.message || "Could not load book details.";
+    errorMessage.value = error?.response?.data?.message || "โหลดรายละเอียดหนังสือไม่สำเร็จ";
   } finally {
     loading.value = false;
   }
@@ -138,9 +152,9 @@ async function saveBook() {
       price: Number(form.value.price || 0),
     });
 
-    successMessage.value = "Book updated successfully.";
+    successMessage.value = "บันทึกการแก้ไขหนังสือสำเร็จ";
   } catch (error: any) {
-    errorMessage.value = error?.response?.data?.message || "Could not save book changes.";
+    errorMessage.value = error?.response?.data?.message || "บันทึกการแก้ไขหนังสือไม่สำเร็จ";
   } finally {
     saving.value = false;
   }
@@ -168,9 +182,9 @@ async function unpublishBook() {
     successMessage.value = "";
     await api.post(`/writer/books/${bookId.value}/unpublish`);
     lifecycleStatus.value = "draft";
-    successMessage.value = "ย้ายหนังสือกลับเป็น draft แล้ว";
+    successMessage.value = "ย้ายหนังสือกลับเป็นร่างแล้ว";
   } catch (error: any) {
-    errorMessage.value = error?.response?.data?.message || "ย้ายกลับ draft ไม่สำเร็จ";
+    errorMessage.value = error?.response?.data?.message || "ย้ายกลับเป็นร่างไม่สำเร็จ";
   } finally {
     publishing.value = false;
   }
@@ -184,7 +198,7 @@ onMounted(fetchBook);
     <section class="panel">
       <div class="header">
         <div>
-          <p class="eyebrow">Writer Wizard</p>
+          <p class="eyebrow">ตัวช่วยจัดการหนังสือ</p>
           <h1>จัดการหนังสือแบบ 4 ขั้นตอน</h1>
           <p class="muted">
             {{ currentStepTitle }}: ทำทีละขั้นเพื่อให้อัปเดตข้อมูล สิทธิ์อ่าน เนื้อหา และสถานะเผยแพร่ได้ชัดเจนขึ้น
@@ -192,7 +206,7 @@ onMounted(fetchBook);
         </div>
 
         <button class="back-btn" type="button" @click="router.push('/writer/books')">
-          Back to my books
+          กลับไปหนังสือของฉัน
         </button>
       </div>
 
@@ -203,34 +217,34 @@ onMounted(fetchBook);
         <button :class="{ active: step === 4 }" type="button" @click="step = 4">4. เผยแพร่</button>
       </div>
 
-      <p v-if="loading" class="muted">Loading book details...</p>
+      <p v-if="loading" class="muted">กำลังโหลดรายละเอียดหนังสือ...</p>
       <p v-else-if="errorMessage && !saving && !successMessage" class="error">{{ errorMessage }}</p>
 
       <div v-else class="wizard-body">
         <section v-if="step === 1" class="step-card editor-grid">
           <div class="cover-card">
-            <img :src="coverPreview" :alt="form.title || 'Book cover'" @error="handleImageError" />
+            <img :src="coverPreview" :alt="form.title || 'ปกหนังสือ'" @error="handleImageError" />
             <label>
-              <span>Cover image URL</span>
+              <span>ลิงก์รูปปก</span>
               <input v-model="form.cover_image" type="text" placeholder="https://..." />
             </label>
           </div>
 
           <div class="book-fields">
             <label>
-              <span>Title</span>
+              <span>ชื่อเรื่อง</span>
               <input v-model="form.title" type="text" required />
             </label>
 
             <label>
-              <span>Author</span>
+              <span>ผู้เขียน</span>
               <input v-model="form.author" type="text" required />
             </label>
 
             <label>
-              <span>Category</span>
+              <span>หมวดหมู่</span>
               <select v-model="form.category_id">
-                <option value="">Uncategorized</option>
+                <option value="">ยังไม่จัดหมวดหมู่</option>
                 <option v-for="category in categories" :key="category.id" :value="String(category.id)">
                   {{ category.name }}
                 </option>
@@ -238,7 +252,7 @@ onMounted(fetchBook);
             </label>
 
             <label>
-              <span>Description</span>
+              <span>คำอธิบาย</span>
               <textarea v-model="form.description" rows="8" />
             </label>
           </div>
@@ -246,17 +260,17 @@ onMounted(fetchBook);
 
         <section v-else-if="step === 2" class="step-card pricing-grid">
           <article class="mini-card">
-            <strong>Access type</strong>
+            <strong>สิทธิ์การอ่าน</strong>
             <select v-model="form.access_type">
-              <option value="free">Free</option>
-              <option value="paid">Paid</option>
-              <option value="subscription">Subscription</option>
+              <option value="free">ฟรี</option>
+              <option value="paid">ชำระเงิน</option>
+              <option value="subscription">แพ็กเกจสมาชิก</option>
             </select>
             <small>กำหนดว่าผู้อ่านจะอ่านได้ฟรี ซื้อรายเล่ม หรือใช้แพ็กเกจรายเดือน</small>
           </article>
 
           <article class="mini-card">
-            <strong>Price</strong>
+            <strong>ราคา</strong>
             <input
               v-model.number="form.price"
               type="number"
@@ -275,7 +289,7 @@ onMounted(fetchBook);
                   ? "ผู้อ่านเปิดอ่านได้ทันที"
                   : form.access_type === "subscription"
                     ? "ผู้อ่านต้องมีแพ็กเกจรายเดือน"
-                    : `ผู้อ่านต้องซื้อก่อนในราคา ${form.price || 0} coin`
+                    : `ผู้อ่านต้องซื้อก่อนในราคา ${form.price || 0} คอยน์`
               }}
             </p>
           </article>
@@ -287,15 +301,15 @@ onMounted(fetchBook);
               <h2>ตอนและเนื้อหา</h2>
               <p class="muted">ตรวจว่าหนังสือมีเนื้อหาแล้วหรือยัง และเข้าไปแก้เพิ่มเติมจากหน้า upload/studio ได้</p>
             </div>
-            <button class="ghost-btn" type="button" @click="fetchEpisodes">Reload</button>
+            <button class="ghost-btn" type="button" @click="fetchEpisodes">โหลดใหม่</button>
           </div>
 
-          <div v-if="episodesLoading" class="state-box">Loading episodes...</div>
+          <div v-if="episodesLoading" class="state-box">กำลังโหลดตอน...</div>
           <div v-else-if="episodes.length" class="episode-list">
             <article v-for="episode in episodes" :key="episode.id" class="episode-item">
               <div>
                 <strong>ตอนที่ {{ episode.episode_number }} {{ episode.title }}</strong>
-                <span>{{ episode.access_type }} · {{ episode.price || 0 }} coin</span>
+            <span>{{ formatAccessType(episode.access_type) }} · {{ episode.price || 0 }} คอยน์</span>
               </div>
               <small>{{ new Date(episode.created_at).toLocaleString() }}</small>
             </article>
@@ -308,11 +322,11 @@ onMounted(fetchBook);
         <section v-else class="step-card publish-grid">
           <article class="status-card" :class="lifecycleStatus">
             <strong>สถานะปัจจุบัน</strong>
-            <span>{{ lifecycleStatus }}</span>
+            <span>{{ formatLifecycleStatus(lifecycleStatus) }}</span>
           </article>
 
           <article class="mini-card">
-            <strong>Checklist ก่อนเผยแพร่</strong>
+            <strong>รายการตรวจสอบก่อนเผยแพร่</strong>
             <ul>
               <li>มีชื่อเรื่องและผู้เขียน</li>
               <li>กำหนดสิทธิ์อ่านและราคาแล้ว</li>
@@ -322,10 +336,10 @@ onMounted(fetchBook);
 
           <div class="publish-actions">
             <button class="save-btn" type="button" :disabled="publishing" @click="publishBook">
-              {{ publishing ? "Publishing..." : "Publish book" }}
+              {{ publishing ? "กำลังเผยแพร่..." : "เผยแพร่หนังสือ" }}
             </button>
             <button class="ghost-btn" type="button" :disabled="publishing" @click="unpublishBook">
-              Move back to draft
+              ย้ายกลับเป็นร่าง
             </button>
           </div>
         </section>
@@ -335,13 +349,13 @@ onMounted(fetchBook);
 
         <div class="wizard-actions">
           <button class="ghost-btn" type="button" :disabled="!canGoBack || saving" @click="goBack">
-            Previous
+            ย้อนกลับ
           </button>
           <button class="save-btn" type="button" :disabled="saving" @click="saveBook">
-            {{ saving ? "Saving..." : "Save step" }}
+            {{ saving ? "กำลังบันทึก..." : "บันทึกขั้นตอน" }}
           </button>
           <button class="ghost-btn" type="button" :disabled="!canGoNext || saving" @click="goNext">
-            Next
+            ถัดไป
           </button>
         </div>
       </div>

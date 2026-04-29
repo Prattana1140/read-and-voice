@@ -4,7 +4,7 @@ const { verifyToken } = require("../middleware/auth");
 
 const router = express.Router();
 
-const SOCIAL_PROVIDERS = ["facebook", "line"];
+const SOCIAL_PROVIDERS = ["line"];
 
 let tablesReady;
 

@@ -22,7 +22,7 @@ const quickActions = [
     to: "/profile",
   },
   {
-    title: "กระเป๋า Coin",
+    title: "กระเป๋าคอยน์",
     description: "ตรวจสอบยอดเงินและเติมคอยน์",
     to: "/coin-wallet",
   },
@@ -37,7 +37,7 @@ onMounted(() => {
 <template>
   <main class="accessible-home">
     <section class="accessible-panel" aria-labelledby="accessible-home-title">
-      <p class="eyebrow">Visual Assist</p>
+      <p class="eyebrow">ตัวช่วยการมองเห็น</p>
       <h1 id="accessible-home-title">หน้าใช้งานแบบอ่านง่าย</h1>
       <p class="intro">
         ระบบเปิดโหมดตัวอักษรใหญ่ คอนทราสต์สูง และการอ่านชื่อปุ่มอัตโนมัติให้แล้ว

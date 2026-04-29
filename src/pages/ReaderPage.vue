@@ -405,7 +405,7 @@ function speakFrom(index: number) {
 
 function openListenPage() {
   router.push({
-    name: "Readerอ่านให้ฟังPage",
+    name: "ReaderListenPage",
     params: route.params,
     query: { ...route.query },
   });
@@ -665,7 +665,7 @@ onBeforeUnmount(() => {
             >
               <span>ตอน {{ episode.episode_number }} {{ episode.title }}</span>
               <small>
-                {{ isEpisodeFree(episode) ? "ฟรี" : `${episode.price || 0} coin` }}
+                {{ isEpisodeFree(episode) ? "ฟรี" : `${episode.price || 0} คอยน์` }}
                 <template v-if="episode.comment_count"> · {{ episode.comment_count }} ความคิดเห็น</template>
               </small>
             </button>

@@ -30,11 +30,11 @@ async function submitRequest() {
 
     successMessage.value =
       data?.message ||
-      "Reset request created successfully.";
+      "สร้างคำขอรีเซ็ตรหัสผ่านสำเร็จ";
     previewResetUrl.value = String(data?.reset_url || "");
   } catch (error: any) {
     errorMessage.value =
-      error?.response?.data?.message || "Could not create reset request.";
+      error?.response?.data?.message || "ไม่สามารถสร้างคำขอรีเซ็ตรหัสผ่านได้";
   } finally {
     loading.value = false;
   }
@@ -42,7 +42,7 @@ async function submitRequest() {
 
 async function submitReset() {
   if (password.value !== confirmPassword.value) {
-    errorMessage.value = "Passwords do not match.";
+    errorMessage.value = "รหัสผ่านไม่ตรงกัน";
     return;
   }
 
@@ -57,14 +57,14 @@ async function submitReset() {
     });
 
     successMessage.value =
-      data?.message || "Password reset completed successfully.";
+      data?.message || "รีเซ็ตรหัสผ่านสำเร็จ";
 
     window.setTimeout(() => {
       router.push("/login");
     }, 1200);
   } catch (error: any) {
     errorMessage.value =
-      error?.response?.data?.message || "Could not reset password.";
+      error?.response?.data?.message || "ไม่สามารถรีเซ็ตรหัสผ่านได้";
   } finally {
     loading.value = false;
   }
@@ -74,19 +74,19 @@ async function submitReset() {
 <template>
   <main class="forgot-page">
     <section class="forgot-card">
-      <p class="eyebrow">Account Recovery</p>
-      <h1>{{ isResetMode ? "Choose a new password" : "Forgot password" }}</h1>
+      <p class="eyebrow">กู้คืนบัญชี</p>
+      <h1>{{ isResetMode ? "ตั้งรหัสผ่านใหม่" : "ลืมรหัสผ่าน" }}</h1>
       <p class="intro">
         {{
           isResetMode
-            ? "Set a new password for your account. After saving, you will be redirected to the login page."
-            : "Enter your account email to create a password reset request. In this build, the reset link is shown as a preview."
+            ? "ตั้งรหัสผ่านใหม่สำหรับบัญชีของคุณ หลังบันทึกแล้วระบบจะพากลับไปหน้าเข้าสู่ระบบ"
+            : "กรอกอีเมลของบัญชีเพื่อสร้างคำขอรีเซ็ตรหัสผ่าน ระบบจะแสดงลิงก์ตัวอย่างสำหรับใช้งาน"
         }}
       </p>
 
       <form v-if="!isResetMode" class="forgot-form" @submit.prevent="submitRequest">
         <label>
-          <span>Email</span>
+          <span>อีเมล</span>
           <input
             v-model="email"
             type="email"
@@ -97,37 +97,37 @@ async function submitReset() {
         </label>
 
         <button type="submit" :disabled="loading">
-          {{ loading ? "Creating request..." : "Create reset request" }}
+          {{ loading ? "กำลังสร้างคำขอ..." : "สร้างคำขอรีเซ็ตรหัสผ่าน" }}
         </button>
       </form>
 
       <form v-else class="forgot-form" @submit.prevent="submitReset">
         <label>
-          <span>New password</span>
+          <span>รหัสผ่านใหม่</span>
           <input
             v-model="password"
             type="password"
             autocomplete="new-password"
             minlength="6"
-            placeholder="At least 6 characters"
+            placeholder="อย่างน้อย 6 ตัวอักษร"
             required
           />
         </label>
 
         <label>
-          <span>Confirm password</span>
+          <span>ยืนยันรหัสผ่าน</span>
           <input
             v-model="confirmPassword"
             type="password"
             autocomplete="new-password"
             minlength="6"
-            placeholder="Repeat your new password"
+            placeholder="กรอกรหัสผ่านใหม่อีกครั้ง"
             required
           />
         </label>
 
         <button type="submit" :disabled="loading">
-          {{ loading ? "Saving..." : "Reset password" }}
+          {{ loading ? "กำลังบันทึก..." : "รีเซ็ตรหัสผ่าน" }}
         </button>
       </form>
 
@@ -139,13 +139,13 @@ async function submitReset() {
           class="preview-link"
           :href="previewResetUrl"
         >
-          Open preview reset link
+          เปิดลิงก์รีเซ็ตตัวอย่าง
         </a>
       </div>
 
       <div class="actions">
         <button type="button" class="ghost" @click="router.push('/login')">
-          Back to login
+          กลับหน้าเข้าสู่ระบบ
         </button>
         <button
           v-if="isResetMode"
@@ -153,7 +153,7 @@ async function submitReset() {
           class="ghost"
           @click="router.push('/forgot-password')"
         >
-          Create another reset link
+          สร้างลิงก์รีเซ็ตอีกครั้ง
         </button>
         <button
           v-else
@@ -161,7 +161,7 @@ async function submitReset() {
           class="ghost"
           @click="router.push('/register')"
         >
-          Register
+          สมัครสมาชิก
         </button>
       </div>
     </section>

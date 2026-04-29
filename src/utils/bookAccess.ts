@@ -51,15 +51,15 @@ export function getBookAccessPresentation(options: BookAccessOptions) {
 
   if (accessType === "paid") {
     return {
-      label: "ใช้ coin",
-      priceLabel: `${price} coin`,
-      hint: "เติม coin ให้พอ แล้วซื้อเพื่อปลดล็อกเนื้อหา",
+      label: "ใช้คอยน์",
+      priceLabel: `${price} คอยน์`,
+      hint: "เติมคอยน์ให้พอ แล้วซื้อเพื่อปลดล็อกเนื้อหา",
     };
   }
 
   return {
     label: "อ่านฟรี",
-    priceLabel: "0 coin",
+    priceLabel: "0 คอยน์",
     hint: "เปิดอ่านและฟังเสียงได้ทันที",
   };
 }

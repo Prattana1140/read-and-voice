@@ -134,13 +134,13 @@ onMounted(loadSummary);
   <main class="superadmin-page">
     <section class="hero-card">
       <div>
-        <p class="eyebrow">Superadmin Control Center</p>
+        <p class="eyebrow">ศูนย์ควบคุมผู้ดูแลสูงสุด</p>
         <h1>ภาพรวมและทางลัดสำหรับดูแลระบบ</h1>
         <p class="hero-text">
           ใช้หน้านี้เพื่อตรวจสุขภาพของระบบ ดูตัวเลขหลัก และกระโดดไปยังงานกำกับดูแลที่สำคัญได้เร็วขึ้น
         </p>
         <div class="identity-row">
-          <span class="identity-pill">{{ currentUser?.name || "Superadmin" }}</span>
+          <span class="identity-pill">{{ currentUser?.name || "ผู้ดูแลสูงสุด" }}</span>
           <span class="identity-pill muted">{{ currentUser?.email || "ไม่มีอีเมลใน session" }}</span>
         </div>
       </div>

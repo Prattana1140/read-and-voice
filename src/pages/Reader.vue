@@ -8,7 +8,7 @@ const router = useRouter();
   <main class="reader-legacy-page">
     <section class="notice">
       <p class="eyebrow">Read and Voice</p>
-      <h1>หน้าอ่านหนังสือถูกย้ายไปใช้ Reader หลักแล้ว</h1>
+      <h1>หน้าอ่านหนังสือถูกย้ายไปใช้หน้าอ่านหลักแล้ว</h1>
       <p>
         กรุณาเลือกหนังสือจากหน้าร้านหรือคลังของฉัน เพื่อเปิดหน้าอ่านพร้อมระบบ TTS
         ที่รองรับภาษาไทยและอังกฤษ

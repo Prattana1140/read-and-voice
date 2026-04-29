@@ -91,6 +91,19 @@ const totalPreviewSentences = computed(() => {
   return contentPreview.value.reduce((sum, block) => sum + block.sentences.length, 0);
 });
 
+const formatUnitType = (type: string) => {
+  if (type === "episode") return "ตอน";
+  if (type === "chapter") return "บท";
+  return type;
+};
+
+const formatBlockType = (type: string) => {
+  if (type === "paragraph") return "ย่อหน้า";
+  if (type === "sentence") return "ประโยค";
+  if (type === "dialogue") return "บทสนทนา";
+  return type;
+};
+
 const resetStatus = () => {
   message.value = "";
   error.value = "";
@@ -157,7 +170,7 @@ const uploadEbook = async () => {
       timeout: 30 * 60 * 1000,
     });
 
-    message.value = `อัปโหลดเล่มเต็มสำเร็จ: Book #${res.data.book_id}`;
+    message.value = `อัปโหลดเล่มเต็มสำเร็จ: หนังสือ #${res.data.book_id}`;
     bookFile.value = null;
     coverFile.value = null;
   } catch (err) {
@@ -189,7 +202,7 @@ const createSerialBook = async () => {
     });
 
     serialBookId.value = Number(res.data.book_id);
-    message.value = `สร้างเรื่องรายตอนสำเร็จ: Book #${serialBookId.value}`;
+    message.value = `สร้างเรื่องรายตอนสำเร็จ: หนังสือ #${serialBookId.value}`;
   } catch (err) {
     setError(err, "สร้างเรื่องรายตอนไม่สำเร็จ");
   } finally {
@@ -222,7 +235,7 @@ const addEpisode = async () => {
       preview_char_limit: episodePreviewLimit.value || 1500,
     });
 
-    message.value = `เพิ่มตอนสำเร็จ: Episode #${res.data.episode_id}`;
+    message.value = `เพิ่มตอนสำเร็จ: ตอน #${res.data.episode_id}`;
     episodeNumber.value += 1;
     episodeTitle.value = "";
     episodeContent.value = "";
@@ -239,7 +252,7 @@ const createStudioBook = async () => {
   resetStatus();
 
   if (!title.value || !author.value) {
-    error.value = "กรุณากรอกชื่อหนังสือและผู้เขียนก่อนสร้าง draft";
+    error.value = "กรุณากรอกชื่อหนังสือและผู้เขียนก่อนสร้างร่าง";
     return;
   }
 
@@ -272,9 +285,9 @@ const createStudioBook = async () => {
     studioUnits.value = [];
     selectedUnitId.value = null;
     contentPreview.value = [];
-    message.value = `สร้าง draft พร้อมโครงสร้าง TTS สำเร็จ: Book #${studioBookId.value}`;
+    message.value = `สร้างร่างพร้อมโครงสร้างอ่านออกเสียงสำเร็จ: หนังสือ #${studioBookId.value}`;
   } catch (err) {
-    setError(err, "สร้าง draft แบบ TTS-first ไม่สำเร็จ");
+    setError(err, "สร้างร่างแบบเตรียมอ่านออกเสียงไม่สำเร็จ");
   } finally {
     loading.value = false;
   }
@@ -284,7 +297,7 @@ const addStudioUnit = async () => {
   resetStatus();
 
   if (!studioBookId.value) {
-    error.value = "กรุณาสร้าง draft หนังสือก่อนเพิ่มบทหรือตอน";
+    error.value = "กรุณาสร้างร่างหนังสือก่อนเพิ่มบทหรือตอน";
     return;
   }
 
@@ -379,7 +392,7 @@ const importUnitText = async () => {
       targetUnit.sentence_count = Number(res.data.sentences_created || 0);
     }
     await loadUnitContent(selectedUnitId.value);
-    message.value = `แปลงเนื้อหาเป็น paragraph/sentence สำเร็จ ${res.data.sentences_created} ประโยค`;
+    message.value = `แปลงเนื้อหาเป็นย่อหน้าและประโยคสำเร็จ ${res.data.sentences_created} ประโยค`;
   } catch (err) {
     setError(err, "แปลงเนื้อหาไม่สำเร็จ");
   } finally {
@@ -422,9 +435,9 @@ const saveUnitAsSingleBlock = async () => {
       targetUnit.sentence_count = Number(res.data.sentences_created || 0);
     }
     await loadUnitContent(selectedUnitId.value);
-    message.value = "บันทึก structured content สำเร็จ";
+    message.value = "บันทึกโครงสร้างเนื้อหาสำเร็จ";
   } catch (err) {
-    setError(err, "บันทึก structured content ไม่สำเร็จ");
+    setError(err, "บันทึกโครงสร้างเนื้อหาไม่สำเร็จ");
   } finally {
     loading.value = false;
   }
@@ -434,7 +447,7 @@ const publishStudioBook = async () => {
   resetStatus();
 
   if (!studioBookId.value) {
-    error.value = "กรุณาสร้าง draft ก่อน";
+    error.value = "กรุณาสร้างร่างก่อน";
     return;
   }
 
@@ -454,16 +467,16 @@ const publishStudioBook = async () => {
 <template>
   <div class="writer-page">
     <section class="panel">
-      <p class="eyebrow">Writer Studio</p>
+      <p class="eyebrow">สตูดิโอนักเขียน</p>
       <h1>สร้างหนังสือสำหรับระบบอ่าน + ฟังเสียง</h1>
       <p class="muted">
-        โหมดใหม่นี้เพิ่มโครงสร้าง chapter/episode, paragraph, sentence และเตรียมข้อมูลสำหรับ TTS
+        โหมดใหม่นี้เพิ่มโครงสร้างบท/ตอน ย่อหน้า และประโยค พร้อมเตรียมข้อมูลสำหรับอ่านออกเสียง
         โดยยังคงโหมดอัปโหลดเดิมไว้ให้ใช้งานได้เหมือนเดิม
       </p>
 
       <div class="mode-tabs">
         <button :class="{ active: mode === 'studio' }" @click="mode = 'studio'">
-          TTS Studio
+        สตูดิโออ่านออกเสียง
         </button>
         <button :class="{ active: mode === 'ebook' }" @click="mode = 'ebook'">
           อัปโหลดเล่มเต็ม
@@ -491,7 +504,7 @@ const publishStudioBook = async () => {
           <select v-model="accessType">
             <option value="paid">ขายรายเล่ม</option>
             <option value="free">ฟรี</option>
-            <option value="subscription">สมาชิก</option>
+            <option value="subscription">แพ็กเกจสมาชิก</option>
           </select>
         </label>
         <label>
@@ -499,7 +512,7 @@ const publishStudioBook = async () => {
           <input v-model.number="price" min="0" type="number" />
         </label>
         <label class="full">
-          <span>URL รูปปก</span>
+          <span>ลิงก์รูปปก</span>
           <input v-model="coverImage" type="url" placeholder="https://..." />
         </label>
       </div>
@@ -522,13 +535,13 @@ const publishStudioBook = async () => {
       <div v-if="mode === 'studio'" class="sub-panel stack">
         <div class="section-header">
           <div>
-            <h2>TTS-first Draft</h2>
+            <h2>ร่างหนังสือพร้อมอ่านออกเสียง</h2>
             <p class="muted">
-              สร้าง draft แล้วค่อยเพิ่มบทหรือตอน พร้อมแปลงเนื้อหาเป็น sentence-level structure
+              สร้างร่างแล้วค่อยเพิ่มบทหรือตอน พร้อมแปลงเนื้อหาเป็นโครงสร้างรายประโยค
             </p>
           </div>
           <button class="primary-btn" :disabled="loading" @click="createStudioBook">
-            {{ loading ? "กำลังสร้าง..." : "สร้าง Draft" }}
+            {{ loading ? "กำลังสร้าง..." : "สร้างร่าง" }}
           </button>
         </div>
 
@@ -536,8 +549,8 @@ const publishStudioBook = async () => {
           <label>
             <span>ประเภทหนังสือ</span>
             <select v-model="studioBookType">
-              <option value="ebook">ebook</option>
-              <option value="serial">serial</option>
+              <option value="ebook">อีบุ๊ก</option>
+              <option value="serial">รายตอน</option>
             </select>
           </label>
           <label>
@@ -545,23 +558,23 @@ const publishStudioBook = async () => {
             <input v-model="studioLanguage" type="text" />
           </label>
           <label>
-            <span>Preview mode</span>
+            <span>โหมดตัวอย่าง</span>
             <select v-model="studioPreviewMode">
-              <option value="percentage">percentage</option>
-              <option value="chapter_count">chapter_count</option>
-              <option value="sentence_count">sentence_count</option>
+              <option value="percentage">เปอร์เซ็นต์</option>
+              <option value="chapter_count">จำนวนบท</option>
+              <option value="sentence_count">จำนวนประโยค</option>
             </select>
           </label>
           <label>
-            <span>Preview value</span>
+            <span>ค่าตัวอย่าง</span>
             <input v-model.number="studioPreviewValue" min="1" type="number" />
           </label>
           <label>
-            <span>Age rating</span>
+            <span>เรตอายุ</span>
             <input v-model="studioAgeRating" type="text" placeholder="เช่น 13+" />
           </label>
           <label class="full">
-            <span>Tags</span>
+            <span>แท็ก</span>
             <input
               v-model="studioTags"
               type="text"
@@ -571,22 +584,22 @@ const publishStudioBook = async () => {
         </div>
 
         <div v-if="studioBookId" class="status-card">
-          <strong>Draft พร้อมใช้งาน</strong>
-          <span>Book #{{ studioBookId }}<template v-if="studioBookSlug"> · {{ studioBookSlug }}</template></span>
+          <strong>ร่างพร้อมใช้งาน</strong>
+          <span>หนังสือ #{{ studioBookId }}<template v-if="studioBookSlug"> · {{ studioBookSlug }}</template></span>
         </div>
 
         <div class="studio-grid">
           <section class="studio-panel">
-            <h3>Step 1: โครงสร้างหนังสือ</h3>
+            <h3>ขั้นตอนที่ 1: โครงสร้างหนังสือ</h3>
             <div class="form-grid compact single">
               <label>
                 <span>ชนิดของหน่วย</span>
                 <select v-model="selectedUnitType">
                   <option :value="studioBookType === 'serial' ? 'episode' : 'chapter'">
-                    {{ studioBookType === "serial" ? "episode" : "chapter" }}
+                    {{ studioBookType === "serial" ? "ตอน" : "บท" }}
                   </option>
-                  <option value="chapter">chapter</option>
-                  <option value="episode">episode</option>
+                  <option value="chapter">บท</option>
+                  <option value="episode">ตอน</option>
                 </select>
               </label>
               <label>
@@ -611,7 +624,7 @@ const publishStudioBook = async () => {
                 @click="loadUnitContent(unit.id)"
               >
                 <strong>{{ unit.unit_number }}. {{ unit.title }}</strong>
-                <span>{{ unit.unit_type }} · {{ unit.sentence_count || 0 }} ประโยค</span>
+                <span>{{ formatUnitType(unit.unit_type) }} · {{ unit.sentence_count || 0 }} ประโยค</span>
               </button>
               <p v-if="!studioUnits.length" class="muted empty-note">
                 ยังไม่มีบทหรือตอน
@@ -620,9 +633,9 @@ const publishStudioBook = async () => {
           </section>
 
           <section class="studio-panel">
-            <h3>Step 2: ใส่เนื้อหา</h3>
+            <h3>ขั้นตอนที่ 2: ใส่เนื้อหา</h3>
             <p class="muted">
-              เลือกบททางซ้าย แล้ววางข้อความเพื่อให้ backend แปลงเป็น paragraph และ sentence
+              เลือกบททางซ้าย แล้ววางข้อความเพื่อให้ระบบแปลงเป็นย่อหน้าและประโยค
             </p>
             <textarea
               v-model="unitRawText"
@@ -636,32 +649,32 @@ const publishStudioBook = async () => {
                 บันทึกแบบ block เดียว
               </button>
               <button class="primary-btn" :disabled="loading || !selectedUnitId" @click="importUnitText">
-                แยก paragraph + sentence อัตโนมัติ
+                แยกย่อหน้าและประโยคอัตโนมัติ
               </button>
             </div>
           </section>
 
           <section class="studio-panel">
-            <h3>Step 3: Preview สำหรับ TTS</h3>
+            <h3>ขั้นตอนที่ 3: ตัวอย่างสำหรับอ่านออกเสียง</h3>
             <div class="preview-stats">
               <article>
                 <strong>{{ contentPreview.length }}</strong>
-                <span>Blocks</span>
+                <span>บล็อก</span>
               </article>
               <article>
                 <strong>{{ totalPreviewSentences }}</strong>
-                <span>Sentences</span>
+                <span>ประโยค</span>
               </article>
               <article>
                 <strong>{{ selectedUnit?.title || "-" }}</strong>
-                <span>Current unit</span>
+                <span>หน่วยที่เลือก</span>
               </article>
             </div>
 
             <div class="preview-list">
               <article v-for="block in contentPreview" :key="block.id" class="preview-block">
                 <header>
-                  <strong>#{{ block.block_order }} · {{ block.block_type }}</strong>
+                  <strong>#{{ block.block_order }} · {{ formatBlockType(block.block_type) }}</strong>
                   <span v-if="block.speaker_name">{{ block.speaker_name }}</span>
                 </header>
                 <p>{{ block.display_text }}</p>
@@ -672,12 +685,12 @@ const publishStudioBook = async () => {
                 </div>
               </article>
               <p v-if="!contentPreview.length" class="muted empty-note">
-                ยังไม่มี preview ของ structured content
+                ยังไม่มีตัวอย่างของโครงสร้างเนื้อหา
               </p>
             </div>
 
             <button class="publish-btn" :disabled="loading || !studioBookId" @click="publishStudioBook">
-              Publish หนังสือ
+              เผยแพร่หนังสือ
             </button>
           </section>
         </div>
@@ -719,7 +732,7 @@ const publishStudioBook = async () => {
       <div v-else class="sub-panel">
         <h2>สร้างเรื่องรายตอน</h2>
         <button class="primary-btn" :disabled="loading" @click="createSerialBook">
-          {{ serialBookId ? `กำลังใช้ Book #${serialBookId}` : "สร้างเรื่องรายตอน" }}
+          {{ serialBookId ? `กำลังใช้หนังสือ #${serialBookId}` : "สร้างเรื่องรายตอน" }}
         </button>
 
         <div class="episode-form" :class="{ disabled: !serialBookId }">

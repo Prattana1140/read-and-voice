@@ -167,12 +167,12 @@ watch(() => route.params.slug, loadPage);
     <template v-else-if="profile">
       <section class="writer-hero">
         <div class="hero-banner">
-          <img v-if="bannerPreview" :src="bannerPreview" alt="writer banner" />
+          <img v-if="bannerPreview" :src="bannerPreview" alt="แบนเนอร์นักเขียน" />
         </div>
 
         <div class="hero-card">
           <div class="avatar-block">
-            <img v-if="avatarPreview" :src="avatarPreview" alt="writer avatar" class="avatar-image" />
+            <img v-if="avatarPreview" :src="avatarPreview" alt="รูปโปรไฟล์นักเขียน" class="avatar-image" />
             <div v-else class="avatar-fallback">{{ profile.pen_name.slice(0, 1).toUpperCase() }}</div>
           </div>
 
@@ -238,7 +238,7 @@ watch(() => route.params.slug, loadPage);
                     book.access_type === "subscription"
                       ? "อ่านได้ด้วยแพ็กเกจ"
                       : Number(book.price || 0) > 0
-                        ? `${book.price} coin`
+                        ? `${book.price} คอยน์`
                         : "อ่านฟรี"
                   }}
                 </small>

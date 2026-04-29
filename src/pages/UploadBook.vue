@@ -216,7 +216,7 @@ const uploadBook = async () => {
     console.error("backend error:", error?.response?.data);
 
     if (error.code === "ECONNABORTED") {
-      errorMessage.value = "การอัปโหลดใช้เวลานานเกินไป หรือ backend ไม่ตอบกลับ";
+      errorMessage.value = "การอัปโหลดใช้เวลานานเกินไป หรือเซิร์ฟเวอร์ไม่ตอบกลับ";
     } else if (error?.response?.status === 401) {
       errorMessage.value = "กรุณาเข้าสู่ระบบใหม่";
     } else if (error?.response?.status === 403) {

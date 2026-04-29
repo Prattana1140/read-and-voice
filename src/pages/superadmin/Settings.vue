@@ -90,7 +90,7 @@ const contentLinks = computed<SettingsLink[]>(() => [
   },
   {
     title: "จัดการหน้าเว็บ",
-    text: "แก้ subscription hero และเนื้อหาหน้าสาธารณะ",
+    text: "แก้แบนเนอร์แพ็กเกจสมาชิกและเนื้อหาหน้าสาธารณะ",
     to: "/admin/page-content",
   },
   {
@@ -128,7 +128,7 @@ function signOut() {
   <main class="settings-page">
     <section class="hero-card">
       <div>
-        <p class="eyebrow">System Settings</p>
+        <p class="eyebrow">ตั้งค่าระบบ</p>
         <h1>ศูนย์ควบคุมงานกำกับดูแลระบบ</h1>
         <p class="hero-text">
           หน้านี้รวมทางลัดและรายการตรวจเช็กสำหรับงาน superadmin ที่ต้องตามต่อเป็นประจำ
@@ -137,9 +137,9 @@ function signOut() {
       </div>
 
       <div class="session-card">
-        <strong>{{ currentUser?.name || "Superadmin" }}</strong>
+        <strong>{{ currentUser?.name || "ผู้ดูแลสูงสุด" }}</strong>
         <span>{{ currentUser?.email || "ไม่พบอีเมลใน session" }}</span>
-        <small>API: {{ API_BASE_URL }}</small>
+        <small>ที่อยู่ระบบ: {{ API_BASE_URL }}</small>
         <div class="session-actions">
           <button type="button" class="ghost-btn" @click="openRoute('/superadmin')">
             กลับแดชบอร์ด
@@ -152,7 +152,7 @@ function signOut() {
     <section class="layout-grid">
       <article class="panel">
         <div class="panel-head">
-          <h2>Operational Checklist</h2>
+          <h2>รายการตรวจงานระบบ</h2>
           <span>บันทึกในเครื่องนี้</span>
         </div>
 
@@ -165,7 +165,7 @@ function signOut() {
             :class="{ done: checklistState[item.key] }"
             @click="toggleChecklist(item.key)"
           >
-            <div class="check-badge">{{ checklistState[item.key] ? "Done" : "Todo" }}</div>
+            <div class="check-badge">{{ checklistState[item.key] ? "เสร็จแล้ว" : "ต้องทำ" }}</div>
             <strong>{{ item.title }}</strong>
             <span>{{ item.text }}</span>
           </button>
@@ -174,7 +174,7 @@ function signOut() {
 
       <article class="panel">
         <div class="panel-head">
-          <h2>Governance</h2>
+          <h2>การกำกับดูแล</h2>
           <span>สิทธิ์และผู้ใช้</span>
         </div>
 
@@ -195,8 +195,8 @@ function signOut() {
 
     <section class="panel">
       <div class="panel-head">
-        <h2>Content And Commerce</h2>
-        <span>Catalog Operations</span>
+        <h2>เนื้อหาและการขาย</h2>
+        <span>ดูแลแค็ตตาล็อก</span>
       </div>
 
       <div class="link-grid wide">

@@ -39,7 +39,7 @@ const episodePreview = computed(() =>
         ? "อ่านฟรี"
         : episode.access_type === "subscription"
           ? "สมาชิกอ่านได้"
-          : `${Number(episode.price || 0)} coin`,
+          : `${Number(episode.price || 0)} คอยน์`,
   })),
 );
 
@@ -128,7 +128,7 @@ watch(
       <p>
         {{
           mainStory?.description ||
-          "พื้นที่นี้ใช้แสดงคำโปรยและข้อมูลสรุปของนิยายรายตอนจาก backend โดยตรง"
+          "พื้นที่นี้ใช้แสดงคำโปรยและข้อมูลสรุปของนิยายรายตอนจากระบบหลังบ้านโดยตรง"
         }}
       </p>
     </section>

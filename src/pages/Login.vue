@@ -8,7 +8,7 @@ import { redirectAfterLogin } from "../utils/loginRedirect";
 import { loginWithSocialProvider } from "../utils/socialLogin";
 import logoUrl from "../assets/Logo-transparent.png";
 
-type SocialProvider = "facebook" | "line";
+type SocialProvider = "line";
 
 const router = useRouter();
 const route = useRoute();
@@ -25,16 +25,14 @@ const statusLoading = ref(true);
 const error = ref("");
 const oauthStatus = ref<Record<string, { configured: boolean }>>({});
 
-const facebookReady = computed(() => !!oauthStatus.value.facebook?.configured);
 const lineReady = computed(() => !!oauthStatus.value.line?.configured);
 
 const socialProviderLabel: Record<SocialProvider, string> = {
-  facebook: "Facebook",
   line: "LINE",
 };
 
 const isSocialProviderReady = (provider: SocialProvider) => {
-  return provider === "facebook" ? facebookReady.value : lineReady.value;
+  return provider === "line" ? lineReady.value : false;
 };
 
 const loadOAuthStatus = async () => {
@@ -214,28 +212,6 @@ watch(error, (message) => {
       </div>
 
       <div class="social-login-list">
-        <button
-          class="social-submit facebook-submit"
-          type="button"
-          :disabled="loading || !!socialLoading || statusLoading"
-          @click="socialLogin('facebook')"
-        >
-          <span class="social-icon facebook-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" focusable="false">
-              <path
-                d="M14 8.4h2.4V5h-2.9c-3 0-4.6 1.8-4.6 4.8v2H6.4v3.5h2.5V22h3.8v-6.7h3l.6-3.5h-3.6v-1.6c0-1 .3-1.8 1.3-1.8Z"
-              />
-            </svg>
-          </span>
-          <strong>
-            {{
-              socialLoading === "facebook"
-                ? "กำลังเชื่อมต่อ Facebook..."
-                : "เข้าสู่ระบบด้วย Facebook"
-            }}
-          </strong>
-        </button>
-
         <button
           class="social-submit line-submit"
           type="button"
@@ -527,15 +503,6 @@ watch(error, (message) => {
   height: 22px;
   display: block;
   fill: currentColor;
-}
-
-.facebook-submit {
-  background: #1877f2;
-}
-
-.facebook-icon {
-  color: #1877f2;
-  box-sizing: border-box;
 }
 
 .line-submit {

@@ -129,12 +129,12 @@ onMounted(loadProfile);
     <section v-else class="editor-grid">
       <article class="panel preview-panel">
         <div class="banner-frame">
-          <img v-if="bannerPreview" :src="bannerPreview" alt="banner preview" />
-          <div v-else class="banner-placeholder">Banner Preview</div>
+          <img v-if="bannerPreview" :src="bannerPreview" alt="ตัวอย่างแบนเนอร์" />
+          <div v-else class="banner-placeholder">ตัวอย่างแบนเนอร์</div>
         </div>
         <div class="profile-row">
           <div class="avatar-frame">
-            <img v-if="avatarPreview" :src="avatarPreview" alt="avatar preview" />
+            <img v-if="avatarPreview" :src="avatarPreview" alt="ตัวอย่างรูปโปรไฟล์" />
             <div v-else>{{ (form.pen_name || "W").slice(0, 1).toUpperCase() }}</div>
           </div>
           <div>
@@ -168,22 +168,22 @@ onMounted(loadProfile);
           </label>
 
           <label class="full-span">
-            <span>Avatar URL</span>
+            <span>ลิงก์รูปโปรไฟล์</span>
             <input v-model="form.avatar_url" type="url" placeholder="https://example.com/avatar.jpg" />
           </label>
 
           <label class="full-span">
-            <span>Banner URL</span>
+            <span>ลิงก์รูปแบนเนอร์</span>
             <input v-model="form.banner_url" type="url" placeholder="https://example.com/banner.jpg" />
           </label>
 
           <label>
-            <span>Facebook URL</span>
+            <span>ลิงก์ Facebook</span>
             <input v-model="form.facebook_url" type="url" placeholder="https://facebook.com/yourpage" />
           </label>
 
           <label>
-            <span>X / Twitter URL</span>
+            <span>ลิงก์ X / Twitter</span>
             <input v-model="form.x_url" type="url" placeholder="https://x.com/yourhandle" />
           </label>
 

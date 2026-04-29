@@ -40,7 +40,7 @@ async function loadWallet() {
     packages.value = packageRes.data || [];
     transactions.value = txRes.data || [];
   } catch (error: any) {
-    errorMessage.value = error?.response?.data?.message || "โหลดกระเป๋า coin ไม่สำเร็จ";
+    errorMessage.value = error?.response?.data?.message || "โหลดกระเป๋าคอยน์ไม่สำเร็จ";
   } finally {
     loading.value = false;
   }
@@ -52,10 +52,10 @@ async function topup(packageId: string) {
 
   try {
     const { data } = await api.post("/coins/topup", { package_id: packageId });
-    message.value = data?.message || "เติม coin สำเร็จ";
+    message.value = data?.message || "เติมคอยน์สำเร็จ";
     await loadWallet();
   } catch (error: any) {
-    errorMessage.value = error?.response?.data?.message || "เติม coin ไม่สำเร็จ";
+    errorMessage.value = error?.response?.data?.message || "เติมคอยน์ไม่สำเร็จ";
   }
 }
 
@@ -71,13 +71,13 @@ onMounted(loadWallet);
   <main class="wallet-page">
     <section class="hero">
       <div>
-        <p class="eyebrow">Read and Voice Coin</p>
-        <h1>เติม coin สำหรับซื้อหนังสือและรายตอน</h1>
-        <p>ใช้ coin ซื้ออีบุ๊ก รายตอน และสมัครแพ็กเกจอ่านรายเดือนในระบบเดียว</p>
+        <p class="eyebrow">คอยน์ Read and Voice</p>
+        <h1>เติมคอยน์สำหรับซื้อหนังสือและรายตอน</h1>
+        <p>ใช้คอยน์ซื้ออีบุ๊ก รายตอน และสมัครแพ็กเกจอ่านรายเดือนในระบบเดียว</p>
       </div>
 
       <div class="balance-card">
-        <span>ยอด coin</span>
+        <span>ยอดคอยน์</span>
         <strong>{{ balance }}</strong>
       </div>
     </section>
@@ -85,13 +85,13 @@ onMounted(loadWallet);
     <p v-if="message" class="alert success">{{ message }}</p>
     <p v-if="errorMessage" class="alert error">{{ errorMessage }}</p>
 
-    <section v-if="loading" class="panel">กำลังโหลดกระเป๋า coin...</section>
+    <section v-if="loading" class="panel">กำลังโหลดกระเป๋าคอยน์...</section>
 
     <template v-else>
       <section class="package-grid">
         <article v-for="item in packages" :key="item.id" class="package-card">
           <span>{{ item.label }}</span>
-          <strong>{{ item.coins }} coin</strong>
+          <strong>{{ item.coins }} คอยน์</strong>
           <p>{{ item.price }} บาท</p>
           <button type="button" @click="topup(item.id)">เติมแพ็กนี้</button>
         </article>
@@ -99,7 +99,7 @@ onMounted(loadWallet);
 
       <section class="panel">
         <div class="panel-head">
-          <h2>ประวัติ coin</h2>
+          <h2>ประวัติคอยน์</h2>
           <button type="button" @click="loadWallet">รีเฟรช</button>
         </div>
 

@@ -205,7 +205,7 @@
                     :disabled="purchasingBook"
                     @click="purchaseBookNow"
                   >
-                    {{ purchasingBook ? "กำลังซื้อ..." : `ซื้อเลย ${book.price || 0} coin` }}
+                    {{ purchasingBook ? "กำลังซื้อ..." : `ซื้อเลย ${book.price || 0} คอยน์` }}
                   </button>
                   <button
                     v-else-if="heroDecision === 'subscribe'"
@@ -415,7 +415,7 @@
               class="btn coin-btn"
               @click="router.push('/coin-wallet')"
             >
-              เติม coin
+              เติมคอยน์
             </button>
 
             <button
@@ -456,7 +456,7 @@
                 :disabled="buyingBook"
                 @click="addBookToCart(book.id)"
               >
-                {{ buyingBook ? "กำลังเพิ่ม..." : `ซื้ออีบุ๊ก ${book.price || 0} coin` }}
+                {{ buyingBook ? "กำลังเพิ่ม..." : `ซื้ออีบุ๊ก ${book.price || 0} คอยน์` }}
               </button>
 
               <router-link
@@ -550,7 +550,7 @@
               class="btn reader-btn preview-reader-btn"
               @click="openReaderPage"
             >
-              เปิดอ่านเต็มเล่มใน Reader
+              เปิดอ่านเต็มเล่มในหน้าอ่าน
             </button>
           </div>
 
@@ -835,7 +835,7 @@ const getEpisodeAccessLabel = (episode: Episode) => {
     return "อ่านฟรี";
   }
 
-  return `ใช้ ${episode.price || 0} coin`;
+  return `ใช้ ${episode.price || 0} คอยน์`;
 };
 
 const getWriterFollowPayload = () => {
@@ -898,12 +898,12 @@ const canReadImmediately = computed(() => {
 });
 
 const primaryReaderLabel = computed(() => {
-  if (canReadImmediately.value && bookAccessType.value === "free") return "อ่านฟรีใน Reader";
+  if (canReadImmediately.value && bookAccessType.value === "free") return "อ่านฟรีในหน้าอ่าน";
   if (canReadImmediately.value && bookAccessType.value === "subscription") {
-    return "อ่านด้วยแพ็กเกจใน Reader";
+    return "อ่านด้วยแพ็กเกจในหน้าอ่าน";
   }
 
-  return "ตรวจสิทธิ์/อ่านใน Reader";
+  return "ตรวจสิทธิ์/อ่านในหน้าอ่าน";
 });
 
 const reviewSummaryText = computed(() => {
@@ -1745,7 +1745,7 @@ const ensureLoggedInForPurchase = () => {
 
 const handlePurchaseError = (error: any) => {
   if (error?.response?.status === 402) {
-    alert(error?.response?.data?.message || "coin ไม่พอ กรุณาเติม coin ก่อน");
+    alert(error?.response?.data?.message || "คอยน์ไม่พอ กรุณาเติมคอยน์ก่อน");
     router.push("/coin-wallet");
     return;
   }
@@ -1771,7 +1771,7 @@ const purchaseBookNow = async (target: "read" | "listen" = "read") => {
       return;
     }
 
-    alert("ซื้อสำเร็จ กำลังเปิด Reader");
+    alert("ซื้อสำเร็จ กำลังเปิดหน้าอ่าน");
     openPrimaryReaderDestination();
   } catch (error: any) {
     handlePurchaseError(error);
@@ -1792,7 +1792,7 @@ const purchaseEpisodeNow = async (episode: Episode) => {
       payment_method: "coin",
     });
 
-    alert("ซื้อตอนสำเร็จ กำลังเปิด Reader");
+    alert("ซื้อตอนสำเร็จ กำลังเปิดหน้าอ่าน");
     openEpisodeReader(episode);
   } catch (error: any) {
     handlePurchaseError(error);

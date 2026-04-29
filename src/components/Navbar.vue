@@ -214,7 +214,7 @@ const accountGroups = computed<NavGroup[]>(() => {
     {
       title: "ผู้ดูแลสูงสุด",
       items: [
-        { label: "Superadmin", to: "/superadmin", roles: ["superadmin"] },
+        { label: "ผู้ดูแลสูงสุด", to: "/superadmin", roles: ["superadmin"] },
       ],
     },
   ];
@@ -439,7 +439,7 @@ const loadMembershipLabel = async () => {
       return;
     }
 
-    const planName = activeItem.title?.trim() || "สมาชิก VIP";
+    const planName = activeItem.title?.trim() || "สมาชิกพิเศษ";
     const expiry = activeItem.end_at
       ? `ถึงวันที่ ${new Date(activeItem.end_at).toLocaleDateString("th-TH")}`
       : "ยังไม่ระบุวันสิ้นสุด";
@@ -554,7 +554,7 @@ watch(isCompactNav, (compact) => {
               <ellipse cx="9.2" cy="8.4" rx="2.2" ry="1.5" class="coin-shine" />
             </svg>
           </span>
-          เติม Coin
+          เติมคอยน์
         </router-link>
         <button
           class="accessibility-link"
@@ -759,7 +759,7 @@ watch(isCompactNav, (compact) => {
 
               <div class="wallet-row">
                 <div class="wallet-balance">
-                  <span class="wallet-label">Coin</span>
+                  <span class="wallet-label">คอยน์</span>
                   <strong>{{ walletBalance.toFixed(2) }}</strong>
                 </div>
                 <router-link
@@ -767,7 +767,7 @@ watch(isCompactNav, (compact) => {
                   to="/coin-wallet"
                   @click="closeFloatingMenus"
                 >
-                  เติม Coin
+                  เติมคอยน์
                 </router-link>
               </div>
 
@@ -917,7 +917,7 @@ watch(isCompactNav, (compact) => {
               <ellipse cx="9.2" cy="8.4" rx="2.2" ry="1.5" class="coin-shine" />
             </svg>
           </span>
-          เติม Coin
+          เติมคอยน์
         </router-link>
         <button
           class="accessibility-link mobile-pill-link"

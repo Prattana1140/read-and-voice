@@ -148,7 +148,7 @@ onMounted(fetchPendingBooks);
     <section class="hero">
       <div>
         <p>Admin moderation</p>
-        <h1>อนุมัติ E-Book / รายตอน</h1>
+        <h1>อนุมัติอีบุ๊ก / รายตอน</h1>
         <span>
           หน้านี้ใช้ตรวจงานอัปโหลดจากนักเขียน แล้วกำหนดว่าจะให้หนังสือไปอยู่ในเมนู
           ขายดี, มาใหม่, โปรโมชั่น, ฟรีรายวัน, ฮิตขึ้นหิ้ง หรือแนะนำหรือไม่
@@ -198,7 +198,7 @@ onMounted(fetchPendingBooks);
             <img :src="getCoverUrl(selectedBook.cover_image)" :alt="selectedBook.title" />
             <div>
               <p class="book-type">
-                {{ selectedBook.content_type === "serial" ? "รายตอน" : "E-Book" }}
+                {{ selectedBook.content_type === "serial" ? "รายตอน" : "อีบุ๊ก" }}
               </p>
               <h2>{{ selectedBook.title }}</h2>
               <span>{{ selectedBook.author || "ไม่ระบุผู้เขียน" }}</span>

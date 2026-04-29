@@ -24,7 +24,7 @@ const login = async () => {
 <template>
   <main class="social-page">
     <section class="card">
-      <h1>Facebook Login</h1>
+      <h1>เข้าสู่ระบบด้วย Facebook</h1>
       <p>เชื่อมบัญชี Facebook เพื่อเข้าใช้งาน Read and Voice</p>
 
       <button class="btn primary" type="button" :disabled="loading" @click="login">
@@ -32,7 +32,7 @@ const login = async () => {
       </button>
 
       <button class="btn" type="button" @click="router.push('/login')">
-        กลับหน้า Login
+        กลับหน้าเข้าสู่ระบบ
       </button>
 
       <p v-if="error" class="error">{{ error }}</p>

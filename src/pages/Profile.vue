@@ -50,13 +50,13 @@ const form = reactive<ProfileForm>({
 const accountCards = [
   { title: "รายการที่อยากได้", text: "หนังสือที่คุณบันทึกไว้เพื่อกลับมาอ่านหรือซื้อภายหลัง", to: "/wishlist" },
   { title: "ชั้นหนังสือของฉัน", text: "หนังสือที่ซื้อแล้วหรือมีสิทธิ์อ่าน", to: "/my-library" },
-  { title: "ตะกร้า", text: "รายการหนังสือและตอนที่รอชำระด้วย coin", to: "/cart" },
+  { title: "ตะกร้า", text: "รายการหนังสือและตอนที่รอชำระด้วยคอยน์", to: "/cart" },
   { title: "ประวัติคำสั่งซื้อ", text: "ดูรายการซื้อและสถานะการชำระเงินที่ผ่านมา", to: "/orders/history" },
-  { title: "กระเป๋า Coin", text: "เติม coin และดูประวัติธุรกรรม", to: "/coin-wallet" },
-  { title: "สมาชิก VIP", text: "สมัครหรือดูสถานะแพ็กเกจรายเดือน", to: "/subscription-plans" },
+  { title: "กระเป๋าคอยน์", text: "เติมคอยน์และดูประวัติธุรกรรม", to: "/coin-wallet" },
+  { title: "สมาชิกพิเศษ", text: "สมัครหรือดูสถานะแพ็กเกจรายเดือน", to: "/subscription-plans" },
   { title: "การแจ้งเตือน", text: "ดูตอนใหม่จากนักเขียนที่คุณติดตามและอัปเดตสำคัญ", to: "/account/notifications" },
   { title: "รายการที่ติดตาม", text: "ดูหนังสือ ผู้เขียน หรือหมวดที่ติดตาม", to: "/account/following" },
-  { title: "Gift Code", text: "ตรวจสอบ gift code ที่ได้รับ", to: "/account/gift-codes" },
+  { title: "โค้ดของขวัญ", text: "ตรวจสอบโค้ดของขวัญที่ได้รับ", to: "/account/gift-codes" },
   { title: "Buffet ของฉัน", text: "ดูประวัติและสถานะ subscription", to: "/account/buffet" },
   { title: "อุปกรณ์ของฉัน", text: "ดูอุปกรณ์ที่ผูกกับบัญชี", to: "/account/devices" },
   { title: "สิทธิพิเศษ", text: "ดู benefits และสิทธิประโยชน์", to: "/account/benefits" },
@@ -272,7 +272,7 @@ onUnmounted(resetAvatarSelection);
           </label>
 
           <label class="full-span">
-            <span>หรือใส่ URL รูปภาพ</span>
+            <span>หรือใส่ลิงก์รูปภาพ</span>
             <input
               v-model="form.avatar_url"
               type="url"

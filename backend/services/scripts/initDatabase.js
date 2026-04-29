@@ -393,6 +393,22 @@ const statements = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `,
   `
+  CREATE TABLE IF NOT EXISTS data_deletion_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,
+    provider VARCHAR(40) NOT NULL,
+    provider_user_id VARCHAR(191) NOT NULL,
+    confirmation_code VARCHAR(80) NOT NULL,
+    status VARCHAR(40) NOT NULL DEFAULT 'completed',
+    requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME NULL,
+    UNIQUE KEY uq_data_deletion_confirmation (confirmation_code),
+    INDEX idx_data_deletion_provider_user (provider, provider_user_id),
+    INDEX idx_data_deletion_user (user_id),
+    CONSTRAINT fk_data_deletion_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `,
+  `
   CREATE TABLE IF NOT EXISTS password_reset_tokens (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,

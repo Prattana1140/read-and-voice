@@ -39,9 +39,9 @@ const notificationSettingsLink = computed(() => (isLoggedIn.value ? "/notificati
 
       <section class="footer-column">
         <h3>เมนูของฉัน</h3>
-        <router-link :to="memberLink">My Reading</router-link>
+        <router-link :to="memberLink">ชั้นอ่านของฉัน</router-link>
         <router-link :to="recentLink">อ่านล่าสุด</router-link>
-        <router-link v-if="canWriteBooks" to="/writer/books">My Writing</router-link>
+        <router-link v-if="canWriteBooks" to="/writer/books">งานเขียนของฉัน</router-link>
         <router-link v-if="canWriteBooks" to="/writer/upload">เพิ่มงานเขียนใหม่</router-link>
       </section>
 
@@ -53,7 +53,7 @@ const notificationSettingsLink = computed(() => (isLoggedIn.value ? "/notificati
           <router-link to="/privacy-policy">นโยบายความเป็นส่วนตัว</router-link>
           <router-link to="/data-privacy">รู้จัก readAwrite และ meb</router-link>
           <router-link :to="walletLink">วิธีการเติมคอยน์</router-link>
-          <router-link :to="notificationSettingsLink">Proof ตรวจคำผิดอัตโนมัติ</router-link>
+          <router-link :to="notificationSettingsLink">ตรวจคำผิดอัตโนมัติ</router-link>
         </div>
 
         <div class="footer-logo-wrap">

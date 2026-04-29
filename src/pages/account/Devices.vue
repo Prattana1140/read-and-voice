@@ -21,12 +21,12 @@ onMounted(loadItems);
     <section class="device-panel">
       <p>หากต้องการย้ายอุปกรณ์ แนะนำให้ออกจากระบบบนเครื่องเดิมก่อน แล้วค่อยเข้าสู่ระบบบนเครื่องใหม่ เพื่อป้องกันปัญหาการใช้งานซ้ำซ้อนในระบบ</p>
       <table>
-        <thead><tr><th>Device Name</th><th>Login Date</th><th>Application</th><th>App Platform</th></tr></thead>
+        <thead><tr><th>ชื่ออุปกรณ์</th><th>วันที่เข้าสู่ระบบ</th><th>แอปพลิเคชัน</th><th>แพลตฟอร์ม</th></tr></thead>
         <tbody>
           <tr v-for="item in items" :key="item.id"><td>{{ item.device_name }}</td><td>{{ formatDate(item.last_used_at || item.created_at) }}</td><td>Read and Voice</td><td>{{ item.platform || '-' }}</td></tr>
         </tbody>
       </table>
-      <div class="actions"><button type="button" :disabled="saving" @click="logoutAllDevices">{{ saving ? 'กำลังดำเนินการ...' : 'Logout all devices' }}</button></div>
+      <div class="actions"><button type="button" :disabled="saving" @click="logoutAllDevices">{{ saving ? 'กำลังดำเนินการ...' : 'ออกจากระบบทุกอุปกรณ์' }}</button></div>
     </section>
   </AccountSectionLayout>
 </template>

@@ -61,7 +61,7 @@ onMounted(async () => {
       <div class="oauth-mark" :class="{ error: !!error }">
         {{ error ? "!" : "✓" }}
       </div>
-      <p class="eyebrow">Read and Voice ThaiD Login</p>
+      <p class="eyebrow">เข้าสู่ระบบ Read and Voice</p>
       <h1>{{ error ? "เข้าสู่ระบบไม่สำเร็จ" : "กำลังเชื่อมต่อบัญชี" }}</h1>
       <p v-if="!error">
         ระบบกำลังตรวจสอบบัญชี Facebook/LINE และพาคุณไปยังหน้าที่เหมาะสม

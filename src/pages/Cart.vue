@@ -76,7 +76,7 @@ async function checkout() {
     router.push({ name: "OrderHistory" });
   } catch (error: any) {
     if (error?.response?.status === 402) {
-      errorMessage.value = "coin ไม่พอ กรุณาเติม coin ก่อนซื้อ";
+      errorMessage.value = "คอยน์ไม่พอ กรุณาเติมคอยน์ก่อนซื้อ";
       router.push({ name: "CoinWallet" });
       return;
     }
@@ -99,11 +99,11 @@ onMounted(loadCart);
       <div>
         <p class="eyebrow">Checkout</p>
         <h1>ตะกร้าของฉัน</h1>
-        <p>ซื้ออีบุ๊กและรายตอนด้วย coin ในกระเป๋า</p>
+        <p>ซื้ออีบุ๊กและรายตอนด้วยคอยน์ในกระเป๋า</p>
       </div>
 
       <div class="wallet-pill">
-        <span>ยอด coin</span>
+        <span>ยอดคอยน์</span>
         <strong>{{ balance }}</strong>
       </div>
     </section>
@@ -129,7 +129,7 @@ onMounted(loadCart);
           </div>
 
           <div class="item-side">
-            <strong>{{ Number(item.price || 0) * Number(item.quantity || 1) }} coin</strong>
+            <strong>{{ Number(item.price || 0) * Number(item.quantity || 1) }} คอยน์</strong>
             <small>จำนวน {{ item.quantity || 1 }}</small>
             <button type="button" @click="removeItem(item.id)">ลบ</button>
           </div>
@@ -139,9 +139,9 @@ onMounted(loadCart);
       <aside class="summary-card">
         <h2>สรุปรายการ</h2>
         <p>จำนวนสินค้า: {{ cart.length }}</p>
-        <p class="total">รวม {{ total }} coin</p>
+        <p class="total">รวม {{ total }} คอยน์</p>
         <p :class="balance >= total ? 'enough' : 'not-enough'">
-          {{ balance >= total ? "coin เพียงพอสำหรับชำระเงิน" : "coin ไม่พอสำหรับรายการนี้" }}
+          {{ balance >= total ? "คอยน์เพียงพอสำหรับชำระเงิน" : "คอยน์ไม่พอสำหรับรายการนี้" }}
         </p>
 
         <button
@@ -150,10 +150,10 @@ onMounted(loadCart);
           :disabled="checkingOut"
           @click="checkout"
         >
-          {{ checkingOut ? "กำลังซื้อ..." : "ชำระด้วย coin" }}
+          {{ checkingOut ? "กำลังซื้อ..." : "ชำระด้วยคอยน์" }}
         </button>
         <button class="topup-btn" type="button" @click="router.push('/coin-wallet')">
-          เติม coin
+          เติมคอยน์
         </button>
       </aside>
     </section>

@@ -93,7 +93,6 @@ const register = async () => {
         <!-- LOGIN -->
         <div v-if="mode === 'login'">
           <button class="btn line" @click="socialLogin('line')">เข้าสู่ระบบด้วย LINE</button>
-          <button class="btn fb" @click="socialLogin('facebook')">เข้าสู่ระบบด้วย Facebook</button>
 
           <div class="form">
             <input v-model="email" placeholder="อีเมล" />
@@ -183,7 +182,6 @@ const register = async () => {
   border: none;
 }
 
-.fb { background:#3b5998; color:white }
 .line { background:#00c300; color:white }
 
 .form input {

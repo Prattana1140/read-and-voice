@@ -50,7 +50,7 @@ onMounted(loadBooks);
     <section class="panel">
       <div class="header-row">
         <div>
-          <p class="eyebrow">Writer Studio</p>
+          <p class="eyebrow">สตูดิโอนักเขียน</p>
           <h1>หนังสือของฉัน</h1>
           <p class="muted">
             จัดการหนังสือที่คุณอัปโหลด แก้ไขข้อมูล และเตรียมเนื้อหาสำหรับผู้อ่าน
@@ -79,7 +79,7 @@ onMounted(loadBooks);
             </p>
             <p class="meta">
               {{ book.access_type || "free" }}
-              <span v-if="Number(book.price || 0) > 0"> · {{ book.price }} coin</span>
+              <span v-if="Number(book.price || 0) > 0"> · {{ book.price }} คอยน์</span>
             </p>
           </div>
 

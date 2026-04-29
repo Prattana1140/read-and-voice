@@ -1,7 +1,7 @@
 import type { Router } from "vue-router";
 import { API_BASE_URL } from "./api";
 
-export type SocialProvider = "thaid" | "line" | "facebook";
+export type SocialProvider = "facebook" | "line";
 
 export type LoginExperienceMode = "standard" | "visual_assist";
 

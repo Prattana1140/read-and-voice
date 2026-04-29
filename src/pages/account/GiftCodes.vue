@@ -27,7 +27,7 @@ async function loadItems() {
     const { data } = await api.get("/account/gift-codes");
     items.value = Array.isArray(data?.items) ? data.items : [];
   } catch (error: any) {
-    errorMessage.value = error?.response?.data?.message || "โหลด Gift Code ไม่สำเร็จ";
+    errorMessage.value = error?.response?.data?.message || "โหลดโค้ดของขวัญไม่สำเร็จ";
   } finally {
     loading.value = false;
   }
@@ -38,12 +38,12 @@ onMounted(loadItems);
 
 <template>
   <AccountSectionLayout
-    title="Gift Code"
+    title="โค้ดของขวัญ"
     description="ดูโค้ดที่เคยได้รับ พร้อมสถานะว่าใช้แล้วหรือยัง"
     :loading="loading"
     :error-message="errorMessage"
     :empty="!hasItems"
-    empty-title="ยังไม่มี Gift Code"
+    empty-title="ยังไม่มีโค้ดของขวัญ"
     empty-text="เมื่อมีโค้ดเข้าบัญชี ระบบจะแสดงรายการให้ที่หน้านี้"
     @back="router.push('/profile')"
   >
