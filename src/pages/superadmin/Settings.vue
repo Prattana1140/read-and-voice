@@ -219,7 +219,7 @@ function signOut() {
 .settings-page {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 32px 20px 56px;
+  padding: var(--page-block, 32px) var(--page-gutter, 20px) 56px;
 }
 
 .hero-card,
@@ -400,7 +400,18 @@ function signOut() {
 
 @media (max-width: 760px) {
   .settings-page {
-    padding-inline: 16px;
+    padding-inline: var(--page-gutter, 16px);
+  }
+
+  .hero-card,
+  .panel {
+    border-radius: 18px;
+    padding: 18px;
+  }
+
+  .session-actions,
+  .session-actions button {
+    width: 100%;
   }
 }
 </style>

@@ -165,7 +165,8 @@ onMounted(loadCart);
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
-  padding: 24px;
+  min-height: 100dvh;
+  padding: var(--page-block, 24px) var(--page-gutter, 24px);
 }
 
 .header-card,
@@ -349,6 +350,20 @@ button {
   .item-side {
     justify-items: start;
     text-align: left;
+  }
+
+  .header-card,
+  .cart-item,
+  .summary-card {
+    padding: 18px;
+  }
+
+  .wallet-pill,
+  .item-side,
+  .item-side button,
+  .checkout-btn,
+  .topup-btn {
+    width: 100%;
   }
 }
 </style>

@@ -171,12 +171,13 @@ async function submitReset() {
 <style scoped>
 .forgot-page {
   min-height: calc(100vh - 140px);
+  min-height: calc(100dvh - 140px);
   display: grid;
   place-items: center;
   background:
     radial-gradient(circle at top left, rgba(0, 168, 120, 0.12), transparent 32%),
     var(--bg);
-  padding: 32px 18px;
+  padding: var(--page-block, 32px) var(--page-gutter, 18px);
 }
 
 .forgot-card {
@@ -226,6 +227,7 @@ input {
   background: var(--surface-soft);
   color: var(--text-strong);
   padding: 0 14px;
+  font-size: 16px;
 }
 
 button {
@@ -280,5 +282,25 @@ button:disabled {
 .ghost {
   background: #e8faf6;
   color: #0f766e;
+}
+
+@media (max-width: 560px) {
+  .forgot-page {
+    place-items: start center;
+  }
+
+  .forgot-card {
+    border-radius: 16px;
+    padding: 22px 14px;
+  }
+
+  h1 {
+    font-size: 26px;
+  }
+
+  .actions,
+  .actions button {
+    width: 100%;
+  }
 }
 </style>

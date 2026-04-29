@@ -351,9 +351,9 @@ onMounted(fetchBook);
 
 <style scoped>
 .writer-edit-page {
-  width: min(1080px, calc(100% - 32px));
+  width: min(1080px, calc(100% - calc(var(--page-gutter, 16px) * 2)));
   margin: 0 auto;
-  padding: 32px 0 52px;
+  padding: var(--page-block, 32px) 0 52px;
 }
 
 .panel,
@@ -487,6 +487,7 @@ select {
   background: var(--surface-soft);
   color: var(--text-strong);
   font: inherit;
+  font-size: 16px;
   padding: 12px 14px;
 }
 
@@ -564,6 +565,20 @@ ul {
   .episode-item {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .panel,
+  .step-card {
+    padding: 18px;
+  }
+
+  .wizard-steps,
+  .wizard-steps button,
+  .wizard-actions,
+  .wizard-actions button,
+  .publish-actions,
+  .publish-actions button {
+    width: 100%;
   }
 }
 </style>

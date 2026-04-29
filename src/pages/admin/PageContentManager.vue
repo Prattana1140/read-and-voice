@@ -495,9 +495,9 @@ onUnmounted(() => {
 .admin-page-content {
   display: grid;
   gap: 24px;
-  width: min(1180px, calc(100% - 32px));
+  width: min(1180px, calc(100% - calc(var(--page-gutter, 16px) * 2)));
   margin: 0 auto;
-  padding: 36px 0 56px;
+  padding: var(--page-block, 36px) 0 56px;
   color: #143d39;
 }
 
@@ -670,6 +670,7 @@ onUnmounted(() => {
   border: 1px solid rgba(20, 184, 166, 0.24);
   border-radius: 8px;
   color: #143d39;
+  font-size: 16px;
   padding: 0 12px;
 }
 
@@ -883,11 +884,25 @@ onUnmounted(() => {
   }
 
   .page-hero {
-    padding: 22px;
+    padding: 20px;
   }
 
   .page-hero h1 {
     font-size: 28px;
+  }
+
+  .hero-actions,
+  .hero-actions a,
+  .banner-actions,
+  .banner-actions button {
+    width: 100%;
+  }
+
+  .admin-note,
+  .banner-manager,
+  .next-steps,
+  .menu-row {
+    padding: 18px;
   }
 }
 </style>

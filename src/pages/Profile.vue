@@ -350,7 +350,7 @@ onUnmounted(resetAvatarSelection);
 .profile-page {
   max-width: 1120px;
   margin: 0 auto;
-  padding: 32px 20px 56px;
+  padding: var(--page-block, 32px) var(--page-gutter, 20px) 56px;
 }
 
 .profile-hero,
@@ -655,6 +655,17 @@ button:disabled {
 
   .form-actions button {
     width: 100%;
+  }
+
+  .profile-hero,
+  .edit-panel {
+    border-radius: 16px;
+    padding: 18px;
+  }
+
+  .avatar-preview {
+    width: min(180px, 58vw);
+    height: min(180px, 58vw);
   }
 }
 </style>

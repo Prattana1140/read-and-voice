@@ -77,10 +77,11 @@ onMounted(async () => {
 <style scoped>
 .oauth-page {
   min-height: calc(100vh - 140px);
+  min-height: calc(100dvh - 140px);
   display: grid;
   place-items: center;
   background: var(--bg);
-  padding: 24px;
+  padding: var(--page-block, 24px) var(--page-gutter, 24px);
 }
 
 .oauth-card {
@@ -145,5 +146,16 @@ button {
   cursor: pointer;
   font-weight: 900;
   padding: 10px 14px;
+}
+
+@media (max-width: 560px) {
+  .oauth-page {
+    place-items: start center;
+  }
+
+  .oauth-card {
+    border-radius: 16px;
+    padding: 26px 16px;
+  }
 }
 </style>

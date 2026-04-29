@@ -10,7 +10,8 @@ require("dotenv").config({ quiet: true });
 const router = express.Router();
 
 const ALLOWED_ROLES = ["user", "writer", "admin", "superadmin"];
-const SOCIAL_PROVIDERS = ["thaid"];
+const SOCIAL_PROVIDERS = ["line", "facebook"];
+const DEFAULT_FACEBOOK_API_VERSION = "v25.0";
 
 let userProfilesTableReady;
 
@@ -26,6 +27,33 @@ function createHttpError(status, message) {
   const error = new Error(message);
   error.status = status;
   return error;
+}
+
+function readEnv(name) {
+  return String(process.env[name] || "").trim();
+}
+
+function isPlaceholderValue(value) {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text) return true;
+
+  return (
+    ["x", "xx", "xxx", "xxxx", "xxxxx", "changeme", "change-me"].includes(text) ||
+    text.includes("change-this") ||
+    text.includes("your-") ||
+    text.includes("your_") ||
+    text.includes("example")
+  );
+}
+
+function isUsableConfigValue(value) {
+  return !isPlaceholderValue(value);
+}
+
+function normalizeFacebookApiVersion(version) {
+  const raw = String(version || DEFAULT_FACEBOOK_API_VERSION).trim();
+  if (!raw) return DEFAULT_FACEBOOK_API_VERSION;
+  return raw.startsWith("v") ? raw : `v${raw}`;
 }
 
 function createToken(user) {
@@ -63,6 +91,13 @@ async function ensureUserProfilesTable() {
 
         try {
           await db.query(
+            "ALTER TABLE user_profiles ADD COLUMN avatar_url TEXT NULL FIRST",
+          );
+        } catch (error) {
+          if (error.code !== "ER_DUP_FIELDNAME") throw error;
+        }
+        try {
+          await db.query(
             "ALTER TABLE user_profiles ADD COLUMN accessibility_mode TINYINT(1) NOT NULL DEFAULT 0 AFTER bio",
           );
         } catch (error) {
@@ -96,7 +131,7 @@ async function setAccessibilityMode(userId, enabled) {
 async function hydrateUser(user) {
   await ensureUserProfilesTable();
   const [rows] = await db.query(
-    `SELECT accessibility_mode, visual_impairment_verified
+    `SELECT avatar_url, accessibility_mode, visual_impairment_verified
      FROM user_profiles
      WHERE user_id = ?
      LIMIT 1`,
@@ -105,6 +140,7 @@ async function hydrateUser(user) {
 
   return {
     ...user,
+    avatar_url: rows[0]?.avatar_url || user.avatar_url || null,
     accessibility_mode: Number(rows[0]?.accessibility_mode || 0) === 1,
     visual_impairment_verified: Number(rows[0]?.visual_impairment_verified || 0) === 1,
   };
@@ -118,6 +154,7 @@ function sanitizeUser(user, provider = "password") {
     role: user.role,
     status: user.status || "active",
     provider,
+    avatar_url: user.avatar_url || null,
     accessibility_mode: Boolean(user.accessibility_mode),
     accessibility_label: Boolean(user.accessibility_mode)
       ? "visual_assist"
@@ -164,15 +201,16 @@ function getOAuthRedirectUri(provider) {
 }
 
 function createOAuthState(provider, extra = {}) {
-  return jwt.sign(
-    {
-      provider,
-      nonce: crypto.randomBytes(12).toString("hex"),
-      ...extra,
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: "10m" },
-  );
+  const payload = {
+    provider,
+    nonce: crypto.randomBytes(12).toString("hex"),
+    ...extra,
+  };
+
+  return {
+    value: jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "10m" }),
+    nonce: payload.nonce,
+  };
 }
 
 function verifyOAuthState(state, provider) {
@@ -184,42 +222,115 @@ function verifyOAuthState(state, provider) {
 }
 
 function getProviderConfig(provider) {
-  const configs = {
-    thaid: {
-      clientId: process.env.THAID_CLIENT_ID,
-      clientSecret: process.env.THAID_CLIENT_SECRET,
-      authUrl: process.env.THAID_AUTH_URL,
-      tokenUrl: process.env.THAID_TOKEN_URL,
-      profileUrl: process.env.THAID_PROFILE_URL,
-      scope: process.env.THAID_SCOPE || "openid profile email",
-    },
-  };
+  const config = getProviderDefinition(provider);
+  if (!config) return null;
 
-  const config = configs[provider];
-  if (!config?.clientId || !config?.clientSecret) {
-    return null;
-  }
+  const status = getProviderSetupStatus(provider);
+  if (!status.configured) return null;
 
   return config;
 }
 
+function getProviderDefinition(provider) {
+  const facebookApiVersion = normalizeFacebookApiVersion(
+    readEnv("FACEBOOK_API_VERSION"),
+  );
+
+  const configs = {
+    line: {
+      provider: "line",
+      clientId: readEnv("LINE_CLIENT_ID"),
+      clientSecret: readEnv("LINE_CLIENT_SECRET"),
+      authUrl:
+        readEnv("LINE_AUTH_URL") ||
+        "https://access.line.me/oauth2/v2.1/authorize",
+      tokenUrl:
+        readEnv("LINE_TOKEN_URL") ||
+        "https://api.line.me/oauth2/v2.1/token",
+      profileUrl:
+        readEnv("LINE_PROFILE_URL") || "https://api.line.me/v2/profile",
+      userInfoUrl:
+        readEnv("LINE_USERINFO_URL") ||
+        "https://api.line.me/oauth2/v2.1/userinfo",
+      verifyAccessTokenUrl:
+        readEnv("LINE_VERIFY_ACCESS_TOKEN_URL") ||
+        "https://api.line.me/oauth2/v2.1/verify",
+      verifyIdTokenUrl:
+        readEnv("LINE_VERIFY_ID_TOKEN_URL") ||
+        "https://api.line.me/oauth2/v2.1/verify",
+      scope: readEnv("LINE_SCOPE") || "openid profile email",
+      requiredEnv: ["LINE_CLIENT_ID", "LINE_CLIENT_SECRET"],
+    },
+    facebook: {
+      provider: "facebook",
+      clientId: readEnv("FACEBOOK_CLIENT_ID"),
+      clientSecret: readEnv("FACEBOOK_CLIENT_SECRET"),
+      authUrl:
+        readEnv("FACEBOOK_AUTH_URL") ||
+        `https://www.facebook.com/${facebookApiVersion}/dialog/oauth`,
+      tokenUrl:
+        readEnv("FACEBOOK_TOKEN_URL") ||
+        `https://graph.facebook.com/${facebookApiVersion}/oauth/access_token`,
+      profileUrl:
+        readEnv("FACEBOOK_PROFILE_URL") ||
+        `https://graph.facebook.com/${facebookApiVersion}/me`,
+      debugTokenUrl:
+        readEnv("FACEBOOK_DEBUG_TOKEN_URL") ||
+        `https://graph.facebook.com/${facebookApiVersion}/debug_token`,
+      scope: readEnv("FACEBOOK_SCOPE") || "public_profile,email",
+      profileFields:
+        readEnv("FACEBOOK_PROFILE_FIELDS") ||
+        "id,name,email,picture.type(large)",
+      apiVersion: facebookApiVersion,
+      requiredEnv: ["FACEBOOK_CLIENT_ID", "FACEBOOK_CLIENT_SECRET"],
+    },
+  };
+
+  return configs[provider] || null;
+}
+
+function getProviderConfigProblems(provider, config) {
+  const problems = [];
+
+  if (!config) {
+    problems.push("provider is not supported");
+    return problems;
+  }
+
+  for (const envName of config.requiredEnv || []) {
+    if (!isUsableConfigValue(process.env[envName])) {
+      problems.push(`${envName} is missing or still uses a placeholder value`);
+    }
+  }
+
+  if (provider === "line" && config.clientId && !/^\d+$/.test(config.clientId)) {
+    problems.push("LINE_CLIENT_ID must be the numeric LINE Login Channel ID");
+  }
+
+  if (
+    provider === "facebook" &&
+    config.clientId &&
+    !/^\d+$/.test(config.clientId)
+  ) {
+    problems.push("FACEBOOK_CLIENT_ID must be the numeric Facebook App ID");
+  }
+
+  return problems;
+}
+
 function getProviderSetupStatus(provider) {
+  const config = getProviderDefinition(provider);
+  const problems = getProviderConfigProblems(provider, config);
+
   return {
     provider,
-    configured:
-      !!process.env.THAID_CLIENT_ID &&
-      !!process.env.THAID_CLIENT_SECRET &&
-      !!process.env.THAID_AUTH_URL &&
-      !!process.env.THAID_TOKEN_URL &&
-      !!process.env.THAID_PROFILE_URL,
-    requiredEnv: [
-      "THAID_CLIENT_ID",
-      "THAID_CLIENT_SECRET",
-      "THAID_AUTH_URL",
-      "THAID_TOKEN_URL",
-      "THAID_PROFILE_URL",
-    ],
+    configured: problems.length === 0,
+    requiredEnv: config?.requiredEnv || [],
+    problems,
     callbackUrl: getOAuthRedirectUri(provider),
+    authUrl: config?.authUrl || null,
+    scope: config?.scope || null,
+    apiVersion: config?.apiVersion || null,
   };
 }
 
@@ -239,39 +350,197 @@ async function fetchJson(url, options) {
   return data;
 }
 
-async function exchangeOAuthCode(provider, code) {
+function createFacebookAppSecretProof(accessToken, clientSecret) {
+  return crypto
+    .createHmac("sha256", clientSecret)
+    .update(accessToken)
+    .digest("hex");
+}
+
+async function exchangeOAuthCode(provider, code, decodedState = {}) {
   const config = getProviderConfig(provider);
   if (!config) {
-    const envPrefix = provider.toUpperCase();
+    const status = getProviderSetupStatus(provider);
     throw new Error(
-      `ระบบ ${envPrefix} login ยังไม่พร้อมใช้งาน`,
+      `${provider.toUpperCase()} login ยังไม่พร้อมใช้งาน: ${status.problems.join("; ")}`,
     );
   }
 
-  const tokenBody = new URLSearchParams({
-    code,
+  let tokenData;
+
+  if (provider === "facebook") {
+    const tokenParams = {
+      code,
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
+      redirect_uri: getOAuthRedirectUri(provider),
+    };
+
+    tokenData = await fetchJson(`${config.tokenUrl}?${encodeQuery(tokenParams)}`);
+  } else {
+    const tokenBody = new URLSearchParams({
+      code,
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
+      redirect_uri: getOAuthRedirectUri(provider),
+      grant_type: "authorization_code",
+    });
+
+    tokenData = await fetchJson(config.tokenUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: tokenBody,
+    });
+  }
+
+  return fetchProviderProfile(provider, config, tokenData, decodedState);
+}
+
+async function fetchProviderProfile(provider, config, tokenData, decodedState = {}) {
+  if (!tokenData?.access_token && !tokenData?.id_token) {
+    throw new Error("OAuth provider did not return a usable access token");
+  }
+
+  if (provider === "line") {
+    return fetchLineProfile(config, tokenData, decodedState);
+  }
+
+  if (provider === "facebook") {
+    if (!tokenData.access_token) {
+      throw new Error("Facebook social login requires an access token");
+    }
+
+    return fetchFacebookProfile(config, tokenData.access_token, {
+      verifyToken: Boolean(decodedState.verifyProviderToken),
+    });
+  }
+
+  throw new Error("Unsupported OAuth provider");
+}
+
+async function verifyLineAccessToken(config, accessToken) {
+  const verification = await fetchJson(
+    `${config.verifyAccessTokenUrl}?${encodeQuery({ access_token: accessToken })}`,
+  );
+
+  if (String(verification.client_id || "") !== String(config.clientId)) {
+    throw new Error("LINE access token was not issued for this app");
+  }
+
+  return verification;
+}
+
+async function verifyLineIdToken(config, idToken, nonce) {
+  const body = new URLSearchParams({
+    id_token: idToken,
     client_id: config.clientId,
-    client_secret: config.clientSecret,
-    redirect_uri: getOAuthRedirectUri(provider),
-    grant_type: "authorization_code",
   });
 
-  const tokenData = await fetchJson(config.tokenUrl, {
+  if (nonce) {
+    body.set("nonce", nonce);
+  }
+
+  return fetchJson(config.verifyIdTokenUrl, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: tokenBody,
+    body,
   });
+}
 
-  const profile = await fetchJson(config.profileUrl, {
-    headers: { Authorization: `Bearer ${tokenData.access_token}` },
-  });
+async function fetchLineProfile(config, tokenData, decodedState = {}) {
+  let idTokenProfile = null;
+  let lineProfile = null;
+
+  if (tokenData.id_token) {
+    idTokenProfile = await verifyLineIdToken(
+      config,
+      tokenData.id_token,
+      decodedState.nonce,
+    );
+  }
+
+  if (tokenData.access_token) {
+    await verifyLineAccessToken(config, tokenData.access_token);
+
+    try {
+      lineProfile = await fetchJson(config.userInfoUrl, {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      });
+    } catch (error) {
+      lineProfile = await fetchJson(config.profileUrl, {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      });
+    }
+  }
+
+  const providerId = idTokenProfile?.sub || lineProfile?.sub || lineProfile?.userId;
+
+  if (!providerId) {
+    throw new Error("LINE profile did not include a user id");
+  }
 
   return {
-    providerId: profile.sub || profile.pid || profile.id,
-    name: profile.name || profile.display_name || "ThaID User",
-    email:
-      profile.email ||
-      `${String(profile.sub || profile.pid || profile.id || "thaid-user")}@readvoice.local`,
+    providerId,
+    name:
+      idTokenProfile?.name ||
+      lineProfile?.name ||
+      lineProfile?.displayName ||
+      "LINE User",
+    email: normalizeEmail(idTokenProfile?.email || lineProfile?.email),
+    avatarUrl:
+      idTokenProfile?.picture ||
+      lineProfile?.picture ||
+      lineProfile?.pictureUrl ||
+      null,
+  };
+}
+
+async function verifyFacebookAccessToken(config, accessToken) {
+  const appAccessToken = `${config.clientId}|${config.clientSecret}`;
+  const tokenInfo = await fetchJson(
+    `${config.debugTokenUrl}?${encodeQuery({
+      input_token: accessToken,
+      access_token: appAccessToken,
+    })}`,
+  );
+
+  if (!tokenInfo?.data?.is_valid) {
+    throw new Error("Facebook access token is invalid");
+  }
+
+  if (String(tokenInfo.data.app_id || "") !== String(config.clientId)) {
+    throw new Error("Facebook access token was not issued for this app");
+  }
+
+  return tokenInfo.data;
+}
+
+async function fetchFacebookProfile(config, accessToken, options = {}) {
+  if (options.verifyToken) {
+    await verifyFacebookAccessToken(config, accessToken);
+  }
+
+  const params = {
+    fields: config.profileFields,
+    access_token: accessToken,
+    appsecret_proof: createFacebookAppSecretProof(
+      accessToken,
+      config.clientSecret,
+    ),
+  };
+
+  const profile = await fetchJson(`${config.profileUrl}?${encodeQuery(params)}`);
+  const providerId = profile.id;
+
+  if (!providerId) {
+    throw new Error("Facebook profile did not include a user id");
+  }
+
+  return {
+    providerId,
+    name: profile.name || "Facebook User",
+    email: normalizeEmail(profile.email),
+    avatarUrl: profile.picture?.data?.url || null,
   };
 }
 
@@ -284,6 +553,7 @@ async function ensureSocialConnectionsTable() {
       provider_user_id VARCHAR(191) NOT NULL,
       display_name VARCHAR(255) NULL,
       email VARCHAR(255) NULL,
+      avatar_url TEXT NULL,
       connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       UNIQUE KEY uq_social_connections_provider_user (provider, provider_user_id),
@@ -292,6 +562,79 @@ async function ensureSocialConnectionsTable() {
       CONSTRAINT fk_social_connections_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `);
+
+  try {
+    await db.query(
+      "ALTER TABLE social_connections ADD COLUMN avatar_url TEXT NULL AFTER email",
+    );
+  } catch (error) {
+    if (error.code !== "ER_DUP_FIELDNAME") throw error;
+  }
+}
+
+async function ensureLoginEventsTable() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS login_events (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NULL,
+      provider VARCHAR(40) NOT NULL,
+      provider_user_id VARCHAR(191) NULL,
+      success TINYINT(1) NOT NULL DEFAULT 0,
+      ip_address VARCHAR(45) NULL,
+      user_agent TEXT NULL,
+      message VARCHAR(255) NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_login_events_user (user_id),
+      INDEX idx_login_events_provider (provider, provider_user_id),
+      INDEX idx_login_events_created_at (created_at),
+      CONSTRAINT fk_login_events_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+}
+
+function getRequestIp(req) {
+  const forwardedFor = req.headers["x-forwarded-for"];
+  const rawIp = Array.isArray(forwardedFor)
+    ? forwardedFor[0]
+    : forwardedFor || req.ip || req.socket?.remoteAddress || "";
+
+  return String(rawIp).split(",")[0].trim().slice(0, 45) || null;
+}
+
+async function recordLoginEvent(req, event) {
+  try {
+    await ensureLoginEventsTable();
+    await db.query(
+      `INSERT INTO login_events
+         (user_id, provider, provider_user_id, success, ip_address, user_agent, message)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        event.userId || null,
+        event.provider || "password",
+        event.providerUserId || null,
+        event.success ? 1 : 0,
+        getRequestIp(req),
+        String(req.headers["user-agent"] || "").slice(0, 1000) || null,
+        event.message ? String(event.message).slice(0, 255) : null,
+      ],
+    );
+  } catch (error) {
+    console.error("LOGIN EVENT ERROR:", error.message);
+  }
+}
+
+async function saveUserAvatar(userId, avatarUrl) {
+  if (!avatarUrl) return;
+
+  await ensureUserProfilesTable();
+  await db.query(
+    `INSERT INTO user_profiles (user_id, avatar_url)
+     VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE
+       avatar_url = VALUES(avatar_url),
+       updated_at = NOW()`,
+    [userId, avatarUrl],
+  );
 }
 
 async function linkSocialConnection(userId, provider, profile) {
@@ -311,12 +654,13 @@ async function linkSocialConnection(userId, provider, profile) {
 
   await db.query(
     `INSERT INTO social_connections
-       (user_id, provider, provider_user_id, display_name, email, connected_at)
-     VALUES (?, ?, ?, ?, ?, NOW())
+       (user_id, provider, provider_user_id, display_name, email, avatar_url, connected_at)
+     VALUES (?, ?, ?, ?, ?, ?, NOW())
      ON DUPLICATE KEY UPDATE
        provider_user_id = VALUES(provider_user_id),
        display_name = VALUES(display_name),
        email = VALUES(email),
+       avatar_url = VALUES(avatar_url),
        updated_at = NOW()`,
     [
       userId,
@@ -324,34 +668,118 @@ async function linkSocialConnection(userId, provider, profile) {
       profile.providerId,
       profile.name || null,
       normalizeEmail(profile.email) || null,
+      profile.avatarUrl || null,
     ],
   );
+
+  await saveUserAvatar(userId, profile.avatarUrl);
+}
+
+function getLocalSocialEmail(provider, providerId) {
+  const safeProviderId = String(providerId || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+
+  if (safeProviderId) {
+    return `${provider}.${safeProviderId}@read-and-voice.local`;
+  }
+
+  const hash = crypto
+    .createHash("sha256")
+    .update(`${provider}:${providerId}`)
+    .digest("hex")
+    .slice(0, 24);
+
+  return `${provider}.${hash}@read-and-voice.local`;
+}
+
+function isLocalSocialEmail(email) {
+  return normalizeEmail(email).endsWith("@read-and-voice.local");
+}
+
+async function updateSyntheticEmailIfPossible(user, realEmail) {
+  const email = normalizeEmail(realEmail);
+  if (!email || !isLocalSocialEmail(user.email)) {
+    return user;
+  }
+
+  const [existingUsers] = await db.query(
+    `SELECT id
+     FROM users
+     WHERE LOWER(TRIM(email)) = ?
+       AND id <> ?
+     LIMIT 1`,
+    [email, user.id],
+  );
+
+  if (existingUsers.length > 0) {
+    return user;
+  }
+
+  await db.query("UPDATE users SET email = ?, updated_at = NOW() WHERE id = ?", [
+    email,
+    user.id,
+  ]);
+
+  return { ...user, email };
 }
 
 async function findOrCreateSocialUser(profile, provider) {
-  const email = normalizeEmail(profile.email);
-  const [existingUsers] = await db.query(
-    `SELECT id, name, email, role, status, created_at, updated_at
-     FROM users
-     WHERE LOWER(TRIM(email)) = ?
+  if (!profile.providerId) {
+    throw new Error("Social profile is missing provider id");
+  }
+
+  await ensureSocialConnectionsTable();
+
+  const [connectedUsers] = await db.query(
+    `SELECT u.id, u.name, u.email, u.role, u.status, u.created_at, u.updated_at
+     FROM social_connections sc
+     JOIN users u ON u.id = sc.user_id
+     WHERE sc.provider = ?
+       AND sc.provider_user_id = ?
      LIMIT 1`,
-    [email],
+    [provider, profile.providerId],
   );
 
-  if (existingUsers[0]) {
-    await linkSocialConnection(existingUsers[0].id, provider, profile);
-    return hydrateUser(existingUsers[0]);
+  if (connectedUsers[0]) {
+    const updatedUser = await updateSyntheticEmailIfPossible(
+      connectedUsers[0],
+      profile.email,
+    );
+    await linkSocialConnection(updatedUser.id, provider, profile);
+    return hydrateUser(updatedUser);
+  }
+
+  const email = normalizeEmail(profile.email);
+
+  if (email) {
+    const [existingUsers] = await db.query(
+      `SELECT id, name, email, role, status, created_at, updated_at
+       FROM users
+       WHERE LOWER(TRIM(email)) = ?
+       LIMIT 1`,
+      [email],
+    );
+
+    if (existingUsers[0]) {
+      await linkSocialConnection(existingUsers[0].id, provider, profile);
+      return hydrateUser(existingUsers[0]);
+    }
   }
 
   const randomPassword = await bcrypt.hash(
     `${provider}:${profile.providerId}:${Date.now()}`,
     10,
   );
+  const accountEmail = email || getLocalSocialEmail(provider, profile.providerId);
 
   const [result] = await db.query(
     `INSERT INTO users (name, email, password, role, status, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
-    [profile.name, email, randomPassword, "user", "active"],
+    [profile.name, accountEmail, randomPassword, "user", "active"],
   );
 
   const [createdUsers] = await db.query(
@@ -449,6 +877,11 @@ router.post("/login", async (req, res) => {
     );
 
     if (users.length === 0) {
+      await recordLoginEvent(req, {
+        provider: "password",
+        success: false,
+        message: "user_not_found",
+      });
       return res.status(401).json({ message: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
     }
 
@@ -465,12 +898,24 @@ router.post("/login", async (req, res) => {
       : password === passwordText;
 
     if (!isMatch) {
+      await recordLoginEvent(req, {
+        userId: user.id,
+        provider: "password",
+        success: false,
+        message: "invalid_password",
+      });
       return res.status(401).json({ message: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
     }
 
     await setAccessibilityMode(user.id, accessibilityMode);
     const hydratedUser = await hydrateUser(user);
     const token = createToken(hydratedUser);
+    await recordLoginEvent(req, {
+      userId: hydratedUser.id,
+      provider: "password",
+      success: true,
+      message: "login_success",
+    });
 
     return res.status(200).json({
       message: "เข้าสู่ระบบสำเร็จ",
@@ -630,9 +1075,17 @@ router.get("/oauth/status", (_req, res) => {
 router.get("/oauth/:provider/start", (req, res) => {
   try {
     const provider = String(req.params.provider || "").toLowerCase();
-    const mode = String(req.query.mode || "login").toLowerCase();
+    const rawMode = String(req.query.mode || "login").toLowerCase();
+    const mode = rawMode === "connect" ? "connect" : "login";
+    const rawExperienceMode = String(
+      req.query.experience_mode ||
+        req.query.accessibility_mode ||
+        (rawMode === "visual_assist" ? rawMode : "standard"),
+    ).toLowerCase();
     const experienceMode =
-      String(req.query.mode || "standard").toLowerCase() === "visual_assist"
+      ["1", "true", "yes", "visual_assist", "accessibility"].includes(
+        rawExperienceMode,
+      )
         ? "visual_assist"
         : "standard";
 
@@ -649,7 +1102,7 @@ router.get("/oauth/:provider/start", (req, res) => {
       const envPrefix = provider.toUpperCase();
       return redirectOAuthError(
         res,
-        `${envPrefix}_CLIENT_ID and ${envPrefix}_CLIENT_SECRET are not configured`,
+        `${envPrefix} OAuth settings are not fully configured`,
       );
     }
 
@@ -663,14 +1116,18 @@ router.get("/oauth/:provider/start", (req, res) => {
       extraState = { mode: "connect", userId: decoded.id, experienceMode };
     }
 
-    const state = createOAuthState(provider, extraState);
+    const signedState = createOAuthState(provider, extraState);
     const params = {
       client_id: config.clientId,
       redirect_uri: getOAuthRedirectUri(provider),
       response_type: "code",
       scope: config.scope,
-      state,
+      state: signedState.value,
     };
+
+    if (provider === "line" && config.scope.split(/\s+/).includes("openid")) {
+      params.nonce = signedState.nonce;
+    }
 
     return res.redirect(`${config.authUrl}?${encodeQuery(params)}`);
   } catch (error) {
@@ -702,10 +1159,17 @@ const handleOAuthCallback = async (req, res) => {
     }
 
     const decodedState = verifyOAuthState(state, provider);
-    const profile = await exchangeOAuthCode(provider, String(code));
+    const profile = await exchangeOAuthCode(provider, String(code), decodedState);
 
     if (decodedState.mode === "connect" && decodedState.userId) {
       await linkSocialConnection(decodedState.userId, provider, profile);
+      await recordLoginEvent(req, {
+        userId: decodedState.userId,
+        provider,
+        providerUserId: profile.providerId,
+        success: true,
+        message: "social_connect_success",
+      });
       return res.redirect(
         `${getFrontendUrl()}/profile?${encodeQuery({ connected: provider })}`,
       );
@@ -720,12 +1184,24 @@ const handleOAuthCallback = async (req, res) => {
     );
     const hydratedUser = await hydrateUser(user);
     const token = createToken(hydratedUser);
+    await recordLoginEvent(req, {
+      userId: hydratedUser.id,
+      provider,
+      providerUserId: profile.providerId,
+      success: true,
+      message: "social_login_success",
+    });
     return redirectOAuthResult(res, {
       token,
       user: sanitizeUser(hydratedUser, provider),
     });
   } catch (error) {
     console.error("OAUTH CALLBACK ERROR:", error);
+    await recordLoginEvent(req, {
+      provider,
+      success: false,
+      message: error.message || "oauth_callback_failed",
+    });
     return redirectOAuthError(
       res,
       error.message || "Unable to complete social login",
@@ -737,32 +1213,97 @@ router.get("/oauth/:provider/callback", handleOAuthCallback);
 router.post("/oauth/:provider/callback", handleOAuthCallback);
 
 router.post("/social-login", async (req, res) => {
+  let provider = "unknown";
+
   try {
-    const provider = String(req.body.provider || "").trim().toLowerCase();
-    const providerId = String(req.body.providerId || "demo").trim();
-    const displayName = String(req.body.name || "").trim();
+    provider = String(req.body.provider || "").trim().toLowerCase();
     const accessibilityMode = Boolean(req.body.accessibility_mode);
-    const email = normalizeEmail(
-      req.body.email || `${provider}.${providerId}@read-and-voice.local`,
-    );
+    const accessToken = String(
+      req.body.access_token || req.body.accessToken || "",
+    ).trim();
+    const idToken = String(req.body.id_token || req.body.idToken || "").trim();
+    const nonce = String(req.body.nonce || "").trim();
 
     if (!SOCIAL_PROVIDERS.includes(provider)) {
       return res.status(400).json({ message: "Invalid provider" });
     }
 
-    const profile = {
-      providerId,
-      name:
-        displayName ||
-        `${provider.charAt(0).toUpperCase()}${provider.slice(1)} User`,
-      email,
-    };
+    if (!accessToken && !idToken) {
+      if (process.env.ALLOW_UNVERIFIED_SOCIAL_LOGIN === "true") {
+        const providerId = String(req.body.providerId || "").trim();
+        const displayName = String(req.body.name || "").trim();
+        if (!providerId) {
+          return res.status(400).json({
+            message: "providerId is required for unverified social login",
+          });
+        }
+
+        const demoProfile = {
+          providerId,
+          name:
+            displayName ||
+            `${provider.charAt(0).toUpperCase()}${provider.slice(1)} User`,
+          email: normalizeEmail(req.body.email),
+          avatarUrl: req.body.avatar_url || req.body.avatarUrl || null,
+        };
+        const user = await findOrCreateSocialUser(demoProfile, provider);
+        assertActiveUser(user);
+
+        await setAccessibilityMode(user.id, accessibilityMode);
+        const hydratedUser = await hydrateUser(user);
+        const token = createToken(hydratedUser);
+        await recordLoginEvent(req, {
+          userId: hydratedUser.id,
+          provider,
+          providerUserId: demoProfile.providerId,
+          success: true,
+          message: "unverified_social_login_success",
+        });
+
+        return res.status(200).json({
+          message: "เข้าสู่ระบบสำเร็จ",
+          token,
+          user: sanitizeUser(hydratedUser, provider),
+        });
+      }
+
+      return res.status(400).json({
+        message:
+          "Social login ต้องใช้ access_token/id_token จาก provider หรือเริ่มที่ /api/auth/oauth/:provider/start",
+      });
+    }
+
+    const config = getProviderConfig(provider);
+    if (!config) {
+      const status = getProviderSetupStatus(provider);
+      return res.status(503).json({
+        message: `${provider.toUpperCase()} login ยังไม่พร้อมใช้งาน`,
+        problems: status.problems,
+      });
+    }
+
+    const profile = await fetchProviderProfile(
+      provider,
+      config,
+      {
+        access_token: accessToken,
+        id_token: idToken,
+      },
+      { nonce, verifyProviderToken: true },
+    );
     const user = await findOrCreateSocialUser(profile, provider);
     assertActiveUser(user);
 
     await setAccessibilityMode(user.id, accessibilityMode);
     const hydratedUser = await hydrateUser(user);
     const token = createToken(hydratedUser);
+    await recordLoginEvent(req, {
+      userId: hydratedUser.id,
+      provider,
+      providerUserId: profile.providerId,
+      success: true,
+      message: "social_token_login_success",
+    });
 
     return res.status(200).json({
       message: "เข้าสู่ระบบสำเร็จ",
@@ -771,6 +1312,11 @@ router.post("/social-login", async (req, res) => {
     });
   } catch (error) {
     console.error("SOCIAL LOGIN ERROR:", error);
+    await recordLoginEvent(req, {
+      provider,
+      success: false,
+      message: error.message || "social_login_failed",
+    });
     return res.status(error.status || 500).json({
       message: error.message || "เกิดข้อผิดพลาดในระบบ",
     });

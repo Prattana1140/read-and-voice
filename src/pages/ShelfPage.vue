@@ -556,7 +556,7 @@ watch(
 }
 
 .shelf-content {
-  width: min(100% - 28px, 920px);
+  width: min(100% - calc(var(--page-gutter, 14px) * 2), 920px);
   margin: 0 auto;
   padding-top: 58px;
 }
@@ -975,6 +975,31 @@ watch(
     align-items: flex-start;
     flex-direction: column;
     gap: 4px;
+  }
+}
+
+@media (max-width: 420px) {
+  .promo-strip-card {
+    grid-template-columns: minmax(0, 1fr) 82px;
+    min-height: 150px;
+    padding: 18px 14px;
+  }
+
+  .promo-strip-card strong {
+    font-size: 20px;
+  }
+
+  .promo-strip-card img {
+    width: 78px;
+  }
+
+  .book-grid,
+  .promo-book-grid {
+    column-gap: 12px;
+  }
+
+  .promo-feature strong {
+    font-size: 42px;
   }
 }
 </style>

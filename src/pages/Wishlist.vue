@@ -80,7 +80,7 @@ onMounted(loadWishlist);
   min-height: 70vh;
   background: var(--bg);
   color: var(--text-strong);
-  padding: 32px;
+  padding: var(--page-block, 32px) var(--page-gutter, 32px);
 }
 
 .wishlist-page h1 {
@@ -161,5 +161,16 @@ onMounted(loadWishlist);
 
 .actions button.danger {
   background: #ef4444;
+}
+
+@media (max-width: 420px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -255,7 +255,7 @@ watch(() => route.params.slug, loadPage);
 .writer-public-page {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 0 20px 56px;
+  padding: 0 var(--page-gutter, 20px) 56px;
 }
 
 .state-box,
@@ -476,6 +476,22 @@ button {
   .hero-card {
     margin-inline: 0;
     margin-top: 16px;
+    justify-items: start;
+    padding: 20px;
+  }
+
+  .hero-card button,
+  .featured-card button {
+    width: 100%;
+  }
+
+  .panel {
+    padding: 18px;
+  }
+
+  .book-card img {
+    height: auto;
+    aspect-ratio: 3 / 4;
   }
 }
 </style>

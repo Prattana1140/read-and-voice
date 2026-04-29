@@ -55,7 +55,9 @@ const emit = defineEmits<{ (event: "change-theme", theme: ThemeMode): void }>();
 
 const router = useRouter();
 const navbarRef = ref<HTMLElement | null>(null);
+const topBarRef = ref<HTMLElement | null>(null);
 const themeDropdownRef = ref<HTMLDetailsElement | null>(null);
+const isCompactNav = ref(false);
 const isMenuOpen = ref(false);
 const isSearchOpen = ref(false);
 const isNotificationsOpen = ref(false);
@@ -67,6 +69,9 @@ const notificationItems = ref<NotificationItem[]>([]);
 const notificationLoading = ref(false);
 const notificationError = ref("");
 const allRoles: UserRole[] = ["guest", "user", "writer", "admin", "superadmin"];
+const compactNavBreakpoint = 1240;
+let navResizeObserver: ResizeObserver | null = null;
+let compactMeasureFrame = 0;
 
 const notificationCount = computed(
   () =>
@@ -224,6 +229,44 @@ const accountGroups = computed<NavGroup[]>(() => {
 
 const closeMenu = () => {
   isMenuOpen.value = false;
+};
+
+const hasNavbarOverflow = () => {
+  const navbar = navbarRef.value;
+  const topBar = topBarRef.value;
+  if (!navbar || !topBar) return false;
+
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+
+  return (
+    topBar.scrollWidth > topBar.clientWidth + 1 ||
+    navbar.scrollWidth > viewportWidth + 1
+  );
+};
+
+const scheduleCompactNavMeasure = () => {
+  if (compactMeasureFrame) {
+    window.cancelAnimationFrame(compactMeasureFrame);
+  }
+
+  compactMeasureFrame = window.requestAnimationFrame(() => {
+    compactMeasureFrame = 0;
+
+    if (window.innerWidth <= compactNavBreakpoint) {
+      isCompactNav.value = true;
+      return;
+    }
+
+    if (isCompactNav.value) {
+      isCompactNav.value = false;
+      window.requestAnimationFrame(() => {
+        isCompactNav.value = hasNavbarOverflow();
+      });
+      return;
+    }
+
+    isCompactNav.value = hasNavbarOverflow();
+  });
 };
 
 const openSearch = () => {
@@ -417,7 +460,15 @@ const logout = () => {
 onMounted(() => {
   window.addEventListener(AUTH_CHANGED_EVENT, refreshAuth);
   window.addEventListener("storage", refreshAuth);
+  window.addEventListener("resize", scheduleCompactNavMeasure);
   document.addEventListener("pointerdown", handleDocumentPointerDown);
+
+  if (typeof ResizeObserver !== "undefined" && topBarRef.value) {
+    navResizeObserver = new ResizeObserver(scheduleCompactNavMeasure);
+    navResizeObserver.observe(topBarRef.value);
+  }
+
+  scheduleCompactNavMeasure();
   loadWalletBalance();
   loadMembershipLabel();
   loadNotifications();
@@ -426,19 +477,41 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener(AUTH_CHANGED_EVENT, refreshAuth);
   window.removeEventListener("storage", refreshAuth);
+  window.removeEventListener("resize", scheduleCompactNavMeasure);
   document.removeEventListener("pointerdown", handleDocumentPointerDown);
+  navResizeObserver?.disconnect();
+  navResizeObserver = null;
+
+  if (compactMeasureFrame) {
+    window.cancelAnimationFrame(compactMeasureFrame);
+    compactMeasureFrame = 0;
+  }
 });
 
 watch(isLoggedIn, () => {
   loadWalletBalance();
   loadMembershipLabel();
   loadNotifications();
+  scheduleCompactNavMeasure();
+});
+
+watch(currentRole, () => {
+  scheduleCompactNavMeasure();
+});
+
+watch(isCompactNav, (compact) => {
+  if (!compact) closeMenu();
 });
 </script>
 
 <template>
-  <header id="site-navigation" ref="navbarRef" class="navbar">
-    <div class="top-bar">
+  <header
+    id="site-navigation"
+    ref="navbarRef"
+    class="navbar"
+    :class="{ 'navbar--compact': isCompactNav }"
+  >
+    <div ref="topBarRef" class="top-bar">
       <div class="left-cluster">
         <button
           class="menu-toggle icon-button"
@@ -866,6 +939,7 @@ watch(isLoggedIn, () => {
   top: 0;
   z-index: 50;
   width: 100%;
+  overflow-x: clip;
   background: color-mix(in srgb, #e7fbf7 88%, white);
   border-bottom: 1px solid rgba(17, 156, 145, 0.16);
   box-shadow: 0 10px 28px rgba(17, 156, 145, 0.1);
@@ -873,9 +947,9 @@ watch(isLoggedIn, () => {
 }
 .top-bar {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
   align-items: center;
-  gap: 42px;
+  gap: clamp(18px, 2.4vw, 42px);
   min-height: 94px;
   padding: 12px clamp(28px, 4vw, 72px);
 }
@@ -884,6 +958,7 @@ watch(isLoggedIn, () => {
   grid-row: 1;
   display: flex;
   align-items: center;
+  min-width: 0;
   gap: 18px;
 }
 .brand,
@@ -897,25 +972,27 @@ watch(isLoggedIn, () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 128px;
+  flex: 0 0 152px;
+  width: 152px;
   height: 58px;
   border-radius: 8px;
 }
 .brand-logo {
-  width: 204px;
+  width: 216px;
   height: auto;
-  max-height: 82px;
+  max-height: 64px;
   object-fit: contain;
-  transform: scale(1.8);
+  transform: scale(1.75);
   transform-origin: center;
 }
 .desktop-public-nav {
-  grid-column: 1 / -1;
+  grid-column: 2;
   grid-row: 1;
   justify-self: center;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 0;
   gap: clamp(18px, 2vw, 44px);
 }
 .desktop-public-nav a {
@@ -993,6 +1070,7 @@ watch(isLoggedIn, () => {
   justify-self: end;
   display: flex;
   align-items: center;
+  min-width: 0;
   gap: 12px;
 }
 .icon-button,
@@ -1372,6 +1450,7 @@ watch(isLoggedIn, () => {
     opacity 0.2s ease,
     transform 0.2s ease;
   z-index: 60;
+  box-sizing: border-box;
 }
 .mobile-panel.open {
   opacity: 1;
@@ -1425,24 +1504,114 @@ watch(isLoggedIn, () => {
   width: 100%;
   justify-content: center;
 }
-@media (max-width: 1100px) {
+
+.navbar--compact .top-bar {
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 16px;
+  min-height: 82px;
+  padding: 10px clamp(18px, 3vw, 40px);
+}
+.navbar--compact .left-cluster {
+  min-width: 0;
+  gap: 12px;
+}
+.navbar--compact .left-cluster > .subscription-link,
+.navbar--compact .left-cluster > .coin-link,
+.navbar--compact .left-cluster > .accessibility-link,
+.navbar--compact .desktop-public-nav {
+  display: none;
+}
+.navbar--compact .menu-toggle {
+  display: inline-grid;
+}
+.navbar--compact .brand {
+  flex: 0 0 136px;
+  width: 136px;
+  height: 52px;
+}
+.navbar--compact .brand-logo {
+  width: 190px;
+  transform: scale(1.65);
+}
+.navbar--compact .top-actions {
+  grid-column: 2;
+}
+.navbar--compact .mobile-cta-group {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+.navbar--compact .mobile-cta-group .subscription-link,
+.navbar--compact .mobile-cta-group .coin-link,
+.navbar--compact .mobile-pill-link.accessibility-link {
+  display: inline-flex;
+}
+.navbar--compact .mobile-cta-group .subscription-link,
+.navbar--compact .mobile-cta-group .coin-link,
+.navbar--compact .mobile-cta-group .accessibility-link {
+  min-height: 44px;
+  padding: 0 14px;
+}
+
+@media (max-width: 1240px) {
   .top-bar {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) max-content;
+    gap: 16px;
+    min-height: 82px;
+    padding: 10px clamp(18px, 3vw, 40px);
   }
+  .left-cluster {
+    min-width: 0;
+    gap: 12px;
+  }
+  .top-actions {
+    grid-column: 2;
+  }
+  .left-cluster > .subscription-link,
+  .left-cluster > .coin-link,
+  .left-cluster > .accessibility-link,
   .desktop-public-nav {
     display: none;
   }
   .menu-toggle {
     display: inline-grid;
   }
+  .brand {
+    flex: 0 0 136px;
+    width: 136px;
+    height: 52px;
+  }
+  .brand-logo {
+    width: 190px;
+    transform: scale(1.65);
+  }
+  .mobile-cta-group {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .mobile-cta-group .subscription-link,
+  .mobile-cta-group .coin-link,
+  .mobile-pill-link.accessibility-link {
+    display: inline-flex;
+  }
+  .mobile-cta-group .subscription-link,
+  .mobile-cta-group .coin-link,
+  .mobile-cta-group .accessibility-link {
+    min-height: 44px;
+    padding: 0 14px;
+  }
 }
 @media (max-width: 780px) {
   .top-bar {
-    gap: 16px;
-    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 76px;
+    padding: 10px 8px;
   }
   .left-cluster {
-    gap: 10px;
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 6px;
   }
   .subscription-link,
   .coin-link,
@@ -1450,22 +1619,161 @@ watch(isLoggedIn, () => {
     display: none;
   }
   .mobile-accessibility-button {
-    display: inline-grid;
+    display: none;
+  }
+  .top-actions {
+    flex: 0 0 162px;
+    width: 162px;
+    gap: 6px;
+    justify-self: auto;
+    min-width: 0;
+  }
+  .top-actions > .icon-button,
+  .top-actions > .icon-dropdown,
+  .top-actions > .notification-wrapper {
+    flex: 0 0 36px;
+    width: 36px;
+  }
+  .brand {
+    flex: 0 0 96px;
+    width: 96px;
+    height: 44px;
   }
   .brand-logo {
-    width: 164px;
-    transform: scale(1.3);
+    width: 146px;
+    transform: scale(1.45);
+  }
+  .icon-button,
+  .notification-button,
+  .avatar-button {
+    width: 36px;
+    height: 36px;
+  }
+  .icon-button svg,
+  .notification-button svg,
+  .avatar-button svg {
+    width: 17px;
+    height: 17px;
   }
   .mobile-panel {
+    position: fixed;
+    top: 84px;
+    right: 8px;
+    bottom: 8px;
     left: 8px;
-    width: calc(100vw - 16px);
+    width: auto;
+    max-height: calc(100dvh - 92px);
+    overflow-y: auto;
+    border-radius: 18px;
+    padding: 12px;
   }
   .mobile-cta-group {
     display: grid;
     grid-template-columns: 1fr;
   }
+  .mobile-cta-group .subscription-link,
+  .mobile-cta-group .coin-link,
   .mobile-pill-link.accessibility-link {
     display: inline-flex;
+  }
+  .mobile-cta-group .subscription-link,
+  .mobile-cta-group .coin-link,
+  .mobile-cta-group .accessibility-link {
+    min-height: 44px;
+    padding: 0 14px;
+  }
+}
+
+@media (max-width: 420px) {
+  .top-bar {
+    min-height: 70px;
+    padding-inline: max(6px, env(safe-area-inset-left))
+      max(6px, env(safe-area-inset-right));
+  }
+
+  .left-cluster {
+    flex: 1 1 112px;
+  }
+
+  .top-actions {
+    flex: 0 1 auto;
+    width: auto;
+    gap: 4px;
+  }
+
+  .top-actions > .icon-button,
+  .top-actions > .icon-dropdown,
+  .top-actions > .notification-wrapper {
+    flex: 0 0 34px;
+    width: 34px;
+  }
+
+  .brand {
+    flex: 0 0 80px;
+    width: 80px;
+    height: 40px;
+  }
+
+  .brand-logo {
+    width: 126px;
+    transform: scale(1.36);
+  }
+
+  .icon-button,
+  .notification-button,
+  .avatar-button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .dropdown-panel,
+  .notification-panel,
+  .account-panel {
+    position: fixed;
+    top: 76px;
+    right: 8px;
+    left: 8px;
+    width: auto;
+    max-height: calc(100dvh - 88px);
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 360px) {
+  .top-bar {
+    gap: 6px;
+  }
+
+  .left-cluster {
+    gap: 4px;
+  }
+
+  .brand {
+    flex-basis: 72px;
+    width: 72px;
+  }
+
+  .brand-logo {
+    width: 112px;
+    transform: scale(1.32);
+  }
+
+  .top-actions > .icon-button,
+  .top-actions > .icon-dropdown,
+  .top-actions > .notification-wrapper,
+  .icon-button,
+  .notification-button,
+  .avatar-button {
+    flex-basis: 32px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .icon-button svg,
+  .notification-button svg,
+  .avatar-button svg {
+    width: 16px;
+    height: 16px;
   }
 }
 </style>

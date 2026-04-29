@@ -1,9 +1,10 @@
 const fs = require("fs");
 const path = require("path");
 const { TextDecoder } = require("util");
-const { runPdfOCR } = require("./ocrService");
+const { runImageOCR, runPdfOCR } = require("./ocrService");
 
 const TEXT_ENCODINGS = ["utf-8", "utf-16le", "windows-874"];
+const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"]);
 const THAI_CHAR_PATTERN = /[\u0E00-\u0E7F]/g;
 const THAI_CONSONANT_PATTERN = /[\u0E01-\u0E2E]/;
 const LATIN_CHAR_PATTERN = /[A-Za-z]/g;
@@ -377,6 +378,31 @@ async function parsePdfFile(filePath) {
   }
 }
 
+function isImageBookFile(ext, mimeType) {
+  return IMAGE_EXTENSIONS.has(ext) || /^image\//i.test(String(mimeType || ""));
+}
+
+async function parseImageFile(filePath) {
+  const ocrResult = await runImageOCR(filePath);
+  const rawPages = Array.isArray(ocrResult?.pages) ? ocrResult.pages : [];
+  const ocrPages = rawPages.map((page) => cleanOcrText(page)).filter(Boolean);
+  const fullText = cleanOcrText(rawPages.length ? rawPages.join("\n\n") : ocrResult?.text || "");
+
+  if (!fullText) {
+    const error = new Error("Unable to read text from this image");
+    error.statusCode = 400;
+    error.code = "IMAGE_TEXT_EXTRACTION_FAILED";
+    throw error;
+  }
+
+  return {
+    sourceType: "image",
+    fullText,
+    pages: ocrPages.length ? ocrPages : splitTextToPages(fullText),
+    parseMethod: "image-ocr",
+  };
+}
+
 async function parseBookFile(filePath, mimeType, originalName) {
   const ext = path.extname(originalName || filePath).toLowerCase();
 
@@ -392,7 +418,11 @@ async function parseBookFile(filePath, mimeType, originalName) {
     return parsePdfFile(filePath);
   }
 
-  throw new Error("Only .txt, .json, and .pdf files are supported");
+  if (isImageBookFile(ext, mimeType)) {
+    return parseImageFile(filePath);
+  }
+
+  throw new Error("Only .txt, .json, .pdf, and image files are supported");
 }
 
 module.exports = {

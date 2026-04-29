@@ -217,7 +217,7 @@ onMounted(loadSummary);
 .superadmin-page {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 32px 20px 56px;
+  padding: var(--page-block, 32px) var(--page-gutter, 20px) 56px;
 }
 
 .hero-card,
@@ -443,15 +443,29 @@ onMounted(loadSummary);
 
 @media (max-width: 760px) {
   .superadmin-page {
-    padding-inline: 16px;
+    padding-inline: var(--page-gutter, 16px);
   }
 
   .hero-card {
     flex-direction: column;
+    border-radius: 18px;
+    padding: 20px;
   }
 
   .hero-actions {
     width: 100%;
+  }
+
+  .hero-actions button,
+  .panel,
+  .stat-card {
+    width: 100%;
+  }
+
+  .panel,
+  .stat-card {
+    border-radius: 18px;
+    padding: 18px;
   }
 }
 </style>

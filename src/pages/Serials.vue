@@ -154,6 +154,7 @@ watch(
 <style scoped>
 .serial-page {
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg);
   color: var(--text-strong);
   padding-bottom: 72px;
@@ -169,7 +170,7 @@ watch(
   grid-template-columns: 180px minmax(0, 1fr);
   gap: 24px;
   align-items: center;
-  width: min(100% - 32px, 680px);
+  width: min(100% - calc(var(--page-gutter, 16px) * 2), 680px);
   min-height: 250px;
   margin: 0 auto;
   padding: 28px 0;
@@ -231,7 +232,7 @@ watch(
 
 .story-body,
 .episode-list {
-  width: min(100% - 32px, 620px);
+  width: min(100% - calc(var(--page-gutter, 16px) * 2), 620px);
   margin: 34px auto 0;
   background: var(--surface);
   padding: 24px;
@@ -313,6 +314,23 @@ watch(
 
   .hero-actions {
     justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .hero-actions button {
+    flex: 1 1 150px;
+  }
+
+  .story-body,
+  .episode-list {
+    padding: 18px 14px;
+  }
+
+  .episode-list button {
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+    padding: 12px 14px;
   }
 }
 </style>

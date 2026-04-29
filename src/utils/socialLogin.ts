@@ -1,7 +1,8 @@
 import type { Router } from "vue-router";
 import { API_BASE_URL } from "./api";
 
-export type SocialProvider = "thaid";
+export type SocialProvider = "thaid" | "line" | "facebook";
+
 export type LoginExperienceMode = "standard" | "visual_assist";
 
 export const loginWithSocialProvider = async (
@@ -10,5 +11,7 @@ export const loginWithSocialProvider = async (
   mode: LoginExperienceMode = "standard",
 ) => {
   const params = new URLSearchParams({ mode });
-  window.location.href = `${API_BASE_URL}/api/auth/oauth/${provider}/start?${params.toString()}`;
+  const baseUrl = API_BASE_URL.replace(/\/$/, "");
+
+  window.location.href = `${baseUrl}/api/auth/oauth/${provider}/start?${params.toString()}`;
 };

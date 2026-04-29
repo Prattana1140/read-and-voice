@@ -43,7 +43,7 @@ onMounted(async () => {
 .writer-page {
   max-width: 980px;
   margin: 0 auto;
-  padding: 32px 20px 48px;
+  padding: var(--page-block, 32px) var(--page-gutter, 20px) 48px;
 }
 
 .panel {
@@ -96,6 +96,10 @@ span {
 @media (max-width: 700px) {
   .stats-grid {
     grid-template-columns: 1fr;
+  }
+
+  .panel {
+    padding: 18px;
   }
 }
 </style>

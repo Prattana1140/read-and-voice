@@ -8,6 +8,8 @@ import { redirectAfterLogin } from "../utils/loginRedirect";
 import { loginWithSocialProvider } from "../utils/socialLogin";
 import logoUrl from "../assets/Logo-transparent.png";
 
+type SocialProvider = "facebook" | "line";
+
 const router = useRouter();
 const route = useRoute();
 const wasLoggedOut = route.query.loggedOut === "1";
@@ -18,12 +20,22 @@ const rememberMe = ref(wasLoggedOut ? false : !!localStorage.getItem("remembered
 const showPassword = ref(false);
 
 const loading = ref(false);
-const socialLoading = ref("");
+const socialLoading = ref<SocialProvider | "">("");
 const statusLoading = ref(true);
 const error = ref("");
 const oauthStatus = ref<Record<string, { configured: boolean }>>({});
 
-const thaidReady = computed(() => !!oauthStatus.value.thaid?.configured);
+const facebookReady = computed(() => !!oauthStatus.value.facebook?.configured);
+const lineReady = computed(() => !!oauthStatus.value.line?.configured);
+
+const socialProviderLabel: Record<SocialProvider, string> = {
+  facebook: "Facebook",
+  line: "LINE",
+};
+
+const isSocialProviderReady = (provider: SocialProvider) => {
+  return provider === "facebook" ? facebookReady.value : lineReady.value;
+};
 
 const loadOAuthStatus = async () => {
   statusLoading.value = true;
@@ -79,21 +91,25 @@ const handleLogin = async () => {
   }
 };
 
-const socialLogin = async () => {
+const socialLogin = async (provider: SocialProvider) => {
   error.value = "";
 
-  if (!thaidReady.value) {
-    error.value = "ระบบ ThaiD ยังไม่ได้ตั้งค่า endpoint และ credentials";
+  const providerName = socialProviderLabel[provider];
+
+  if (!isSocialProviderReady(provider)) {
+    error.value = `ระบบ ${providerName} ยังไม่ได้ตั้งค่า endpoint และ credentials`;
     return;
   }
 
-  socialLoading.value = "thaid";
+  socialLoading.value = provider;
 
   try {
-    await loginWithSocialProvider(router, "thaid");
+    await loginWithSocialProvider(router, provider);
   } catch (err: any) {
     error.value =
-      err?.response?.data?.message || "เริ่มต้นการเข้าสู่ระบบด้วย ThaiD ไม่สำเร็จ";
+      err?.response?.data?.message ||
+      `เริ่มต้นการเข้าสู่ระบบด้วย ${providerName} ไม่สำเร็จ`;
+  } finally {
     socialLoading.value = "";
   }
 };
@@ -197,21 +213,55 @@ watch(error, (message) => {
         <span>หรือ</span>
       </div>
 
-      <button
-        class="thaid-submit"
-        type="button"
-        :disabled="loading || !!socialLoading || statusLoading"
-        @click="socialLogin"
-      >
-        <strong>{{ socialLoading === "thaid" ? "กำลังเชื่อมต่อ ThaiD..." : "เข้าสู่ระบบด้วย ThaiD" }}</strong>
-        <small>
-          {{ statusLoading
-            ? "กำลังตรวจสอบสถานะการเชื่อมต่อ"
-            : thaidReady
-              ? "พร้อมใช้งานเมื่อระบบเชื่อมต่อ ThaiD จริง"
-              : "ยังไม่ได้ตั้งค่า endpoint และ credentials ของ ThaiD" }}
-        </small>
-      </button>
+      <div class="social-login-list">
+        <button
+          class="social-submit facebook-submit"
+          type="button"
+          :disabled="loading || !!socialLoading || statusLoading"
+          @click="socialLogin('facebook')"
+        >
+          <span class="social-icon facebook-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path
+                d="M14 8.4h2.4V5h-2.9c-3 0-4.6 1.8-4.6 4.8v2H6.4v3.5h2.5V22h3.8v-6.7h3l.6-3.5h-3.6v-1.6c0-1 .3-1.8 1.3-1.8Z"
+              />
+            </svg>
+          </span>
+          <strong>
+            {{
+              socialLoading === "facebook"
+                ? "กำลังเชื่อมต่อ Facebook..."
+                : "เข้าสู่ระบบด้วย Facebook"
+            }}
+          </strong>
+        </button>
+
+        <button
+          class="social-submit line-submit"
+          type="button"
+          :disabled="loading || !!socialLoading || statusLoading"
+          @click="socialLogin('line')"
+        >
+          <span class="social-icon line-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path
+                d="M12 4C7.6 4 4 6.9 4 10.5c0 2.5 1.7 4.7 4.2 5.8l-.5 2.7c-.1.6.5 1 1 .7l3.4-2.1c4.4-.1 7.9-3 7.9-6.6C20 7.2 16.4 4 12 4Z"
+              />
+              <path
+                class="line-letter"
+                d="M8 9v3.2h2.1M11.3 9v3.2M13.4 12.2V9l2.1 3.2V9M17.8 9h-2v3.2h2M15.8 10.6h1.7"
+              />
+            </svg>
+          </span>
+          <strong>
+            {{
+              socialLoading === "line"
+                ? "กำลังเชื่อมต่อ LINE..."
+                : "เข้าสู่ระบบด้วย LINE"
+            }}
+          </strong>
+        </button>
+      </div>
 
       <p class="login-policy">
         เมื่อคุณสมัครสมาชิกถือว่ายอมรับ
@@ -237,6 +287,7 @@ watch(error, (message) => {
 <style scoped>
 .login-page {
   min-height: calc(100vh - 140px);
+  min-height: calc(100dvh - 140px);
   display: grid;
   place-items: center;
   background: var(--bg);
@@ -258,6 +309,8 @@ watch(error, (message) => {
 
 .login-card {
   width: min(460px, 100%);
+  max-width: 100%;
+  box-sizing: border-box;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 22px;
@@ -306,7 +359,7 @@ watch(error, (message) => {
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   box-sizing: border-box;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .login-input::placeholder {
@@ -337,7 +390,10 @@ watch(error, (message) => {
   cursor: pointer;
   font-size: 14px;
   font-weight: 800;
-  padding: 0;
+  min-height: 34px;
+  border-radius: 999px;
+  padding: 0 8px;
+  line-height: 1;
 }
 
 .login-options {
@@ -370,6 +426,7 @@ watch(error, (message) => {
 }
 
 .login-submit {
+  width: 100%;
   min-height: 52px;
   border: 0;
   border-radius: 12px;
@@ -378,15 +435,16 @@ watch(error, (message) => {
   font-weight: 900;
   font-size: 16px;
   cursor: pointer;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .login-submit:hover:not(:disabled) {
   opacity: 0.95;
+  transform: translateY(-1px);
 }
 
 .login-submit:disabled,
-.thaid-submit:disabled {
+.social-submit:disabled {
   cursor: not-allowed;
   opacity: 0.7;
 }
@@ -416,27 +474,84 @@ watch(error, (message) => {
   padding: 0 10px;
 }
 
-.thaid-submit {
-  min-height: 72px;
-  border-radius: 18px;
-  border: 2px solid #111827;
-  background: linear-gradient(180deg, #ffd60a 0%, #ffca0a 100%);
-  color: #111827;
-  text-align: left;
-  padding: 14px 16px;
+.social-login-list {
   display: grid;
-  gap: 4px;
+  gap: 10px;
+}
+
+.social-submit {
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  border-radius: 12px;
+  color: #ffffff;
+  display: grid;
+  grid-template-columns: 42px 1fr 42px;
+  align-items: center;
+  padding: 0 14px;
   cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  box-sizing: border-box;
 }
 
-.thaid-submit strong {
-  font-size: 18px;
+.social-submit:hover:not(:disabled) {
+  opacity: 0.95;
+  transform: translateY(-1px);
+}
+
+.social-submit strong {
+  grid-column: 2;
+  text-align: center;
+  font-size: 16px;
   font-weight: 900;
+  line-height: 1.2;
+  min-width: 0;
 }
 
-.thaid-submit small {
-  font-size: 12px;
-  line-height: 1.5;
+.social-icon {
+  grid-column: 1;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: #ffffff;
+  display: grid;
+  place-items: center;
+  justify-self: start;
+  line-height: 1;
+  font-weight: 900;
+  flex: 0 0 auto;
+}
+
+.social-icon svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+  fill: currentColor;
+}
+
+.facebook-submit {
+  background: #1877f2;
+}
+
+.facebook-icon {
+  color: #1877f2;
+  box-sizing: border-box;
+}
+
+.line-submit {
+  background: #06c755;
+}
+
+.line-icon {
+  color: #06c755;
+}
+
+.line-letter {
+  fill: none;
+  stroke: #ffffff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 0.8;
 }
 
 .login-policy {
@@ -480,23 +595,214 @@ watch(error, (message) => {
   font-size: 14px;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
+  .login-page {
+    min-height: calc(100dvh - 76px);
+    place-items: start center;
+    padding:
+      clamp(12px, 3.6vw, 18px)
+      max(12px, env(safe-area-inset-right))
+      max(22px, env(safe-area-inset-bottom))
+      max(12px, env(safe-area-inset-left));
+  }
+
   .login-card {
     width: 100%;
-    padding: 24px 18px 20px;
+    max-width: 440px;
+    padding: 24px clamp(14px, 4.5vw, 20px) 20px;
+    border-radius: 20px;
+    gap: 13px;
+    box-shadow: 0 10px 28px rgba(16, 24, 40, 0.08);
+  }
+
+  .brand-logo {
+    width: min(126px, 46vw);
+  }
+
+  .login-title {
+    font-size: 28px;
+    line-height: 1.16;
+  }
+
+  .login-form {
+    gap: 12px;
+  }
+
+  .login-input {
+    min-height: 52px;
+    border-radius: 14px;
+    padding-inline: 14px;
+  }
+
+  .password-field .login-input {
+    padding-right: 82px;
+  }
+
+  .toggle-password {
+    right: 8px;
+    background: var(--primary-soft);
+    color: var(--primary-strong, var(--primary));
+    font-size: 13px;
+    padding-inline: 10px;
+  }
+
+  .login-options {
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.45;
+  }
+
+  .remember-me {
+    min-width: 0;
+  }
+
+  .forgot-link {
+    min-height: 34px;
+    line-height: 1.25;
+  }
+
+  .login-submit,
+  .social-submit {
+    min-height: 54px;
+    border-radius: 14px;
+  }
+
+  .social-divider {
+    margin-block: 0;
+  }
+
+  .social-submit {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 10px;
+    padding: 9px 12px;
+  }
+
+  .social-submit strong {
+    text-align: left;
+    font-size: 14px;
+  }
+
+  .social-icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .login-policy {
+    font-size: 11.5px;
+    line-height: 1.7;
+  }
+
+  .register-text {
+    font-size: 13.5px;
+    line-height: 1.5;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-page {
+    padding-inline: max(10px, env(safe-area-inset-left))
+      max(10px, env(safe-area-inset-right));
+  }
+
+  .login-card {
     border-radius: 18px;
   }
 
   .brand-logo {
-    width: min(130px, 58%);
+    width: min(112px, 44vw);
   }
 
   .login-title {
-    font-size: 30px;
+    font-size: 26px;
   }
 
   .login-options {
+    display: grid;
+    gap: 8px;
+    font-size: 12.5px;
+    justify-items: start;
+  }
+
+  .forgot-link {
+    justify-self: start;
+  }
+
+  .login-submit {
+    font-size: 15px;
+  }
+
+  .social-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .social-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+@media (max-width: 380px) {
+  .login-card {
+    padding: 20px 12px 18px;
+  }
+
+  .login-title {
+    font-size: 24px;
+  }
+
+  .password-field .login-input {
+    padding-right: 74px;
+  }
+
+  .toggle-password {
     font-size: 12px;
+    padding-inline: 8px;
+  }
+
+  .social-submit strong {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 640px) and (max-height: 740px) {
+  .login-page {
+    padding-top: 10px;
+  }
+
+  .login-card {
+    gap: 10px;
+    padding-top: 18px;
+    padding-bottom: 16px;
+  }
+
+  .login-brand {
+    margin-bottom: 0;
+  }
+
+  .brand-logo {
+    width: min(102px, 40vw);
+  }
+
+  .login-title {
+    font-size: 24px;
+  }
+
+  .login-form {
+    gap: 10px;
+  }
+
+  .login-input {
+    min-height: 48px;
+  }
+
+  .login-submit,
+  .social-submit {
+    min-height: 48px;
+  }
+
+  .login-policy {
+    line-height: 1.55;
   }
 }
 </style>

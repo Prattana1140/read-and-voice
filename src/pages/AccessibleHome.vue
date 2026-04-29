@@ -73,7 +73,8 @@ onMounted(() => {
 <style scoped>
 .accessible-home {
   min-height: calc(100vh - 120px);
-  padding: 32px 20px 48px;
+  min-height: calc(100dvh - 120px);
+  padding: var(--page-block, 32px) var(--page-gutter, 20px) 48px;
   background:
     radial-gradient(circle at top left, rgba(255, 214, 10, 0.2), transparent 32%),
     linear-gradient(180deg, #08141c 0%, #0d1e28 100%);
@@ -172,7 +173,13 @@ h1 {
 }
 
 @media (max-width: 720px) {
+  .accessible-home {
+    place-items: start center;
+  }
+
   .accessible-panel {
+    border-width: 3px;
+    border-radius: 20px;
     padding: 22px 18px;
   }
 

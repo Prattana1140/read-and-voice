@@ -103,11 +103,12 @@ const goRegister = () => {
 <style scoped>
 .account-login-page {
   min-height: calc(100vh - 140px);
+  min-height: calc(100dvh - 140px);
   background: var(--bg);
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 24px 16px 32px;
+  padding: var(--page-block, 24px) var(--page-gutter, 16px) 32px;
   box-sizing: border-box;
 }
 
@@ -163,7 +164,7 @@ const goRegister = () => {
   color: var(--text-strong);
   padding: 12px 14px;
   outline: none;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .login-btn {
@@ -200,5 +201,20 @@ const goRegister = () => {
   font-weight: 700;
   cursor: pointer;
   margin-left: 6px;
+}
+
+@media (max-width: 560px) {
+  .account-login-page {
+    align-items: flex-start;
+  }
+
+  .account-login-box {
+    border-radius: 14px;
+    padding: 22px 14px;
+  }
+
+  .title {
+    font-size: 24px;
+  }
 }
 </style>

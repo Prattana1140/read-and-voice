@@ -60,8 +60,8 @@ onMounted(loadOrders);
 </template>
 
 <style scoped>
-.history-page { min-height: 100vh; background: var(--bg); color: var(--text); padding: 24px; }
-.container { width: min(100% - 16px, 1120px); margin: 0 auto; }
+.history-page { min-height: 100vh; min-height: 100dvh; background: var(--bg); color: var(--text); padding: var(--page-block, 24px) var(--page-gutter, 24px); }
+.container { width: min(100%, 1120px); margin: 0 auto; }
 .history-header { display: flex; justify-content: center; margin-bottom: 24px; }
 h1 { margin: 0; color: var(--text-strong); font-size: clamp(34px, 5vw, 52px); font-weight: 900; text-align: center; }
 .filter-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 24px; }
@@ -83,5 +83,5 @@ button { border: 0; background: #10b981; color: #ffffff; cursor: pointer; font-w
 .status-row { margin-top: 12px; flex-wrap: wrap; }
 .order-items { display: grid; gap: 10px; margin-top: 16px; }
 .item-row { border-top: 1px solid var(--border); padding-top: 12px; }
-@media (max-width: 760px) { .filter-bar,.order-head,.status-row,.item-row { flex-direction: column; align-items: flex-start; } }
+@media (max-width: 760px) { .filter-bar,.order-head,.status-row,.item-row { flex-direction: column; align-items: flex-start; } .filter-bar label,.filter-bar select,.filter-bar button { width: 100%; } .order-card { padding: 16px; } }
 </style>

@@ -297,9 +297,10 @@ onMounted(() => {
 
 <style scoped>
 .admin-users-page {
-  padding: 24px;
+  padding: var(--page-block, 24px) var(--page-gutter, 24px);
   background: #f7f8fc;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .page-header {
@@ -497,7 +498,7 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .admin-users-page {
-    padding: 16px;
+    padding: var(--page-block, 16px) var(--page-gutter, 16px);
   }
 
   .page-header {
@@ -507,6 +508,14 @@ onMounted(() => {
 
   .search-input {
     min-width: 100%;
+  }
+
+  .header-actions,
+  .refresh-btn,
+  .back-btn,
+  .filter-select,
+  .role-select {
+    width: 100%;
   }
 }
 </style>

@@ -142,10 +142,12 @@ const register = async () => {
   justify-content: center;
   align-items: center;
   z-index: 999;
+  padding: var(--page-gutter, 16px);
+  overflow-y: auto;
 }
 
 .modal {
-  width: 900px;
+  width: min(900px, 100%);
   background: var(--surface);
   color: var(--text);
   border-radius: 20px;
@@ -190,6 +192,7 @@ const register = async () => {
   padding: 10px;
   border-radius: 10px;
   border: 1px solid #ccc;
+  font-size: 16px;
 }
 
 .submit {
@@ -205,5 +208,24 @@ const register = async () => {
 span {
   color: #00bcd4;
   cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .overlay {
+    align-items: flex-start;
+  }
+
+  .modal {
+    grid-template-columns: 1fr;
+    border-radius: 16px;
+  }
+
+  .left {
+    display: none;
+  }
+
+  .right {
+    padding: 28px 18px;
+  }
 }
 </style>

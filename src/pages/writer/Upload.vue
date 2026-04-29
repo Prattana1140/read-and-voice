@@ -696,7 +696,11 @@ const publishStudioBook = async () => {
           </label>
           <label class="full">
             <span>ไฟล์หนังสือ</span>
-            <input type="file" accept=".pdf,.txt,.json" @change="onFileChange" />
+            <input
+              type="file"
+              accept=".pdf,.txt,.json,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff,image/*"
+              @change="onFileChange"
+            />
           </label>
           <label class="full">
             <span>ไฟล์รูปปก</span>
@@ -770,7 +774,7 @@ const publishStudioBook = async () => {
 .writer-page {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 32px 20px 48px;
+  padding: var(--page-block, 32px) var(--page-gutter, 20px) 48px;
 }
 
 .panel,
@@ -1096,10 +1100,30 @@ textarea {
 }
 
 @media (max-width: 700px) {
+  .panel,
+  .sub-panel,
+  .studio-panel {
+    padding: 16px;
+  }
+
+  .mode-tabs button,
+  .primary-btn,
+  .secondary-btn,
+  .publish-btn {
+    width: 100%;
+    min-height: 46px;
+  }
+
   .form-grid,
   .preview-stats,
   .placement-grid {
     grid-template-columns: 1fr;
+  }
+
+  .status-card,
+  .preview-block header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 </style>

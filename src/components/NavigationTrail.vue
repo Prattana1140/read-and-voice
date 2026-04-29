@@ -182,7 +182,7 @@ function goTo(item: TrailItem) {
 }
 
 .navigation-trail__list {
-  width: min(100% - 32px, var(--content-width));
+  width: min(100% - calc(var(--page-gutter, 16px) * 2), var(--content-width));
   min-height: 36px;
   margin: 0 auto;
   padding: 6px 0;
@@ -234,7 +234,7 @@ function goTo(item: TrailItem) {
 
 @media (max-width: 640px) {
   .navigation-trail__list {
-    width: calc(100% - 24px);
+    width: calc(100% - calc(var(--page-gutter, 12px) * 2));
   }
 
   .navigation-trail__link {

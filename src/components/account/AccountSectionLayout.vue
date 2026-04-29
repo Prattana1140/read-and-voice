@@ -40,7 +40,7 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-.account-page { max-width: 1120px; margin: 0 auto; padding: 32px 20px 56px; }
+.account-page { max-width: 1120px; margin: 0 auto; padding: var(--page-block, 32px) var(--page-gutter, 20px) 56px; }
 .account-shell { display: grid; gap: 20px; }
 .account-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border: 1px solid var(--border); border-radius: 24px; background: var(--surface); box-shadow: var(--shadow); padding: 26px; }
 .eyebrow,h1,.description { margin: 0; }
@@ -52,5 +52,5 @@ h1 { color: var(--text-strong); font-size: clamp(28px, 5vw, 42px); }
 .state-box strong { color: var(--text-strong); }
 .state-box.error { border-color: #fecaca; background: #fef2f2; color: #b91c1c; }
 .state-box.empty { justify-items: start; }
-@media (max-width: 760px) { .account-page { padding-inline: 16px; } .account-header { flex-direction: column; } }
+@media (max-width: 760px) { .account-page { padding-inline: var(--page-gutter, 16px); } .account-header { flex-direction: column; border-radius: 18px; padding: 20px; } .back-btn { width: 100%; } }
 </style>

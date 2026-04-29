@@ -366,12 +366,30 @@ const statements = [
     provider_user_id VARCHAR(191) NOT NULL,
     display_name VARCHAR(255) NULL,
     email VARCHAR(255) NULL,
+    avatar_url TEXT NULL,
     connected_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_social_connections_provider_user (provider, provider_user_id),
     UNIQUE KEY uq_social_connections_user_provider (user_id, provider),
     INDEX idx_social_connections_user (user_id),
     CONSTRAINT fk_social_connections_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `,
+  `
+  CREATE TABLE IF NOT EXISTS login_events (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,
+    provider VARCHAR(40) NOT NULL,
+    provider_user_id VARCHAR(191) NULL,
+    success TINYINT(1) NOT NULL DEFAULT 0,
+    ip_address VARCHAR(45) NULL,
+    user_agent TEXT NULL,
+    message VARCHAR(255) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_login_events_user (user_id),
+    INDEX idx_login_events_provider (provider, provider_user_id),
+    INDEX idx_login_events_created_at (created_at),
+    CONSTRAINT fk_login_events_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `,
   `

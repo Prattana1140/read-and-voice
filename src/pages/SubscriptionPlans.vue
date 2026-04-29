@@ -289,9 +289,10 @@ onMounted(loadPlans);
 <style scoped>
 .vip-page {
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg);
   color: var(--text);
-  padding: 22px 20px 72px;
+  padding: var(--page-block, 22px) var(--page-gutter, 20px) 72px;
 }
 
 .crumb,
@@ -610,7 +611,7 @@ th:nth-child(3) {
 
 @media (max-width: 760px) {
   .vip-page {
-    padding-inline: 12px;
+    padding-inline: var(--page-gutter, 12px);
   }
 
   .vip-hero {
@@ -625,6 +626,24 @@ th:nth-child(3) {
 
   .benefit-board article {
     min-height: 118px;
+  }
+
+  table {
+    min-width: 620px;
+  }
+}
+
+@media (max-width: 420px) {
+  .hero-copy p {
+    font-size: 38px;
+  }
+
+  .hero-copy h1 {
+    font-size: 24px;
+  }
+
+  .admin-hero-image {
+    aspect-ratio: 4 / 3;
   }
 }
 </style>

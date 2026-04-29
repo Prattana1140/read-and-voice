@@ -131,8 +131,9 @@ onMounted(() => {
 <style scoped>
 .edit-page {
   min-height: 100vh;
+  min-height: 100dvh;
   background: #f6f8fc;
-  padding: 24px;
+  padding: var(--page-block, 24px) var(--page-gutter, 24px);
 }
 
 .container {
@@ -192,7 +193,7 @@ onMounted(() => {
   border-radius: 12px;
   padding: 12px 14px;
   outline: none;
-  font-size: 15px;
+  font-size: 16px;
   box-sizing: border-box;
 }
 
@@ -208,5 +209,23 @@ onMounted(() => {
   color: white;
   font-weight: 700;
   cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .back-btn,
+  .save-btn {
+    width: 100%;
+  }
+
+  .state-box,
+  .form-card {
+    border-radius: 16px;
+    padding: 18px;
+  }
 }
 </style>

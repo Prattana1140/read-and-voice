@@ -265,4 +265,25 @@ h2 {
     width: 100%;
   }
 }
+
+@media (max-width: 420px) {
+  .book-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .book-card {
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .book-card img {
+    width: 76px;
+    height: 104px;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
 </style>

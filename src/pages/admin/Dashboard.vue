@@ -253,8 +253,9 @@ onMounted(() => {
 <style scoped>
 .admin-page {
   min-height: 100vh;
+  min-height: 100dvh;
   background: #f6f8fc;
-  padding: 24px;
+  padding: var(--page-block, 24px) var(--page-gutter, 24px);
 }
 
 .container {
@@ -459,7 +460,7 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .admin-page {
-    padding: 16px;
+    padding: var(--page-block, 16px) var(--page-gutter, 16px);
   }
 
   .page-header {
@@ -468,6 +469,17 @@ onMounted(() => {
 
   .stats-grid {
     grid-template-columns: 1fr;
+  }
+
+  .header-actions,
+  .top-btn,
+  .search-input {
+    width: 100%;
+  }
+
+  .stat-card,
+  .state-box {
+    padding: 18px;
   }
 }
 </style>

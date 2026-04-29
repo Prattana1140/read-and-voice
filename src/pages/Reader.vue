@@ -27,8 +27,9 @@ const router = useRouter();
 .reader-legacy-page {
   display: grid;
   min-height: calc(100vh - 120px);
+  min-height: calc(100dvh - 120px);
   place-items: center;
-  padding: 24px;
+  padding: var(--page-block, 24px) var(--page-gutter, 24px);
 }
 
 .notice {
@@ -76,5 +77,20 @@ button {
 button.ghost {
   background: #eef2ff;
   color: #3730a3;
+}
+
+@media (max-width: 560px) {
+  .reader-legacy-page {
+    place-items: start center;
+  }
+
+  .notice {
+    padding: 22px 16px;
+  }
+
+  .actions,
+  .actions button {
+    width: 100%;
+  }
 }
 </style>

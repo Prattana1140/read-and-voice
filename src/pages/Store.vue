@@ -217,7 +217,7 @@ const goToCart = () => {
   max-width: var(--content-width);
   min-height: 100%;
   margin: 0 auto;
-  padding: 28px 20px 44px;
+  padding: var(--page-block, 28px) var(--page-gutter, 20px) 44px;
   background: var(--bg);
 }
 
@@ -309,7 +309,7 @@ const goToCart = () => {
 
 .book-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
   gap: 20px;
 }
 
@@ -376,6 +376,50 @@ const goToCart = () => {
 @media (max-width: 768px) {
   .store-header {
     flex-direction: column;
+  }
+
+  .store-header h1 {
+    font-size: 30px;
+  }
+
+  .header-actions,
+  .top-btn,
+  .search-box {
+    width: 100%;
+  }
+
+  .book-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+  }
+
+  .book-card {
+    padding: 10px;
+  }
+
+  .book-card img {
+    height: auto;
+    aspect-ratio: 3 / 4;
+  }
+
+  .book-card h3 {
+    font-size: 15px;
+    min-height: 42px;
+  }
+
+  .card-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .mini-btn {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 380px) {
+  .book-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

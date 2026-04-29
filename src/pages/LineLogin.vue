@@ -43,10 +43,11 @@ const login = async () => {
 <style scoped>
 .social-page {
   min-height: calc(100vh - 140px);
+  min-height: calc(100dvh - 140px);
   display: grid;
   place-items: center;
   background: var(--bg);
-  padding: 24px;
+  padding: var(--page-block, 24px) var(--page-gutter, 24px);
 }
 
 .card {
@@ -94,5 +95,15 @@ p {
 .error {
   color: var(--danger);
   font-weight: 800;
+}
+
+@media (max-width: 560px) {
+  .social-page {
+    place-items: start center;
+  }
+
+  .card {
+    padding: 22px 16px;
+  }
 }
 </style>

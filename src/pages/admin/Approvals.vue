@@ -263,9 +263,9 @@ onMounted(fetchPendingBooks);
 
 <style scoped>
 .approvals-page {
-  width: min(1180px, calc(100% - 32px));
+  width: min(1180px, calc(100% - calc(var(--page-gutter, 16px) * 2)));
   margin: 0 auto;
-  padding: 32px 0 56px;
+  padding: var(--page-block, 32px) 0 56px;
   display: grid;
   gap: 20px;
 }
@@ -541,6 +541,22 @@ textarea {
   .form-grid,
   .book-head {
     grid-template-columns: 1fr;
+  }
+
+  .hero,
+  .queue,
+  .approval-card {
+    padding: 18px;
+  }
+
+  .book-head img {
+    width: min(160px, 52vw);
+    height: auto;
+    aspect-ratio: 5 / 7;
+  }
+
+  .actions .primary-btn {
+    width: 100%;
   }
 }
 </style>

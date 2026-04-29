@@ -161,9 +161,9 @@ onMounted(fetchBooks);
 
 <style scoped>
 .writer-page {
-  width: min(1240px, calc(100% - 32px));
+  width: min(1240px, calc(100% - calc(var(--page-gutter, 16px) * 2)));
   margin: 0 auto;
-  padding: 32px 0 52px;
+  padding: var(--page-block, 32px) 0 52px;
 }
 
 .page-header,
@@ -348,6 +348,17 @@ td small {
 
   .primary-btn {
     width: 100%;
+  }
+
+  .page-header,
+  .panel,
+  .stats-grid article {
+    padding: 16px;
+  }
+
+  .panel-head {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 </style>

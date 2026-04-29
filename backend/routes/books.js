@@ -37,6 +37,18 @@ fs.mkdirSync(uploadDir, { recursive: true });
 fs.mkdirSync(coverUploadDir, { recursive: true });
 
 const bookFileFields = new Set(["book_file", "file", "book", "ebook", "pdf"]);
+const bookFileExtensions = new Set([
+  ".pdf",
+  ".txt",
+  ".json",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+  ".bmp",
+  ".tif",
+  ".tiff",
+]);
 const coverFileFields = new Set([
   "cover_file",
   "cover",
@@ -66,8 +78,8 @@ const upload = multer({
       return cb(new Error("รองรับรูปปกเฉพาะ .jpg .jpeg .png และ .webp"));
     }
     if (bookFileFields.has(file.fieldname)) {
-      if ([".pdf", ".txt", ".json"].includes(ext)) return cb(null, true);
-      return cb(new Error("รองรับเฉพาะไฟล์ .pdf .txt และ .json"));
+      if (bookFileExtensions.has(ext)) return cb(null, true);
+      return cb(new Error("รองรับเฉพาะไฟล์ .pdf .txt .json และไฟล์ภาพสแกน"));
     }
     return cb(null, false); // ← field อื่นๆ skip แทน error
   },

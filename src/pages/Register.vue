@@ -207,8 +207,9 @@ watch(error, (message) => {
   display: grid;
   place-items: center;
   z-index: 9999;
-  padding: 24px;
+  padding: var(--page-gutter, 24px);
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
 .sr-only {
@@ -307,7 +308,7 @@ watch(error, (message) => {
   color: var(--text-strong);
   padding: 0 14px;
   box-sizing: border-box;
-  font-size: 14px;
+  font-size: 16px;
   outline: none;
 }
 
@@ -415,7 +416,12 @@ select.input {
 
 @media (max-width: 560px) {
   .register-modal {
-    padding: 14px;
+    place-items: start center;
+    padding:
+      max(12px, env(safe-area-inset-top))
+      max(12px, env(safe-area-inset-right))
+      max(18px, env(safe-area-inset-bottom))
+      max(12px, env(safe-area-inset-left));
   }
 
   .register-card {

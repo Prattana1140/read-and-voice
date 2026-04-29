@@ -126,7 +126,8 @@ onMounted(loadWallet);
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
-  padding: 24px;
+  min-height: 100dvh;
+  padding: var(--page-block, 24px) var(--page-gutter, 24px);
 }
 
 .hero,
@@ -288,6 +289,25 @@ button {
 @media (max-width: 720px) {
   .hero {
     grid-template-columns: 1fr;
+    padding: 20px;
+  }
+
+  .balance-card strong {
+    font-size: 36px;
+  }
+
+  .package-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-head,
+  .tx-list article {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .tx-amount {
+    text-align: left;
   }
 }
 </style>

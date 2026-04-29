@@ -36,6 +36,19 @@ const successMessage = ref("");
 const errorMessage = ref("");
 
 const API_BASE = `${API_BASE_URL}/api`;
+const bookFileExtensions = [
+  ".txt",
+  ".pdf",
+  ".json",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+  ".bmp",
+  ".tif",
+  ".tiff",
+];
+const bookFileAccept = `${bookFileExtensions.join(",")},image/*`;
 
 const fetchCategories = async () => {
   try {
@@ -62,14 +75,11 @@ const handleFileChange = (event: Event) => {
 
   const file = files[0];
   const lowerName = file.name.toLowerCase();
-  const isValid =
-    lowerName.endsWith(".txt") ||
-    lowerName.endsWith(".pdf") ||
-    lowerName.endsWith(".json");
+  const isValid = bookFileExtensions.some((ext) => lowerName.endsWith(ext));
 
   if (!isValid) {
     selectedFile.value = null;
-    errorMessage.value = "รองรับเฉพาะไฟล์ .txt .pdf และ .json";
+    errorMessage.value = "รองรับเฉพาะไฟล์ .txt .pdf .json และไฟล์ภาพสแกน";
     target.value = "";
     return;
   }
@@ -236,7 +246,7 @@ onMounted(() => {
   <div class="upload-page">
     <div class="upload-card">
       <h1>อัปโหลดหนังสือ</h1>
-      <p class="subtitle">รองรับไฟล์ .txt .pdf และ .json</p>
+      <p class="subtitle">รองรับไฟล์ .txt .pdf .json และไฟล์ภาพสแกน</p>
 
       <div class="form-group">
         <label>ชื่อหนังสือ</label>
@@ -276,7 +286,7 @@ onMounted(() => {
         <input
           ref="fileInput"
           type="file"
-          accept=".txt,.pdf,.json"
+          :accept="bookFileAccept"
           @change="handleFileChange"
         />
         <p v-if="selectedFile" class="file-name">
@@ -325,11 +335,12 @@ onMounted(() => {
 <style scoped>
 .upload-page {
   min-height: 100vh;
+  min-height: 100dvh;
   background: #f7f8fc;
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 40px 20px;
+  padding: var(--page-block, 40px) var(--page-gutter, 20px);
 }
 
 .upload-card {
@@ -369,7 +380,7 @@ h1 {
   border: 1px solid #d8dce7;
   border-radius: 12px;
   padding: 12px 14px;
-  font-size: 15px;
+  font-size: 16px;
   box-sizing: border-box;
   background: var(--surface);
   color: var(--text-strong);
@@ -434,5 +445,29 @@ h1 {
   margin-top: 16px;
   color: #b00020;
   font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .upload-card {
+    border-radius: 16px;
+    padding: 20px 14px;
+  }
+
+  h1 {
+    font-size: 24px;
+    line-height: 1.25;
+  }
+
+  .subtitle {
+    margin-bottom: 18px;
+  }
+
+  .placement-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .upload-btn {
+    min-height: 52px;
+  }
 }
 </style>

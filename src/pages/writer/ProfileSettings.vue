@@ -212,7 +212,7 @@ onMounted(loadProfile);
 .writer-profile-page {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 32px 20px 56px;
+  padding: var(--page-block, 32px) var(--page-gutter, 20px) 56px;
 }
 
 .hero-card,
@@ -383,6 +383,7 @@ select {
   color: var(--text-strong);
   padding: 12px 14px;
   font: inherit;
+  font-size: 16px;
 }
 
 textarea {
@@ -426,6 +427,23 @@ textarea {
   .hero-actions button,
   .form-actions button {
     width: 100%;
+  }
+
+  .hero-card,
+  .panel {
+    border-radius: 18px;
+    padding: 18px;
+  }
+
+  .profile-row {
+    grid-template-columns: 74px minmax(0, 1fr);
+  }
+
+  .avatar-frame,
+  .avatar-frame img {
+    width: 74px;
+    height: 74px;
+    border-radius: 22px;
   }
 }
 </style>

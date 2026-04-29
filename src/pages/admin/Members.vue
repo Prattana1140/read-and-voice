@@ -103,12 +103,13 @@ onMounted(loadUsers);
 
 <style scoped>
 .page {
-  padding: 24px;
+  padding: var(--page-block, 24px) var(--page-gutter, 24px);
 }
 .card {
   background: var(--surface);
   padding: 20px;
   border-radius: 16px;
+  overflow-x: auto;
 }
 table {
   width: 100%;
@@ -136,5 +137,19 @@ button {
 }
 .error {
   color: #dc2626;
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 16px;
+  }
+
+  table {
+    min-width: 640px;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
 }
 </style>

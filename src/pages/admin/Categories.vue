@@ -126,7 +126,7 @@ onMounted(loadCategories);
 
 <style scoped>
 .page {
-  padding: 24px;
+  padding: var(--page-block, 24px) var(--page-gutter, 24px);
 }
 .card {
   background: #fff;
@@ -140,6 +140,8 @@ onMounted(loadCategories);
 }
 input {
   flex: 1;
+  min-width: 0;
+  font-size: 16px;
   padding: 10px;
 }
 button {
@@ -169,5 +171,26 @@ td {
 }
 .error {
   color: #dc2626;
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 16px;
+    overflow-x: auto;
+  }
+
+  .form-row,
+  .actions {
+    flex-direction: column;
+  }
+
+  button,
+  input {
+    width: 100%;
+  }
+
+  table {
+    min-width: 520px;
+  }
 }
 </style>

@@ -94,7 +94,7 @@ onMounted(loadBooks);
 .writer-page {
   max-width: 1040px;
   margin: 0 auto;
-  padding: 32px 20px 48px;
+  padding: var(--page-block, 32px) var(--page-gutter, 20px) 48px;
 }
 
 .panel,
@@ -200,6 +200,14 @@ button {
   .book-item {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .panel {
+    padding: 18px;
+  }
+
+  button {
+    width: 100%;
   }
 }
 </style>

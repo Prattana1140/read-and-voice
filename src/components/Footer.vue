@@ -81,7 +81,7 @@ const notificationSettingsLink = computed(() => (isLoggedIn.value ? "/notificati
 .footer-bottom {
   max-width: 1220px;
   margin: 0 auto;
-  padding-inline: 28px;
+  padding-inline: var(--page-gutter, 28px);
 }
 
 .footer-inner {
@@ -176,6 +176,11 @@ const notificationSettingsLink = computed(() => (isLoggedIn.value ? "/notificati
 
 @media (max-width: 560px) {
   .footer-inner {
+    padding-top: 34px;
+    padding-bottom: 24px;
+  }
+
+  .footer-inner {
     grid-template-columns: 1fr;
     gap: 24px;
   }
@@ -202,6 +207,7 @@ const notificationSettingsLink = computed(() => (isLoggedIn.value ? "/notificati
 
   .footer-bottom {
     gap: 10px;
+    padding-inline: var(--page-gutter, 16px);
   }
 }
 </style>
