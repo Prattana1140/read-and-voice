@@ -5,8 +5,68 @@ const { verifyToken } = require("../middleware/auth");
 const router = express.Router();
 
 const SOCIAL_PROVIDERS = ["line"];
+const DEFAULT_NOTIFICATION_SETTINGS = {
+  writers: true,
+  series: true,
+  promotions: false,
+  system: true,
+};
+
+const DEFAULT_PREFERENCES = {
+  reader: {
+    color_mode: "light",
+    reading_mode: "continuous",
+    font_size: 20,
+    line_height: 2,
+  },
+  tts: {
+    rate: 1,
+    pitch: 1,
+    volume: 1,
+    voice: "",
+  },
+  accessibility: {
+    enabled: false,
+    high_contrast: false,
+    large_text: false,
+    increased_spacing: false,
+  },
+};
 
 let tablesReady;
+let notificationSettingsSchemaReady;
+
+async function ensureColumn(tableName, columnName, definition) {
+  try {
+    await db.query(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+  } catch (error) {
+    if (error && error.code === "ER_DUP_FIELDNAME") return;
+    throw error;
+  }
+}
+
+async function ensureNotificationSettingsSchema() {
+  if (!notificationSettingsSchemaReady) {
+    notificationSettingsSchemaReady = Promise.all([
+      ensureColumn("user_notification_settings", "writers", "TINYINT(1) NOT NULL DEFAULT 1"),
+      ensureColumn("user_notification_settings", "series", "TINYINT(1) NOT NULL DEFAULT 1"),
+      ensureColumn("user_notification_settings", "promotions", "TINYINT(1) NOT NULL DEFAULT 0"),
+      ensureColumn("user_notification_settings", "system", "TINYINT(1) NOT NULL DEFAULT 1"),
+      ensureColumn(
+        "user_notification_settings",
+        "created_at",
+        "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+      ),
+      ensureColumn(
+        "user_notification_settings",
+        "updated_at",
+        "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+      ),
+    ]).then(() => true);
+  }
+
+  return notificationSettingsSchemaReady;
+}
 
 async function ensureTables() {
   if (!tablesReady) {
@@ -108,10 +168,35 @@ async function ensureTables() {
           CONSTRAINT fk_social_connections_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
       `),
+      db.query(`
+        CREATE TABLE IF NOT EXISTS user_notification_settings (
+          user_id INT PRIMARY KEY,
+          writers TINYINT(1) NOT NULL DEFAULT 1,
+          series TINYINT(1) NOT NULL DEFAULT 1,
+          promotions TINYINT(1) NOT NULL DEFAULT 0,
+          system TINYINT(1) NOT NULL DEFAULT 1,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          CONSTRAINT fk_user_notification_settings_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+      `),
+      db.query(`
+        CREATE TABLE IF NOT EXISTS user_preferences (
+          user_id INT PRIMARY KEY,
+          reader_json LONGTEXT NULL,
+          tts_json LONGTEXT NULL,
+          accessibility_json LONGTEXT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          CONSTRAINT fk_user_preferences_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+      `),
     ]).then(() => true);
   }
 
-  return tablesReady;
+  await tablesReady;
+  await ensureNotificationSettingsSchema();
+  return true;
 }
 
 router.use(verifyToken);
@@ -325,6 +410,38 @@ router.post("/devices", async (req, res) => {
   }
 });
 
+router.post("/devices/logout-all", async (req, res) => {
+  try {
+    await ensureTables();
+    const [result] = await db.query("DELETE FROM user_devices WHERE user_id = ?", [
+      req.user.id,
+    ]);
+    await db.query(
+      `CREATE TABLE IF NOT EXISTS user_session_revocations (
+        user_id INT PRIMARY KEY,
+        revoked_after DATETIME NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        CONSTRAINT fk_user_session_revocations_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )`,
+    );
+    await db.query(
+      `INSERT INTO user_session_revocations (user_id, revoked_after)
+       VALUES (?, NOW())
+       ON DUPLICATE KEY UPDATE revoked_after = NOW(), updated_at = CURRENT_TIMESTAMP`,
+      [req.user.id],
+    );
+
+    return res.json({
+      message: "ออกจากระบบทุกอุปกรณ์แล้ว",
+      deleted_count: result.affectedRows || 0,
+    });
+  } catch (error) {
+    console.error("POST /account/devices/logout-all error:", error);
+    return res.status(500).json({ message: "ออกจากระบบทุกอุปกรณ์ไม่สำเร็จ" });
+  }
+});
+
 router.put("/devices/:id", async (req, res) => {
   try {
     await ensureTables();
@@ -380,6 +497,175 @@ router.delete("/devices/:id", async (req, res) => {
   } catch (error) {
     console.error("DELETE /account/devices/:id error:", error);
     return res.status(500).json({ message: "ลบอุปกรณ์ไม่สำเร็จ" });
+  }
+});
+
+router.get("/notification-settings", async (req, res) => {
+  try {
+    await ensureTables();
+    const [rows] = await db.query(
+      `SELECT writers, series, promotions, system
+       FROM user_notification_settings
+       WHERE user_id = ?
+       LIMIT 1`,
+      [req.user.id],
+    );
+
+    const row = rows[0] || DEFAULT_NOTIFICATION_SETTINGS;
+    return res.json({
+      settings: {
+        writers: Boolean(row.writers),
+        series: Boolean(row.series),
+        promotions: Boolean(row.promotions),
+        system: Boolean(row.system),
+      },
+    });
+  } catch (error) {
+    console.error("GET /account/notification-settings error:", error);
+    return res.status(500).json({ message: "โหลดการตั้งค่าการแจ้งเตือนไม่สำเร็จ" });
+  }
+});
+
+router.put("/notification-settings", async (req, res) => {
+  try {
+    await ensureTables();
+    const settings = {
+      ...DEFAULT_NOTIFICATION_SETTINGS,
+      ...(req.body?.settings && typeof req.body.settings === "object"
+        ? req.body.settings
+        : req.body),
+    };
+
+    await db.query(
+      `INSERT INTO user_notification_settings (user_id, writers, series, promotions, system)
+       VALUES (?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         writers = VALUES(writers),
+         series = VALUES(series),
+         promotions = VALUES(promotions),
+         system = VALUES(system),
+         updated_at = CURRENT_TIMESTAMP`,
+      [
+        req.user.id,
+        Boolean(settings.writers) ? 1 : 0,
+        Boolean(settings.series) ? 1 : 0,
+        Boolean(settings.promotions) ? 1 : 0,
+        Boolean(settings.system) ? 1 : 0,
+      ],
+    );
+
+    return res.json({
+      message: "บันทึกการตั้งค่าการแจ้งเตือนแล้ว",
+      settings: {
+        writers: Boolean(settings.writers),
+        series: Boolean(settings.series),
+        promotions: Boolean(settings.promotions),
+        system: Boolean(settings.system),
+      },
+    });
+  } catch (error) {
+    console.error("PUT /account/notification-settings error:", error);
+    return res.status(500).json({ message: "บันทึกการตั้งค่าการแจ้งเตือนไม่สำเร็จ" });
+  }
+});
+
+function safeParseJson(value, fallback) {
+  if (!value) return fallback;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch (_) {
+    return fallback;
+  }
+}
+
+router.get("/preferences", async (req, res) => {
+  try {
+    await ensureTables();
+    const [rows] = await db.query(
+      `SELECT reader_json, tts_json, accessibility_json, updated_at
+       FROM user_preferences
+       WHERE user_id = ?
+       LIMIT 1`,
+      [req.user.id],
+    );
+
+    const row = rows[0] || {};
+    return res.json({
+      preferences: {
+        reader: {
+          ...DEFAULT_PREFERENCES.reader,
+          ...safeParseJson(row.reader_json, {}),
+        },
+        tts: {
+          ...DEFAULT_PREFERENCES.tts,
+          ...safeParseJson(row.tts_json, {}),
+        },
+        accessibility: {
+          ...DEFAULT_PREFERENCES.accessibility,
+          ...safeParseJson(row.accessibility_json, {}),
+        },
+      },
+      updated_at: row.updated_at || null,
+    });
+  } catch (error) {
+    console.error("GET /account/preferences error:", error);
+    return res.status(500).json({ message: "โหลดการตั้งค่าผู้ใช้ไม่สำเร็จ" });
+  }
+});
+
+router.put("/preferences", async (req, res) => {
+  try {
+    await ensureTables();
+    const incoming = req.body?.preferences || req.body || {};
+    const [existingRows] = await db.query(
+      `SELECT reader_json, tts_json, accessibility_json
+       FROM user_preferences
+       WHERE user_id = ?
+       LIMIT 1`,
+      [req.user.id],
+    );
+    const existing = existingRows[0] || {};
+    const preferences = {
+      reader: {
+        ...DEFAULT_PREFERENCES.reader,
+        ...safeParseJson(existing.reader_json, {}),
+        ...(incoming.reader && typeof incoming.reader === "object" ? incoming.reader : {}),
+      },
+      tts: {
+        ...DEFAULT_PREFERENCES.tts,
+        ...safeParseJson(existing.tts_json, {}),
+        ...(incoming.tts && typeof incoming.tts === "object" ? incoming.tts : {}),
+      },
+      accessibility: {
+        ...DEFAULT_PREFERENCES.accessibility,
+        ...safeParseJson(existing.accessibility_json, {}),
+        ...(incoming.accessibility && typeof incoming.accessibility === "object"
+          ? incoming.accessibility
+          : {}),
+      },
+    };
+
+    await db.query(
+      `INSERT INTO user_preferences (user_id, reader_json, tts_json, accessibility_json)
+       VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         reader_json = VALUES(reader_json),
+         tts_json = VALUES(tts_json),
+         accessibility_json = VALUES(accessibility_json),
+         updated_at = CURRENT_TIMESTAMP`,
+      [
+        req.user.id,
+        JSON.stringify(preferences.reader),
+        JSON.stringify(preferences.tts),
+        JSON.stringify(preferences.accessibility),
+      ],
+    );
+
+    return res.json({ message: "บันทึกการตั้งค่าผู้ใช้แล้ว", preferences });
+  } catch (error) {
+    console.error("PUT /account/preferences error:", error);
+    return res.status(500).json({ message: "บันทึกการตั้งค่าผู้ใช้ไม่สำเร็จ" });
   }
 });
 

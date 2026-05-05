@@ -43,26 +43,41 @@
         }"
       >
         <article
-          v-for="(book, index) in bannerBooks"
-          :key="book.id"
+          v-for="banner in bannerItems"
+          :key="banner.id"
           class="promo-banner"
-          :class="`tone-${(index % 6) + 1}`"
-          @click="goToBook(book.id)"
+          :class="[banner.kind === 'fallback' ? banner.theme : '']"
+          @click="goToBanner(banner)"
         >
-          <div class="promo-copy">
-            <span>{{ bannerLabels[index % bannerLabels.length] }}</span>
-            <h1>{{ book.title }}</h1>
-            <p>{{ book.author }}</p>
-          </div>
           <img
-            :src="getBookCover(book)"
-            :alt="book.title"
+            v-if="banner.kind === 'admin'"
+            class="promo-banner-image"
+            :src="resolveAssetUrl(banner.image_url)"
+            :alt="banner.title || 'Promotion banner'"
             @error="handleImgError"
           />
+          <div v-else class="fallback-promo">
+            <div class="fallback-copy">
+              <span>Read and Voice</span>
+              <strong>{{ banner.label }}</strong>
+              <h1>{{ banner.headline }}</h1>
+              <p>{{ banner.subtitle }}</p>
+            </div>
+            <div class="fallback-covers" aria-hidden="true">
+              <img
+                v-for="cover in banner.covers || []"
+                :key="cover"
+                :src="resolveAssetUrl(cover)"
+                alt=""
+                @error="handleImgError"
+              />
+            </div>
+            <div class="fallback-badge">{{ banner.badge }}</div>
+          </div>
         </article>
 
         <article
-          v-if="bannerBooks.length === 0"
+          v-if="bannerItems.length === 0"
           class="promo-banner tone-1 empty-banner"
         >
           <div class="promo-copy">
@@ -150,8 +165,29 @@ type ShelfResponse = {
   count: number;
 };
 
+type HomeBanner = {
+  id: string;
+  image_url: string;
+  kind?: "admin" | "fallback";
+  title?: string;
+  link_url?: string;
+  sort_order?: number;
+  is_active?: boolean;
+  label?: string;
+  headline?: string;
+  subtitle?: string;
+  badge?: string;
+  theme?: string;
+  covers?: string[];
+};
+
+type PageContentResponse = {
+  homeBanners?: HomeBanner[];
+};
+
 const router = useRouter();
-const bannerSourceBooks = ref<Book[]>([]);
+const homeBanners = ref<HomeBanner[]>([]);
+const fallbackBannerBooks = ref<Book[]>([]);
 const homeSectionItems = ref<HomeSection[]>([]);
 const activeBannerIndex = ref(0);
 let carouselTimer: ReturnType<typeof window.setInterval> | undefined;
@@ -164,8 +200,38 @@ const bannerLabels = [
   "อ่านฟรี",
   "แนะนำ",
 ];
-const bannerShiftPercent = 25;
-const visibleBannerCount = 4;
+const bannerShiftPercent = 100 / 3;
+const visibleBannerCount = 3;
+const fallbackCampaigns = [
+  {
+    label: "MAY MY DAY",
+    headline: "อ่านให้ตาค้าง",
+    subtitle: "รวมเรื่องน่าอ่านที่หยิบแล้ววางไม่ลง",
+    badge: "ลดสูงสุด 45%",
+    theme: "theme-blue",
+  },
+  {
+    label: "Final Call",
+    headline: "รับซื้อตอนนี้",
+    subtitle: "โปรโมชันก่อนหมดสิทธิ์สำหรับนักอ่านตัวจริง",
+    badge: "ถึง 7 พ.ค.",
+    theme: "theme-coral",
+  },
+  {
+    label: "New Release",
+    headline: "บังเอิญเกิดใหม่",
+    subtitle: "นิยายมาใหม่พร้อมให้ตามอ่านต่อเนื่อง",
+    badge: "มาแรง",
+    theme: "theme-warm",
+  },
+  {
+    label: "Recommended",
+    headline: "เล่มเด็ดประจำวัน",
+    subtitle: "คัดจากชั้นหนังสือยอดนิยมของนักอ่าน",
+    badge: "แนะนำ",
+    theme: "theme-green",
+  },
+];
 
 const sectionDefinitions = [
   {
@@ -179,9 +245,43 @@ const sectionDefinitions = [
   { title: "แนะนำ", to: "/recommended", endpoint: "/recommended", limit: 5 },
 ] as const;
 
-const bannerBooks = computed(() => bannerSourceBooks.value.slice(0, 12));
+const bannerItems = computed(() => {
+  const adminBanners = homeBanners.value
+    .filter((banner) => banner.image_url && banner.is_active !== false)
+    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
+    .map((banner) => ({ ...banner, kind: "admin" as const }))
+    .slice(0, 12);
+
+  if (adminBanners.length > 0) return adminBanners;
+
+  return fallbackBannerBooks.value
+    .map((book, index, books) => {
+      const campaign = fallbackCampaigns[index % fallbackCampaigns.length];
+      const covers = [book, books[index + 1], books[index + 2]]
+        .filter(Boolean)
+        .map((item) => item.cover_url || item.cover_image || "")
+        .filter(Boolean);
+
+      return {
+        id: `book-${book.id}`,
+        kind: "fallback" as const,
+        image_url: book.cover_url || book.cover_image || "",
+        title: book.title,
+        link_url: `/book/${book.id}`,
+        is_active: true,
+        label: campaign.label,
+        headline: index % 2 === 0 ? campaign.headline : book.title,
+        subtitle: book.author || campaign.subtitle,
+        badge: campaign.badge,
+        theme: campaign.theme,
+        covers,
+      };
+    })
+    .filter((banner) => banner.image_url)
+    .slice(0, 12);
+});
 const bannerPages = computed(() =>
-  Math.max(1, bannerBooks.value.length - visibleBannerCount + 1),
+  Math.max(1, bannerItems.value.length - visibleBannerCount + 1),
 );
 
 const homeSections = computed(() =>
@@ -208,6 +308,18 @@ const goToShelf = (name: string) => {
 
 const goToBook = (id: number) => {
   router.push({ name: "BookDetail", params: { id } });
+};
+
+const goToBanner = (banner: HomeBanner) => {
+  const link = String(banner.link_url || "").trim();
+  if (!link) return;
+
+  if (link.startsWith("http://") || link.startsWith("https://")) {
+    window.location.href = link;
+    return;
+  }
+
+  router.push(link.startsWith("/") ? link : `/${link}`);
 };
 
 const stopCarousel = () => {
@@ -253,15 +365,21 @@ async function fetchShelfBooks(endpoint: string) {
   return Array.isArray(data?.books) ? data.books : [];
 }
 
+async function fetchPageContent() {
+  const { data } = await api.get<PageContentResponse>("/page-content");
+  homeBanners.value = Array.isArray(data?.homeBanners) ? data.homeBanners : [];
+}
+
 async function loadHomeContent() {
-  const [recommendedBooks, ...sectionBooks] = await Promise.all([
+  const [, recommendedBooks, ...sectionBooks] = await Promise.all([
+    fetchPageContent().catch(() => undefined),
     fetchShelfBooks("/recommended").catch(() => []),
     ...sectionDefinitions.map((section) =>
       fetchShelfBooks(section.endpoint).catch(() => []),
     ),
   ]);
 
-  const mergedBannerSource = [
+  fallbackBannerBooks.value = [
     ...recommendedBooks,
     ...sectionBooks.flat(),
   ].filter(
@@ -269,7 +387,6 @@ async function loadHomeContent() {
       books.findIndex((candidate) => candidate.id === book.id) === index,
   );
 
-  bannerSourceBooks.value = mergedBannerSource;
   homeSectionItems.value = sectionDefinitions.map((section, index) => ({
     title: section.title,
     to: section.to,
@@ -345,9 +462,9 @@ onUnmounted(() => {
   position: relative;
   width: 100%;
   overflow: hidden;
-  background: color-mix(in srgb, var(--surface) 90%, var(--bg));
+  background: color-mix(in srgb, var(--surface) 94%, var(--bg));
   border-bottom: 1px solid var(--border);
-  padding: 10px 0 28px;
+  padding: 4px 0 24px;
 }
 
 .hero-track {
@@ -355,93 +472,219 @@ onUnmounted(() => {
   width: 100%;
   transition: transform 0.55s ease;
   will-change: transform;
-  gap: 10px;
-  padding: 0 18px;
+  gap: 5px;
+  padding: 0 5px;
 }
 
 .promo-banner {
   position: relative;
   isolation: isolate;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 86px;
-  align-items: center;
-  flex: 0 0 calc((100% - 30px) / 4);
-  min-height: 132px;
+  display: block;
+  flex: 0 0 calc((100% - 10px) / 3);
+  aspect-ratio: 16 / 7;
+  min-height: 150px;
+  max-height: 300px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--border) 82%, white);
-  border-radius: 14px;
-  background:
-    radial-gradient(
-      circle at 82% 28%,
-      rgba(255, 255, 255, 0.58),
-      transparent 28%
-    ),
-    linear-gradient(130deg, #b6f3e7, #fff7c8 52%, #ffcad4);
+  border: 0;
+  border-radius: 0;
+  background: #eef7f4;
   color: #163b37;
   cursor: pointer;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-  padding: 14px 16px;
+  box-shadow: none;
+  padding: 0;
 }
 
 .promo-banner::before {
+  content: none;
+}
+
+.promo-banner::after {
+  content: none;
+}
+
+.promo-banner-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.empty-banner {
+  display: grid;
+  align-items: center;
+  padding: 14px 16px;
+}
+
+.fallback-promo {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(145px, 34%);
+  align-items: stretch;
+  width: 100%;
+  height: 100%;
+  min-height: 150px;
+  overflow: hidden;
+  color: #ffffff;
+}
+
+.fallback-promo::before {
   content: "";
   position: absolute;
-  inset: auto -20% -58% 34%;
-  z-index: -1;
-  height: 78%;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 22%, rgba(255, 255, 255, 0.34), transparent 18%),
+    radial-gradient(circle at 88% 18%, rgba(255, 255, 255, 0.26), transparent 20%),
+    linear-gradient(135deg, rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.04));
+}
+
+.fallback-copy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  min-width: 0;
+  padding: clamp(14px, 2vw, 24px);
+}
+
+.fallback-copy span {
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.fallback-copy strong {
+  margin-top: 8px;
+  color: #ffe66d;
+  font-size: clamp(18px, 2.2vw, 38px);
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
+}
+
+.fallback-copy h1 {
+  display: -webkit-box;
+  margin: 8px 0 0;
+  overflow: hidden;
+  color: #ffffff;
+  font-size: clamp(22px, 2.6vw, 46px);
+  font-weight: 900;
+  line-height: 1.06;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  text-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.34),
+    0 8px 18px rgba(0, 0, 0, 0.24);
+}
+
+.fallback-copy p {
+  display: -webkit-box;
+  margin: 8px 0 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: clamp(11px, 1vw, 15px);
+  font-weight: 800;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.fallback-covers {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 12px clamp(12px, 1.4vw, 22px) 12px 0;
+}
+
+.fallback-covers img {
+  width: clamp(58px, 7vw, 118px);
+  aspect-ratio: 3 / 4;
+  flex: 0 0 auto;
+  border: 3px solid rgba(255, 255, 255, 0.88);
+  border-radius: 2px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.26);
+}
+
+.fallback-covers img + img {
+  margin-left: -20%;
+  transform: translateY(10%);
+}
+
+.fallback-covers img:first-child {
+  transform: translateY(-4%) rotate(-2deg);
+}
+
+.fallback-covers img:nth-child(2) {
+  transform: translateY(8%) rotate(3deg);
+}
+
+.fallback-covers img:nth-child(3) {
+  transform: translateY(-2%) rotate(2deg);
+}
+
+.fallback-badge {
+  position: absolute;
+  right: 18px;
+  bottom: 14px;
+  z-index: 2;
+  min-width: 76px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.34);
-  transform: rotate(-12deg);
+  background: #ffffff;
+  color: #0f5ee8;
+  font-size: clamp(15px, 1.8vw, 30px);
+  font-weight: 900;
+  line-height: 1;
+  padding: 9px 12px;
+  text-align: center;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
+}
+
+.theme-blue .fallback-promo {
+  background: linear-gradient(105deg, #0676f9 0%, #0097ff 52%, #0063d8 100%);
+}
+
+.theme-coral .fallback-promo {
+  background: linear-gradient(105deg, #fb6978 0%, #ff8a76 45%, #ffd4c5 100%);
+}
+
+.theme-warm .fallback-promo {
+  background: linear-gradient(105deg, #d7b18d 0%, #f4d7bd 46%, #b77957 100%);
+}
+
+.theme-green .fallback-promo {
+  background: linear-gradient(105deg, #0a9f86 0%, #3fc891 48%, #f2cd5d 100%);
+}
+
+.theme-coral .fallback-badge,
+.theme-warm .fallback-badge {
+  color: #e01b4f;
 }
 
 .promo-banner.tone-2 {
-  background:
-    radial-gradient(
-      circle at 76% 24%,
-      rgba(255, 255, 255, 0.66),
-      transparent 26%
-    ),
-    linear-gradient(135deg, #bde9ff, #d8f7ff 48%, #ffe5a8);
+  background: #eef7f4;
 }
 
 .promo-banner.tone-3 {
-  background:
-    radial-gradient(
-      circle at 76% 24%,
-      rgba(255, 255, 255, 0.62),
-      transparent 26%
-    ),
-    linear-gradient(135deg, #b5f7bc, #f0ffd9 48%, #fff2a8);
+  background: #eef7f4;
 }
 
 .promo-banner.tone-4 {
-  background:
-    radial-gradient(
-      circle at 78% 26%,
-      rgba(255, 255, 255, 0.64),
-      transparent 28%
-    ),
-    linear-gradient(135deg, #d7f7ff, #d9ffe8 48%, #ffd9ea);
+  background: #eef7f4;
 }
 
 .promo-banner.tone-5 {
-  background:
-    radial-gradient(
-      circle at 78% 26%,
-      rgba(255, 255, 255, 0.64),
-      transparent 28%
-    ),
-    linear-gradient(135deg, #e3f1ff, #fff0c9 48%, #d7ffe3);
+  background: #eef7f4;
 }
 
 .promo-banner.tone-6 {
-  background:
-    radial-gradient(
-      circle at 78% 26%,
-      rgba(255, 255, 255, 0.64),
-      transparent 28%
-    ),
-    linear-gradient(135deg, #ccfff4, #f5fdd1 48%, #e8dcff);
+  background: #eef7f4;
 }
 
 .promo-copy {
@@ -455,47 +698,43 @@ onUnmounted(() => {
   display: inline-flex;
   margin-bottom: 6px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
-  color: #078367;
+  background: rgba(0, 111, 88, 0.72);
+  color: #ffffff;
   font-size: 10px;
   font-weight: 900;
   padding: 3px 8px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.38);
 }
 
 .promo-copy h1 {
   display: -webkit-box;
   margin: 0;
   overflow: hidden;
-  color: #0b2f2b;
+  color: #ffffff;
   font-size: 17px;
   font-weight: 900;
   line-height: 1.28;
   line-clamp: 2;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.72),
+    0 5px 14px rgba(0, 0, 0, 0.42);
 }
 
 .promo-copy p {
   display: -webkit-box;
   margin: 6px 0 0;
   overflow: hidden;
-  color: rgba(11, 47, 43, 0.72);
+  color: rgba(255, 255, 255, 0.88);
   font-size: 11px;
   font-weight: 800;
   line-clamp: 1;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
-}
-
-.promo-banner img {
-  position: relative;
-  z-index: 1;
-  justify-self: end;
-  width: 150px;
-  aspect-ratio: 3 / 4;
-  border-radius: 10px;
-  object-fit: cover;
-  box-shadow: 0 8px 16px rgba(8, 47, 43, 0.18);
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.68),
+    0 4px 12px rgba(0, 0, 0, 0.38);
 }
 
 .hero-arrow {
@@ -533,16 +772,16 @@ onUnmounted(() => {
 
 .hero-dots {
   position: absolute;
-  bottom: 8px;
+  bottom: 7px;
   left: 50%;
   display: flex;
-  gap: 7px;
+  gap: 8px;
   transform: translateX(-50%);
 }
 
 .hero-dots button {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   min-height: 0;
   border: 0;
   border-radius: 999px;
@@ -556,7 +795,7 @@ onUnmounted(() => {
 }
 
 .hero-dots button.active {
-  width: 14px;
+  width: 8px;
   background: var(--primary);
 }
 
@@ -1000,8 +1239,10 @@ onUnmounted(() => {
   }
 
   .promo-banner {
-    flex: 0 0 82%;
-    border-radius: 12px;
+    flex: 0 0 86%;
+    min-height: 118px;
+    max-height: none;
+    border-radius: 0;
   }
 
   .book-grid {
@@ -1040,13 +1281,11 @@ onUnmounted(() => {
   }
 
   .hero-strip {
-    padding-top: 8px;
+    padding-top: 4px;
   }
 
   .promo-banner {
-    grid-template-columns: minmax(0, 1fr) 112px;
-    min-height: 200px;
-    padding: 20px;
+    padding: 0;
   }
 
   .hero-arrow {
@@ -1109,18 +1348,18 @@ onUnmounted(() => {
   }
 
   .hero-track {
-    padding-inline: 10px;
+    gap: 4px;
+    padding-inline: 4px;
   }
 
   .promo-banner {
     flex-basis: 88%;
-    grid-template-columns: minmax(0, 1fr) 88px;
-    min-height: 168px;
-    padding: 16px;
+    min-height: 104px;
+    padding: 0;
   }
 
-  .promo-banner img {
-    width: 86px;
+  .promo-banner::after {
+    content: none;
   }
 
   .promo-copy h1 {

@@ -84,6 +84,9 @@ onMounted(loadWallet);
 
     <p v-if="message" class="alert success">{{ message }}</p>
     <p v-if="errorMessage" class="alert error">{{ errorMessage }}</p>
+    <p class="alert demo">
+      โหมดเดโม: การเติมคอยน์ในหน้านี้เป็นการจำลองธุรกรรม ยังไม่เชื่อมต่อผู้ให้บริการชำระเงินจริง
+    </p>
 
     <section v-if="loading" class="panel">กำลังโหลดกระเป๋าคอยน์...</section>
 
@@ -202,6 +205,11 @@ h2 {
 .error {
   background: #fef2f2;
   color: #dc2626;
+}
+
+.demo {
+  background: #fffbeb;
+  color: #92400e;
 }
 
 .package-grid {

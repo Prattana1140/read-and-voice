@@ -1,4 +1,5 @@
 import { reactive } from "vue";
+import api from "./api";
 
 export type AccessibilitySettings = {
   enabled: boolean;
@@ -66,6 +67,13 @@ export const applyAccessibilitySettings = () => {
 
 const persistAccessibilitySettings = () => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...accessibilityState, settingsVersion: SETTINGS_VERSION }));
+  if (!localStorage.getItem("token")) return;
+
+  api.put("/account/preferences", {
+    preferences: {
+      accessibility: { ...accessibilityState, settingsVersion: SETTINGS_VERSION },
+    },
+  }).catch(() => undefined);
 };
 
 export const announceToScreenReader = (message: string) => {
@@ -174,5 +182,16 @@ export const initializeAccessibility = () => {
   }
 
   applyAccessibilitySettings();
+  if (localStorage.getItem("token")) {
+    api.get("/account/preferences")
+      .then(({ data }) => {
+        const remote = data?.preferences?.accessibility;
+        if (!remote || typeof remote !== "object") return;
+        Object.assign(accessibilityState, normalizeSettings(remote));
+        applyAccessibilitySettings();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...accessibilityState, settingsVersion: SETTINGS_VERSION }));
+      })
+      .catch(() => undefined);
+  }
   document.addEventListener("focusin", handleFocusSpeech);
 };

@@ -1,6 +1,7 @@
 ﻿<script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from "vue-router";
+import { useI18n } from "../utils/i18n";
 
 type TrailItem = {
   fullPath: string;
@@ -9,90 +10,142 @@ type TrailItem = {
 
 const route = useRoute();
 const router = useRouter();
+const { locale, t } = useI18n();
 
-const homeItem: TrailItem = { fullPath: "/", label: "หน้าแรก" };
+const homeItem = computed<TrailItem>(() => ({ fullPath: "/", label: t("nav.home") }));
 
-const routeLabels: Record<string, string> = {
-  Home: "หน้าแรก",
-  Store: "อีบุ๊ก",
-  Serials: "นิยายรายตอน",
-  BookDetail: "รายละเอียดอีบุ๊ก",
-  BestSellers: "ขายดี",
-  NewReleases: "ออกใหม่",
-  Promotions: "โปรโมชัน",
-  FreeBooks: "อ่านฟรี",
-  HallOfFame: "หอเกียรติยศ",
-  Recommended: "แนะนำ",
-  SubscriptionPlans: "แพ็กเกจสมาชิก",
-  CoinWallet: "กระเป๋าคอยน์",
-  ReaderPage: "อ่านอีบุ๊ก",
-  ReaderListenPage: "โหมดอ่านให้ฟัง",
-  MyLibrary: "ชั้นหนังสือของฉัน",
-  WishList: "รายการที่ติดตาม",
-  Cart: "ตะกร้า",
-  OrderHistory: "ประวัติการสั่งซื้อของฉัน",
-  Profile: "ข้อมูลของฉัน",
-  AccountFollowing: "รายการที่ติดตาม",
-  AccountGiftCodes: "โค้ดของขวัญ",
-  AccountBuffet: "สถานะสมาชิก",
-  AccountDevices: "อุปกรณ์ของฉัน",
-  AccountBenefits: "สิทธิพิเศษของฉัน",
-  AccountReviews: "รีวิวของฉัน",
-  AccountAgeVerification: "การยืนยันอายุด้วยบัตรประชาชน",
-  Terms: "เงื่อนไขในการใช้บริการ",
-  PrivacyPolicy: "นโยบายความเป็นส่วนตัว",
-  DataPrivacy: "ความเป็นส่วนตัวของข้อมูล",
-  NotificationSettings: "ตั้งค่าการแจ้งเตือน",
-  WriterDashboard: "ศูนย์นักเขียน",
-  WriterBooks: "หนังสือของฉัน",
-  WriterUpload: "อัปโหลดผลงาน",
-  WriterEditBook: "แก้ไขหนังสือ",
-  WriterStats: "สถิตินักเขียน",
-  AdminDashboard: "จัดการระบบ",
-  AdminBooks: "จัดการหนังสือ",
-  AdminPageContent: "จัดการเนื้อหาหน้าเว็บ",
-  AdminEditBook: "แก้ไขหนังสือ",
-  UploadBook: "เพิ่มหนังสือ",
-  AdminCategories: "จัดการหมวดหมู่",
-  AdminMembers: "จัดการสมาชิก",
-  SuperAdminRoles: "จัดการสิทธิ์ผู้ใช้",
-  SuperAdminUsers: "จัดการผู้ใช้",
-  SuperAdminSettings: "ตั้งค่าระบบ",
+const localizedRouteLabels: Record<"th" | "en", Record<string, string>> = {
+  th: {
+    Home: "หน้าแรก",
+    Store: "อีบุ๊ก",
+    Serials: "นิยายรายตอน",
+    BookDetail: "รายละเอียดอีบุ๊ก",
+    BestSellers: "ขายดี",
+    NewReleases: "ออกใหม่",
+    Promotions: "โปรโมชัน",
+    FreeBooks: "อ่านฟรี",
+    HallOfFame: "หอเกียรติยศ",
+    Recommended: "แนะนำ",
+    SubscriptionPlans: "แพ็กเกจสมาชิก",
+    CoinWallet: "กระเป๋าคอยน์",
+    ReaderPage: "อ่านอีบุ๊ก",
+    ReaderListenPage: "โหมดอ่านให้ฟัง",
+    MyLibrary: "ชั้นหนังสือของฉัน",
+    WishList: "รายการที่ติดตาม",
+    Cart: "ตะกร้า",
+    OrderHistory: "ประวัติการสั่งซื้อของฉัน",
+    Profile: "ข้อมูลของฉัน",
+    AccountFollowing: "รายการที่ติดตาม",
+    AccountGiftCodes: "โค้ดของขวัญ",
+    AccountBuffet: "สถานะสมาชิก",
+    AccountDevices: "อุปกรณ์ของฉัน",
+    AccountBenefits: "สิทธิพิเศษของฉัน",
+    AccountReviews: "รีวิวของฉัน",
+    AccountAgeVerification: "การยืนยันอายุด้วยบัตรประชาชน",
+    Terms: "เงื่อนไขในการใช้บริการ",
+    PrivacyPolicy: "นโยบายความเป็นส่วนตัว",
+    DataPrivacy: "ความเป็นส่วนตัวของข้อมูล",
+    NotificationSettings: "ตั้งค่าการแจ้งเตือน",
+    WriterDashboard: "ศูนย์นักเขียน",
+    WriterBooks: "หนังสือของฉัน",
+    WriterUpload: "อัปโหลดผลงาน",
+    WriterEditBook: "แก้ไขหนังสือ",
+    WriterStats: "สถิตินักเขียน",
+    AdminDashboard: "จัดการระบบ",
+    AdminBooks: "จัดการหนังสือ",
+    AdminPageContent: "จัดการเนื้อหาหน้าเว็บ",
+    AdminEditBook: "แก้ไขหนังสือ",
+    UploadBook: "เพิ่มหนังสือ",
+    AdminCategories: "จัดการหมวดหมู่",
+    AdminMembers: "จัดการสมาชิก",
+    SuperAdminRoles: "จัดการสิทธิ์ผู้ใช้",
+    SuperAdminUsers: "จัดการผู้ใช้",
+    SuperAdminSettings: "ตั้งค่าระบบ",
+  },
+  en: {
+    Home: "Home",
+    Store: "E-books",
+    Serials: "Serials",
+    BookDetail: "Book details",
+    BestSellers: "Best sellers",
+    NewReleases: "New releases",
+    Promotions: "Promotions",
+    FreeBooks: "Free books",
+    HallOfFame: "Hall of fame",
+    Recommended: "Recommended",
+    SubscriptionPlans: "Membership plans",
+    CoinWallet: "Coin wallet",
+    ReaderPage: "Read e-book",
+    ReaderListenPage: "Listen mode",
+    MyLibrary: "My library",
+    WishList: "Wishlist",
+    Cart: "Cart",
+    OrderHistory: "My order history",
+    Profile: "My profile",
+    AccountFollowing: "Following",
+    AccountGiftCodes: "Gift codes",
+    AccountBuffet: "Membership status",
+    AccountDevices: "My devices",
+    AccountBenefits: "My benefits",
+    AccountReviews: "My reviews",
+    AccountAgeVerification: "Age verification",
+    Terms: "Terms of service",
+    PrivacyPolicy: "Privacy policy",
+    DataPrivacy: "Data privacy",
+    NotificationSettings: "Notification settings",
+    WriterDashboard: "Writer center",
+    WriterBooks: "My books",
+    WriterUpload: "Upload work",
+    WriterEditBook: "Edit book",
+    WriterStats: "Writer stats",
+    AdminDashboard: "System management",
+    AdminBooks: "Manage books",
+    AdminPageContent: "Manage page content",
+    AdminEditBook: "Edit book",
+    UploadBook: "Add book",
+    AdminCategories: "Manage categories",
+    AdminMembers: "Manage members",
+    SuperAdminRoles: "Manage user roles",
+    SuperAdminUsers: "Manage users",
+    SuperAdminSettings: "System settings",
+  },
 };
 
-const parentRoutes: Record<string, TrailItem> = {
-  AccountFollowing: { fullPath: "/profile", label: "ข้อมูลของฉัน" },
-  AccountGiftCodes: { fullPath: "/profile", label: "ข้อมูลของฉัน" },
-  AccountBuffet: { fullPath: "/profile", label: "ข้อมูลของฉัน" },
-  AccountDevices: { fullPath: "/profile", label: "ข้อมูลของฉัน" },
-  AccountBenefits: { fullPath: "/profile", label: "ข้อมูลของฉัน" },
-  AccountReviews: { fullPath: "/profile", label: "ข้อมูลของฉัน" },
-  AccountAgeVerification: { fullPath: "/profile", label: "ข้อมูลของฉัน" },
-  OrderHistory: { fullPath: "/profile", label: "ข้อมูลของฉัน" },
-  MyLibrary: { fullPath: "/profile", label: "ข้อมูลของฉัน" },
-  CoinWallet: { fullPath: "/profile", label: "ข้อมูลของฉัน" },
-  Terms: { fullPath: "/profile", label: "ข้อมูลของฉัน" },
-  PrivacyPolicy: { fullPath: "/profile", label: "ข้อมูลของฉัน" },
-  DataPrivacy: { fullPath: "/profile", label: "ข้อมูลของฉัน" },
-  NotificationSettings: { fullPath: "/profile", label: "ข้อมูลของฉัน" },
-  WriterBooks: { fullPath: "/writer", label: "ศูนย์นักเขียน" },
-  WriterUpload: { fullPath: "/writer", label: "ศูนย์นักเขียน" },
-  WriterEditBook: { fullPath: "/writer/books", label: "หนังสือของฉัน" },
-  WriterStats: { fullPath: "/writer", label: "ศูนย์นักเขียน" },
-  AdminBooks: { fullPath: "/admin", label: "จัดการระบบ" },
-  AdminPageContent: { fullPath: "/admin", label: "จัดการระบบ" },
-  AdminEditBook: { fullPath: "/admin/books", label: "จัดการหนังสือ" },
-  UploadBook: { fullPath: "/admin", label: "จัดการระบบ" },
-  AdminCategories: { fullPath: "/admin", label: "จัดการระบบ" },
-  AdminMembers: { fullPath: "/admin", label: "จัดการระบบ" },
-  SuperAdminRoles: { fullPath: "/superadmin/users", label: "จัดการผู้ใช้" },
-  SuperAdminSettings: { fullPath: "/superadmin/users", label: "จัดการผู้ใช้" },
+const routeLabels = computed(() => localizedRouteLabels[locale.value]);
+
+const parentRoutes: Record<string, { fullPath: string; routeName: string }> = {
+  AccountFollowing: { fullPath: "/profile", routeName: "Profile" },
+  AccountGiftCodes: { fullPath: "/profile", routeName: "Profile" },
+  AccountBuffet: { fullPath: "/profile", routeName: "Profile" },
+  AccountDevices: { fullPath: "/profile", routeName: "Profile" },
+  AccountBenefits: { fullPath: "/profile", routeName: "Profile" },
+  AccountReviews: { fullPath: "/profile", routeName: "Profile" },
+  AccountAgeVerification: { fullPath: "/profile", routeName: "Profile" },
+  OrderHistory: { fullPath: "/profile", routeName: "Profile" },
+  MyLibrary: { fullPath: "/profile", routeName: "Profile" },
+  CoinWallet: { fullPath: "/profile", routeName: "Profile" },
+  Terms: { fullPath: "/profile", routeName: "Profile" },
+  PrivacyPolicy: { fullPath: "/profile", routeName: "Profile" },
+  DataPrivacy: { fullPath: "/profile", routeName: "Profile" },
+  NotificationSettings: { fullPath: "/profile", routeName: "Profile" },
+  WriterBooks: { fullPath: "/writer", routeName: "WriterDashboard" },
+  WriterUpload: { fullPath: "/writer", routeName: "WriterDashboard" },
+  WriterEditBook: { fullPath: "/writer/books", routeName: "WriterBooks" },
+  WriterStats: { fullPath: "/writer", routeName: "WriterDashboard" },
+  AdminBooks: { fullPath: "/admin", routeName: "AdminDashboard" },
+  AdminPageContent: { fullPath: "/admin", routeName: "AdminDashboard" },
+  AdminEditBook: { fullPath: "/admin/books", routeName: "AdminBooks" },
+  UploadBook: { fullPath: "/admin", routeName: "AdminDashboard" },
+  AdminCategories: { fullPath: "/admin", routeName: "AdminDashboard" },
+  AdminMembers: { fullPath: "/admin", routeName: "AdminDashboard" },
+  SuperAdminRoles: { fullPath: "/superadmin/users", routeName: "SuperAdminUsers" },
+  SuperAdminSettings: { fullPath: "/superadmin/users", routeName: "SuperAdminUsers" },
 };
 
 function fallbackLabel(currentRoute: RouteLocationNormalizedLoaded) {
   const segment = currentRoute.path.split("/").filter(Boolean).at(-1);
-  if (!segment) return homeItem.label;
-  if (/^\d+$/.test(segment)) return "รายละเอียด";
+  if (!segment) return homeItem.value.label;
+  if (/^\d+$/.test(segment)) return locale.value === "th" ? "รายละเอียด" : "Details";
   return segment
     .split("-")
     .filter(Boolean)
@@ -103,19 +156,19 @@ function fallbackLabel(currentRoute: RouteLocationNormalizedLoaded) {
 function getRouteLabel(currentRoute: RouteLocationNormalizedLoaded) {
   const name = typeof currentRoute.name === "string" ? currentRoute.name : "";
   return (
-    routeLabels[name] ||
+    routeLabels.value[name] ||
     (name === "Login"
-      ? "เข้าสู่ระบบ"
+      ? t("account.login")
       : name === "AccountLogin"
-        ? "เข้าสู่ระบบ"
+        ? t("account.login")
         : name === "LineLogin"
-          ? "เข้าสู่ระบบด้วย LINE"
+          ? locale.value === "th" ? "เข้าสู่ระบบด้วย LINE" : "Log in with LINE"
           : name === "Register"
-            ? "สมัครสมาชิก"
+            ? t("account.register")
             : name === "ForgotPassword"
-              ? "ลืมรหัสผ่าน"
+              ? locale.value === "th" ? "ลืมรหัสผ่าน" : "Forgot password"
               : name === "OAuthCallback"
-                ? "เข้าสู่ระบบ"
+                ? t("account.login")
                 : fallbackLabel(currentRoute))
   );
 }
@@ -124,18 +177,22 @@ function withParentTrail(items: TrailItem[]) {
   const name = typeof route.name === "string" ? route.name : "";
   const parent = parentRoutes[name];
   if (!parent || items.some((item) => item.fullPath === parent.fullPath)) return items;
-  return [items[0] || homeItem, parent, ...items.slice(1)];
+  return [
+    items[0] || homeItem.value,
+    { fullPath: parent.fullPath, label: routeLabels.value[parent.routeName] || parent.routeName },
+    ...items.slice(1),
+  ];
 }
 
 const visibleTrail = computed(() => {
-  if (route.path === "/") return [homeItem];
+  if (route.path === "/") return [homeItem.value];
 
   const currentItem: TrailItem = {
     fullPath: route.fullPath,
     label: getRouteLabel(route),
   };
 
-  return withParentTrail([homeItem, currentItem]);
+  return withParentTrail([homeItem.value, currentItem]);
 });
 
 const shouldShowTrail = computed(() => route.path !== "/" && visibleTrail.value.length > 1);
@@ -148,7 +205,7 @@ function goTo(item: TrailItem) {
 </script>
 
 <template>
-  <nav v-if="shouldShowTrail" class="navigation-trail" aria-label="เส้นทางการใช้งาน">
+  <nav v-if="shouldShowTrail" class="navigation-trail" :aria-label="t('a11y.skipNav')">
     <ol class="navigation-trail__list">
       <li
         v-for="(item, index) in visibleTrail"

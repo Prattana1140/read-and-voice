@@ -84,6 +84,10 @@ async function submitReset() {
         }}
       </p>
 
+      <div v-if="!isResetMode" class="demo-note">
+        โหมดเดโม: ระบบยังไม่ส่งอีเมลจริง แต่จะแสดงลิงก์รีเซ็ตตัวอย่างหลังสร้างคำขอสำเร็จ
+      </div>
+
       <form v-if="!isResetMode" class="forgot-form" @submit.prevent="submitRequest">
         <label>
           <span>อีเมล</span>
@@ -207,6 +211,17 @@ h1 {
 .intro {
   color: var(--text-muted);
   line-height: 1.7;
+}
+
+.demo-note {
+  border: 1px solid #fde68a;
+  border-radius: 14px;
+  background: #fffbeb;
+  color: #92400e;
+  font-weight: 800;
+  line-height: 1.6;
+  margin: 16px 0;
+  padding: 12px 14px;
 }
 
 .forgot-form,

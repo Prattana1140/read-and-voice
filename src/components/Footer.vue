@@ -2,9 +2,11 @@
 import { computed } from "vue";
 import logoUrl from "../assets/Logo-transparent.png";
 import { getAuthUser, isAuthenticated } from "../utils/auth";
+import { useI18n } from "../utils/i18n";
 
 type UserRole = "user" | "writer" | "admin" | "superadmin";
 
+const { t } = useI18n();
 const isLoggedIn = computed(() => isAuthenticated());
 const authUser = computed(() => getAuthUser() as { role?: string } | null);
 const currentRole = computed<UserRole | null>(() => {
@@ -17,43 +19,53 @@ const currentRole = computed<UserRole | null>(() => {
   return null;
 });
 
-const canManageCategories = computed(() => currentRole.value === "admin" || currentRole.value === "superadmin");
+const canManageCategories = computed(
+  () => currentRole.value === "admin" || currentRole.value === "superadmin",
+);
 const canWriteBooks = computed(() => currentRole.value === "writer");
 const memberLink = computed(() => (isLoggedIn.value ? "/my-library" : "/login"));
 const recentLink = computed(() => (isLoggedIn.value ? "/profile" : "/login"));
 const walletLink = computed(() => (isLoggedIn.value ? "/coin-wallet" : "/login"));
-const notificationSettingsLink = computed(() => (isLoggedIn.value ? "/notification-settings" : "/login"));
+const notificationSettingsLink = computed(() =>
+  isLoggedIn.value ? "/notification-settings" : "/login",
+);
 </script>
 
 <template>
   <footer class="footer">
     <div class="footer-inner">
       <section class="footer-column">
-        <h3>ดูเนื้อหา</h3>
-        <router-link to="/store">นิยาย</router-link>
-        <router-link to="/subscription-plans">แฟนฟิค</router-link>
-        <router-link to="/serials">การ์ตูน</router-link>
-        <router-link v-if="canManageCategories" to="/admin/categories">หมวดหมู่นิยาย</router-link>
-        <router-link to="/recommended">นิยายแช็ก ออริจินอล</router-link>
+        <h3>{{ t("footer.content") }}</h3>
+        <router-link to="/store">{{ t("nav.books") }}</router-link>
+        <router-link to="/subscription-plans">{{ t("nav.subscription") }}</router-link>
+        <router-link to="/serials">{{ t("nav.serials") }}</router-link>
+        <router-link v-if="canManageCategories" to="/admin/categories">
+          {{ t("footer.categories") }}
+        </router-link>
+        <router-link to="/recommended">{{ t("footer.content") }}</router-link>
       </section>
 
       <section class="footer-column">
-        <h3>เมนูของฉัน</h3>
-        <router-link :to="memberLink">ชั้นอ่านของฉัน</router-link>
-        <router-link :to="recentLink">อ่านล่าสุด</router-link>
-        <router-link v-if="canWriteBooks" to="/writer/books">งานเขียนของฉัน</router-link>
-        <router-link v-if="canWriteBooks" to="/writer/upload">เพิ่มงานเขียนใหม่</router-link>
+        <h3>{{ t("footer.memberMenu") }}</h3>
+        <router-link :to="memberLink">{{ t("account.bookshelf") }}</router-link>
+        <router-link :to="recentLink">{{ t("footer.recent") }}</router-link>
+        <router-link v-if="canWriteBooks" to="/writer/books">
+          {{ t("account.writerDashboard") }}
+        </router-link>
+        <router-link v-if="canWriteBooks" to="/writer/upload">
+          {{ t("account.uploadBook") }}
+        </router-link>
       </section>
 
       <section class="footer-column footer-about">
         <div class="footer-about-links">
-          <h3>เกี่ยวกับเรา</h3>
-          <router-link to="/data-privacy">ติดต่อเรา</router-link>
-          <router-link to="/terms">เงื่อนไขการใช้บริการ</router-link>
-          <router-link to="/privacy-policy">นโยบายความเป็นส่วนตัว</router-link>
-          <router-link to="/data-privacy">รู้จัก readAwrite และ meb</router-link>
-          <router-link :to="walletLink">วิธีการเติมคอยน์</router-link>
-          <router-link :to="notificationSettingsLink">ตรวจคำผิดอัตโนมัติ</router-link>
+          <h3>{{ t("footer.about") }}</h3>
+          <router-link to="/data-privacy">{{ t("footer.contact") }}</router-link>
+          <router-link to="/terms">{{ t("footer.terms") }}</router-link>
+          <router-link to="/privacy-policy">{{ t("footer.privacy") }}</router-link>
+          <router-link to="/data-privacy">{{ t("footer.dataPrivacy") }}</router-link>
+          <router-link :to="walletLink">{{ t("nav.topUp") }}</router-link>
+          <router-link :to="notificationSettingsLink">{{ t("footer.report") }}</router-link>
         </div>
 
         <div class="footer-logo-wrap">
@@ -63,8 +75,8 @@ const notificationSettingsLink = computed(() => (isLoggedIn.value ? "/notificati
     </div>
 
     <div class="footer-bottom">
-      <span>© 2026 Read and Voice</span>
-      <span>อ่านชัด ฟังสบาย และต่อยอดเป็น ecosystem ได้จริง</span>
+      <span>{{ t("footer.copyright") }}</span>
+      <span>{{ t("footer.footerNote") }}</span>
     </div>
   </footer>
 </template>

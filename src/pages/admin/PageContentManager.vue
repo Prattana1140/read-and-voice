@@ -91,6 +91,60 @@
       </div>
     </section>
 
+    <section class="banner-manager">
+      <div class="banner-form">
+        <h2>Home promotion banners</h2>
+        <p>
+          Add wide promotional artwork for novels or books. These images appear in
+          the homepage carousel and should already include the campaign text/design.
+        </p>
+
+        <label>
+          Banner title
+          <input v-model="homeBannerTitle" type="text" placeholder="Campaign name" />
+        </label>
+
+        <label>
+          Link URL
+          <input v-model="homeBannerLink" type="text" placeholder="/book/1 or /promotions" />
+        </label>
+
+        <label>
+          Image URL
+          <input v-model="homeBannerUrl" type="url" placeholder="https://example.com/promo.jpg" />
+        </label>
+
+        <label>
+          Upload image
+          <input type="file" accept="image/*" @change="selectHomeBannerFile" />
+        </label>
+
+        <div class="banner-actions">
+          <button type="button" :disabled="savingHomeBanner" @click="saveHomeBanner">
+            {{ savingHomeBanner ? "Saving..." : "Add homepage banner" }}
+          </button>
+        </div>
+
+        <p v-if="homeBannerMessage" class="content-message">{{ homeBannerMessage }}</p>
+      </div>
+
+      <div class="home-banner-list">
+        <article v-for="banner in homeBannerList" :key="banner.id" class="home-banner-item">
+          <img :src="resolveImageUrl(banner.image_url)" :alt="banner.title || 'Home banner'" />
+          <div>
+            <strong>{{ banner.title || "Untitled banner" }}</strong>
+            <small>{{ banner.link_url || "No link" }}</small>
+          </div>
+          <button type="button" @click="deleteHomeBanner(banner.id)">Delete</button>
+        </article>
+
+        <div v-if="homeBannerList.length === 0" class="empty-preview">
+          <strong>No homepage banners</strong>
+          <span>Add promotional artwork to show the carousel on the homepage.</span>
+        </div>
+      </div>
+    </section>
+
     <section class="content-table" aria-label="รายการหน้าเมนูที่ต้องจัดข้อมูล">
       <div class="table-head">
         <span>หน้าเมนู</span>
@@ -173,6 +227,16 @@ type PageContent = {
     image_url?: string;
     updated_at?: string | null;
   };
+  homeBanners?: HomeBanner[];
+};
+
+type HomeBanner = {
+  id: string;
+  image_url: string;
+  title?: string;
+  link_url?: string;
+  sort_order?: number;
+  is_active?: boolean;
 };
 
 const books = ref<Book[]>([]);
@@ -182,6 +246,13 @@ const subscriptionHeroFile = ref<File | null>(null);
 const subscriptionHeroFilePreview = ref("");
 const contentMessage = ref("");
 const savingHero = ref(false);
+const homeBannerList = ref<HomeBanner[]>([]);
+const homeBannerTitle = ref("");
+const homeBannerLink = ref("");
+const homeBannerUrl = ref("");
+const homeBannerFile = ref<File | null>(null);
+const homeBannerMessage = ref("");
+const savingHomeBanner = ref(false);
 const errorMessage = ref("");
 
 const totalBooks = computed(() => books.value.length);
@@ -412,8 +483,10 @@ const fetchPageContent = async () => {
     const { data } = await api.get("/page-content");
     pageContent.value = data || null;
     subscriptionHeroUrl.value = data?.subscriptionHero?.image_url || "";
+    homeBannerList.value = Array.isArray(data?.homeBanners) ? data.homeBanners : [];
   } catch (error: unknown) {
     pageContent.value = null;
+    homeBannerList.value = [];
   }
 };
 
@@ -427,6 +500,60 @@ const selectHeroFile = (event: Event) => {
   subscriptionHeroFilePreview.value = subscriptionHeroFile.value
     ? URL.createObjectURL(subscriptionHeroFile.value)
     : "";
+};
+
+const selectHomeBannerFile = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  homeBannerFile.value = target.files?.[0] || null;
+};
+
+const saveHomeBanner = async () => {
+  homeBannerMessage.value = "";
+  savingHomeBanner.value = true;
+
+  try {
+    const formData = new FormData();
+    formData.append("title", homeBannerTitle.value.trim());
+    formData.append("link_url", homeBannerLink.value.trim());
+
+    if (homeBannerFile.value) {
+      formData.append("home_banner", homeBannerFile.value);
+    } else {
+      formData.append("image_url", homeBannerUrl.value.trim());
+    }
+
+    const { data } = await api.post("/page-content/home-banners", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    homeBannerList.value = Array.isArray(data?.homeBanners) ? data.homeBanners : [];
+    homeBannerTitle.value = "";
+    homeBannerLink.value = "";
+    homeBannerUrl.value = "";
+    homeBannerFile.value = null;
+    homeBannerMessage.value = data?.message || "Saved homepage banner";
+  } catch (error: any) {
+    homeBannerMessage.value =
+      error?.response?.data?.message || "Could not save homepage banner";
+  } finally {
+    savingHomeBanner.value = false;
+  }
+};
+
+const deleteHomeBanner = async (id: string) => {
+  homeBannerMessage.value = "";
+  savingHomeBanner.value = true;
+
+  try {
+    const { data } = await api.delete(`/page-content/home-banners/${id}`);
+    homeBannerList.value = Array.isArray(data?.homeBanners) ? data.homeBanners : [];
+    homeBannerMessage.value = data?.message || "Deleted homepage banner";
+  } catch (error: any) {
+    homeBannerMessage.value =
+      error?.response?.data?.message || "Could not delete homepage banner";
+  } finally {
+    savingHomeBanner.value = false;
+  }
 };
 
 const saveSubscriptionHero = async () => {
@@ -729,6 +856,62 @@ onUnmounted(() => {
 .banner-preview img {
   display: block;
   object-fit: cover;
+}
+
+.home-banner-list {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.home-banner-item {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(20, 184, 166, 0.18);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.home-banner-item img {
+  width: 160px;
+  aspect-ratio: 16 / 7;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.home-banner-item div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.home-banner-item strong,
+.home-banner-item small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-banner-item strong {
+  color: #073f3a;
+}
+
+.home-banner-item small {
+  color: #66827e;
+  font-weight: 800;
+}
+
+.home-banner-item button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #991b1b;
+  cursor: pointer;
+  font-weight: 900;
+  padding: 0 12px;
 }
 
 .empty-preview {

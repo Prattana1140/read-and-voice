@@ -48,6 +48,7 @@ const shareStatus = ref("");
 
 const currentEpisodeId = computed(() => Number(route.query.episode || 0));
 const isEpisodeMode = computed(() => !!currentEpisodeId.value);
+const isAuthenticated = computed(() => Boolean(localStorage.getItem("token")));
 const contentRouteKey = computed(() => `${route.params.id || ""}:${route.query.episode || ""}`);
 const readerKey = computed(() => {
   const bookId = String(route.params.id || "");
@@ -116,11 +117,24 @@ function loadVoices() {
   selectedVoice.value = thaiVoice?.name || list[0]?.name || "";
 }
 
-function loadVoiceSettings() {
+async function loadVoiceSettings() {
   rate.value = Number(localStorage.getItem("reader-rate") || 1);
   pitch.value = Number(localStorage.getItem("reader-pitch") || 1);
   volume.value = Number(localStorage.getItem("reader-volume") || 1);
   selectedVoice.value = localStorage.getItem("reader-voice") || "";
+
+  if (!isAuthenticated.value) return;
+
+  try {
+    const { data } = await api.get("/account/preferences");
+    const tts = data?.preferences?.tts || {};
+    if (Number.isFinite(Number(tts.rate))) rate.value = Number(tts.rate);
+    if (Number.isFinite(Number(tts.pitch))) pitch.value = Number(tts.pitch);
+    if (Number.isFinite(Number(tts.volume))) volume.value = Number(tts.volume);
+    if (typeof tts.voice === "string") selectedVoice.value = tts.voice;
+  } catch {
+    // Local voice settings remain the fallback.
+  }
 }
 
 function saveVoiceSettings() {
@@ -128,6 +142,21 @@ function saveVoiceSettings() {
   localStorage.setItem("reader-pitch", String(pitch.value));
   localStorage.setItem("reader-volume", String(volume.value));
   localStorage.setItem("reader-voice", selectedVoice.value);
+
+  if (!isAuthenticated.value) return;
+
+  api.put("/account/preferences", {
+    preferences: {
+      tts: {
+        rate: rate.value,
+        pitch: pitch.value,
+        volume: volume.value,
+        voice: selectedVoice.value,
+      },
+    },
+  }).catch(() => {
+    // Settings are already saved locally.
+  });
 }
 
 async function loadBookTitle() {
@@ -384,7 +413,7 @@ watch(contentRouteKey, async () => {
 });
 
 onMounted(async () => {
-  loadVoiceSettings();
+  await loadVoiceSettings();
   loadVoices();
   window.speechSynthesis.onvoiceschanged = loadVoices;
   await Promise.all([loadBookTitle(), loadEpisodes()]);

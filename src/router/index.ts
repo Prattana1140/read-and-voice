@@ -137,10 +137,6 @@ const routes: RouteRecordRaw[] = [
     meta: { guestOnly: true },
   },
   {
-    path: "/login/thaid",
-    redirect: "/login",
-  },
-  {
     path: "/login/line",
     redirect: "/login",
   },

@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const db = require("../config/db");
+const { verifyToken } = require("../middleware/auth");
 
 const fetch = global.fetch || require("node-fetch");
 require("dotenv").config({ quiet: true });
@@ -1739,27 +1740,14 @@ router.post("/social-login", async (req, res) => {
   }
 });
 
-router.get("/me", async (req, res) => {
+router.get("/me", verifyToken, async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "ไม่พบ token" });
-    }
-
-    if (!process.env.JWT_SECRET) {
-      return res.status(500).json({ message: "ระบบยังไม่ได้ตั้งค่า JWT_SECRET" });
-    }
-
-    const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
     const [users] = await db.query(
       `SELECT id, name, email, role, status, created_at, updated_at
        FROM users
        WHERE id = ?
        LIMIT 1`,
-      [decoded.id],
+      [req.user.id],
     );
 
     if (users.length === 0) {

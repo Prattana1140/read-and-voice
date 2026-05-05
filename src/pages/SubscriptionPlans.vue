@@ -180,6 +180,9 @@ onMounted(loadPlans);
     <p v-if="activePlanText" class="alert success">{{ activePlanText }}</p>
     <p v-if="message" class="alert success">{{ message }}</p>
     <p v-if="errorMessage" class="alert error">{{ errorMessage }}</p>
+    <p class="alert demo">
+      โหมดเดโม: การสมัครแพ็กเกจใช้คอยน์จำลองในระบบ ยังไม่เชื่อมต่อการชำระเงินจริง
+    </p>
 
     <section class="plans-section">
       <header>
@@ -304,6 +307,10 @@ onMounted(loadPlans);
   margin-inline: auto;
 }
 
+.vip-hero {
+  width: min(100%, 1120px);
+}
+
 .crumb {
   display: flex;
   align-items: center;
@@ -319,15 +326,35 @@ onMounted(loadPlans);
 }
 
 .vip-hero {
+  position: relative;
   display: grid;
-  min-height: 380px;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 36%);
+  min-height: 315px;
   overflow: hidden;
   border-radius: 4px;
   background:
-    radial-gradient(circle at 72% 18%, rgba(255, 255, 255, 0.25), transparent 24%),
-    linear-gradient(135deg, #e62129 0%, #f54235 45%, #f6a21a 100%);
+    radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.34), transparent 18%),
+    radial-gradient(circle at 82% 18%, rgba(255, 255, 255, 0.22), transparent 24%),
+    linear-gradient(105deg, #f03a57 0%, #ff775d 48%, #ffd168 100%);
   color: #ffffff;
-  padding: 38px 28px 26px;
+  padding: 34px 32px 28px;
+}
+
+.vip-hero::after {
+  content: "VIP";
+  position: absolute;
+  right: 26px;
+  bottom: 20px;
+  width: clamp(76px, 10vw, 128px);
+  height: clamp(76px, 10vw, 128px);
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #e11d48;
+  font-size: clamp(26px, 4vw, 50px);
+  font-weight: 900;
+  box-shadow: 0 16px 30px rgba(124, 45, 18, 0.24);
 }
 
 .vip-hero.has-admin-image {
@@ -342,6 +369,10 @@ onMounted(loadPlans);
   display: none;
 }
 
+.vip-hero.has-admin-image::after {
+  content: none;
+}
+
 .admin-hero-image {
   display: block;
   width: 100%;
@@ -350,7 +381,11 @@ onMounted(loadPlans);
 }
 
 .hero-copy {
-  text-align: center;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: center;
+  text-align: left;
 }
 
 .hero-copy p,
@@ -361,7 +396,7 @@ onMounted(loadPlans);
 
 .hero-copy p {
   color: #fff8d6;
-  font-size: clamp(44px, 7vw, 82px);
+  font-size: clamp(34px, 6vw, 76px);
   font-weight: 900;
   letter-spacing: 0;
   line-height: 1;
@@ -379,29 +414,33 @@ onMounted(loadPlans);
 .hero-copy span {
   display: block;
   margin-top: 10px;
+  max-width: 540px;
   font-size: 16px;
   font-weight: 800;
 }
 
 .benefit-board {
-  align-self: end;
+  position: relative;
+  z-index: 1;
+  align-self: center;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 32px;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 0;
+  padding-right: clamp(86px, 10vw, 135px);
 }
 
 .benefit-board article {
-  min-height: 150px;
+  min-height: 78px;
   border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: 8px;
   background: linear-gradient(180deg, #fff6bc, #ffd86a);
   color: #d72323;
   display: grid;
   align-content: center;
-  gap: 6px;
-  padding: 16px;
-  text-align: center;
+  gap: 3px;
+  padding: 12px 14px;
+  text-align: left;
   box-shadow: 0 10px 18px rgba(122, 37, 8, 0.18);
 }
 
@@ -411,7 +450,7 @@ onMounted(loadPlans);
 }
 
 .benefit-board strong {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 900;
 }
 
@@ -436,6 +475,11 @@ onMounted(loadPlans);
 .error {
   background: #fef2f2;
   color: #dc2626;
+}
+
+.demo {
+  background: #fffbeb;
+  color: #92400e;
 }
 
 .plans-section {
@@ -613,11 +657,17 @@ th:nth-child(3) {
   }
 
   .vip-hero {
+    grid-template-columns: 1fr;
     min-height: auto;
     padding: 28px 16px 18px;
   }
 
-  .benefit-board,
+  .benefit-board {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 22px;
+    padding-right: 0;
+  }
+
   .plan-grid {
     grid-template-columns: 1fr;
   }
@@ -632,6 +682,12 @@ th:nth-child(3) {
 }
 
 @media (max-width: 420px) {
+  .vip-hero::after {
+    right: 12px;
+    bottom: 12px;
+    opacity: 0.92;
+  }
+
   .hero-copy p {
     font-size: 38px;
   }
@@ -642,6 +698,11 @@ th:nth-child(3) {
 
   .admin-hero-image {
     aspect-ratio: 4 / 3;
+  }
+
+  .benefit-board {
+    grid-template-columns: 1fr;
+    padding-right: 72px;
   }
 }
 </style>

@@ -6,6 +6,7 @@ import {
   toggleAccessibilityMode,
   updateAccessibilitySettings,
 } from "../utils/accessibility";
+import api from "../utils/api";
 
 type WidgetPosition = {
   x: number;
@@ -86,12 +87,19 @@ const readStoredCoordinate = (value: unknown, fallback: number) => {
 const savePosition = () => {
   try {
     localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(position.value));
+    if (localStorage.getItem("token")) {
+      api.put("/account/preferences", {
+        preferences: {
+          accessibility: { widget_position: position.value },
+        },
+      }).catch(() => undefined);
+    }
   } catch {
     // Position persistence is only a convenience; dragging should keep working without storage.
   }
 };
 
-const loadPosition = () => {
+const loadPosition = async () => {
   const fallback = {
     x: Math.max(EDGE_PADDING, window.innerWidth - LAUNCHER_SIZE - 24),
     y: Math.max(EDGE_PADDING, 118),
@@ -107,6 +115,22 @@ const loadPosition = () => {
     });
   } catch {
     position.value = clampPosition(fallback);
+  }
+
+  if (!localStorage.getItem("token")) return;
+
+  try {
+    const { data } = await api.get("/account/preferences");
+    const remote = data?.preferences?.accessibility?.widget_position;
+    if (!remote || typeof remote !== "object") return;
+
+    position.value = clampPosition({
+      x: readStoredCoordinate(remote.x, position.value.x),
+      y: readStoredCoordinate(remote.y, position.value.y),
+    });
+    localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(position.value));
+  } catch {
+    // Local position remains the fallback.
   }
 };
 
@@ -231,9 +255,9 @@ const toggleUiSpeech = () => {
   announceAccessibilityMessage(accessibilityState.speakUi ? "เปิดการอ่านออกเสียงเมนูแล้ว" : "ปิดการอ่านออกเสียงเมนูแล้ว");
 };
 
-onMounted(() => {
+onMounted(async () => {
   updateViewportSize();
-  loadPosition();
+  await loadPosition();
   window.addEventListener("resize", handleResize);
   document.addEventListener("pointerdown", handleDocumentPointerDown);
   window.addEventListener("read-voice:toggle-accessibility", handleExternalToggle);

@@ -1,16 +1,69 @@
 ﻿<script setup lang="ts">
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import api from "../utils/api";
+import { useI18n } from "../utils/i18n";
 const router = useRouter();
+const { t } = useI18n();
+const saving = ref(false);
+const statusMessage = ref("");
+const errorMessage = ref("");
 const settings = ref([
-  { key: 'writers', title: 'นักเขียนที่ติดตาม', detail: 'แจ้งเตือนเมื่อมีผลงานใหม่จากนักเขียนที่คุณติดตาม', enabled: true },
-  { key: 'series', title: 'ตอนใหม่', detail: 'แจ้งเตือนเมื่อมีตอนใหม่ของเรื่องที่กำลังติดตาม', enabled: true },
-  { key: 'promotions', title: 'โปรโมชัน', detail: 'แจ้งเตือนข่าวสารและส่วนลดที่เกี่ยวข้องกับการอ่าน', enabled: false },
-  { key: 'system', title: 'การเปลี่ยนแปลงของระบบ', detail: 'แจ้งเตือนเรื่องความปลอดภัยและการเปลี่ยนแปลงสำคัญของบัญชี', enabled: true },
+  { key: 'writers', titleKey: 'settings.notification.writersTitle', detailKey: 'settings.notification.writersDetail', enabled: true },
+  { key: 'series', titleKey: 'settings.notification.seriesTitle', detailKey: 'settings.notification.seriesDetail', enabled: true },
+  { key: 'promotions', titleKey: 'settings.notification.promotionsTitle', detailKey: 'settings.notification.promotionsDetail', enabled: false },
+  { key: 'system', titleKey: 'settings.notification.systemTitle', detailKey: 'settings.notification.systemDetail', enabled: true },
 ]);
-function saveSettings() { localStorage.setItem('notification-settings', JSON.stringify(settings.value)); window.alert('บันทึกการตั้งค่าแล้ว'); }
+const settingTitle = (item: (typeof settings.value)[number]) => t(item.titleKey as any);
+const settingDetail = (item: (typeof settings.value)[number]) => t(item.detailKey as any);
+async function loadSettings() {
+  try {
+    errorMessage.value = "";
+    const { data } = await api.get("/account/notification-settings");
+    const remote = data?.settings || {};
+    settings.value = settings.value.map((item) => ({
+      ...item,
+      enabled: Boolean(remote[item.key] ?? item.enabled),
+    }));
+  } catch (error: any) {
+    const saved = JSON.parse(localStorage.getItem('notification-settings') || '[]');
+    if (Array.isArray(saved) && saved.length) {
+      settings.value = settings.value.map((item) => {
+        const savedItem = saved.find((entry: any) => entry?.key === item.key);
+        return savedItem ? { ...item, enabled: Boolean(savedItem.enabled) } : item;
+      });
+    }
+    errorMessage.value =
+      error?.response?.data?.message || t("settings.notification.errorLoad");
+  }
+}
+
+async function saveSettings() {
+  saving.value = true;
+  statusMessage.value = "";
+  errorMessage.value = "";
+  const payload = settings.value.reduce<Record<string, boolean>>((map, item) => {
+    map[item.key] = Boolean(item.enabled);
+    return map;
+  }, {});
+
+  try {
+    const { data } = await api.put("/account/notification-settings", { settings: payload });
+    localStorage.setItem('notification-settings', JSON.stringify(settings.value));
+    statusMessage.value = data?.message || t("settings.notification.saved");
+  } catch (error: any) {
+    localStorage.setItem('notification-settings', JSON.stringify(settings.value));
+    errorMessage.value =
+      error?.response?.data?.message ||
+      t("settings.notification.errorSave");
+  } finally {
+    saving.value = false;
+  }
+}
+
+onMounted(loadSettings);
 </script>
-<template><main class="settings-page"><section class="settings-card"><div class="settings-head"><h1>ตั้งค่าการแจ้งเตือน</h1><p>เลือกประเภทการแจ้งเตือนที่คุณต้องการรับจากระบบ</p></div><label v-for="item in settings" :key="item.key" class="setting-row"><input v-model="item.enabled" type="checkbox" /><div><strong>{{ item.title }}</strong><small>{{ item.detail }}</small></div></label><div class="actions"><button type="button" class="secondary" @click="router.back()">กลับหน้าก่อนหน้า</button><button type="button" @click="saveSettings">บันทึก</button></div></section></main></template>
+<template><main class="settings-page"><section class="settings-card"><div class="settings-head"><h1>{{ t("settings.notification.title") }}</h1><p>{{ t("settings.notification.detail") }}</p></div><p v-if="statusMessage" class="notice success">{{ statusMessage }}</p><p v-if="errorMessage" class="notice error">{{ errorMessage }}</p><label v-for="item in settings" :key="item.key" class="setting-row"><input v-model="item.enabled" type="checkbox" /><div><strong>{{ settingTitle(item) }}</strong><small>{{ settingDetail(item) }}</small></div></label><div class="actions"><button type="button" class="secondary" @click="router.back()">{{ t("common.back") }}</button><button type="button" :disabled="saving" @click="saveSettings">{{ saving ? t("common.saving") : t("common.save") }}</button></div></section></main></template>
 <style scoped>
 .settings-page {
   min-height: calc(100vh - 140px);
@@ -56,6 +109,24 @@ function saveSettings() { localStorage.setItem('notification-settings', JSON.str
   padding: 16px;
 }
 
+.notice {
+  margin: 0;
+  border-radius: 12px;
+  font-weight: 800;
+  line-height: 1.6;
+  padding: 10px 12px;
+}
+
+.notice.success {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.notice.error {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .setting-row input {
   margin-top: 4px;
 }
@@ -93,6 +164,11 @@ button {
 button.secondary {
   background: var(--surface-soft);
   color: var(--text-strong);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
 }
 
 @media (max-width: 560px) {

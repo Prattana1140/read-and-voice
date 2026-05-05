@@ -157,7 +157,7 @@ function loadVoices() {
   selectedVoice.value = thaiVoice?.name || list[0]?.name || "";
 }
 
-function loadReaderSettings() {
+async function loadReaderSettings() {
   const savedColorMode = localStorage.getItem("reader-color-mode") as ColorMode | null;
   const legacyDarkMode = localStorage.getItem("reader-dark-mode") === "true";
 
@@ -175,6 +175,29 @@ function loadReaderSettings() {
   pitch.value = Number(localStorage.getItem("reader-pitch") || 1);
   volume.value = Number(localStorage.getItem("reader-volume") || 1);
   selectedVoice.value = localStorage.getItem("reader-voice") || "";
+
+  if (!isAuthenticated.value) return;
+
+  try {
+    const { data } = await api.get("/account/preferences");
+    const reader = data?.preferences?.reader || {};
+    const tts = data?.preferences?.tts || {};
+
+    if (["light", "sepia", "dark"].includes(reader.color_mode)) {
+      colorMode.value = reader.color_mode;
+    }
+    if (reader.reading_mode === "focus" || reader.reading_mode === "continuous") {
+      readingMode.value = reader.reading_mode;
+    }
+    if (Number.isFinite(Number(reader.font_size))) fontSize.value = Number(reader.font_size);
+    if (Number.isFinite(Number(reader.line_height))) lineHeight.value = Number(reader.line_height);
+    if (Number.isFinite(Number(tts.rate))) rate.value = Number(tts.rate);
+    if (Number.isFinite(Number(tts.pitch))) pitch.value = Number(tts.pitch);
+    if (Number.isFinite(Number(tts.volume))) volume.value = Number(tts.volume);
+    if (typeof tts.voice === "string") selectedVoice.value = tts.voice;
+  } catch {
+    // Local settings remain the fallback when preference sync is unavailable.
+  }
 }
 
 function saveReaderSettings() {
@@ -187,6 +210,27 @@ function saveReaderSettings() {
   localStorage.setItem("reader-pitch", String(pitch.value));
   localStorage.setItem("reader-volume", String(volume.value));
   localStorage.setItem("reader-voice", selectedVoice.value);
+
+  if (!isAuthenticated.value) return;
+
+  api.put("/account/preferences", {
+    preferences: {
+      reader: {
+        color_mode: colorMode.value,
+        reading_mode: readingMode.value,
+        font_size: fontSize.value,
+        line_height: lineHeight.value,
+      },
+      tts: {
+        rate: rate.value,
+        pitch: pitch.value,
+        volume: volume.value,
+        voice: selectedVoice.value,
+      },
+    },
+  }).catch(() => {
+    // Settings are already saved locally.
+  });
 }
 
 function setColorMode(mode: ColorMode) {
@@ -594,7 +638,7 @@ watch(contentRouteKey, async () => {
 });
 
 onMounted(async () => {
-  loadReaderSettings();
+  await loadReaderSettings();
   if (accessibilityState.enabled) {
     fontSize.value = Math.max(fontSize.value, 24);
     lineHeight.value = Math.max(lineHeight.value, accessibilityState.lineSpacing);

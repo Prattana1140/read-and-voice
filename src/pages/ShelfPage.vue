@@ -13,16 +13,27 @@
 
     <section v-if="shelf.mode === 'promo'" class="promo-strip" aria-label="โปรโมชันเด่น">
       <div
-        v-for="book in promoHeroBooks"
-        :key="`promo-hero-${book.id}`"
+        v-for="item in promoHeroItems"
+        :key="`promo-hero-${item.book.id}`"
         class="promo-strip-card"
-        @click="goToBook(book.id)"
+        :class="item.theme"
+        @click="goToBook(item.book.id)"
       >
-        <div>
-          <span>Read and Voice</span>
-          <strong>{{ book.title }}</strong>
+        <div class="promo-strip-copy">
+          <span>{{ item.label }}</span>
+          <strong>{{ item.headline }}</strong>
+          <small>{{ item.subtitle }}</small>
         </div>
-        <img :src="getBookCover(book)" :alt="book.title" @error="handleImgError" />
+        <div class="promo-strip-covers" aria-hidden="true">
+          <img
+            v-for="cover in item.covers"
+            :key="cover"
+            :src="resolveAssetUrl(cover)"
+            alt=""
+            @error="handleImgError"
+          />
+        </div>
+        <em>{{ item.badge }}</em>
       </div>
     </section>
 
@@ -375,9 +386,47 @@ const freeSections = computed(() => {
   ].filter((section) => section.books.length > 0);
 });
 
-const promoHeroBooks = computed(() => {
+const promoCampaigns = [
+  {
+    label: "MAY MY DAY",
+    headline: "อ่านให้ตาค้าง",
+    subtitle: "หยิบเล่มที่ใช่ก่อนหมดโปร",
+    badge: "45%",
+    theme: "theme-blue",
+  },
+  {
+    label: "Final Call",
+    headline: "รับซื้อตอนนี้",
+    subtitle: "โปรนี้เหลือเวลาอีกไม่นาน",
+    badge: "LAST",
+    theme: "theme-coral",
+  },
+  {
+    label: "Hot Deal",
+    headline: "ลดแรงประจำวัน",
+    subtitle: "รวมเล่มเด่นที่นักอ่านกำลังตาม",
+    badge: "SALE",
+    theme: "theme-warm",
+  },
+];
+
+const promoHeroItems = computed(() => {
   const items = sortedBooks.value.length ? sortedBooks.value : books.value;
-  return items.slice(0, 6);
+  return items.slice(0, 6).map((book, index) => {
+    const campaign = promoCampaigns[index % promoCampaigns.length];
+    const covers = [book, items[index + 1], items[index + 2]]
+      .filter(Boolean)
+      .map((item) => item.cover_url || item.cover_image || "")
+      .filter(Boolean);
+
+    return {
+      ...campaign,
+      book,
+      headline: index % 2 === 0 ? campaign.headline : book.title,
+      subtitle: book.author || campaign.subtitle,
+      covers,
+    };
+  });
 });
 
 const promoSections = computed(() => {
@@ -496,7 +545,7 @@ watch(
 .promo-strip {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(360px, 1fr);
+  grid-auto-columns: minmax(520px, 1fr);
   width: 100%;
   overflow: hidden;
   background: var(--surface);
@@ -504,55 +553,140 @@ watch(
 }
 
 .promo-strip-card {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 110px;
-  align-items: center;
-  min-height: 178px;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 34%);
+  align-items: stretch;
+  min-height: 198px;
   overflow: hidden;
-  border-right: 3px solid #ffffff;
-  background:
-    radial-gradient(circle at 72% 20%, rgba(255, 255, 255, 0.6), transparent 25%),
-    linear-gradient(135deg, #47325f, #7d415c 48%, #c98686);
+  border-right: 4px solid #ffffff;
+  background: linear-gradient(105deg, #0676f9 0%, #0097ff 52%, #0063d8 100%);
   color: #ffffff;
   cursor: pointer;
-  padding: 22px 18px;
+  padding: 0;
 }
 
-.promo-strip-card:nth-child(2n) {
+.promo-strip-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
   background:
-    radial-gradient(circle at 72% 20%, rgba(255, 255, 255, 0.55), transparent 25%),
-    linear-gradient(135deg, #bee9ff, #f5eef8 48%, #ffe5c8);
-  color: #123635;
+    radial-gradient(circle at 16% 18%, rgba(255, 255, 255, 0.34), transparent 17%),
+    radial-gradient(circle at 86% 18%, rgba(255, 255, 255, 0.24), transparent 22%),
+    linear-gradient(135deg, rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.04));
+}
+
+.promo-strip-card.theme-coral {
+  background: linear-gradient(105deg, #fb5f72 0%, #ff8973 45%, #ffd6c8 100%);
+}
+
+.promo-strip-card.theme-warm {
+  background: linear-gradient(105deg, #d6a176 0%, #f5d3ad 48%, #bd704f 100%);
+}
+
+.promo-strip-copy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  min-width: 0;
+  padding: clamp(18px, 2vw, 28px);
 }
 
 .promo-strip-card span {
   display: inline-flex;
-  margin-bottom: 8px;
-  border-radius: 4px;
-  background: #21ba74;
-  color: #ffffff;
-  font-size: 12px;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 14px;
   font-weight: 900;
-  padding: 3px 7px;
 }
 
 .promo-strip-card strong {
   display: -webkit-box;
+  margin-top: 8px;
   overflow: hidden;
-  font-size: 24px;
+  color: #ffffff;
+  font-size: clamp(26px, 3.2vw, 54px);
   font-weight: 900;
-  line-height: 1.15;
+  line-height: 1.05;
   line-clamp: 2;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  text-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.32),
+    0 8px 18px rgba(0, 0, 0, 0.22);
 }
 
-.promo-strip-card img {
-  width: 94px;
+.promo-strip-card small {
+  display: -webkit-box;
+  margin-top: 8px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  font-weight: 800;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.promo-strip-covers {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 16px 24px 16px 0;
+}
+
+.promo-strip-covers img {
+  width: clamp(68px, 6.5vw, 112px);
   aspect-ratio: 3 / 4;
-  justify-self: end;
+  flex: 0 0 auto;
+  border: 3px solid rgba(255, 255, 255, 0.88);
+  border-radius: 2px;
   object-fit: cover;
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.25);
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.28);
+}
+
+.promo-strip-covers img + img {
+  margin-left: -22%;
+}
+
+.promo-strip-covers img:first-child {
+  transform: translateY(-5%) rotate(-2deg);
+}
+
+.promo-strip-covers img:nth-child(2) {
+  transform: translateY(8%) rotate(3deg);
+}
+
+.promo-strip-covers img:nth-child(3) {
+  transform: translateY(-1%) rotate(2deg);
+}
+
+.promo-strip-card em {
+  position: absolute;
+  right: 18px;
+  bottom: 14px;
+  z-index: 2;
+  min-width: 64px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0f5ee8;
+  font-size: clamp(18px, 2.4vw, 34px);
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+  padding: 9px 12px;
+  text-align: center;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.2);
+}
+
+.theme-coral em,
+.theme-warm em {
+  color: #e01b4f;
 }
 
 .shelf-content {
@@ -962,7 +1096,7 @@ watch(
   }
 
   .promo-strip {
-    grid-auto-columns: minmax(280px, 82vw);
+    grid-auto-columns: minmax(320px, 88vw);
     overflow-x: auto;
   }
 
@@ -980,17 +1114,30 @@ watch(
 
 @media (max-width: 420px) {
   .promo-strip-card {
-    grid-template-columns: minmax(0, 1fr) 82px;
-    min-height: 150px;
-    padding: 18px 14px;
+    grid-template-columns: minmax(0, 1fr) 108px;
+    min-height: 154px;
   }
 
   .promo-strip-card strong {
-    font-size: 20px;
+    font-size: 24px;
   }
 
-  .promo-strip-card img {
-    width: 78px;
+  .promo-strip-copy {
+    padding: 16px 12px;
+  }
+
+  .promo-strip-covers {
+    padding-right: 12px;
+  }
+
+  .promo-strip-covers img {
+    width: 62px;
+  }
+
+  .promo-strip-card em {
+    right: 10px;
+    bottom: 10px;
+    min-width: 52px;
   }
 
   .book-grid,

@@ -33,6 +33,18 @@ async function ensureNotificationTables() {
           CONSTRAINT fk_user_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `),
+      db.query(`
+        CREATE TABLE IF NOT EXISTS user_notification_settings (
+          user_id INT PRIMARY KEY,
+          writers TINYINT(1) NOT NULL DEFAULT 1,
+          series TINYINT(1) NOT NULL DEFAULT 1,
+          promotions TINYINT(1) NOT NULL DEFAULT 0,
+          system TINYINT(1) NOT NULL DEFAULT 1,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          CONSTRAINT fk_user_notification_settings_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `),
     ]).then(() => true);
   }
 
@@ -49,6 +61,21 @@ async function createNotification({
   connection = db,
 }) {
   await ensureNotificationTables();
+
+  const [settingsRows] = await connection.query(
+    `SELECT writers, series, promotions, system
+     FROM user_notification_settings
+     WHERE user_id = ?
+     LIMIT 1`,
+    [userId],
+  );
+  const settings = settingsRows[0] || {};
+  const notificationType = String(type || "");
+
+  if (notificationType.startsWith("writer_") && settings.writers === 0) return;
+  if (notificationType.startsWith("series_") && settings.series === 0) return;
+  if (notificationType.startsWith("promotion") && settings.promotions === 0) return;
+  if (notificationType.startsWith("system_") && settings.system === 0) return;
 
   await connection.query(
     `INSERT INTO user_notifications

@@ -33,6 +33,7 @@ type StudioBlock = {
 };
 
 const mode = ref<UploadMode>("studio");
+const activeStudioStep = ref(0);
 
 const title = ref("");
 const author = ref("");
@@ -87,9 +88,54 @@ const selectedUnit = computed(() => {
   return studioUnits.value.find((unit) => unit.id === selectedUnitId.value) || null;
 });
 
+const studioSteps = computed(() => [
+  {
+    title: "ข้อมูลหนังสือ",
+    caption: "ชื่อเรื่อง ราคา สิทธิ์ และตัวอย่าง",
+    done: Boolean(studioBookId.value),
+  },
+  {
+    title: "โครงสร้าง",
+    caption: "เพิ่มบทหรือตอน",
+    done: studioUnits.value.length > 0,
+  },
+  {
+    title: "ใส่เนื้อหา",
+    caption: "วางข้อความและแปลงเป็นประโยค",
+    done: totalPreviewSentences.value > 0,
+  },
+  {
+    title: "Preview",
+    caption: "ตรวจบล็อกและประโยค",
+    done: totalPreviewSentences.value > 0,
+  },
+  {
+    title: "ส่งอนุมัติ",
+    caption: "เผยแพร่เพื่อให้แอดมินตรวจ",
+    done: false,
+  },
+]);
+
 const totalPreviewSentences = computed(() => {
   return contentPreview.value.reduce((sum, block) => sum + block.sentences.length, 0);
 });
+
+const canOpenStudioStep = (index: number) => {
+  if (index <= 0) return true;
+  if (index === 1) return Boolean(studioBookId.value);
+  if (index === 2) return Boolean(studioBookId.value && selectedUnitId.value);
+  if (index === 3) return totalPreviewSentences.value > 0;
+  return Boolean(studioBookId.value && studioUnits.value.length > 0);
+};
+
+const goToStudioStep = (index: number) => {
+  if (!canOpenStudioStep(index)) return;
+  activeStudioStep.value = index;
+};
+
+const advanceStudioStep = (index: number) => {
+  activeStudioStep.value = Math.max(activeStudioStep.value, index);
+};
 
 const formatUnitType = (type: string) => {
   if (type === "episode") return "ตอน";
@@ -285,6 +331,7 @@ const createStudioBook = async () => {
     studioUnits.value = [];
     selectedUnitId.value = null;
     contentPreview.value = [];
+    advanceStudioStep(1);
     message.value = `สร้างร่างพร้อมโครงสร้างอ่านออกเสียงสำเร็จ: หนังสือ #${studioBookId.value}`;
   } catch (err) {
     setError(err, "สร้างร่างแบบเตรียมอ่านออกเสียงไม่สำเร็จ");
@@ -330,6 +377,7 @@ const addStudioUnit = async () => {
     unitSummary.value = "";
     unitRawText.value = "";
     contentPreview.value = [];
+    advanceStudioStep(2);
     message.value = "เพิ่มบทหรือตอนสำเร็จ";
   } catch (err) {
     setError(err, "เพิ่มบทหรือตอนไม่สำเร็จ");
@@ -392,6 +440,7 @@ const importUnitText = async () => {
       targetUnit.sentence_count = Number(res.data.sentences_created || 0);
     }
     await loadUnitContent(selectedUnitId.value);
+    advanceStudioStep(3);
     message.value = `แปลงเนื้อหาเป็นย่อหน้าและประโยคสำเร็จ ${res.data.sentences_created} ประโยค`;
   } catch (err) {
     setError(err, "แปลงเนื้อหาไม่สำเร็จ");
@@ -435,6 +484,7 @@ const saveUnitAsSingleBlock = async () => {
       targetUnit.sentence_count = Number(res.data.sentences_created || 0);
     }
     await loadUnitContent(selectedUnitId.value);
+    advanceStudioStep(3);
     message.value = "บันทึกโครงสร้างเนื้อหาสำเร็จ";
   } catch (err) {
     setError(err, "บันทึกโครงสร้างเนื้อหาไม่สำเร็จ");
@@ -455,6 +505,7 @@ const publishStudioBook = async () => {
 
   try {
     await api.post(`/writer/books/${studioBookId.value}/publish`);
+    advanceStudioStep(4);
     message.value = "เผยแพร่หนังสือสำเร็จ";
   } catch (err) {
     setError(err, "เผยแพร่หนังสือไม่สำเร็จ");
@@ -537,50 +588,79 @@ const publishStudioBook = async () => {
           <div>
             <h2>ร่างหนังสือพร้อมอ่านออกเสียง</h2>
             <p class="muted">
-              สร้างร่างแล้วค่อยเพิ่มบทหรือตอน พร้อมแปลงเนื้อหาเป็นโครงสร้างรายประโยค
+              ทำตามขั้นตอนจากข้อมูลหนังสือ ไปจนถึง preview และส่งให้แอดมินอนุมัติ
             </p>
           </div>
-          <button class="primary-btn" :disabled="loading" @click="createStudioBook">
-            {{ loading ? "กำลังสร้าง..." : "สร้างร่าง" }}
-          </button>
         </div>
 
-        <div class="form-grid compact">
-          <label>
-            <span>ประเภทหนังสือ</span>
-            <select v-model="studioBookType">
-              <option value="ebook">อีบุ๊ก</option>
-              <option value="serial">รายตอน</option>
-            </select>
-          </label>
-          <label>
-            <span>ภาษา</span>
-            <input v-model="studioLanguage" type="text" />
-          </label>
-          <label>
-            <span>โหมดตัวอย่าง</span>
-            <select v-model="studioPreviewMode">
-              <option value="percentage">เปอร์เซ็นต์</option>
-              <option value="chapter_count">จำนวนบท</option>
-              <option value="sentence_count">จำนวนประโยค</option>
-            </select>
-          </label>
-          <label>
-            <span>ค่าตัวอย่าง</span>
-            <input v-model.number="studioPreviewValue" min="1" type="number" />
-          </label>
-          <label>
-            <span>เรตอายุ</span>
-            <input v-model="studioAgeRating" type="text" placeholder="เช่น 13+" />
-          </label>
-          <label class="full">
-            <span>แท็ก</span>
-            <input
-              v-model="studioTags"
-              type="text"
-              placeholder="นิยาย, แฟนตาซี, อบอุ่น"
-            />
-          </label>
+        <nav class="wizard-steps" aria-label="ขั้นตอนสร้างหนังสือ">
+          <button
+            v-for="(step, index) in studioSteps"
+            :key="step.title"
+            type="button"
+            class="wizard-step"
+            :class="{ active: activeStudioStep === index, done: step.done }"
+            :disabled="!canOpenStudioStep(index)"
+            @click="goToStudioStep(index)"
+          >
+            <span class="step-number">{{ index + 1 }}</span>
+            <span>
+              <strong>{{ step.title }}</strong>
+              <small>{{ step.caption }}</small>
+            </span>
+          </button>
+        </nav>
+
+        <div v-show="activeStudioStep === 0" class="wizard-stage">
+          <section class="studio-panel">
+            <div class="section-header">
+              <div>
+                <h3>ขั้นตอนที่ 1: ข้อมูลหนังสือ</h3>
+                <p class="muted">ตั้งค่าพื้นฐานสำหรับร่างหนังสือและระบบอ่านออกเสียง</p>
+              </div>
+              <button class="primary-btn" :disabled="loading" @click="createStudioBook">
+                {{ studioBookId ? "บันทึกเป็นร่างใหม่" : loading ? "กำลังสร้าง..." : "สร้างร่าง" }}
+              </button>
+            </div>
+
+            <div class="form-grid compact">
+              <label>
+                <span>ประเภทหนังสือ</span>
+                <select v-model="studioBookType">
+                  <option value="ebook">อีบุ๊ก</option>
+                  <option value="serial">รายตอน</option>
+                </select>
+              </label>
+              <label>
+                <span>ภาษา</span>
+                <input v-model="studioLanguage" type="text" />
+              </label>
+              <label>
+                <span>โหมดตัวอย่าง</span>
+                <select v-model="studioPreviewMode">
+                  <option value="percentage">เปอร์เซ็นต์</option>
+                  <option value="chapter_count">จำนวนบท</option>
+                  <option value="sentence_count">จำนวนประโยค</option>
+                </select>
+              </label>
+              <label>
+                <span>ค่าตัวอย่าง</span>
+                <input v-model.number="studioPreviewValue" min="1" type="number" />
+              </label>
+              <label>
+                <span>เรตอายุ</span>
+                <input v-model="studioAgeRating" type="text" placeholder="เช่น 13+" />
+              </label>
+              <label class="full">
+                <span>แท็ก</span>
+                <input
+                  v-model="studioTags"
+                  type="text"
+                  placeholder="นิยาย, แฟนตาซี, อบอุ่น"
+                />
+              </label>
+            </div>
+          </section>
         </div>
 
         <div v-if="studioBookId" class="status-card">
@@ -588,9 +668,9 @@ const publishStudioBook = async () => {
           <span>หนังสือ #{{ studioBookId }}<template v-if="studioBookSlug"> · {{ studioBookSlug }}</template></span>
         </div>
 
-        <div class="studio-grid">
-          <section class="studio-panel">
-            <h3>ขั้นตอนที่ 1: โครงสร้างหนังสือ</h3>
+        <div class="wizard-stage">
+          <section v-show="activeStudioStep === 1" class="studio-panel">
+            <h3>ขั้นตอนที่ 2: โครงสร้างหนังสือ</h3>
             <div class="form-grid compact single">
               <label>
                 <span>ชนิดของหน่วย</span>
@@ -632,11 +712,15 @@ const publishStudioBook = async () => {
             </div>
           </section>
 
-          <section class="studio-panel">
-            <h3>ขั้นตอนที่ 2: ใส่เนื้อหา</h3>
+          <section v-show="activeStudioStep === 2" class="studio-panel">
+            <h3>ขั้นตอนที่ 3: ใส่เนื้อหา</h3>
             <p class="muted">
               เลือกบททางซ้าย แล้ววางข้อความเพื่อให้ระบบแปลงเป็นย่อหน้าและประโยค
             </p>
+            <div v-if="selectedUnit" class="status-card compact-card">
+              <strong>{{ selectedUnit.title }}</strong>
+              <span>{{ formatUnitType(selectedUnit.unit_type) }}ที่ {{ selectedUnit.unit_number }}</span>
+            </div>
             <textarea
               v-model="unitRawText"
               class="content-editor"
@@ -654,8 +738,8 @@ const publishStudioBook = async () => {
             </div>
           </section>
 
-          <section class="studio-panel">
-            <h3>ขั้นตอนที่ 3: ตัวอย่างสำหรับอ่านออกเสียง</h3>
+          <section v-show="activeStudioStep === 3" class="studio-panel">
+            <h3>ขั้นตอนที่ 4: Preview สำหรับอ่านออกเสียง</h3>
             <div class="preview-stats">
               <article>
                 <strong>{{ contentPreview.length }}</strong>
@@ -689,8 +773,36 @@ const publishStudioBook = async () => {
               </p>
             </div>
 
-            <button class="publish-btn" :disabled="loading || !studioBookId" @click="publishStudioBook">
-              เผยแพร่หนังสือ
+            <button class="publish-btn" :disabled="!canOpenStudioStep(4)" @click="goToStudioStep(4)">
+              ไปขั้นตอนส่งอนุมัติ
+            </button>
+          </section>
+
+          <section v-show="activeStudioStep === 4" class="studio-panel">
+            <h3>ขั้นตอนที่ 5: ส่งให้แอดมินอนุมัติ</h3>
+            <div class="publish-summary">
+              <article>
+                <span>หนังสือ</span>
+                <strong>{{ title || "-" }}</strong>
+              </article>
+              <article>
+                <span>จำนวนบท/ตอน</span>
+                <strong>{{ studioUnits.length }}</strong>
+              </article>
+              <article>
+                <span>จำนวนประโยคใน preview</span>
+                <strong>{{ totalPreviewSentences }}</strong>
+              </article>
+              <article>
+                <span>สิทธิ์การเข้าถึง</span>
+                <strong>{{ accessType }}</strong>
+              </article>
+            </div>
+            <p class="muted">
+              เมื่อกดส่ง หนังสือจะเข้าสู่ flow เผยแพร่และรอแอดมินตรวจ/อนุมัติตำแหน่งแสดงผลตามที่เลือกไว้
+            </p>
+            <button class="publish-btn" :disabled="loading || !studioBookId || !studioUnits.length" @click="publishStudioBook">
+              {{ loading ? "กำลังส่ง..." : "ส่งอนุมัติ / เผยแพร่" }}
             </button>
           </section>
         </div>
@@ -992,10 +1104,97 @@ textarea {
   font-weight: 700;
 }
 
-.studio-grid {
+.compact-card {
+  margin: 12px 0;
+}
+
+.wizard-steps {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.wizard-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 76px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  color: var(--text-strong);
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wizard-step.active {
+  border-color: color-mix(in srgb, var(--primary) 60%, var(--border));
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+}
+
+.wizard-step.done .step-number {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.wizard-step:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.wizard-step strong,
+.wizard-step small {
+  display: block;
+}
+
+.wizard-step small {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.step-number {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-strong);
+  font-weight: 900;
+}
+
+.wizard-stage {
+  display: grid;
   gap: 18px;
+}
+
+.publish-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.publish-summary article {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  padding: 14px;
+}
+
+.publish-summary span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.publish-summary strong {
+  color: var(--text-strong);
 }
 
 .unit-list,
@@ -1107,8 +1306,12 @@ textarea {
 }
 
 @media (max-width: 1080px) {
-  .studio-grid {
-    grid-template-columns: 1fr;
+  .wizard-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .publish-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1127,9 +1330,11 @@ textarea {
     min-height: 46px;
   }
 
+  .wizard-steps,
   .form-grid,
   .preview-stats,
-  .placement-grid {
+  .placement-grid,
+  .publish-summary {
     grid-template-columns: 1fr;
   }
 

@@ -713,6 +713,7 @@ const PREVIEW_LIMIT = 12;
 // =========================
 const route = useRoute();
 const router = useRouter();
+const isAuthenticated = computed(() => Boolean(localStorage.getItem("token")));
 
 // =========================
 // state หลักของหน้า
@@ -1146,9 +1147,27 @@ const savePreviewSettings = () => {
   localStorage.setItem("book-detail-pitch", String(pitch.value));
   localStorage.setItem("book-detail-volume", String(volume.value));
   localStorage.setItem("book-detail-voice", selectedVoice.value);
+
+  if (!isAuthenticated.value) return;
+
+  api.put("/account/preferences", {
+    preferences: {
+      reader: {
+        font_size: fontSize.value,
+      },
+      tts: {
+        rate: rate.value,
+        pitch: pitch.value,
+        volume: volume.value,
+        voice: selectedVoice.value,
+      },
+    },
+  }).catch(() => {
+    // Local preview settings remain available offline.
+  });
 };
 
-const loadPreviewSettings = () => {
+const loadPreviewSettings = async () => {
   const savedFont = localStorage.getItem("book-detail-font-size");
   const savedRate = localStorage.getItem("book-detail-rate");
   const savedPitch = localStorage.getItem("book-detail-pitch");
@@ -1160,6 +1179,21 @@ const loadPreviewSettings = () => {
   if (savedPitch !== null) pitch.value = Number(savedPitch) || 1;
   if (savedVolume !== null) volume.value = Number(savedVolume) || 1;
   if (savedVoice !== null) selectedVoice.value = savedVoice;
+
+  if (!isAuthenticated.value) return;
+
+  try {
+    const { data } = await api.get("/account/preferences");
+    const reader = data?.preferences?.reader || {};
+    const tts = data?.preferences?.tts || {};
+    if (Number.isFinite(Number(reader.font_size))) fontSize.value = Number(reader.font_size);
+    if (Number.isFinite(Number(tts.rate))) rate.value = Number(tts.rate);
+    if (Number.isFinite(Number(tts.pitch))) pitch.value = Number(tts.pitch);
+    if (Number.isFinite(Number(tts.volume))) volume.value = Number(tts.volume);
+    if (typeof tts.voice === "string") selectedVoice.value = tts.voice;
+  } catch {
+    // Keep local settings as fallback.
+  }
 };
 
 const scrollToCurrent = async () => {
@@ -1820,7 +1854,7 @@ watch(reviewError, (message) => {
 // lifecycle
 // =========================
 onMounted(async () => {
-  loadPreviewSettings();
+  await loadPreviewSettings();
   await fetchBook();
   await loadSubscriptionStatus();
   await loadWriterFollowStatus();

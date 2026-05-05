@@ -18,13 +18,15 @@ const defaultConfig = {
     image_url: "",
     updated_at: null,
   },
+  homeBanners: [],
 };
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
-    cb(null, `subscription-hero-${Date.now()}${ext}`);
+    const prefix = file.fieldname === "home_banner" ? "home-banner" : "subscription-hero";
+    cb(null, `${prefix}-${Date.now()}${ext}`);
   },
 });
 
@@ -53,11 +55,30 @@ function readConfig() {
         ...defaultConfig.subscriptionHero,
         ...(parsed.subscriptionHero || {}),
       },
+      homeBanners: Array.isArray(parsed.homeBanners) ? parsed.homeBanners : [],
     };
   } catch (error) {
     console.error("read page content config error:", error);
     return defaultConfig;
   }
+}
+
+function createBannerPayload(source = {}, file = null) {
+  const imageUrl = file
+    ? `/uploads/page-content/${file.filename}`
+    : String(source.image_url || "").trim();
+
+  if (!imageUrl) return null;
+
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    image_url: imageUrl,
+    title: String(source.title || "").trim(),
+    link_url: String(source.link_url || "").trim(),
+    sort_order: Number(source.sort_order || 0),
+    is_active: source.is_active === undefined ? true : String(source.is_active) !== "false",
+    updated_at: new Date().toISOString(),
+  };
 }
 
 function writeConfig(config) {
@@ -103,6 +124,64 @@ router.post(
     }
   },
 );
+
+router.post(
+  "/home-banners",
+  verifyToken,
+  requireAdmin,
+  upload.single("home_banner"),
+  (req, res) => {
+    try {
+      const banner = createBannerPayload(req.body, req.file);
+      if (!banner) {
+        return res.status(400).json({
+          message: "กรุณาอัปโหลดรูปภาพหรือกรอก URL รูปภาพโปรโมต",
+        });
+      }
+
+      const config = readConfig();
+      config.homeBanners = [...(config.homeBanners || []), banner]
+        .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+      writeConfig(config);
+
+      return res.json({
+        message: "บันทึกแบนเนอร์โปรโมตหน้าแรกสำเร็จ",
+        banner,
+        homeBanners: config.homeBanners,
+      });
+    } catch (error) {
+      console.error("POST /page-content/home-banners error:", error);
+      return res.status(500).json({
+        message: "บันทึกแบนเนอร์โปรโมตหน้าแรกไม่สำเร็จ",
+      });
+    }
+  },
+);
+
+router.delete("/home-banners/:id", verifyToken, requireAdmin, (req, res) => {
+  try {
+    const config = readConfig();
+    const beforeCount = (config.homeBanners || []).length;
+    config.homeBanners = (config.homeBanners || []).filter(
+      (banner) => String(banner.id) !== String(req.params.id),
+    );
+
+    if (config.homeBanners.length === beforeCount) {
+      return res.status(404).json({ message: "ไม่พบแบนเนอร์โปรโมตที่ต้องการลบ" });
+    }
+
+    writeConfig(config);
+    return res.json({
+      message: "ลบแบนเนอร์โปรโมตหน้าแรกสำเร็จ",
+      homeBanners: config.homeBanners,
+    });
+  } catch (error) {
+    console.error("DELETE /page-content/home-banners/:id error:", error);
+    return res.status(500).json({
+      message: "ลบแบนเนอร์โปรโมตหน้าแรกไม่สำเร็จ",
+    });
+  }
+});
 
 router.delete("/subscription-hero", verifyToken, requireAdmin, (_req, res) => {
   try {

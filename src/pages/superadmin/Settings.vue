@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, reactive } from "vue";
+import { computed, onMounted, reactive } from "vue";
 import { useRouter } from "vue-router";
-import { API_BASE_URL } from "../../utils/api";
+import api, { API_BASE_URL } from "../../utils/api";
 import { getUser, logout } from "../../utils/auth";
 
 type ChecklistKey =
@@ -107,11 +107,25 @@ const contentLinks = computed<SettingsLink[]>(() => [
 
 function persistChecklist() {
   localStorage.setItem(storageKey, JSON.stringify(checklistState));
+  api.put("/admin/settings/checklist", { checklist: checklistState }).catch(() => undefined);
 }
 
 function toggleChecklist(key: ChecklistKey) {
   checklistState[key] = !checklistState[key];
   persistChecklist();
+}
+
+async function loadChecklist() {
+  try {
+    const { data } = await api.get("/admin/settings/checklist");
+    const remote = data?.checklist || {};
+    checklistItems.value.forEach((item) => {
+      checklistState[item.key] = Boolean(remote[item.key]);
+    });
+    localStorage.setItem(storageKey, JSON.stringify(checklistState));
+  } catch {
+    persistChecklist();
+  }
 }
 
 function openRoute(path: string) {
@@ -122,6 +136,8 @@ function signOut() {
   logout();
   router.push("/login");
 }
+
+onMounted(loadChecklist);
 </script>
 
 <template>

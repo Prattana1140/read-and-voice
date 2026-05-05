@@ -32,7 +32,7 @@ async function loadWishlist() {
   } catch (error: any) {
     errorMessage.value =
       error?.response?.data?.message || "โหลดรายการที่อยากได้ไม่สำเร็จ";
-    wishlist.value = JSON.parse(localStorage.getItem("wishlist") || "[]");
+    wishlist.value = [];
   } finally {
     loading.value = false;
   }
@@ -42,7 +42,6 @@ async function removeItem(id: number) {
   try {
     await api.delete(`/wishlist/${id}`);
     wishlist.value = wishlist.value.filter((book) => Number(book.id) !== Number(id));
-    localStorage.setItem("wishlist", JSON.stringify(wishlist.value));
   } catch (error: any) {
     errorMessage.value =
       error?.response?.data?.message || "ลบรายการที่อยากได้ไม่สำเร็จ";

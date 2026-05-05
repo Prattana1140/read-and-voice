@@ -2,6 +2,7 @@
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import api from "../../utils/api";
+import { logout } from "../../utils/auth";
 import AccountSectionLayout from "../../components/account/AccountSectionLayout.vue";
 
 type DeviceItem = { id: number; device_name: string; platform: string | null; last_used_at: string | null; created_at: string; };
@@ -12,7 +13,7 @@ const errorMessage = ref("");
 const items = ref<DeviceItem[]>([]);
 const formatDate = (value: string | null) => value ? new Date(value).toLocaleString("th-TH") : "-";
 async function loadItems() { try { loading.value = true; errorMessage.value = ""; const { data } = await api.get("/account/devices"); items.value = Array.isArray(data?.items) ? data.items : []; } catch (error: any) { errorMessage.value = error?.response?.data?.message || "โหลดรายการอุปกรณ์ไม่สำเร็จ"; } finally { loading.value = false; } }
-async function logoutAllDevices() { const confirmed = window.confirm("ต้องการออกจากระบบทุกอุปกรณ์ใช่ไหม"); if (!confirmed) return; try { saving.value = true; await api.post("/account/devices/logout-all"); await loadItems(); window.alert("ออกจากระบบทุกอุปกรณ์แล้ว"); } catch { window.alert("ยังไม่สามารถออกจากระบบทุกอุปกรณ์ได้"); } finally { saving.value = false; } }
+async function logoutAllDevices() { const confirmed = window.confirm("ต้องการออกจากระบบทุกอุปกรณ์ใช่ไหม"); if (!confirmed) return; try { saving.value = true; await api.post("/account/devices/logout-all"); window.alert("ออกจากระบบทุกอุปกรณ์แล้ว กรุณาเข้าสู่ระบบใหม่"); logout(); router.push("/login"); } catch { window.alert("ยังไม่สามารถออกจากระบบทุกอุปกรณ์ได้"); } finally { saving.value = false; } }
 onMounted(loadItems);
 </script>
 

@@ -13,6 +13,7 @@ const ordersRoutes = require("./routes/orders");
 const progressRoutes = require("./routes/progress");
 const adminUsersRoutes = require("./routes/adminUsers");
 const adminBooksRoutes = require("./routes/adminBooks");
+const adminSettingsRoutes = require("./routes/adminSettings");
 
 const profileRoutes = require("./routes/profile");
 const subscriptionsRoutes = require("./routes/subscriptions");
@@ -121,10 +122,14 @@ app.get("/api", (_req, res) => {
       "/api/subscription",
       "/api/subscriptions/plans",
       "/api/subscriptions/me",
+      "/api/admin/settings/checklist",
       "/api/page-content",
       "/api/page-content/subscription-hero",
+      "/api/page-content/home-banners",
       "/api/account/following",
       "/api/account/notifications",
+      "/api/account/notification-settings",
+      "/api/account/preferences",
       "/api/writers/:slug",
       "/api/writers/me/profile",
       "/api/reader/books/:bookId/content",
@@ -145,6 +150,7 @@ app.use("/api/library", libraryRoutes);
 app.use("/api/orders", ordersRoutes);
 app.use("/api/payments", paymentsRoutes);
 app.use("/api/progress", progressRoutes);
+app.use("/api/admin/settings", adminSettingsRoutes);
 app.use("/api/admin", adminUsersRoutes);
 app.use("/api/admin/books", adminBooksRoutes);
 

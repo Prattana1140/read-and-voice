@@ -9,6 +9,7 @@ import {
   getUser,
   logout as clearAuth,
 } from "../utils/auth";
+import { useI18n } from "../utils/i18n";
 
 type ThemeMode = "normal" | "dark" | "reading";
 type UserRole = "guest" | "user" | "writer" | "admin" | "superadmin";
@@ -54,6 +55,15 @@ const props = defineProps<{ theme: ThemeMode }>();
 const emit = defineEmits<{ (event: "change-theme", theme: ThemeMode): void }>();
 
 const router = useRouter();
+const {
+  currentLanguageName,
+  formatLocaleDate,
+  formatLocaleDateTime,
+  locale,
+  nextLanguageLabel,
+  setLocale,
+  t,
+} = useI18n();
 const navbarRef = ref<HTMLElement | null>(null);
 const topBarRef = ref<HTMLElement | null>(null);
 const themeDropdownRef = ref<HTMLDetailsElement | null>(null);
@@ -65,7 +75,7 @@ const isNotificationsOpen = ref(false);
 const search = ref("");
 const authVersion = ref(0);
 const walletBalance = ref(0);
-const membershipLabel = ref("ยังไม่มีแพ็กเกจสมาชิก");
+const membershipLabel = ref(t("account.noMembership"));
 const isMembershipActive = ref(false);
 const notificationItems = ref<NotificationItem[]>([]);
 const notificationLoading = ref(false);
@@ -106,6 +116,26 @@ const currentRole = computed<UserRole>(() => {
 });
 
 const memberRoles: UserRole[] = ["user", "writer", "admin", "superadmin"];
+const readerRoles: UserRole[] = ["user", "writer"];
+const adminRoles: UserRole[] = ["admin", "superadmin"];
+const superAdminRoles: UserRole[] = ["superadmin"];
+const isReaderRole = computed(() => readerRoles.includes(currentRole.value));
+const isAdminRole = computed(() => adminRoles.includes(currentRole.value));
+const isSuperAdminRole = computed(() => superAdminRoles.includes(currentRole.value));
+const roleLabel = computed(() => {
+  if (currentRole.value === "superadmin") return t("account.role.superadmin");
+  if (currentRole.value === "admin") return t("account.role.admin");
+  if (currentRole.value === "writer") return t("account.role.writer");
+  if (currentRole.value === "user") return t("account.role.user");
+  return t("account.role.guest");
+});
+const roleHint = computed(() => {
+  if (isSuperAdminRole.value) return t("account.roleHint.superadmin");
+  if (currentRole.value === "admin") return t("account.roleHint.admin");
+  if (currentRole.value === "writer") return t("account.roleHint.writer");
+  if (currentRole.value === "user") return t("account.roleHint.user");
+  return "";
+});
 
 const userDisplayName = computed(
   () => user.value?.name?.trim() || "Read and Voice",
@@ -119,24 +149,24 @@ const userMeta = computed(() => {
     return `member-${String(user.value.id).padStart(6, "0")}`;
   }
 
-  return "สมาชิกของ Read and Voice";
+  return t("account.memberOf");
 });
 
 const accountQuickLinks = computed<NavItem[]>(() => {
   if (!isLoggedIn.value) return [];
 
   return [
-    { label: "ชั้นหนังสือของฉัน", to: "/my-library", roles: memberRoles },
-    { label: "รายการที่อยากอ่าน", to: "/wishlist", roles: memberRoles },
-    { label: "กำลังติดตาม", to: "/account/following", roles: memberRoles },
+    { label: t("account.bookshelf"), to: "/my-library", roles: readerRoles },
+    { label: t("account.wishlist"), to: "/wishlist", roles: readerRoles },
+    { label: t("account.following"), to: "/account/following", roles: readerRoles },
   ].filter((item) => item.roles.includes(currentRole.value));
 });
 
-const themeOptions: { label: string; value: ThemeMode }[] = [
-  { label: "ปกติ", value: "normal" },
-  { label: "กลางคืน", value: "dark" },
-  { label: "โหมดอ่าน", value: "reading" },
-];
+const themeOptions = computed<{ label: string; value: ThemeMode }[]>(() => [
+  { label: t("theme.normal"), value: "normal" },
+  { label: t("theme.dark"), value: "dark" },
+  { label: t("theme.reading"), value: "reading" },
+]);
 
 const selectTheme = (theme: ThemeMode) => {
   emit("change-theme", theme);
@@ -148,51 +178,65 @@ const selectTheme = (theme: ThemeMode) => {
   closeMenu();
 };
 
-const publicNavItems: NavItem[] = [
-  { label: "หน้าแรก", to: "/", roles: allRoles },
-  { label: "หนังสือ", to: "/store", roles: allRoles },
-  { label: "รายตอน", to: "/serials", roles: allRoles },
-];
+const selectLanguage = (value: "th" | "en") => {
+  setLocale(value);
+  closeMenu();
+  scheduleCompactNavMeasure();
+};
+
+const publicNavItems = computed<NavItem[]>(() => [
+  { label: t("nav.home"), to: "/", roles: allRoles },
+  { label: t("nav.books"), to: "/store", roles: allRoles },
+  { label: t("nav.serials"), to: "/serials", roles: allRoles },
+]);
 
 const mainNavItems = computed(() =>
-  publicNavItems.filter((item) => item.roles.includes(currentRole.value)),
+  publicNavItems.value.filter((item) => item.roles.includes(currentRole.value)),
 );
 
 const accountGroups = computed<NavGroup[]>(() => {
   const role = currentRole.value;
   const groups: NavGroup[] = [
     {
-      title: "บัญชีของฉัน",
+      title: t("account.myAccount"),
       items: [
-        { label: "โปรไฟล์", to: "/profile", roles: memberRoles },
-        { label: "แพ็กเกจสมาชิก", to: "/account/buffet", roles: memberRoles },
-        { label: "อุปกรณ์ของฉัน", to: "/account/devices", roles: memberRoles },
-        { label: "สิทธิประโยชน์", to: "/account/benefits", roles: memberRoles },
+        { label: t("account.profile"), to: "/profile", roles: memberRoles },
+        { label: t("account.userDevices"), to: "/account/devices", roles: memberRoles },
         {
-          label: "การแจ้งเตือน",
+          label: t("account.notifications"),
           to: "/account/notifications",
-          roles: memberRoles,
-        },
-        {
-          label: "ประวัติคำสั่งซื้อ",
-          to: "/orders/history",
-          roles: ["user", "writer"],
-        },
-        { label: "รีวิวของฉัน", to: "/account/reviews", roles: memberRoles },
-        {
-          label: "ยืนยันอายุผู้ใช้งาน",
-          to: "/account/age-verification",
           roles: memberRoles,
         },
       ],
       defaultOpen: true,
     },
     {
-      title: "การตั้งค่า",
+      title: t("account.readingMember"),
       items: [
-        { label: "โค้ดของขวัญ", to: "/account/gift-codes", roles: memberRoles },
+        { label: t("account.bookshelf"), to: "/my-library", roles: readerRoles },
+        { label: t("account.wishlist"), to: "/wishlist", roles: readerRoles },
+        { label: t("account.following"), to: "/account/following", roles: readerRoles },
+        { label: t("account.package"), to: "/account/buffet", roles: readerRoles },
+        { label: t("account.benefits"), to: "/account/benefits", roles: readerRoles },
         {
-          label: "ตั้งค่าการแจ้งเตือน",
+          label: t("account.orders"),
+          to: "/orders/history",
+          roles: readerRoles,
+        },
+        { label: t("account.reviews"), to: "/account/reviews", roles: readerRoles },
+        {
+          label: t("account.ageVerification"),
+          to: "/account/age-verification",
+          roles: readerRoles,
+        },
+      ],
+    },
+    {
+      title: t("account.settings"),
+      items: [
+        { label: t("account.giftCodes"), to: "/account/gift-codes", roles: memberRoles },
+        {
+          label: t("notification.settings"),
           to: "/notification-settings",
           roles: memberRoles,
         },
@@ -200,23 +244,46 @@ const accountGroups = computed<NavGroup[]>(() => {
       defaultOpen: true,
     },
     {
-      title: "พื้นที่นักเขียน",
-      items: [{ label: "แดชบอร์ดนักเขียน", to: "/writer", roles: ["writer"] }],
+      title: t("account.writerSpace"),
+      items: [{ label: t("account.writerDashboard"), to: "/writer", roles: ["writer"] }],
     },
     {
-      title: "ผู้ดูแลระบบ",
+      title: t("account.adminTools"),
       items: [
         {
-          label: "แดชบอร์ดแอดมิน",
+          label: t("account.adminDashboard"),
           to: "/admin",
-          roles: ["admin", "superadmin"],
+          roles: adminRoles,
+        },
+        {
+          label: t("account.contentManagement"),
+          to: "/admin/page-content",
+          roles: adminRoles,
+        },
+        {
+          label: t("account.bookManagement"),
+          to: "/admin/books",
+          roles: adminRoles,
+        },
+        {
+          label: t("account.uploadBook"),
+          to: "/admin/upload-book",
+          roles: adminRoles,
+        },
+        {
+          label: t("account.approvals"),
+          to: "/admin/approvals",
+          roles: adminRoles,
         },
       ],
     },
     {
-      title: "ผู้ดูแลสูงสุด",
+      title: t("account.superadmin"),
       items: [
-        { label: "ผู้ดูแลสูงสุด", to: "/superadmin", roles: ["superadmin"] },
+        { label: t("account.superDashboard"), to: "/superadmin", roles: superAdminRoles },
+        { label: t("account.userManagement"), to: "/superadmin/users", roles: superAdminRoles },
+        { label: t("account.roleManagement"), to: "/superadmin/roles", roles: superAdminRoles },
+        { label: t("account.settingsSystem"), to: "/superadmin/settings", roles: superAdminRoles },
       ],
     },
   ];
@@ -346,13 +413,7 @@ const submitSearch = () => {
 };
 
 const formatNotificationTime = (value: string) => {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "";
-
-  return parsed.toLocaleString("th-TH", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
+  return formatLocaleDateTime(value);
 };
 
 const notificationToneClass = (type: string) => {
@@ -376,7 +437,7 @@ const loadNotifications = async () => {
     notificationItems.value = Array.isArray(data?.items) ? data.items : [];
   } catch (error: any) {
     notificationError.value =
-      error?.response?.data?.message || "โหลดการแจ้งเตือนไม่สำเร็จ";
+      error?.response?.data?.message || t("notification.errorLoad");
   } finally {
     notificationLoading.value = false;
   }
@@ -395,7 +456,7 @@ const markNotificationAsRead = async (item: NotificationItem) => {
     }
   } catch (error: any) {
     notificationError.value =
-      error?.response?.data?.message || "เปิดการแจ้งเตือนไม่สำเร็จ";
+      error?.response?.data?.message || t("notification.errorMark");
   }
 };
 
@@ -408,14 +469,14 @@ const markAllNotificationsRead = async () => {
     }));
   } catch (error: any) {
     notificationError.value =
-      error?.response?.data?.message || "อัปเดตการแจ้งเตือนไม่สำเร็จ";
+      error?.response?.data?.message || t("notification.errorReadAll");
   }
 };
 
 const deleteAllNotifications = async () => {
   if (!notificationItems.value.length) return;
 
-  const confirmed = window.confirm("ต้องการลบการแจ้งเตือนทั้งหมดใช่ไหม?");
+  const confirmed = window.confirm(t("notification.confirmDelete"));
   if (!confirmed) return;
 
   try {
@@ -424,12 +485,12 @@ const deleteAllNotifications = async () => {
     notificationError.value = "";
   } catch (error: any) {
     notificationError.value =
-      error?.response?.data?.message || "ลบการแจ้งเตือนไม่สำเร็จ";
+      error?.response?.data?.message || t("notification.errorDeleteAll");
   }
 };
 
 const loadWalletBalance = async () => {
-  if (!isLoggedIn.value) {
+  if (!isLoggedIn.value || !isReaderRole.value) {
     walletBalance.value = 0;
     return;
   }
@@ -444,8 +505,14 @@ const loadWalletBalance = async () => {
 
 const loadMembershipLabel = async () => {
   if (!isLoggedIn.value) {
-    membershipLabel.value = "ยังไม่มีแพ็กเกจสมาชิก";
+    membershipLabel.value = t("account.noMembership");
     isMembershipActive.value = false;
+    return;
+  }
+
+  if (!isReaderRole.value) {
+    membershipLabel.value = roleLabel.value;
+    isMembershipActive.value = isAdminRole.value;
     return;
   }
 
@@ -459,20 +526,20 @@ const loadMembershipLabel = async () => {
     );
 
     if (!activeItem) {
-      membershipLabel.value = "ยังไม่มีแพ็กเกจสมาชิก";
+      membershipLabel.value = t("account.noMembership");
       isMembershipActive.value = false;
       return;
     }
 
-    const planName = activeItem.title?.trim() || "สมาชิกพิเศษ";
+    const planName = activeItem.title?.trim() || t("account.specialMember");
     const expiry = activeItem.end_at
-      ? `ถึงวันที่ ${new Date(activeItem.end_at).toLocaleDateString("th-TH")}`
-      : "ยังไม่ระบุวันสิ้นสุด";
+      ? `${t("account.untilDate")} ${formatLocaleDate(activeItem.end_at)}`
+      : t("account.noExpiry");
 
     isMembershipActive.value = true;
     membershipLabel.value = `${planName} · ${expiry}`;
   } catch {
-    membershipLabel.value = "ตรวจสอบสถานะแพ็กเกจไม่สำเร็จ";
+    membershipLabel.value = t("account.statusFailed");
     isMembershipActive.value = false;
   }
 };
@@ -526,6 +593,11 @@ watch(currentRole, () => {
   scheduleCompactNavMeasure();
 });
 
+watch(locale, () => {
+  loadMembershipLabel();
+  scheduleCompactNavMeasure();
+});
+
 watch(isCompactNav, (compact) => {
   if (!compact) closeMenu();
 });
@@ -545,7 +617,7 @@ watch(isCompactNav, (compact) => {
           type="button"
           :aria-expanded="isMenuOpen"
           aria-controls="mobile-menu"
-          aria-label="เปิดเมนูนำทาง"
+          :aria-label="t('common.mainMenu')"
           @click="isMenuOpen = !isMenuOpen"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -559,21 +631,27 @@ watch(isCompactNav, (compact) => {
         <router-link
           class="brand"
           to="/"
-          aria-label="กลับไปหน้าแรก"
+          :aria-label="t('nav.home')"
           @click="closeMenu"
         >
           <img class="brand-logo" :src="logoUrl" alt="Read and Voice" />
         </router-link>
 
         <router-link
+          v-if="isReaderRole"
           class="subscription-link"
           to="/subscription-plans"
           @click="closeMenu"
         >
-          สมัครแพ็กเกจสมาชิก
+          {{ t("nav.subscription") }}
         </router-link>
 
-        <router-link class="coin-link" to="/coin-wallet" @click="closeMenu">
+        <router-link
+          v-if="isReaderRole"
+          class="coin-link"
+          to="/coin-wallet"
+          @click="closeMenu"
+        >
           <span class="coin-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="8.5" class="coin-face" />
@@ -581,16 +659,16 @@ watch(isCompactNav, (compact) => {
               <ellipse cx="9.2" cy="8.4" rx="2.2" ry="1.5" class="coin-shine" />
             </svg>
           </span>
-          เติมคอยน์
+          {{ t("nav.topUp") }}
         </router-link>
         <button
           class="accessibility-link"
           type="button"
           data-accessibility-toggle="true"
-          aria-label="เปิดหรือปิดตัวช่วยการเข้าถึง"
+          :aria-label="t('a11y.open')"
           @click="openAccessibilityPanel"
         >
-          การเข้าถึง
+          {{ t("a11y.open") }}
         </button>
       </div>
 
@@ -609,7 +687,7 @@ watch(isCompactNav, (compact) => {
         <button
           class="icon-button"
           type="button"
-          aria-label="ค้นหา"
+          :aria-label="t('common.search')"
           @click="openSearch"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -620,7 +698,7 @@ watch(isCompactNav, (compact) => {
         </button>
 
         <details ref="themeDropdownRef" class="icon-dropdown">
-          <summary class="icon-button" aria-label="เปลี่ยนธีมการแสดงผล">
+          <summary class="icon-button" :aria-label="t('theme.switch')">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path
                 d="M12 3a9 9 0 0 0 0 18h.4a3.1 3.1 0 0 0 2.2-5.3 1.1 1.1 0 0 1 .8-1.9H17a4 4 0 0 0 0-8h-.5A8.9 8.9 0 0 0 12 3Zm-5 9.2a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8Zm3.1-4.1a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8Zm4.6.1a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8Z"
@@ -640,11 +718,35 @@ watch(isCompactNav, (compact) => {
           </div>
         </details>
 
+        <div
+          class="language-switch"
+          :aria-label="`${t('language.label')}: ${currentLanguageName}`"
+          :title="nextLanguageLabel"
+        >
+          <span class="language-switch__label">{{ t("language.label") }}</span>
+          <button
+            type="button"
+            :class="{ active: locale === 'th' }"
+            :aria-pressed="locale === 'th'"
+            @click="selectLanguage('th')"
+          >
+            ไทย
+          </button>
+          <button
+            type="button"
+            :class="{ active: locale === 'en' }"
+            :aria-pressed="locale === 'en'"
+            @click="selectLanguage('en')"
+          >
+            EN
+          </button>
+        </div>
+
         <button
           class="icon-button mobile-accessibility-button"
           type="button"
           data-accessibility-toggle="true"
-          aria-label="เปิดหรือปิดตัวช่วยการเข้าถึง"
+          :aria-label="t('a11y.open')"
           @click="openAccessibilityPanel"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -658,7 +760,7 @@ watch(isCompactNav, (compact) => {
           <button
             class="notification-button"
             type="button"
-            aria-label="การแจ้งเตือน"
+            :aria-label="t('account.notifications')"
             :aria-expanded="isNotificationsOpen"
             @click="toggleNotifications"
           >
@@ -674,12 +776,12 @@ watch(isCompactNav, (compact) => {
 
           <div v-if="isNotificationsOpen" class="notification-panel">
             <div class="notification-panel__header">
-              <h3>การแจ้งเตือน</h3>
+              <h3>{{ t("account.notifications") }}</h3>
               <div class="notification-panel__actions">
                 <button
                   class="notification-icon-action"
                   type="button"
-                  aria-label="ตั้งค่าการแจ้งเตือน"
+                  :aria-label="t('notification.settings')"
                   @click="openNotificationSettings"
                 >
                   <svg
@@ -700,7 +802,7 @@ watch(isCompactNav, (compact) => {
                 <button
                   class="notification-icon-action notification-icon-action--danger"
                   type="button"
-                  aria-label="ลบการแจ้งเตือนทั้งหมด"
+                  :aria-label="t('notification.deleteAll')"
                   :disabled="notificationItems.length === 0"
                   @click="deleteAllNotifications"
                 >
@@ -727,7 +829,7 @@ watch(isCompactNav, (compact) => {
               {{ notificationError }}
             </p>
             <p v-else-if="notificationLoading" class="notification-empty">
-              กำลังโหลดการแจ้งเตือน...
+              {{ t("notification.loading") }}
             </p>
             <div v-else-if="notificationItems.length" class="notification-list">
               <article
@@ -751,17 +853,17 @@ watch(isCompactNav, (compact) => {
                   type="button"
                   @click="markNotificationAsRead(item)"
                 >
-                  {{ item.action_url ? "เปิด" : "อ่านแล้ว" }}
+                  {{ item.action_url ? t("common.open") : t("common.read") }}
                 </button>
               </article>
             </div>
-            <p v-else class="notification-empty">ยังไม่มีการแจ้งเตือน</p>
+            <p v-else class="notification-empty">{{ t("notification.empty") }}</p>
             <router-link
               class="notification-footer-link"
               to="/account/notifications"
               @click="closeFloatingMenus"
             >
-              ดูการแจ้งเตือนทั้งหมด
+              {{ t("notification.all") }}
             </router-link>
           </div>
         </div>
@@ -776,7 +878,7 @@ watch(isCompactNav, (compact) => {
           <summary
             class="avatar-button"
             :class="{ 'avatar-button--member': isMembershipActive }"
-            aria-label="เมนูบัญชี"
+            :aria-label="t('account.menu')"
           >
             <img
               v-if="userAvatarUrl"
@@ -798,7 +900,7 @@ watch(isCompactNav, (compact) => {
                 <img
                   v-if="userAvatarUrl"
                   :src="userAvatarUrl"
-                  alt="รูปโปรไฟล์"
+                  :alt="t('account.profile')"
                   class="account-avatar account-avatar-image"
                   :class="{ 'account-avatar--member': isMembershipActive }"
                 />
@@ -813,18 +915,33 @@ watch(isCompactNav, (compact) => {
                 <div class="account-summary-copy">
                   <strong>{{ userDisplayName }}</strong>
                   <span>{{ userMeta }}</span>
-                  <small class="account-membership">{{
-                    membershipLabel
-                  }}</small>
+                  <small class="role-badge" :class="`role-badge--${currentRole}`">
+                    {{ roleLabel }}
+                  </small>
+                  <small v-if="isReaderRole" class="account-membership">
+                    {{ membershipLabel }}
+                  </small>
+                  <small v-else class="account-role-hint">
+                    {{ roleHint }}
+                  </small>
                 </div>
                 <button class="logout-chip" type="button" @click="logout">
-                  ออกจากระบบ
+                  {{ t("account.logout") }}
                 </button>
               </div>
 
-              <div class="wallet-row">
+              <div v-if="isAdminRole" class="admin-quick-row">
+                <router-link to="/admin/page-content" @click="closeFloatingMenus">
+                  {{ t("account.contentManagement") }}
+                </router-link>
+                <router-link to="/admin" @click="closeFloatingMenus">
+                  {{ t("account.adminDashboard") }}
+                </router-link>
+              </div>
+
+              <div v-if="isReaderRole" class="wallet-row">
                 <div class="wallet-balance">
-                  <span class="wallet-label">คอยน์</span>
+                  <span class="wallet-label">{{ t("account.coin") }}</span>
                   <strong>{{ walletBalance.toFixed(2) }}</strong>
                 </div>
                 <router-link
@@ -832,7 +949,7 @@ watch(isCompactNav, (compact) => {
                   to="/coin-wallet"
                   @click="closeFloatingMenus"
                 >
-                  เติมคอยน์
+                  {{ t("nav.topUp") }}
                 </router-link>
               </div>
 
@@ -880,11 +997,11 @@ watch(isCompactNav, (compact) => {
             <template v-else>
               <div class="guest-actions">
                 <router-link class="guest-auth-link" to="/login"
-                  >เข้าสู่ระบบ</router-link
+                  >{{ t("account.login") }}</router-link
                 >
                 <span>/</span>
                 <router-link class="guest-auth-link" to="/register"
-                  >สมัครสมาชิก</router-link
+                  >{{ t("account.register") }}</router-link
                 >
               </div>
             </template>
@@ -911,13 +1028,13 @@ watch(isCompactNav, (compact) => {
           ref="searchInputRef"
           v-model="search"
           type="search"
-          placeholder="ค้นหาหนังสือ นักเขียน หรือหมวดหมู่"
-          aria-label="ค้นหาหนังสือ นักเขียน หรือหมวดหมู่"
+          :placeholder="t('common.search')"
+          :aria-label="t('common.search')"
         />
         <button
           class="search-close"
           type="button"
-          aria-label="ปิดการค้นหา"
+          :aria-label="t('common.back')"
           @click="closeSearch"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -941,7 +1058,7 @@ watch(isCompactNav, (compact) => {
         <button
           class="mobile-close"
           type="button"
-          aria-label="ปิดเมนู"
+          :aria-label="t('common.back')"
           @click="closeMenu"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -954,7 +1071,7 @@ watch(isCompactNav, (compact) => {
       </div>
 
       <section class="mobile-group mobile-card">
-        <h3>เมนูหลัก</h3>
+        <h3>{{ t("common.mainMenu") }}</h3>
         <router-link
           v-for="item in mainNavItems"
           :key="item.to"
@@ -967,13 +1084,15 @@ watch(isCompactNav, (compact) => {
 
       <section class="mobile-group mobile-card mobile-cta-group">
         <router-link
+          v-if="isReaderRole"
           class="subscription-link mobile-pill-link"
           to="/subscription-plans"
           @click="closeMenu"
         >
-          สมัครแพ็กเกจสมาชิก
+          {{ t("nav.subscription") }}
         </router-link>
         <router-link
+          v-if="isReaderRole"
           class="coin-link mobile-pill-link"
           to="/coin-wallet"
           @click="closeMenu"
@@ -985,16 +1104,16 @@ watch(isCompactNav, (compact) => {
               <ellipse cx="9.2" cy="8.4" rx="2.2" ry="1.5" class="coin-shine" />
             </svg>
           </span>
-          เติมคอยน์
+          {{ t("nav.topUp") }}
         </router-link>
         <button
           class="accessibility-link mobile-pill-link"
           type="button"
           data-accessibility-toggle="true"
-          aria-label="เปิดหรือปิดตัวช่วยการเข้าถึง"
+          :aria-label="t('a11y.open')"
           @click="openAccessibilityPanel"
         >
-          การเข้าถึง
+          {{ t("a11y.open") }}
         </button>
       </section>
     </div>
@@ -1264,6 +1383,40 @@ watch(isCompactNav, (compact) => {
   background: #0f766e;
   color: #fff;
 }
+.language-switch {
+  display: inline-grid;
+  grid-template-columns: auto 1fr 1fr;
+  align-items: center;
+  gap: 2px;
+  min-height: 36px;
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  padding: 3px;
+}
+.language-switch__label {
+  color: #0f766e;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 0 5px 0 7px;
+  white-space: nowrap;
+}
+.language-switch button {
+  min-width: 38px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #0f766e;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 0 9px;
+}
+.language-switch button.active {
+  background: #0f766e;
+  color: #fff;
+}
 .notification-wrapper {
   position: relative;
 }
@@ -1471,6 +1624,34 @@ watch(isCompactNav, (compact) => {
   font-size: 12px;
   font-weight: 700;
 }
+.role-badge {
+  display: inline-flex;
+  justify-self: start;
+  margin-top: 2px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 3px 8px;
+}
+.role-badge--writer {
+  background: #f3e8ff;
+  color: #7e22ce;
+}
+.role-badge--admin {
+  background: #fff7ed;
+  color: #c2410c;
+}
+.role-badge--superadmin {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+.account-role-hint {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
 .logout-chip {
   min-height: 36px;
   border: 1px solid #ef4444;
@@ -1508,6 +1689,35 @@ watch(isCompactNav, (compact) => {
   font-size: 14px;
   font-weight: 700;
   text-decoration: none;
+}
+.admin-quick-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.admin-quick-row a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 38px;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 0 12px;
+  text-decoration: none;
+}
+.admin-quick-row a:first-child {
+  background: #ecfeff;
+  color: #0f766e;
+}
+.admin-quick-row a::after {
+  content: "›";
+  font-size: 18px;
+  line-height: 1;
 }
 .account-shortcuts,
 .account-section {
@@ -1843,6 +2053,19 @@ watch(isCompactNav, (compact) => {
     flex: 0 0 34px;
     width: 34px;
   }
+  .language-switch {
+    min-height: 32px;
+    padding: 2px;
+  }
+  .language-switch__label {
+    display: none;
+  }
+  .language-switch button {
+    min-width: 30px;
+    height: 26px;
+    font-size: 10px;
+    padding: 0 6px;
+  }
   .brand {
     flex: 0 0 88px;
     width: 88px;
@@ -1923,6 +2146,19 @@ watch(isCompactNav, (compact) => {
   .top-actions > .notification-wrapper {
     flex: 0 0 31px;
     width: 31px;
+  }
+  .language-switch {
+    grid-template-columns: 1fr;
+    gap: 2px;
+    min-height: 31px;
+    padding: 2px;
+  }
+  .language-switch button {
+    min-width: 25px;
+    height: 13px;
+    font-size: 8px;
+    line-height: 1;
+    padding: 0 3px;
   }
 
   .brand {

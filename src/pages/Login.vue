@@ -26,6 +26,7 @@ const error = ref("");
 const oauthStatus = ref<Record<string, { configured: boolean }>>({});
 
 const lineReady = computed(() => !!oauthStatus.value.line?.configured);
+const hasSocialLogin = computed(() => lineReady.value);
 
 const socialProviderLabel: Record<SocialProvider, string> = {
   line: "LINE",
@@ -207,11 +208,11 @@ watch(error, (message) => {
         </button>
       </form>
 
-      <div class="social-divider">
+      <div v-if="hasSocialLogin" class="social-divider">
         <span>หรือ</span>
       </div>
 
-      <div class="social-login-list">
+      <div v-if="hasSocialLogin" class="social-login-list">
         <button
           class="social-submit line-submit"
           type="button"
