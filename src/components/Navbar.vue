@@ -121,7 +121,9 @@ const adminRoles: UserRole[] = ["admin", "superadmin"];
 const superAdminRoles: UserRole[] = ["superadmin"];
 const isReaderRole = computed(() => readerRoles.includes(currentRole.value));
 const isAdminRole = computed(() => adminRoles.includes(currentRole.value));
-const isSuperAdminRole = computed(() => superAdminRoles.includes(currentRole.value));
+const isSuperAdminRole = computed(() =>
+  superAdminRoles.includes(currentRole.value),
+);
 const roleLabel = computed(() => {
   if (currentRole.value === "superadmin") return t("account.role.superadmin");
   if (currentRole.value === "admin") return t("account.role.admin");
@@ -158,7 +160,11 @@ const accountQuickLinks = computed<NavItem[]>(() => {
   return [
     { label: t("account.bookshelf"), to: "/my-library", roles: readerRoles },
     { label: t("account.wishlist"), to: "/wishlist", roles: readerRoles },
-    { label: t("account.following"), to: "/account/following", roles: readerRoles },
+    {
+      label: t("account.following"),
+      to: "/account/following",
+      roles: readerRoles,
+    },
   ].filter((item) => item.roles.includes(currentRole.value));
 });
 
@@ -201,7 +207,11 @@ const accountGroups = computed<NavGroup[]>(() => {
       title: t("account.myAccount"),
       items: [
         { label: t("account.profile"), to: "/profile", roles: memberRoles },
-        { label: t("account.userDevices"), to: "/account/devices", roles: memberRoles },
+        {
+          label: t("account.userDevices"),
+          to: "/account/devices",
+          roles: memberRoles,
+        },
         {
           label: t("account.notifications"),
           to: "/account/notifications",
@@ -213,17 +223,37 @@ const accountGroups = computed<NavGroup[]>(() => {
     {
       title: t("account.readingMember"),
       items: [
-        { label: t("account.bookshelf"), to: "/my-library", roles: readerRoles },
+        {
+          label: t("account.bookshelf"),
+          to: "/my-library",
+          roles: readerRoles,
+        },
         { label: t("account.wishlist"), to: "/wishlist", roles: readerRoles },
-        { label: t("account.following"), to: "/account/following", roles: readerRoles },
-        { label: t("account.package"), to: "/account/buffet", roles: readerRoles },
-        { label: t("account.benefits"), to: "/account/benefits", roles: readerRoles },
+        {
+          label: t("account.following"),
+          to: "/account/following",
+          roles: readerRoles,
+        },
+        {
+          label: t("account.package"),
+          to: "/account/buffet",
+          roles: readerRoles,
+        },
+        {
+          label: t("account.benefits"),
+          to: "/account/benefits",
+          roles: readerRoles,
+        },
         {
           label: t("account.orders"),
           to: "/orders/history",
           roles: readerRoles,
         },
-        { label: t("account.reviews"), to: "/account/reviews", roles: readerRoles },
+        {
+          label: t("account.reviews"),
+          to: "/account/reviews",
+          roles: readerRoles,
+        },
         {
           label: t("account.ageVerification"),
           to: "/account/age-verification",
@@ -234,7 +264,11 @@ const accountGroups = computed<NavGroup[]>(() => {
     {
       title: t("account.settings"),
       items: [
-        { label: t("account.giftCodes"), to: "/account/gift-codes", roles: memberRoles },
+        {
+          label: t("account.giftCodes"),
+          to: "/account/gift-codes",
+          roles: memberRoles,
+        },
         {
           label: t("notification.settings"),
           to: "/notification-settings",
@@ -245,7 +279,13 @@ const accountGroups = computed<NavGroup[]>(() => {
     },
     {
       title: t("account.writerSpace"),
-      items: [{ label: t("account.writerDashboard"), to: "/writer", roles: ["writer"] }],
+      items: [
+        {
+          label: t("account.writerDashboard"),
+          to: "/writer",
+          roles: ["writer"],
+        },
+      ],
     },
     {
       title: t("account.adminTools"),
@@ -280,10 +320,26 @@ const accountGroups = computed<NavGroup[]>(() => {
     {
       title: t("account.superadmin"),
       items: [
-        { label: t("account.superDashboard"), to: "/superadmin", roles: superAdminRoles },
-        { label: t("account.userManagement"), to: "/superadmin/users", roles: superAdminRoles },
-        { label: t("account.roleManagement"), to: "/superadmin/roles", roles: superAdminRoles },
-        { label: t("account.settingsSystem"), to: "/superadmin/settings", roles: superAdminRoles },
+        {
+          label: t("account.superDashboard"),
+          to: "/superadmin",
+          roles: superAdminRoles,
+        },
+        {
+          label: t("account.userManagement"),
+          to: "/superadmin/users",
+          roles: superAdminRoles,
+        },
+        {
+          label: t("account.roleManagement"),
+          to: "/superadmin/roles",
+          roles: superAdminRoles,
+        },
+        {
+          label: t("account.settingsSystem"),
+          to: "/superadmin/settings",
+          roles: superAdminRoles,
+        },
       ],
     },
   ];
@@ -305,7 +361,8 @@ const hasNavbarOverflow = () => {
   const topBar = topBarRef.value;
   if (!navbar || !topBar) return false;
 
-  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+  const viewportWidth =
+    document.documentElement.clientWidth || window.innerWidth;
 
   return (
     topBar.scrollWidth > topBar.clientWidth + 1 ||
@@ -662,6 +719,7 @@ watch(isCompactNav, (compact) => {
           {{ t("nav.topUp") }}
         </router-link>
         <button
+          v-if="isReaderRole"
           class="accessibility-link"
           type="button"
           data-accessibility-toggle="true"
@@ -685,6 +743,7 @@ watch(isCompactNav, (compact) => {
 
       <div class="top-actions">
         <button
+          v-if="isReaderRole"
           class="icon-button"
           type="button"
           :aria-label="t('common.search')"
@@ -857,7 +916,9 @@ watch(isCompactNav, (compact) => {
                 </button>
               </article>
             </div>
-            <p v-else class="notification-empty">{{ t("notification.empty") }}</p>
+            <p v-else class="notification-empty">
+              {{ t("notification.empty") }}
+            </p>
             <router-link
               class="notification-footer-link"
               to="/account/notifications"
@@ -915,7 +976,10 @@ watch(isCompactNav, (compact) => {
                 <div class="account-summary-copy">
                   <strong>{{ userDisplayName }}</strong>
                   <span>{{ userMeta }}</span>
-                  <small class="role-badge" :class="`role-badge--${currentRole}`">
+                  <small
+                    class="role-badge"
+                    :class="`role-badge--${currentRole}`"
+                  >
                     {{ roleLabel }}
                   </small>
                   <small v-if="isReaderRole" class="account-membership">
@@ -928,15 +992,6 @@ watch(isCompactNav, (compact) => {
                 <button class="logout-chip" type="button" @click="logout">
                   {{ t("account.logout") }}
                 </button>
-              </div>
-
-              <div v-if="isAdminRole" class="admin-quick-row">
-                <router-link to="/admin/page-content" @click="closeFloatingMenus">
-                  {{ t("account.contentManagement") }}
-                </router-link>
-                <router-link to="/admin" @click="closeFloatingMenus">
-                  {{ t("account.adminDashboard") }}
-                </router-link>
               </div>
 
               <div v-if="isReaderRole" class="wallet-row">
@@ -996,13 +1051,13 @@ watch(isCompactNav, (compact) => {
 
             <template v-else>
               <div class="guest-actions">
-                <router-link class="guest-auth-link" to="/login"
-                  >{{ t("account.login") }}</router-link
-                >
+                <router-link class="guest-auth-link" to="/login">{{
+                  t("account.login")
+                }}</router-link>
                 <span>/</span>
-                <router-link class="guest-auth-link" to="/register"
-                  >{{ t("account.register") }}</router-link
-                >
+                <router-link class="guest-auth-link" to="/register">{{
+                  t("account.register")
+                }}</router-link>
               </div>
             </template>
           </div>
@@ -1107,6 +1162,7 @@ watch(isCompactNav, (compact) => {
           {{ t("nav.topUp") }}
         </router-link>
         <button
+          v-if="isReaderRole"
           class="accessibility-link mobile-pill-link"
           type="button"
           data-accessibility-toggle="true"
@@ -1690,35 +1746,6 @@ watch(isCompactNav, (compact) => {
   font-weight: 700;
   text-decoration: none;
 }
-.admin-quick-row {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e5e7eb;
-}
-.admin-quick-row a {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 38px;
-  border-radius: 8px;
-  background: #fff7ed;
-  color: #9a3412;
-  font-size: 13px;
-  font-weight: 900;
-  padding: 0 12px;
-  text-decoration: none;
-}
-.admin-quick-row a:first-child {
-  background: #ecfeff;
-  color: #0f766e;
-}
-.admin-quick-row a::after {
-  content: "›";
-  font-size: 18px;
-  line-height: 1;
-}
 .account-shortcuts,
 .account-section {
   display: grid;
@@ -1785,7 +1812,11 @@ watch(isCompactNav, (compact) => {
   justify-content: center;
   padding: max(18px, env(safe-area-inset-top)) 18px 18px;
   background:
-    linear-gradient(180deg, rgba(231, 251, 247, 0.98), rgba(231, 251, 247, 0.82) 120px),
+    linear-gradient(
+      180deg,
+      rgba(231, 251, 247, 0.98),
+      rgba(231, 251, 247, 0.82) 120px
+    ),
     rgba(15, 23, 42, 0.38);
   backdrop-filter: blur(14px);
   opacity: 0;
