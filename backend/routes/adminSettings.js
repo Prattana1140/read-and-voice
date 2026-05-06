@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("../config/db");
 const { verifyToken } = require("../middleware/auth");
 const { requireSuperAdmin } = require("../middleware/superadmin");
+const { getProductionReadiness } = require("../services/readiness");
 
 const router = express.Router();
 
@@ -69,6 +70,10 @@ router.get("/checklist", async (_req, res) => {
     console.error("GET /admin/settings/checklist error:", error);
     return res.status(500).json({ message: "โหลด checklist ระบบไม่สำเร็จ" });
   }
+});
+
+router.get("/readiness", async (_req, res) => {
+  return res.json(getProductionReadiness());
 });
 
 router.put("/checklist", async (req, res) => {

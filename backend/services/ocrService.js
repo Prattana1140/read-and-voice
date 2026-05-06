@@ -3,7 +3,8 @@ const fs = require("fs");
 const path = require("path");
 
 const DEFAULT_TESSERACT_COMMAND =
-  process.env.TESSERACT_COMMAND || "C:\\Program Files\\Tesseract-OCR\\tesseract.exe";
+  process.env.TESSERACT_COMMAND ||
+  (process.platform === "win32" ? "C:\\Program Files\\Tesseract-OCR\\tesseract.exe" : "tesseract");
 const DEFAULT_OCR_LANG = process.env.OCR_LANG || "tha+eng";
 const OCR_PSM = process.env.OCR_PSM || "3";
 const OCR_PAGE_TIMEOUT_MS = Number(process.env.OCR_PAGE_TIMEOUT_MS || 120000);

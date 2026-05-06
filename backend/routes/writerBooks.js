@@ -1,4 +1,7 @@
 const express = require("express");
+const fs = require("fs");
+const path = require("path");
+const multer = require("multer");
 const db = require("../config/db");
 const { verifyToken } = require("../middleware/auth");
 const {
@@ -10,6 +13,55 @@ const { ensureBookCover, ensureBooksHaveCovers, generateBookCoverPath } = requir
 const { notifyWriterFollowersAboutEpisode } = require("../services/notifications");
 
 const router = express.Router();
+const coverUploadDir = path.join(__dirname, "../uploads/book-covers");
+fs.mkdirSync(coverUploadDir, { recursive: true });
+
+const coverFileFields = new Set([
+  "cover_file",
+  "cover",
+  "image",
+  "cover_image_file",
+]);
+
+const coverUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, coverUploadDir),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
+      cb(null, `writer-cover-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
+    },
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!coverFileFields.has(file.fieldname)) return cb(null, false);
+    if (file.mimetype && file.mimetype.startsWith("image/")) return cb(null, true);
+    return cb(new Error("อัปโหลดรูปปกได้เฉพาะไฟล์รูปภาพเท่านั้น"));
+  },
+});
+
+function uploadCoverFiles(req, res, next) {
+  coverUpload.any()(req, res, (error) => {
+    if (!error) return next();
+    const message =
+      error.code === "LIMIT_FILE_SIZE"
+        ? "ไฟล์รูปปกใหญ่เกินไป"
+        : error.message || "อัปโหลดรูปปกไม่สำเร็จ";
+    return res.status(400).json({ message });
+  });
+}
+
+function getUploadedCoverFile(req) {
+  const files = Array.isArray(req.files)
+    ? req.files
+    : Object.values(req.files || {}).flat();
+
+  return files.find((file) => coverFileFields.has(file.fieldname)) || null;
+}
+
+function getCoverImagePath(file, fallback = "") {
+  if (!file) return String(fallback || "").trim();
+  return `uploads/book-covers/${file.filename}`;
+}
 
 function isWriterLike(role) {
   return ["writer", "admin", "superadmin"].includes(role);
@@ -196,7 +248,7 @@ async function replaceUnitContent(bookId, unitId, blocks, connection) {
   return structured.stats;
 }
 
-router.post("/", verifyToken, async (req, res) => {
+router.post("/", verifyToken, uploadCoverFiles, async (req, res) => {
   const connection = await db.getConnection();
 
   try {
@@ -219,6 +271,7 @@ router.post("/", verifyToken, async (req, res) => {
       preview_value = 10,
       age_rating = null,
       tags = [],
+      cover_image = null,
       cover_image_url = null,
       requested_best_seller = false,
       requested_new_release = false,
@@ -229,8 +282,9 @@ router.post("/", verifyToken, async (req, res) => {
     } = req.body;
 
     const safeAuthorName = String(author_name || req.user.name || "").trim();
+    const uploadedCoverFile = getUploadedCoverFile(req);
     const initialCoverImage =
-      String(cover_image_url || "").trim() ||
+      getCoverImagePath(uploadedCoverFile, cover_image || cover_image_url) ||
       generateBookCoverPath({
         title,
         subtitle,
@@ -323,7 +377,8 @@ router.get("/mine", verifyToken, async (req, res) => {
          b.title,
          b.author,
          b.description,
-         b.cover_image,
+         COALESCE(b.cover_image_url, b.cover_image) AS cover_image,
+         COALESCE(b.cover_image_url, b.cover_image) AS cover_image_url,
          b.access_type,
          b.price,
          b.created_at,
@@ -344,7 +399,7 @@ router.get("/mine", verifyToken, async (req, res) => {
   }
 });
 
-router.put("/:id", verifyToken, async (req, res) => {
+router.put("/:id", verifyToken, uploadCoverFiles, async (req, res) => {
   try {
     if (!isWriterLike(req.user.role)) {
       return res.status(403).json({ message: "ไม่มีสิทธิ์แก้ไขหนังสือ" });
@@ -376,13 +431,12 @@ router.put("/:id", verifyToken, async (req, res) => {
       requested_recommended,
     } = req.body;
 
-    const nextCoverImage =
-      String(cover_image || cover_image_url || "").trim() ||
-      generateBookCoverPath({
-        bookId,
-        title: title || `book-${bookId}`,
-        author: author_name || author || req.user.name || "Read and Voice",
-      });
+    const uploadedCoverFile = getUploadedCoverFile(req);
+    const requestedCoverImage = getCoverImagePath(
+      uploadedCoverFile,
+      cover_image || cover_image_url,
+    );
+    const nextCoverImage = requestedCoverImage || null;
 
     await db.query(
       `UPDATE books
@@ -391,7 +445,7 @@ router.put("/:id", verifyToken, async (req, res) => {
            author_name = COALESCE(?, author_name),
            description = ?,
            category_id = ?,
-           cover_image = ?,
+           cover_image = COALESCE(?, cover_image),
            cover_image_url = COALESCE(?, cover_image_url),
            access_type = ?,
            price = ?,
@@ -423,18 +477,17 @@ router.put("/:id", verifyToken, async (req, res) => {
       ]
     );
 
-    await ensureBookCover(
-      {
-        id: Number(bookId),
-        title: title || `book-${bookId}`,
-        subtitle: null,
-        author: author_name || author || req.user.name || "Read and Voice",
-        author_name: author_name || author || req.user.name || "Read and Voice",
-        cover_image: nextCoverImage,
-        cover_image_url: nextCoverImage,
-      },
-      db,
+    const [updatedRows] = await db.query(
+        `SELECT id, title, subtitle, author, author_name, description, cover_image, cover_image_url
+         FROM books
+         WHERE id = ?
+         LIMIT 1`,
+        [bookId],
     );
+
+    if (updatedRows.length > 0) {
+      await ensureBookCover(updatedRows[0], db);
+    }
 
     return res.json({ message: "แก้ไขหนังสือสำเร็จ" });
   } catch (error) {

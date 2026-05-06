@@ -719,7 +719,6 @@ watch(isCompactNav, (compact) => {
           {{ t("nav.topUp") }}
         </router-link>
         <button
-          v-if="isReaderRole"
           class="accessibility-link"
           type="button"
           data-accessibility-toggle="true"

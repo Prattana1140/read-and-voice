@@ -84,7 +84,15 @@ async function addBookToLibrary(connection, userId, bookId) {
 }
 
 function normalizePaymentMethod(value) {
-  return value === "mock" ? "coin" : String(value || "coin");
+  const method = value === "mock" ? "coin" : String(value || "coin").trim().toLowerCase();
+
+  if (method !== "coin") {
+    const error = new Error("PAYMENT_METHOD_UNSUPPORTED");
+    error.status = 400;
+    throw error;
+  }
+
+  return method;
 }
 
 router.post("/checkout", verifyToken, async (req, res) => {
@@ -200,6 +208,12 @@ router.post("/checkout", verifyToken, async (req, res) => {
     });
   } catch (error) {
     await connection.rollback();
+
+    if (error.message === "PAYMENT_METHOD_UNSUPPORTED") {
+      return res.status(error.status || 400).json({
+        message: "รองรับการซื้อด้วย coin เท่านั้น กรุณาเติม coin ผ่าน payment gateway ก่อน",
+      });
+    }
 
     if (error.message === "COINS_NOT_ENOUGH") {
       return res.status(402).json({
@@ -331,6 +345,12 @@ router.post("/purchase", verifyToken, async (req, res) => {
       return res.status(402).json({
         message: "coin ไม่พอ กรุณาเติม coin ก่อน",
         balance: error.balance,
+      });
+    }
+
+    if (error.message === "PAYMENT_METHOD_UNSUPPORTED") {
+      return res.status(error.status || 400).json({
+        message: "รองรับการซื้อด้วย coin เท่านั้น กรุณาเติม coin ผ่าน payment gateway ก่อน",
       });
     }
 

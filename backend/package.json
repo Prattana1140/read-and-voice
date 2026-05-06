@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
+    "config:check": "node services/scripts/checkProductionReadiness.js",
     "db:test": "node services/scripts/testDbConnection.js",
     "db:init": "node services/scripts/initDatabase.js",
     "db:seed:catalog": "node services/scripts/seedCatalogData.js",
@@ -18,6 +19,7 @@
     "create:superadmin": "node services/scripts/createSuperAdmin.js"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^0.1.80",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.1",

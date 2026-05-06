@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { api } from "../utils/api";
 import { saveAuth } from "../utils/auth";
@@ -21,6 +21,11 @@ const regPassword = ref("");
 const confirmPassword = ref("");
 
 const loading = ref(false);
+const statusLoading = ref(true);
+const oauthStatus = ref({});
+
+const lineReady = computed(() => !!oauthStatus.value.line?.configured);
+const hasSocialLogin = computed(() => lineReady.value);
 
 const close = () => emit("close");
 
@@ -28,7 +33,25 @@ const switchMode = (m) => {
   mode.value = m;
 };
 
+const loadOAuthStatus = async () => {
+  statusLoading.value = true;
+
+  try {
+    const res = await api.get("/api/auth/oauth/status");
+    oauthStatus.value = (res.data.providers || []).reduce((map, provider) => {
+      map[provider.provider] = provider;
+      return map;
+    }, {});
+  } catch {
+    oauthStatus.value = {};
+  } finally {
+    statusLoading.value = false;
+  }
+};
+
 const socialLogin = async (provider) => {
+  if (provider === "line" && !lineReady.value) return;
+
   await loginWithSocialProvider(router, provider);
 };
 
@@ -76,6 +99,10 @@ const register = async () => {
     loading.value = false;
   }
 };
+
+onMounted(() => {
+  loadOAuthStatus();
+});
 </script>
 
 <template>
@@ -92,7 +119,24 @@ const register = async () => {
 
         <!-- LOGIN -->
         <div v-if="mode === 'login'">
-          <button class="btn line" @click="socialLogin('line')">เข้าสู่ระบบด้วย LINE</button>
+          <template v-if="hasSocialLogin">
+            <button
+              v-if="googleReady"
+              class="btn google"
+              :disabled="statusLoading"
+              @click="socialLogin('google')"
+            >
+              เข้าสู่ระบบด้วย Google
+            </button>
+            <button
+              v-if="lineReady"
+              class="btn line"
+              :disabled="statusLoading"
+              @click="socialLogin('line')"
+            >
+              เข้าสู่ระบบด้วย LINE
+            </button>
+          </template>
 
           <div class="form">
             <input v-model="email" placeholder="อีเมล" />
@@ -180,6 +224,17 @@ const register = async () => {
   padding: 12px;
   border-radius: 20px;
   border: none;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.google {
+  background: #ffffff;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
 }
 
 .line { background:#00c300; color:white }

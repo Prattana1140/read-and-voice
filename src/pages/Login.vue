@@ -5,10 +5,11 @@ import { api } from "../utils/api";
 import { saveAuth } from "../utils/auth";
 import { announceAccessibilityMessage } from "../utils/accessibility";
 import { redirectAfterLogin } from "../utils/loginRedirect";
-import { loginWithSocialProvider } from "../utils/socialLogin";
+import {
+  loginWithSocialProvider,
+  type SocialProvider,
+} from "../utils/socialLogin";
 import logoUrl from "../assets/Logo-transparent.png";
-
-type SocialProvider = "line";
 
 const router = useRouter();
 const route = useRoute();
@@ -33,7 +34,8 @@ const socialProviderLabel: Record<SocialProvider, string> = {
 };
 
 const isSocialProviderReady = (provider: SocialProvider) => {
-  return provider === "line" ? lineReady.value : false;
+  if (provider === "line") return lineReady.value;
+  return false;
 };
 
 const loadOAuthStatus = async () => {
@@ -214,6 +216,7 @@ watch(error, (message) => {
 
       <div v-if="hasSocialLogin" class="social-login-list">
         <button
+          v-if="lineReady"
           class="social-submit line-submit"
           type="button"
           :disabled="loading || !!socialLoading || statusLoading"
@@ -508,6 +511,17 @@ watch(error, (message) => {
 
 .line-submit {
   background: #06c755;
+}
+
+.google-submit {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-strong);
+}
+
+.google-icon {
+  border: 1px solid #d1d5db;
+  color: #4285f4;
 }
 
 .line-icon {

@@ -2,6 +2,39 @@ const db = require("../config/db");
 
 let tablesReady;
 
+const fetch = global.fetch;
+
+function readEnv(name) {
+  return String(process.env[name] || "").trim();
+}
+
+async function deliverNotificationWebhook(notification) {
+  const webhookUrl = readEnv("NOTIFICATION_DELIVERY_WEBHOOK_URL");
+  if (!webhookUrl || !fetch) return;
+
+  const headers = {
+    "Content-Type": "application/json",
+  };
+  const secret = readEnv("NOTIFICATION_DELIVERY_WEBHOOK_SECRET");
+  if (secret) {
+    headers["x-notification-webhook-secret"] = secret;
+  }
+
+  const response = await fetch(webhookUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      template: "user_notification",
+      ...notification,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Notification delivery webhook failed (${response.status}): ${body.slice(0, 200)}`);
+  }
+}
+
 async function ensureNotificationTables() {
   if (!tablesReady) {
     tablesReady = Promise.all([
@@ -77,7 +110,7 @@ async function createNotification({
   if (notificationType.startsWith("promotion") && settings.promotions === 0) return;
   if (notificationType.startsWith("system_") && settings.system === 0) return;
 
-  await connection.query(
+  const [result] = await connection.query(
     `INSERT INTO user_notifications
      (user_id, type, title, message, action_url, metadata_json)
      VALUES (?, ?, ?, ?, ?, ?)`,
@@ -90,6 +123,18 @@ async function createNotification({
       metadata ? JSON.stringify(metadata) : null,
     ],
   );
+
+  deliverNotificationWebhook({
+    id: result.insertId,
+    user_id: userId,
+    type,
+    title,
+    message,
+    action_url: actionUrl,
+    metadata,
+  }).catch((error) => {
+    console.error("Notification delivery webhook error:", error.message);
+  });
 }
 
 async function notifyWriterFollowersAboutEpisode({

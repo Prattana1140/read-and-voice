@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const db = require("../config/db");
 const { verifyToken } = require("../middleware/auth");
+const { sendPasswordResetEmail } = require("../services/email");
 
 const fetch = global.fetch || require("node-fetch");
 require("dotenv").config({ quiet: true });
@@ -315,6 +316,17 @@ function getPublicApiUrl() {
 
 function getFrontendUrl() {
   return process.env.FRONTEND_URL || "http://localhost:5173";
+}
+
+function isProduction() {
+  return String(process.env.NODE_ENV || "").toLowerCase() === "production";
+}
+
+function canPreviewPasswordResetLink() {
+  return (
+    !isProduction() ||
+    /^(1|true|yes)$/i.test(process.env.ALLOW_PASSWORD_RESET_PREVIEW || "")
+  );
 }
 
 function encodeQuery(params) {
@@ -1332,14 +1344,31 @@ router.post("/forgot-password", async (req, res) => {
     );
 
     const resetUrl = `${getFrontendUrl()}/forgot-password?token=${resetToken}`;
-
-    return res.status(200).json({
-      message:
-        "Reset request created. Open the preview link below to choose a new password.",
-      delivery: "preview",
-      reset_url: resetUrl,
-      expires_at: expiresAt.toISOString(),
+    const delivery = await sendPasswordResetEmail({
+      to: user.email,
+      resetUrl,
+      expiresAt,
     });
+
+    if (!delivery.delivered && isProduction() && !canPreviewPasswordResetLink()) {
+      return res.status(503).json({
+        message: "Password reset email delivery is not configured",
+      });
+    }
+
+    const payload = {
+      message: delivery.delivered
+        ? "If the account exists, a reset link has been sent to that email."
+        : "Reset request created. Open the preview link below to choose a new password.",
+      delivery: delivery.delivery,
+      expires_at: expiresAt.toISOString(),
+    };
+
+    if (canPreviewPasswordResetLink()) {
+      payload.reset_url = resetUrl;
+    }
+
+    return res.status(200).json(payload);
   } catch (error) {
     console.error("FORGOT PASSWORD ERROR:", error);
     return res.status(500).json({

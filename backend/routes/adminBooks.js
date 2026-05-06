@@ -27,6 +27,11 @@ function toBoolNumber(value) {
   return Number(Boolean(value));
 }
 
+function normalizeApprovalStatus(value) {
+  const status = String(value || "").trim().toLowerCase();
+  return ["pending", "approved", "rejected"].includes(status) ? status : null;
+}
+
 router.get("/pending", verifyToken, requireAdmin, async (_req, res) => {
   try {
     const [rows] = await db.query(
@@ -104,15 +109,20 @@ router.put("/:id/approval", verifyToken, requireAdmin, async (req, res) => {
       is_recommended = false,
     } = req.body;
 
-    const safeStatus = ["pending", "approved", "rejected"].includes(approval_status)
-      ? approval_status
-      : "pending";
+    if (!Number.isInteger(bookId) || bookId <= 0) {
+      return res.status(400).json({ message: "book id ไม่ถูกต้อง" });
+    }
 
-    await db.query(
+    const safeStatus = normalizeApprovalStatus(approval_status);
+    if (!safeStatus) {
+      return res.status(400).json({ message: "approval_status ไม่ถูกต้อง" });
+    }
+
+    const [result] = await db.query(
       `UPDATE books
        SET approval_status = ?,
            approval_note = ?,
-           approved_by = ?,
+           approved_by = CASE WHEN ? = 'approved' THEN ? ELSE approved_by END,
            approved_at = CASE WHEN ? = 'approved' THEN NOW() ELSE approved_at END,
            is_published = CASE WHEN ? = 'approved' THEN 1 ELSE 0 END,
            lifecycle_status = CASE
@@ -131,6 +141,7 @@ router.put("/:id/approval", verifyToken, requireAdmin, async (req, res) => {
       [
         safeStatus,
         approval_note,
+        safeStatus,
         req.user.id,
         safeStatus,
         safeStatus,
@@ -145,6 +156,10 @@ router.put("/:id/approval", verifyToken, requireAdmin, async (req, res) => {
         bookId,
       ],
     );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "ไม่พบหนังสือ" });
+    }
 
     return res.json({ message: "บันทึกการอนุมัติหนังสือสำเร็จ" });
   } catch (error) {
