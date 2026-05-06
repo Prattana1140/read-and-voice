@@ -38,7 +38,7 @@ let notificationSettingsSchemaReady;
 
 async function ensureColumn(tableName, columnName, definition) {
   try {
-    await db.query(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+    await db.query(`ALTER TABLE \`${tableName}\` ADD COLUMN \`${columnName}\` ${definition}`);
   } catch (error) {
     if (error && error.code === "ER_DUP_FIELDNAME") return;
     throw error;
@@ -174,7 +174,7 @@ async function ensureTables() {
           writers TINYINT(1) NOT NULL DEFAULT 1,
           series TINYINT(1) NOT NULL DEFAULT 1,
           promotions TINYINT(1) NOT NULL DEFAULT 0,
-          system TINYINT(1) NOT NULL DEFAULT 1,
+          \`system\` TINYINT(1) NOT NULL DEFAULT 1,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
           CONSTRAINT fk_user_notification_settings_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -504,7 +504,7 @@ router.get("/notification-settings", async (req, res) => {
   try {
     await ensureTables();
     const [rows] = await db.query(
-      `SELECT writers, series, promotions, system
+      `SELECT writers, series, promotions, \`system\` AS system
        FROM user_notification_settings
        WHERE user_id = ?
        LIMIT 1`,
@@ -537,13 +537,13 @@ router.put("/notification-settings", async (req, res) => {
     };
 
     await db.query(
-      `INSERT INTO user_notification_settings (user_id, writers, series, promotions, system)
+      `INSERT INTO user_notification_settings (user_id, writers, series, promotions, \`system\`)
        VALUES (?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
          writers = VALUES(writers),
          series = VALUES(series),
          promotions = VALUES(promotions),
-         system = VALUES(system),
+         \`system\` = VALUES(\`system\`),
          updated_at = CURRENT_TIMESTAMP`,
       [
         req.user.id,

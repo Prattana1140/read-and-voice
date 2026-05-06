@@ -14,7 +14,10 @@ dist-ssr
 .env
 .env.*
 backend/.env
-backend/uploads/
+backend/uploads/*
+!backend/uploads/book-covers/
+backend/uploads/book-covers/*
+!backend/uploads/book-covers/launch-*.svg
 .sixth/
 tmp-upload-book*.txt
 

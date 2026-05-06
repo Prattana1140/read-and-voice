@@ -72,7 +72,7 @@ async function ensureNotificationTables() {
           writers TINYINT(1) NOT NULL DEFAULT 1,
           series TINYINT(1) NOT NULL DEFAULT 1,
           promotions TINYINT(1) NOT NULL DEFAULT 0,
-          system TINYINT(1) NOT NULL DEFAULT 1,
+          \`system\` TINYINT(1) NOT NULL DEFAULT 1,
           created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
           CONSTRAINT fk_user_notification_settings_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -96,7 +96,7 @@ async function createNotification({
   await ensureNotificationTables();
 
   const [settingsRows] = await connection.query(
-    `SELECT writers, series, promotions, system
+    `SELECT writers, series, promotions, \`system\` AS system
      FROM user_notification_settings
      WHERE user_id = ?
      LIMIT 1`,

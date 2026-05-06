@@ -9,6 +9,7 @@
     "db:test": "node services/scripts/testDbConnection.js",
     "db:init": "node services/scripts/initDatabase.js",
     "db:seed:catalog": "node services/scripts/seedCatalogData.js",
+    "db:seed:launch": "node services/scripts/seedLaunchCatalog.js",
     "db:seed:platform": "node services/scripts/seedPlatformUsers.js",
     "db:migrate:subscriptions": "node services/scripts/initSubscriptionTables.js",
     "db:migrate:content": "node services/scripts/migrateContentModel.js",
