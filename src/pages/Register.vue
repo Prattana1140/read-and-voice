@@ -1,7 +1,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { api } from "../utils/api";
+import { api, getApiErrorMessage } from "../utils/api";
 import { announceAccessibilityMessage } from "../utils/accessibility";
 
 const emit = defineEmits(["close", "success"]);
@@ -233,8 +233,18 @@ const submitRegister = async () => {
       router.push("/login");
     }, 800);
   } catch (err) {
-    error.value =
-      err?.response?.data?.message || "สมัครสมาชิกไม่สำเร็จ กรุณาลองใหม่";
+    const serverMessage = err?.response?.data?.message || "";
+    const message = getApiErrorMessage(err, "สมัครสมาชิกไม่สำเร็จ");
+
+    if (/email|อีเมล/i.test(serverMessage)) {
+      setFieldError("email", serverMessage);
+      error.value = "สมัครสมาชิกไม่สำเร็จ: กรุณาตรวจสอบอีเมล";
+    } else if (/username|user|ยูส/i.test(serverMessage)) {
+      setFieldError("username", serverMessage);
+      error.value = "สมัครสมาชิกไม่สำเร็จ: กรุณาตรวจสอบยูสเซอร์เนม";
+    } else {
+      error.value = message;
+    }
   } finally {
     loading.value = false;
   }

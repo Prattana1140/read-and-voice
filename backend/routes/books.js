@@ -23,6 +23,9 @@ const {
 } = require("../middleware/auth");
 const { requireAdmin } = require("../middleware/admin");
 const { ensureCatalogAnalyticsSchema } = require("../services/catalogSchema");
+const {
+  ensureTtsArchitectureMigrated,
+} = require("../services/scripts/migrateTtsArchitecture");
 
 const router = express.Router();
 
@@ -87,6 +90,7 @@ const upload = multer({
 
 let episodeCommentsTableReady;
 let writerProfilesTableReady;
+let booksColumnsPromise;
 
 async function ensureEpisodeCommentsTable() {
   if (!episodeCommentsTableReady) {
@@ -137,6 +141,43 @@ async function ensureWriterProfilesTable() {
   }
 
   return writerProfilesTableReady;
+}
+
+async function getBooksColumns() {
+  if (!booksColumnsPromise) {
+    booksColumnsPromise = db
+      .query(
+        `SELECT COLUMN_NAME
+         FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'books'`,
+      )
+      .then(([rows]) => new Set(rows.map((row) => row.COLUMN_NAME)))
+      .catch((error) => {
+        booksColumnsPromise = undefined;
+        throw error;
+      });
+  }
+
+  return booksColumnsPromise;
+}
+
+function clearBooksColumnsCache() {
+  booksColumnsPromise = undefined;
+}
+
+function getBookColumnExpression(columns, columnName, fallbackSql = "NULL") {
+  return columns.has(columnName) ? `b.${columnName}` : fallbackSql;
+}
+
+async function ensureBooksRouteSchema() {
+  try {
+    await ensureTtsArchitectureMigrated();
+    clearBooksColumnsCache();
+  } catch (error) {
+    console.error("Books schema compatibility warning:", error.message);
+  }
+
+  return getBooksColumns();
 }
 
 function uploadBookFiles(req, res, next) {
@@ -589,55 +630,56 @@ router.get("/", async (_req, res) => {
   try {
     await ensureCatalogAnalyticsSchema();
     await ensureWriterProfilesTable();
+    const columns = await ensureBooksRouteSchema();
 
     const [rows] = await db.query(
       `SELECT
          b.id,
-         b.slug,
+         ${getBookColumnExpression(columns, "slug", "NULL")} AS slug,
          b.title,
-         b.subtitle,
+         ${getBookColumnExpression(columns, "subtitle", "NULL")} AS subtitle,
          b.author,
-         b.author_name,
-         b.author_id,
+         ${getBookColumnExpression(columns, "author_name", "NULL")} AS author_name,
+         ${getBookColumnExpression(columns, "author_id", "NULL")} AS author_id,
          wp.page_slug AS writer_page_slug,
          b.description,
          b.category_id,
-         b.language_code,
+         ${getBookColumnExpression(columns, "language_code", "'th'")} AS language_code,
          b.cover_image,
-         b.cover_image_url,
+         ${getBookColumnExpression(columns, "cover_image_url", "NULL")} AS cover_image_url,
          b.source_type,
          b.content_type,
          b.access_type,
-         b.lifecycle_status,
-         b.publishing_status,
+         ${getBookColumnExpression(columns, "lifecycle_status", "'published'")} AS lifecycle_status,
+         ${getBookColumnExpression(columns, "publishing_status", "'ready'")} AS publishing_status,
          b.process_status,
          b.total_pages,
          b.is_published,
          b.created_by,
          b.price,
-         b.coin_price,
+         ${getBookColumnExpression(columns, "coin_price", "0")} AS coin_price,
          b.promo_discount_percent,
          b.promo_start_at,
          b.promo_end_at,
          GREATEST(COALESCE(TIMESTAMPDIFF(DAY, NOW(), b.promo_end_at), 0), 0) AS promo_days_left,
-         b.preview_mode,
-         b.preview_value,
-         b.age_rating,
-         b.approval_status,
-         b.requested_best_seller,
-         b.requested_new_release,
-         b.requested_promotion,
-         b.requested_free_book,
-         b.requested_hall_of_fame,
-         b.requested_recommended,
-         b.is_best_seller,
-         b.is_new_release,
-         b.is_promotion,
-         b.is_free_book,
-         b.is_hall_of_fame,
-         b.is_recommended,
-         b.preview_page_limit,
-         b.preview_char_limit,
+         ${getBookColumnExpression(columns, "preview_mode", "'percentage'")} AS preview_mode,
+         ${getBookColumnExpression(columns, "preview_value", "10")} AS preview_value,
+         ${getBookColumnExpression(columns, "age_rating", "NULL")} AS age_rating,
+         ${getBookColumnExpression(columns, "approval_status", "'approved'")} AS approval_status,
+         ${getBookColumnExpression(columns, "requested_best_seller", "0")} AS requested_best_seller,
+         ${getBookColumnExpression(columns, "requested_new_release", "0")} AS requested_new_release,
+         ${getBookColumnExpression(columns, "requested_promotion", "0")} AS requested_promotion,
+         ${getBookColumnExpression(columns, "requested_free_book", "0")} AS requested_free_book,
+         ${getBookColumnExpression(columns, "requested_hall_of_fame", "0")} AS requested_hall_of_fame,
+         ${getBookColumnExpression(columns, "requested_recommended", "0")} AS requested_recommended,
+         ${getBookColumnExpression(columns, "is_best_seller", "0")} AS is_best_seller,
+         ${getBookColumnExpression(columns, "is_new_release", "0")} AS is_new_release,
+         ${getBookColumnExpression(columns, "is_promotion", "0")} AS is_promotion,
+         ${getBookColumnExpression(columns, "is_free_book", "0")} AS is_free_book,
+         ${getBookColumnExpression(columns, "is_hall_of_fame", "0")} AS is_hall_of_fame,
+         ${getBookColumnExpression(columns, "is_recommended", "0")} AS is_recommended,
+         ${getBookColumnExpression(columns, "preview_page_limit", String(GUEST_PREVIEW_PAGE_LIMIT))} AS preview_page_limit,
+         ${getBookColumnExpression(columns, "preview_char_limit", String(GUEST_PREVIEW_CHAR_LIMIT))} AS preview_char_limit,
          b.created_at,
          b.updated_at,
          c.name AS category_name,
@@ -1008,64 +1050,65 @@ router.get("/:id", optionalVerifyToken, async (req, res) => {
   try {
     await ensureCatalogAnalyticsSchema();
     await ensureWriterProfilesTable();
+    const columns = await ensureBooksRouteSchema();
 
     const [rows] = await db.query(
       `SELECT
          b.id,
-         b.slug,
+         ${getBookColumnExpression(columns, "slug", "NULL")} AS slug,
          b.title,
-         b.subtitle,
+         ${getBookColumnExpression(columns, "subtitle", "NULL")} AS subtitle,
          b.author,
-         b.author_name,
-         b.author_id,
+         ${getBookColumnExpression(columns, "author_name", "NULL")} AS author_name,
+         ${getBookColumnExpression(columns, "author_id", "NULL")} AS author_id,
          wp.page_slug AS writer_page_slug,
          b.description,
          b.category_id,
-         b.language_code,
+         ${getBookColumnExpression(columns, "language_code", "'th'")} AS language_code,
          b.cover_image,
-         b.cover_image_url,
+         ${getBookColumnExpression(columns, "cover_image_url", "NULL")} AS cover_image_url,
          b.source_type,
          b.content_type,
          b.access_type,
-         b.lifecycle_status,
-         b.publishing_status,
+         ${getBookColumnExpression(columns, "lifecycle_status", "'published'")} AS lifecycle_status,
+         ${getBookColumnExpression(columns, "publishing_status", "'ready'")} AS publishing_status,
          b.process_status,
          b.total_pages,
          b.is_published,
          b.created_by,
          b.price,
-         b.coin_price,
+         ${getBookColumnExpression(columns, "coin_price", "0")} AS coin_price,
          b.promo_discount_percent,
          b.promo_start_at,
          b.promo_end_at,
          GREATEST(COALESCE(TIMESTAMPDIFF(DAY, NOW(), b.promo_end_at), 0), 0) AS promo_days_left,
-         b.preview_mode,
-         b.preview_value,
-         b.total_units,
-         b.total_blocks,
-         b.total_sentences,
-         b.total_words,
-         b.total_characters,
-         b.estimated_reading_minutes,
-         b.age_rating,
-         b.approval_status,
-         b.approval_note,
-         b.approved_by,
-         b.approved_at,
-         b.requested_best_seller,
-         b.requested_new_release,
-         b.requested_promotion,
-         b.requested_free_book,
-         b.requested_hall_of_fame,
-         b.requested_recommended,
-         b.is_best_seller,
-         b.is_new_release,
-         b.is_promotion,
-         b.is_free_book,
-         b.is_hall_of_fame,
-         b.is_recommended,
-         b.preview_page_limit,
-         b.preview_char_limit,
+         ${getBookColumnExpression(columns, "preview_mode", "'percentage'")} AS preview_mode,
+         ${getBookColumnExpression(columns, "preview_value", "10")} AS preview_value,
+         ${getBookColumnExpression(columns, "total_units", "0")} AS total_units,
+         ${getBookColumnExpression(columns, "total_blocks", "0")} AS total_blocks,
+         ${getBookColumnExpression(columns, "total_sentences", "0")} AS total_sentences,
+         ${getBookColumnExpression(columns, "total_words", "0")} AS total_words,
+         ${getBookColumnExpression(columns, "total_characters", "0")} AS total_characters,
+         ${getBookColumnExpression(columns, "estimated_reading_minutes", "0")} AS estimated_reading_minutes,
+         ${getBookColumnExpression(columns, "age_rating", "NULL")} AS age_rating,
+         ${getBookColumnExpression(columns, "approval_status", "'approved'")} AS approval_status,
+         ${getBookColumnExpression(columns, "approval_note", "NULL")} AS approval_note,
+         ${getBookColumnExpression(columns, "approved_by", "NULL")} AS approved_by,
+         ${getBookColumnExpression(columns, "approved_at", "NULL")} AS approved_at,
+         ${getBookColumnExpression(columns, "requested_best_seller", "0")} AS requested_best_seller,
+         ${getBookColumnExpression(columns, "requested_new_release", "0")} AS requested_new_release,
+         ${getBookColumnExpression(columns, "requested_promotion", "0")} AS requested_promotion,
+         ${getBookColumnExpression(columns, "requested_free_book", "0")} AS requested_free_book,
+         ${getBookColumnExpression(columns, "requested_hall_of_fame", "0")} AS requested_hall_of_fame,
+         ${getBookColumnExpression(columns, "requested_recommended", "0")} AS requested_recommended,
+         ${getBookColumnExpression(columns, "is_best_seller", "0")} AS is_best_seller,
+         ${getBookColumnExpression(columns, "is_new_release", "0")} AS is_new_release,
+         ${getBookColumnExpression(columns, "is_promotion", "0")} AS is_promotion,
+         ${getBookColumnExpression(columns, "is_free_book", "0")} AS is_free_book,
+         ${getBookColumnExpression(columns, "is_hall_of_fame", "0")} AS is_hall_of_fame,
+         ${getBookColumnExpression(columns, "is_recommended", "0")} AS is_recommended,
+         ${getBookColumnExpression(columns, "preview_page_limit", String(GUEST_PREVIEW_PAGE_LIMIT))} AS preview_page_limit,
+         ${getBookColumnExpression(columns, "preview_char_limit", String(GUEST_PREVIEW_CHAR_LIMIT))} AS preview_char_limit,
          b.created_at,
          b.updated_at,
          c.name AS category_name,

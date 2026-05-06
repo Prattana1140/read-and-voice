@@ -1063,6 +1063,26 @@ function assertActiveUser(user) {
   }
 }
 
+function getRegistrationFailureMessage(error) {
+  if (error.code === "ER_DUP_ENTRY") {
+    return "อีเมลหรือยูสเซอร์เนมนี้ถูกใช้งานแล้ว";
+  }
+
+  if (error.code === "ER_NO_SUCH_TABLE") {
+    return "สมัครสมาชิกไม่สำเร็จ: ฐานข้อมูลยังไม่พร้อมใช้งาน กรุณารัน init/migration ก่อน";
+  }
+
+  if (error.code === "ER_BAD_FIELD_ERROR" || error.code === "ER_NO_DEFAULT_FOR_FIELD") {
+    return "สมัครสมาชิกไม่สำเร็จ: โครงสร้างฐานข้อมูลไม่ตรงกับระบบ กรุณารัน migration ล่าสุดก่อน";
+  }
+
+  if (["ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND", "PROTOCOL_CONNECTION_LOST"].includes(error.code)) {
+    return "สมัครสมาชิกไม่สำเร็จ: ติดต่อฐานข้อมูลไม่ได้ กรุณาตรวจสอบ DATABASE_URL/DB_HOST และสถานะฐานข้อมูล";
+  }
+
+  return error.message || "สมัครสมาชิกไม่สำเร็จ: เกิดข้อผิดพลาดในระบบ";
+}
+
 router.post("/register", async (req, res) => {
   try {
     const displayName = normalizeOptionalText(
@@ -1210,15 +1230,12 @@ router.post("/register", async (req, res) => {
 
     return res.status(201).json({ message: "สมัครสมาชิกสำเร็จ" });
   } catch (error) {
-    if (error.code === "ER_DUP_ENTRY") {
-      return res.status(400).json({
-        message: "อีเมลหรือยูสเซอร์เนมนี้ถูกใช้งานแล้ว",
-      });
-    }
-
     console.error("REGISTER ERROR:", error);
-    return res.status(error.status || 500).json({
-      message: error.message || "เกิดข้อผิดพลาดในระบบ",
+    const status = error.status || (error.code === "ER_DUP_ENTRY" ? 400 : 500);
+
+    return res.status(status).json({
+      message: getRegistrationFailureMessage(error),
+      code: error.code,
     });
   }
 });
