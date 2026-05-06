@@ -1,4 +1,5 @@
 require("dotenv").config({ quiet: true });
+const fs = require("fs");
 
 function firstEnv(names, options = {}) {
   const { allowEmpty = false } = options;
@@ -215,6 +216,15 @@ function describeDbEnvironment() {
     hasDatabaseUrl: Boolean(
       process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.MYSQL_PUBLIC_URL
     ),
+    hasDbSsl:
+      parseBooleanEnv(process.env.DB_SSL || process.env.MYSQL_SSL) ||
+      Boolean(
+        process.env.DB_SSL_CA ||
+          process.env.DB_SSL_CA_FILE ||
+          process.env.DB_SSL_CA_BASE64 ||
+          process.env.DB_SSL_MODE ||
+          process.env.MYSQL_SSL_MODE
+      ),
   };
 }
 
@@ -227,6 +237,8 @@ function validateDbConfig(config) {
 }
 
 function toMysqlConfig(config) {
+  const ssl = getSslConfig();
+
   return {
     host: config.host,
     port: config.port,
@@ -237,6 +249,7 @@ function toMysqlConfig(config) {
     connectionLimit: config.connectionLimit,
     queueLimit: config.queueLimit,
     connectTimeout: config.connectTimeout,
+    ...(ssl ? { ssl } : {}),
   };
 }
 
@@ -248,6 +261,67 @@ function describeDbConfig(config) {
     hasUser: Boolean(config.user),
     hasPassword: config.password !== undefined && config.password !== "",
     database: config.database,
+    hasSsl: Boolean(getSslConfig()),
+  };
+}
+
+function readTextFile(value) {
+  if (!value) {
+    return undefined;
+  }
+
+  try {
+    return fs.readFileSync(value, "utf8");
+  } catch (_error) {
+    return undefined;
+  }
+}
+
+function parseBooleanEnv(value) {
+  return /^(1|true|yes|on|required)$/i.test(String(value || "").trim());
+}
+
+function getSslConfig() {
+  const sslMode = String(
+    firstEnv(["DB_SSL_MODE", "MYSQL_SSL_MODE", "DATABASE_SSL_MODE"], {
+      allowEmpty: true,
+    }) || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const ca =
+    firstEnv(["DB_SSL_CA"], { allowEmpty: true }) ||
+    readTextFile(firstEnv(["DB_SSL_CA_FILE", "MYSQL_SSL_CA_FILE"], { allowEmpty: true })) ||
+    (() => {
+      const base64 = firstEnv(["DB_SSL_CA_BASE64"], { allowEmpty: true });
+      if (!base64) {
+        return undefined;
+      }
+
+      try {
+        return Buffer.from(base64, "base64").toString("utf8");
+      } catch (_error) {
+        return undefined;
+      }
+    })();
+
+  const sslEnabled =
+    parseBooleanEnv(firstEnv(["DB_SSL", "MYSQL_SSL"])) ||
+    Boolean(ca) ||
+    ["require", "required", "verify-ca", "verify-full"].includes(sslMode);
+
+  if (!sslEnabled) {
+    return undefined;
+  }
+
+  const rejectUnauthorized =
+    parseBooleanEnv(firstEnv(["DB_SSL_REJECT_UNAUTHORIZED"])) ||
+    ["verify-ca", "verify-full"].includes(sslMode);
+
+  return {
+    rejectUnauthorized,
+    ...(ca ? { ca } : {}),
   };
 }
 

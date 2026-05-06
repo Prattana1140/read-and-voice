@@ -1,5 +1,11 @@
-# Vue 3 + TypeScript + Vite
+# Read and Voice
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Frontend lives at the repo root and the API lives in [backend](</c:/Users/jikke/Read and Voice/backend/server.js:1>).
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+The repo is prepared for a low-cost migration away from Railway:
+
+- frontend on Vercel
+- backend on Render
+- MySQL on Aiven free tier
+
+Deployment notes live in [docs/deploy-free-stack.md](</c:/Users/jikke/Read and Voice/docs/deploy-free-stack.md:1>).

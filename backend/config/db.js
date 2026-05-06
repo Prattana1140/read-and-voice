@@ -26,6 +26,17 @@ if (candidates.length === 0) {
 let activePoolPromise;
 let activeConfig;
 
+function isRecoverablePoolError(error) {
+  return [
+    "PROTOCOL_CONNECTION_LOST",
+    "ECONNRESET",
+    "ECONNREFUSED",
+    "ETIMEDOUT",
+    "EPIPE",
+    "PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR",
+  ].includes(error?.code);
+}
+
 async function createVerifiedPool(config) {
   const pool = mysql.createPool(toMysqlConfig(config));
   const conn = await pool.getConnection();
@@ -77,18 +88,39 @@ function resetActivePool() {
 
 const db = {
   async query(...args) {
-    const pool = await getActivePool();
-    return pool.query(...args);
+    try {
+      const pool = await getActivePool();
+      return await pool.query(...args);
+    } catch (error) {
+      if (!isRecoverablePoolError(error)) throw error;
+      resetActivePool();
+      const pool = await getActivePool();
+      return pool.query(...args);
+    }
   },
 
   async execute(...args) {
-    const pool = await getActivePool();
-    return pool.execute(...args);
+    try {
+      const pool = await getActivePool();
+      return await pool.execute(...args);
+    } catch (error) {
+      if (!isRecoverablePoolError(error)) throw error;
+      resetActivePool();
+      const pool = await getActivePool();
+      return pool.execute(...args);
+    }
   },
 
   async getConnection() {
-    const pool = await getActivePool();
-    return pool.getConnection();
+    try {
+      const pool = await getActivePool();
+      return await pool.getConnection();
+    } catch (error) {
+      if (!isRecoverablePoolError(error)) throw error;
+      resetActivePool();
+      const pool = await getActivePool();
+      return pool.getConnection();
+    }
   },
 
   async end() {

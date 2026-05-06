@@ -24,17 +24,36 @@ function statusFromEnv(name, options = {}) {
   };
 }
 
+function hasRealEnv(name) {
+  return !isPlaceholder(readEnv(name));
+}
+
 function getProductionReadiness() {
   const production = readEnv("NODE_ENV") === "production";
   const checks = [
     statusFromEnv("NODE_ENV"),
     statusFromEnv("JWT_SECRET"),
     statusFromEnv("API_PUBLIC_URL"),
-    statusFromEnv("DB_HOST"),
-    statusFromEnv("DB_USER"),
-    statusFromEnv("DB_PASSWORD"),
-    statusFromEnv("DB_NAME"),
   ];
+
+  const hasDatabaseUrl =
+    hasRealEnv("DATABASE_URL") || hasRealEnv("MYSQL_URL") || hasRealEnv("MYSQL_PUBLIC_URL");
+  const hasDbFields =
+    hasRealEnv("DB_HOST") &&
+    hasRealEnv("DB_USER") &&
+    hasRealEnv("DB_PASSWORD") &&
+    hasRealEnv("DB_NAME");
+
+  checks.push({
+    name: "database",
+    ok: hasDatabaseUrl || hasDbFields,
+    configured: hasDatabaseUrl || hasDbFields,
+    message: hasDatabaseUrl
+      ? "database connection string is configured"
+      : hasDbFields
+        ? "DB_HOST/DB_USER/DB_PASSWORD/DB_NAME are configured"
+        : "Set DATABASE_URL or DB_HOST/DB_USER/DB_PASSWORD/DB_NAME",
+  });
 
   const frontendUrl = readEnv("FRONTEND_URL");
   const frontendLooksLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(frontendUrl);

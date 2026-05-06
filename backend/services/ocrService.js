@@ -8,6 +8,8 @@ const DEFAULT_TESSERACT_COMMAND =
 const DEFAULT_OCR_LANG = process.env.OCR_LANG || "tha+eng";
 const OCR_PSM = process.env.OCR_PSM || "3";
 const OCR_PAGE_TIMEOUT_MS = Number(process.env.OCR_PAGE_TIMEOUT_MS || 120000);
+const OCR_CONCURRENCY = Math.max(1, Math.min(6, Number(process.env.OCR_CONCURRENCY || 3)));
+const OCR_RENDER_SCALE = Math.max(1.2, Math.min(2.8, Number(process.env.OCR_RENDER_SCALE || 2)));
 const ENABLE_OCR = /^(1|true|yes)$/i.test(process.env.ENABLE_OCR || process.env.ENABLE_PDF_OCR || "");
 const TESSERACT_JS_LANG_PATH = process.env.TESSERACT_JS_LANG_PATH || path.join(__dirname, "..");
 const TESSERACT_JS_CACHE_PATH =
@@ -100,6 +102,25 @@ async function runTesseractJsOnImages(imagePaths) {
   };
 }
 
+async function mapWithConcurrency(items, concurrency, worker) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  async function runNext() {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await worker(items[currentIndex], currentIndex);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, () => runNext()),
+  );
+
+  return results;
+}
+
 async function renderPdfToPngPages(filePath) {
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const { createCanvas } = require("@napi-rs/canvas");
@@ -121,7 +142,7 @@ async function renderPdfToPngPages(filePath) {
   try {
     for (let pageNo = 1; pageNo <= pdf.numPages; pageNo += 1) {
       const page = await pdf.getPage(pageNo);
-      const viewport = page.getViewport({ scale: 2.4 });
+      const viewport = page.getViewport({ scale: OCR_RENDER_SCALE });
       const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
       const context = canvas.getContext("2d");
 
@@ -144,22 +165,41 @@ async function renderPdfToPngPages(filePath) {
 
 async function runTesseractCliOCR(filePath) {
   const imagePaths = await renderPdfToPngPages(filePath);
-  const pages = [];
 
   try {
-    for (let i = 0; i < imagePaths.length; i += 1) {
-      pages.push(await runTesseractCliOnImage(imagePaths[i]));
-      console.log(`OCR page ${i + 1}/${imagePaths.length}`);
-    }
-  } catch (cliError) {
-    console.warn("Tesseract CLI OCR failed, trying Tesseract.js:", cliError.message);
-    return runTesseractJsOnImages(imagePaths);
-  }
+    const pages = await mapWithConcurrency(
+      imagePaths,
+      OCR_CONCURRENCY,
+      async (imagePath, index) => {
+        const text = await runTesseractCliOnImage(imagePath);
+        console.log(`OCR page ${index + 1}/${imagePaths.length}`);
+        return text;
+      },
+    );
 
-  return {
-    text: pages.filter(Boolean).join("\n\n"),
-    pages,
-  };
+    return {
+      text: pages.filter(Boolean).join("\n\n"),
+      pages,
+    };
+  } catch (cliError) {
+    console.warn("Tesseract CLI OCR failed, retrying sequentially:", cliError.message);
+
+    try {
+      const pages = [];
+      for (let i = 0; i < imagePaths.length; i += 1) {
+        pages.push(await runTesseractCliOnImage(imagePaths[i]));
+        console.log(`OCR page ${i + 1}/${imagePaths.length}`);
+      }
+
+      return {
+        text: pages.filter(Boolean).join("\n\n"),
+        pages,
+      };
+    } catch (sequentialError) {
+      console.warn("Tesseract CLI OCR failed, trying Tesseract.js:", sequentialError.message);
+      return runTesseractJsOnImages(imagePaths);
+    }
+  }
 }
 
 async function runImageOCR(filePath) {
