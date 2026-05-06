@@ -527,7 +527,9 @@ const seedSubscriptionPlans = [
   },
 ];
 
-async function main() {
+let initializationPromise;
+
+async function initializeDatabase() {
   for (const statement of statements) {
     await db.query(statement);
   }
@@ -551,13 +553,34 @@ async function main() {
   }
 
   console.log("Database schema initialized.");
+}
+
+function ensureDatabaseInitialized() {
+  if (!initializationPromise) {
+    initializationPromise = initializeDatabase().catch((error) => {
+      initializationPromise = undefined;
+      throw error;
+    });
+  }
+
+  return initializationPromise;
+}
+
+async function main() {
+  await ensureDatabaseInitialized();
   await db.end();
 }
 
-main().catch(async (error) => {
-  console.error("Database initialization failed:", error);
-  try {
-    await db.end();
-  } catch (_) {}
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch(async (error) => {
+    console.error("Database initialization failed:", error);
+    try {
+      await db.end();
+    } catch (_) {}
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  ensureDatabaseInitialized,
+};

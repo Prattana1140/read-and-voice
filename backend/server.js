@@ -31,6 +31,7 @@ const notificationsRoutes = require("./routes/notifications");
 const paymentsRoutes = require("./routes/payments");
 const writersRoutes = require("./routes/writers");
 const { generateBookCoverPath } = require("./services/bookCover");
+const { ensureDatabaseInitialized } = require("./services/scripts/initDatabase");
 
 const app = express();
 const allowedOrigins = [
@@ -184,7 +185,7 @@ app.use((err, _req, res, _next) => {
 });
 
 const PORT = Number(process.env.PORT) || 3000;
-const EXTRA_PORT = Number(process.env.APP_PORT || process.env.PUBLIC_PORT || 3000);
+const EXTRA_PORT = Number(process.env.APP_PORT || process.env.PUBLIC_PORT || 0);
 const REQUEST_TIMEOUT_MS = 30 * 60 * 1000;
 const HOST = process.env.HOST || "0.0.0.0";
 
@@ -210,8 +211,16 @@ function listen(port, label) {
   return server;
 }
 
-listen(PORT, "primary");
+(async () => {
+  try {
+    await ensureDatabaseInitialized();
+  } catch (error) {
+    console.error("Database bootstrap failed:", error);
+  }
 
-if (EXTRA_PORT && EXTRA_PORT !== PORT) {
-  listen(EXTRA_PORT, "secondary");
-}
+  listen(PORT, "primary");
+
+  if (EXTRA_PORT && EXTRA_PORT !== PORT) {
+    listen(EXTRA_PORT, "secondary");
+  }
+})();

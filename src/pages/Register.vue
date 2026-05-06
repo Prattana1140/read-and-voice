@@ -278,9 +278,16 @@ watch(error, (message) => {
               v-model="form.email"
               type="email"
               class="input"
+              :class="{ invalid: hasFieldError('email') }"
               placeholder="กรอกอีเมล"
               autocomplete="email"
+              :aria-invalid="hasFieldError('email')"
+              aria-describedby="register-email-error"
+              @input="clearFieldError('email')"
             />
+            <small v-if="fieldErrors.email" id="register-email-error" class="field-error">
+              {{ fieldErrors.email }}
+            </small>
           </div>
 
           <div class="form-group">
@@ -290,10 +297,17 @@ watch(error, (message) => {
               v-model="form.username"
               type="text"
               class="input"
+              :class="{ invalid: hasFieldError('username') }"
               placeholder="เช่น readvoice_user"
               autocomplete="username"
+              :aria-invalid="hasFieldError('username')"
+              aria-describedby="register-username-error register-username-hint"
+              @input="clearFieldError('username')"
             />
-            <small class="hint">4-32 chars [A-Z, a-z, 0-9, ., _, @, -]</small>
+            <small id="register-username-hint" class="hint">4-32 chars [A-Z, a-z, 0-9, ., _, @, -]</small>
+            <small v-if="fieldErrors.username" id="register-username-error" class="field-error">
+              {{ fieldErrors.username }}
+            </small>
           </div>
 
           <div class="form-group">
@@ -303,9 +317,20 @@ watch(error, (message) => {
               v-model="form.displayName"
               type="text"
               class="input"
+              :class="{ invalid: hasFieldError('displayName') }"
               placeholder="กรอกชื่อที่แสดงในระบบ"
               autocomplete="name"
+              :aria-invalid="hasFieldError('displayName')"
+              aria-describedby="register-display-name-error"
+              @input="clearFieldError('displayName')"
             />
+            <small
+              v-if="fieldErrors.displayName"
+              id="register-display-name-error"
+              class="field-error"
+            >
+              {{ fieldErrors.displayName }}
+            </small>
           </div>
 
           <div class="form-group">
@@ -325,9 +350,16 @@ watch(error, (message) => {
               v-model="form.password"
               type="password"
               class="input"
+              :class="{ invalid: hasFieldError('password') }"
               placeholder="กรอกรหัสผ่าน"
               autocomplete="new-password"
+              :aria-invalid="hasFieldError('password')"
+              aria-describedby="register-password-error"
+              @input="clearFieldError('password')"
             />
+            <small v-if="fieldErrors.password" id="register-password-error" class="field-error">
+              {{ fieldErrors.password }}
+            </small>
           </div>
 
           <div class="form-group">
@@ -337,9 +369,20 @@ watch(error, (message) => {
               v-model="form.confirmPassword"
               type="password"
               class="input"
+              :class="{ invalid: hasFieldError('confirmPassword') }"
               placeholder="ยืนยันรหัสผ่านอีกครั้ง"
               autocomplete="new-password"
+              :aria-invalid="hasFieldError('confirmPassword')"
+              aria-describedby="register-confirm-password-error"
+              @input="clearFieldError('confirmPassword')"
             />
+            <small
+              v-if="fieldErrors.confirmPassword"
+              id="register-confirm-password-error"
+              class="field-error"
+            >
+              {{ fieldErrors.confirmPassword }}
+            </small>
           </div>
         </div>
 
