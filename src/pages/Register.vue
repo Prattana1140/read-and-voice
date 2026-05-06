@@ -410,7 +410,15 @@ watch(error, (message) => {
 
           <div class="form-group">
             <label for="register-visual-status">สถานะการมองเห็น *</label>
-            <select id="register-visual-status" v-model="form.visualImpairmentStatus" class="input">
+            <select
+              id="register-visual-status"
+              v-model="form.visualImpairmentStatus"
+              class="input"
+              :class="{ invalid: hasFieldError('visualImpairmentStatus') }"
+              :aria-invalid="hasFieldError('visualImpairmentStatus')"
+              aria-describedby="register-visual-status-error"
+              @change="clearFieldError('visualImpairmentStatus')"
+            >
               <option value="" disabled>เลือกสถานะ</option>
               <option value="none">ไม่ได้เป็นผู้พิการทางสายตา</option>
               <option value="blind">ตาบอด</option>
@@ -418,6 +426,13 @@ watch(error, (message) => {
               <option value="other">มีข้อจำกัดด้านการมองเห็นอื่น ๆ</option>
               <option value="prefer_not_to_say">ไม่ประสงค์ระบุ</option>
             </select>
+            <small
+              v-if="fieldErrors.visualImpairmentStatus"
+              id="register-visual-status-error"
+              class="field-error"
+            >
+              {{ fieldErrors.visualImpairmentStatus }}
+            </small>
           </div>
 
           <label class="checkbox-field">
@@ -453,9 +468,16 @@ watch(error, (message) => {
               v-model="form.phone"
               type="tel"
               class="input"
+              :class="{ invalid: hasFieldError('phone') }"
               placeholder="08x-xxx-xxxx"
               autocomplete="tel"
+              :aria-invalid="hasFieldError('phone')"
+              aria-describedby="register-phone-error"
+              @input="clearFieldError('phone')"
             />
+            <small v-if="fieldErrors.phone" id="register-phone-error" class="field-error">
+              {{ fieldErrors.phone }}
+            </small>
           </div>
 
           <div class="form-group">
@@ -470,8 +492,17 @@ watch(error, (message) => {
             />
           </div>
 
-          <label class="checkbox-field span-2">
-            <input v-model="form.termsAccepted" type="checkbox" />
+          <label
+            class="checkbox-field span-2"
+            :class="{ invalid: hasFieldError('termsAccepted') }"
+          >
+            <input
+              v-model="form.termsAccepted"
+              type="checkbox"
+              :aria-invalid="hasFieldError('termsAccepted')"
+              aria-describedby="register-terms-error"
+              @change="clearFieldError('termsAccepted')"
+            />
             <span>
               ฉันยอมรับ
               <router-link to="/terms" target="_blank">เงื่อนไขการใช้งาน</router-link>
@@ -479,6 +510,14 @@ watch(error, (message) => {
               <router-link to="/privacy-policy" target="_blank">นโยบายความเป็นส่วนตัว</router-link>
             </span>
           </label>
+
+          <small
+            v-if="fieldErrors.termsAccepted"
+            id="register-terms-error"
+            class="field-error span-2"
+          >
+            {{ fieldErrors.termsAccepted }}
+          </small>
 
           <div class="submit-wrap span-2">
             <button type="submit" class="submit-btn" :disabled="loading">
@@ -624,6 +663,17 @@ watch(error, (message) => {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
 }
 
+.input.invalid {
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.06);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.input.invalid:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.16);
+}
+
 select.input {
   cursor: pointer;
 }
@@ -647,6 +697,12 @@ select.input {
   line-height: 1.45;
 }
 
+.checkbox-field.invalid {
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.06);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
 .checkbox-field input {
   width: 18px;
   height: 18px;
@@ -662,6 +718,13 @@ select.input {
 
 .span-2 {
   grid-column: 1 / -1;
+}
+
+.field-error {
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
 }
 
 .submit-wrap {

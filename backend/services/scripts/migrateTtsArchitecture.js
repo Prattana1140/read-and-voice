@@ -190,7 +190,9 @@ async function backfillBooks() {
   }
 }
 
-async function main() {
+let migrationPromise;
+
+async function migrateTtsArchitecture() {
   const databaseName = await getDatabaseName();
   if (!databaseName) throw new Error("Unable to determine active database.");
 
@@ -450,13 +452,34 @@ async function main() {
   await backfillBooks();
 
   console.log("TTS architecture migration complete.");
+}
+
+function ensureTtsArchitectureMigrated() {
+  if (!migrationPromise) {
+    migrationPromise = migrateTtsArchitecture().catch((error) => {
+      migrationPromise = undefined;
+      throw error;
+    });
+  }
+
+  return migrationPromise;
+}
+
+async function main() {
+  await ensureTtsArchitectureMigrated();
   await db.end();
 }
 
-main().catch(async (error) => {
-  console.error("TTS architecture migration failed:", error);
-  try {
-    await db.end();
-  } catch (_) {}
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch(async (error) => {
+    console.error("TTS architecture migration failed:", error);
+    try {
+      await db.end();
+    } catch (_) {}
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  ensureTtsArchitectureMigrated,
+};
