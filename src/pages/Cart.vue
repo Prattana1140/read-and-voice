@@ -109,8 +109,8 @@ onMounted(loadCart);
     </section>
 
     <p v-if="errorMessage" class="alert error">{{ errorMessage }}</p>
-    <p class="alert demo">
-      โหมดเดโม: การชำระเงินใช้คอยน์ในระบบจำลอง ยังไม่ตัดเงินจริงผ่าน payment gateway
+    <p class="alert info">
+      การชำระเงินใช้คอยน์ในกระเป๋า หากคอยน์ไม่พอให้เติมคอยน์ก่อนทำรายการ
     </p>
 
     <section v-if="loading" class="state-card">กำลังโหลดตะกร้า...</section>
@@ -246,9 +246,9 @@ h2 {
   color: #dc2626;
 }
 
-.demo {
-  background: #fffbeb;
-  color: #92400e;
+.info {
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 
 .state-card {

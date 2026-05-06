@@ -513,17 +513,6 @@ watch(error, (message) => {
   background: #06c755;
 }
 
-.google-submit {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-strong);
-}
-
-.google-icon {
-  border: 1px solid #d1d5db;
-  color: #4285f4;
-}
-
 .line-icon {
   color: #06c755;
 }

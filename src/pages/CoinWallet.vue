@@ -18,12 +18,20 @@ type Transaction = {
   created_at?: string;
 };
 
+type PendingTopup = {
+  topup_id?: number;
+  checkout_url?: string | null;
+  payment_instructions?: string | null;
+  payment_status?: string;
+} | null;
+
 const balance = ref(0);
 const packages = ref<CoinPackage[]>([]);
 const transactions = ref<Transaction[]>([]);
 const loading = ref(true);
 const message = ref("");
 const errorMessage = ref("");
+const pendingTopup = ref<PendingTopup>(null);
 
 async function loadWallet() {
   loading.value = true;
@@ -49,10 +57,19 @@ async function loadWallet() {
 async function topup(packageId: string) {
   message.value = "";
   errorMessage.value = "";
+  pendingTopup.value = null;
 
   try {
     const { data } = await api.post("/coins/topup", { package_id: packageId });
-    message.value = data?.message || "เติมคอยน์สำเร็จ";
+    message.value = data?.message || "สร้างรายการเติมคอยน์สำเร็จ";
+    if (data?.payment_status === "pending") {
+      pendingTopup.value = {
+        topup_id: data.topup_id,
+        checkout_url: data.checkout_url || null,
+        payment_instructions: data.payment_instructions || null,
+        payment_status: data.payment_status,
+      };
+    }
     await loadWallet();
   } catch (error: any) {
     errorMessage.value = error?.response?.data?.message || "เติมคอยน์ไม่สำเร็จ";
@@ -84,9 +101,14 @@ onMounted(loadWallet);
 
     <p v-if="message" class="alert success">{{ message }}</p>
     <p v-if="errorMessage" class="alert error">{{ errorMessage }}</p>
-    <p class="alert demo">
-      โหมดเดโม: การเติมคอยน์ในหน้านี้เป็นการจำลองธุรกรรม ยังไม่เชื่อมต่อผู้ให้บริการชำระเงินจริง
-    </p>
+    <section v-if="pendingTopup" class="alert info">
+      <strong>รายการเติมคอยน์ #{{ pendingTopup.topup_id }}</strong>
+      <p v-if="pendingTopup.payment_instructions">{{ pendingTopup.payment_instructions }}</p>
+      <a v-if="pendingTopup.checkout_url" :href="pendingTopup.checkout_url">
+        ไปหน้าชำระเงิน
+      </a>
+      <p>หลังชำระเงินแล้ว ระบบจะเติมคอยน์เมื่อรายการได้รับการยืนยัน</p>
+    </section>
 
     <section v-if="loading" class="panel">กำลังโหลดกระเป๋าคอยน์...</section>
 
@@ -207,9 +229,20 @@ h2 {
   color: #dc2626;
 }
 
-.demo {
-  background: #fffbeb;
-  color: #92400e;
+.info {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.info p {
+  margin: 8px 0 0;
+}
+
+.info a {
+  color: inherit;
+  display: inline-block;
+  font-weight: 900;
+  margin-top: 8px;
 }
 
 .package-grid {

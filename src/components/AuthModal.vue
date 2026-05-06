@@ -223,12 +223,6 @@ onMounted(() => {
   opacity: 0.65;
 }
 
-.google {
-  background: #ffffff;
-  color: #1f2937;
-  border: 1px solid #d1d5db;
-}
-
 .line { background:#00c300; color:white }
 
 .form input {
