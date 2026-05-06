@@ -396,8 +396,15 @@ watch(error, (message) => {
               v-model="form.birthDate"
               type="date"
               class="input"
+              :class="{ invalid: hasFieldError('birthDate') }"
               autocomplete="bday"
+              :aria-invalid="hasFieldError('birthDate')"
+              aria-describedby="register-birth-date-error"
+              @input="clearFieldError('birthDate')"
             />
+            <small v-if="fieldErrors.birthDate" id="register-birth-date-error" class="field-error">
+              {{ fieldErrors.birthDate }}
+            </small>
             <small v-if="calculatedAge !== null" class="hint">อายุปัจจุบัน {{ calculatedAge }} ปี</small>
           </div>
 
