@@ -478,11 +478,11 @@ router.put("/:id", verifyToken, uploadCoverFiles, async (req, res) => {
     );
 
     const [updatedRows] = await db.query(
-        `SELECT id, title, subtitle, author, author_name, description, cover_image, cover_image_url
-         FROM books
-         WHERE id = ?
-         LIMIT 1`,
-        [bookId],
+      `SELECT id, title, subtitle, author, author_name, description, cover_image, cover_image_url
+       FROM books
+       WHERE id = ?
+       LIMIT 1`,
+      [bookId],
     );
 
     if (updatedRows.length > 0) {

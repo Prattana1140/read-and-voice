@@ -121,14 +121,6 @@ onMounted(() => {
         <div v-if="mode === 'login'">
           <template v-if="hasSocialLogin">
             <button
-              v-if="googleReady"
-              class="btn google"
-              :disabled="statusLoading"
-              @click="socialLogin('google')"
-            >
-              เข้าสู่ระบบด้วย Google
-            </button>
-            <button
               v-if="lineReady"
               class="btn line"
               :disabled="statusLoading"
