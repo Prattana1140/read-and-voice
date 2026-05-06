@@ -54,6 +54,14 @@ function isRailway() {
   );
 }
 
+function isRender() {
+  return Boolean(
+    process.env.RENDER ||
+      process.env.RENDER_EXTERNAL_URL ||
+      process.env.RENDER_SERVICE_ID
+  );
+}
+
 function applyPoolOptions(config) {
   return {
     ...config,
@@ -176,7 +184,9 @@ function getDbConfigCandidates() {
   const configs = [getConfigFromDbEnv(), getConfigFromMysqlEnv(), getConfigFromUrl()];
   const orderedConfigs = isRailway()
     ? [configs[1], configs[2], configs[0]]
-    : [configs[0], configs[1], configs[2]];
+    : isRender()
+      ? [configs[2], configs[0], configs[1]]
+      : [configs[0], configs[1], configs[2]];
   const expandedConfigs = isRailway() ? getExpandedConfigs(configs) : [];
 
   const seen = new Set();
@@ -199,6 +209,7 @@ function getDbConfigCandidates() {
 function describeDbEnvironment() {
   return {
     railway: isRailway(),
+    render: isRender(),
     hasDbHost: Boolean(process.env.DB_HOST),
     hasDbPort: Boolean(process.env.DB_PORT),
     hasDbUser: Boolean(process.env.DB_USER),
@@ -216,6 +227,7 @@ function describeDbEnvironment() {
     hasDatabaseUrl: Boolean(
       process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.MYSQL_PUBLIC_URL
     ),
+    hasRenderExternalUrl: Boolean(process.env.RENDER_EXTERNAL_URL),
     hasDbSsl:
       parseBooleanEnv(process.env.DB_SSL || process.env.MYSQL_SSL) ||
       Boolean(

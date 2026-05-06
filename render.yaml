@@ -13,3 +13,31 @@ services:
         value: 0.0.0.0
       - key: PORT
         value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: API_PUBLIC_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: onboarding@resend.dev
+      - key: EMAIL_FROM_NAME
+        value: Read and Voice
+      - key: MANUAL_PAYMENT_ENABLED
+        value: "true"
+      - key: MANUAL_PAYMENT_INSTRUCTIONS
+        value: "กรุณาโอนเงินตามช่องทางที่แอดมินแจ้ง แล้วส่งหลักฐานพร้อมเลขรายการ {topup_id} จำนวน {amount} บาท"
+      - key: ENABLE_OCR
+        value: "true"
+      - key: OCR_LANG
+        value: tha+eng
+      - key: TESSERACT_COMMAND
+        value: tesseract
+      - key: OCR_CONCURRENCY
+        value: "3"
+      - key: OCR_RENDER_SCALE
+        value: "2"

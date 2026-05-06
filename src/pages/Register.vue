@@ -10,6 +10,7 @@ const router = useRouter();
 const loading = ref(false);
 const error = ref("");
 const success = ref("");
+const fieldErrors = reactive({});
 
 const form = reactive({
   email: "",
@@ -64,7 +65,7 @@ const goToLogin = () => {
   router.push("/login");
 };
 
-const validateForm = () => {
+const legacyValidateForm = () => {
   const requiredFields = [
     form.email.trim(),
     form.username.trim(),
@@ -108,6 +109,88 @@ const validateForm = () => {
   }
 
   return "";
+};
+
+const clearFieldError = (field) => {
+  if (fieldErrors[field]) {
+    delete fieldErrors[field];
+  }
+
+  if (error.value) {
+    error.value = "";
+  }
+};
+
+const setFieldError = (field, message) => {
+  fieldErrors[field] = message;
+};
+
+const resetFieldErrors = () => {
+  Object.keys(fieldErrors).forEach((field) => {
+    delete fieldErrors[field];
+  });
+};
+
+const hasFieldError = (field) => Boolean(fieldErrors[field]);
+
+const validateForm = () => {
+  resetFieldErrors();
+
+  if (!form.email.trim()) {
+    setFieldError("email", "กรุณากรอกอีเมล");
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+    setFieldError("email", "รูปแบบอีเมลไม่ถูกต้อง เช่น name@example.com");
+  }
+
+  if (!form.username.trim()) {
+    setFieldError("username", "กรุณากรอกยูสเซอร์เนม");
+  } else if (!/^[A-Za-z0-9._@-]{4,32}$/.test(form.username.trim())) {
+    setFieldError(
+      "username",
+      "ยูสเซอร์เนมต้องมี 4-32 ตัว และใช้ได้เฉพาะ A-Z, a-z, 0-9, จุด, ขีดล่าง, @, -",
+    );
+  }
+
+  if (!form.displayName.trim()) {
+    setFieldError("displayName", "กรุณากรอกชื่อที่ให้คนอื่นเห็น");
+  }
+
+  if (!form.password.trim()) {
+    setFieldError("password", "กรุณากรอกรหัสผ่าน");
+  } else if (form.password.length < 6) {
+    setFieldError("password", "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
+  }
+
+  if (!form.confirmPassword.trim()) {
+    setFieldError("confirmPassword", "กรุณายืนยันรหัสผ่าน");
+  } else if (form.password && form.password !== form.confirmPassword) {
+    setFieldError("confirmPassword", "ยืนยันรหัสผ่านไม่ตรงกับรหัสผ่านที่กรอก");
+  }
+
+  if (!form.birthDate) {
+    setFieldError("birthDate", "กรุณาเลือกวันเกิด");
+  } else if (calculatedAge.value === null || calculatedAge.value < 0) {
+    setFieldError("birthDate", "วันเกิดไม่ถูกต้อง กรุณาเลือกวันที่ไม่ใช่อนาคต");
+  } else if (calculatedAge.value > 120) {
+    setFieldError("birthDate", "วันเกิดดูไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง");
+  }
+
+  if (!form.visualImpairmentStatus) {
+    setFieldError("visualImpairmentStatus", "กรุณาเลือกสถานะการมองเห็น");
+  }
+
+  const normalizedPhone = form.phone.replace(/[\s-]/g, "");
+  if (normalizedPhone && !/^[0-9+]{9,15}$/.test(normalizedPhone)) {
+    setFieldError("phone", "เบอร์โทรศัพท์ไม่ถูกต้อง กรุณากรอกเป็นตัวเลข 9-15 หลัก");
+  }
+
+  if (!form.termsAccepted) {
+    setFieldError("termsAccepted", "กรุณายอมรับเงื่อนไขการใช้งานและนโยบายความเป็นส่วนตัว");
+  }
+
+  return Object.keys(fieldErrors).length === 0
+    ? ""
+    : "กรุณาตรวจสอบช่องที่มีกรอบสีแดงและแก้ไขข้อมูลให้ถูกต้อง";
 };
 
 const submitRegister = async () => {

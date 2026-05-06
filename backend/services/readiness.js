@@ -2,6 +2,10 @@ function readEnv(name) {
   return String(process.env[name] || "").trim();
 }
 
+function getApiPublicUrl() {
+  return readEnv("API_PUBLIC_URL") || readEnv("RENDER_EXTERNAL_URL");
+}
+
 function isPlaceholder(value) {
   const text = String(value || "").trim().toLowerCase();
   return (
@@ -33,8 +37,19 @@ function getProductionReadiness() {
   const checks = [
     statusFromEnv("NODE_ENV"),
     statusFromEnv("JWT_SECRET"),
-    statusFromEnv("API_PUBLIC_URL"),
   ];
+
+  const apiPublicUrl = getApiPublicUrl();
+  checks.push({
+    name: "API_PUBLIC_URL",
+    ok: !isPlaceholder(apiPublicUrl),
+    configured: Boolean(apiPublicUrl),
+    message: !isPlaceholder(apiPublicUrl)
+      ? readEnv("API_PUBLIC_URL")
+        ? "configured"
+        : "using RENDER_EXTERNAL_URL"
+      : "API_PUBLIC_URL is missing or still a placeholder",
+  });
 
   const hasDatabaseUrl =
     hasRealEnv("DATABASE_URL") || hasRealEnv("MYSQL_URL") || hasRealEnv("MYSQL_PUBLIC_URL");
