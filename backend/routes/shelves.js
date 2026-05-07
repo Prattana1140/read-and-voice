@@ -42,7 +42,7 @@ const PUBLIC_BOOK_FIELDS = `SELECT
        WHERE b.is_published = 1
          AND COALESCE(b.approval_status, 'approved') = 'approved'`;
 
-async function listBooks(orderBy, extraWhere = "", params = [], limit = 60) {
+async function listBooks(orderBy, extraWhere = "", params = [], limit = 120) {
   const [rows] = await db.query(
     `${PUBLIC_BOOK_FIELDS}
        ${extraWhere}

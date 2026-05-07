@@ -66,6 +66,9 @@ const {
 } = useI18n();
 const navbarRef = ref<HTMLElement | null>(null);
 const topBarRef = ref<HTMLElement | null>(null);
+const leftClusterRef = ref<HTMLElement | null>(null);
+const desktopNavRef = ref<HTMLElement | null>(null);
+const topActionsRef = ref<HTMLElement | null>(null);
 const themeDropdownRef = ref<HTMLDetailsElement | null>(null);
 const searchInputRef = ref<HTMLInputElement | null>(null);
 const isCompactNav = ref(false);
@@ -81,9 +84,11 @@ const notificationItems = ref<NotificationItem[]>([]);
 const notificationLoading = ref(false);
 const notificationError = ref("");
 const allRoles: UserRole[] = ["guest", "user", "writer", "admin", "superadmin"];
-const compactNavBreakpoint = 1240;
+const compactNavBreakpoint = 780;
+const compactNavHysteresis = 96;
 let navResizeObserver: ResizeObserver | null = null;
 let compactMeasureFrame = 0;
+let compactExpandWidth = 0;
 
 const notificationCount = computed(
   () =>
@@ -364,14 +369,25 @@ const closeMenu = () => {
 const hasNavbarOverflow = () => {
   const navbar = navbarRef.value;
   const topBar = topBarRef.value;
+  const leftCluster = leftClusterRef.value;
+  const desktopNav = desktopNavRef.value;
+  const topActions = topActionsRef.value;
   if (!navbar || !topBar) return false;
 
   const viewportWidth =
     document.documentElement.clientWidth || window.innerWidth;
+  const collisionGap = 12;
+  const leftRect = leftCluster?.getBoundingClientRect();
+  const navRect = desktopNav?.getBoundingClientRect();
+  const actionsRect = topActions?.getBoundingClientRect();
+  const hasCollision =
+    Boolean(leftRect && navRect && leftRect.right + collisionGap > navRect.left) ||
+    Boolean(navRect && actionsRect && navRect.right + collisionGap > actionsRect.left);
 
   return (
     topBar.scrollWidth > topBar.clientWidth + 1 ||
-    navbar.scrollWidth > viewportWidth + 1
+    navbar.scrollWidth > viewportWidth + 1 ||
+    hasCollision
   );
 };
 
@@ -382,21 +398,35 @@ const scheduleCompactNavMeasure = () => {
 
   compactMeasureFrame = window.requestAnimationFrame(() => {
     compactMeasureFrame = 0;
+    const viewportWidth =
+      document.documentElement.clientWidth || window.innerWidth;
 
-    if (window.innerWidth <= compactNavBreakpoint) {
+    if (viewportWidth <= compactNavBreakpoint) {
       isCompactNav.value = true;
       return;
     }
 
     if (isCompactNav.value) {
+      if (compactExpandWidth && viewportWidth < compactExpandWidth) {
+        return;
+      }
+
       isCompactNav.value = false;
       window.requestAnimationFrame(() => {
-        isCompactNav.value = hasNavbarOverflow();
+        const shouldCompact = hasNavbarOverflow();
+        isCompactNav.value = shouldCompact;
+        compactExpandWidth = shouldCompact
+          ? viewportWidth + compactNavHysteresis
+          : 0;
       });
       return;
     }
 
-    isCompactNav.value = hasNavbarOverflow();
+    const shouldCompact = hasNavbarOverflow();
+    isCompactNav.value = shouldCompact;
+    compactExpandWidth = shouldCompact
+      ? viewportWidth + compactNavHysteresis
+      : 0;
   });
 };
 
@@ -673,7 +703,7 @@ watch(isCompactNav, (compact) => {
     :class="{ 'navbar--compact': isCompactNav }"
   >
     <div ref="topBarRef" class="top-bar">
-      <div class="left-cluster">
+      <div ref="leftClusterRef" class="left-cluster">
         <button
           class="menu-toggle icon-button"
           type="button"
@@ -700,7 +730,6 @@ watch(isCompactNav, (compact) => {
         </router-link>
 
         <router-link
-          v-if="isReaderRole"
           class="subscription-link"
           to="/subscription-plans"
           @click="closeMenu"
@@ -709,7 +738,6 @@ watch(isCompactNav, (compact) => {
         </router-link>
 
         <router-link
-          v-if="isReaderRole"
           class="coin-link"
           to="/coin-wallet"
           @click="closeMenu"
@@ -734,7 +762,11 @@ watch(isCompactNav, (compact) => {
         </button>
       </div>
 
-      <nav class="desktop-public-nav" aria-label="Main navigation">
+      <nav
+        ref="desktopNavRef"
+        class="desktop-public-nav"
+        aria-label="Main navigation"
+      >
         <router-link
           v-for="item in mainNavItems"
           :key="item.to"
@@ -745,9 +777,8 @@ watch(isCompactNav, (compact) => {
         </router-link>
       </nav>
 
-      <div class="top-actions">
+      <div ref="topActionsRef" class="top-actions">
         <button
-          v-if="isReaderRole"
           class="icon-button"
           type="button"
           :aria-label="t('common.search')"
@@ -1143,7 +1174,6 @@ watch(isCompactNav, (compact) => {
 
       <section class="mobile-group mobile-card mobile-cta-group">
         <router-link
-          v-if="isReaderRole"
           class="subscription-link mobile-pill-link"
           to="/subscription-plans"
           @click="closeMenu"
@@ -1151,7 +1181,6 @@ watch(isCompactNav, (compact) => {
           {{ t("nav.subscription") }}
         </router-link>
         <router-link
-          v-if="isReaderRole"
           class="coin-link mobile-pill-link"
           to="/coin-wallet"
           @click="closeMenu"
@@ -1186,7 +1215,7 @@ watch(isCompactNav, (compact) => {
   top: 0;
   z-index: 50;
   width: 100%;
-  overflow-x: clip;
+  overflow-x: visible;
   background: color-mix(in srgb, #e7fbf7 88%, white);
   border-bottom: 1px solid rgba(17, 156, 145, 0.16);
   box-shadow: 0 10px 28px rgba(17, 156, 145, 0.1);
@@ -1194,21 +1223,19 @@ watch(isCompactNav, (compact) => {
 }
 .top-bar {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: clamp(14px, 2vw, 34px);
   min-height: 76px;
   padding: 8px clamp(24px, 3.4vw, 58px);
 }
 .left-cluster {
-  grid-column: 1;
-  grid-row: 1;
   display: flex;
   align-items: center;
-  justify-self: start;
-  min-width: 0;
-  gap: 14px;
+  flex: 0 1 auto;
+  min-width: max-content;
+  gap: clamp(8px, 1vw, 14px);
 }
 .brand,
 .desktop-public-nav a,
@@ -1235,14 +1262,15 @@ watch(isCompactNav, (compact) => {
   transform-origin: center;
 }
 .desktop-public-nav {
-  grid-column: 2;
-  grid-row: 1;
-  justify-self: center;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 0;
-  gap: clamp(14px, 1.6vw, 34px);
+  min-width: max-content;
+  gap: clamp(14px, 1.5vw, 30px);
 }
 .desktop-public-nav a {
   color: #1f2937;
@@ -1317,15 +1345,17 @@ watch(isCompactNav, (compact) => {
   fill: rgba(255, 245, 186, 0.52);
 }
 .top-actions {
-  grid-column: 3;
-  grid-row: 1;
   position: relative;
   z-index: 2;
-  justify-self: end;
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
   min-width: 0;
-  gap: 12px;
+  margin-left: auto;
+  gap: 8px;
+}
+.top-actions > * {
+  flex: 0 0 auto;
 }
 .icon-button,
 .notification-button,
@@ -1445,7 +1475,8 @@ watch(isCompactNav, (compact) => {
 }
 .language-switch {
   display: inline-grid;
-  grid-template-columns: auto 1fr 1fr;
+  flex: 0 0 auto;
+  grid-template-columns: 1fr 1fr;
   align-items: center;
   gap: 2px;
   min-height: 36px;
@@ -1455,14 +1486,15 @@ watch(isCompactNav, (compact) => {
   padding: 3px;
 }
 .language-switch__label {
-  color: #0f766e;
-  font-size: 11px;
-  font-weight: 900;
-  padding: 0 5px 0 7px;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
   white-space: nowrap;
 }
 .language-switch button {
-  min-width: 38px;
+  min-width: 31px;
   height: 30px;
   border: 0;
   border-radius: 999px;
@@ -1471,7 +1503,7 @@ watch(isCompactNav, (compact) => {
   cursor: pointer;
   font-size: 12px;
   font-weight: 900;
-  padding: 0 9px;
+  padding: 0 7px;
 }
 .language-switch button.active {
   background: #0f766e;
@@ -1943,7 +1975,8 @@ watch(isCompactNav, (compact) => {
 }
 
 .navbar--compact .top-bar {
-  grid-template-columns: minmax(0, 1fr) max-content;
+  display: flex;
+  justify-content: space-between;
   gap: 16px;
   min-height: 82px;
   padding: 10px clamp(18px, 3vw, 40px);
@@ -1952,9 +1985,11 @@ watch(isCompactNav, (compact) => {
   min-width: 0;
   gap: 8px;
 }
-.navbar--compact .left-cluster > .subscription-link,
-.navbar--compact .left-cluster > .coin-link,
 .navbar--compact .desktop-public-nav {
+  display: none;
+}
+.navbar--compact .left-cluster > .subscription-link,
+.navbar--compact .left-cluster > .coin-link {
   display: none;
 }
 .navbar--compact .left-cluster > .accessibility-link {
@@ -1976,7 +2011,11 @@ watch(isCompactNav, (compact) => {
   transform: scale(1.65);
 }
 .navbar--compact .top-actions {
-  grid-column: 2;
+  margin-left: auto;
+}
+.navbar--compact .desktop-public-nav {
+  position: static;
+  transform: none;
 }
 .navbar--compact .mobile-cta-group {
   display: grid;
@@ -1995,9 +2034,10 @@ watch(isCompactNav, (compact) => {
   display: none;
 }
 
-@media (max-width: 1240px) {
+@media (max-width: 780px) {
   .top-bar {
-    grid-template-columns: minmax(0, 1fr) max-content;
+    display: flex;
+    justify-content: space-between;
     gap: 16px;
     min-height: 82px;
     padding: 10px clamp(18px, 3vw, 40px);
@@ -2007,11 +2047,17 @@ watch(isCompactNav, (compact) => {
     gap: 8px;
   }
   .top-actions {
-    grid-column: 2;
+    margin-left: auto;
+  }
+  .desktop-public-nav {
+    position: static;
+    transform: none;
+  }
+  .desktop-public-nav {
+    display: none;
   }
   .left-cluster > .subscription-link,
-  .left-cluster > .coin-link,
-  .desktop-public-nav {
+  .left-cluster > .coin-link {
     display: none;
   }
   .left-cluster > .accessibility-link {
