@@ -466,7 +466,7 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
 function canManageBook(user, book) {
   if (!user || !book) return false;
   if (["admin", "superadmin"].includes(user.role)) return true;
-  return user.role === "writer" && Number(book.created_by) === Number(user.id);
+  return ["user", "writer"].includes(user.role) && Number(book.created_by) === Number(user.id);
 }
 
 async function hasPurchasedBook(userId, bookId) {
@@ -727,7 +727,7 @@ router.get("/", async (_req, res) => {
 router.post(
   "/upload",
   verifyToken,
-  allowRoles("writer", "admin", "superadmin"),
+  allowRoles("user", "writer", "admin", "superadmin"),
   uploadBookFiles,
   async (req, res) => {
     const connection = await db.getConnection();
@@ -855,7 +855,7 @@ router.post(
 router.post(
   "/serial",
   verifyToken,
-  allowRoles("writer", "admin", "superadmin"),
+  allowRoles("user", "writer", "admin", "superadmin"),
   uploadBookFiles,
   async (req, res) => {
     try {
@@ -942,7 +942,7 @@ router.post(
 router.post(
   "/manual",
   verifyToken,
-  allowRoles("writer", "admin", "superadmin"),
+  allowRoles("user", "writer", "admin", "superadmin"),
   uploadBookFiles,
   async (req, res) => {
     try {
@@ -1195,7 +1195,7 @@ router.get("/:id", optionalVerifyToken, async (req, res) => {
 router.post(
   "/",
   verifyToken,
-  allowRoles("writer", "admin", "superadmin"),
+  allowRoles("user", "writer", "admin", "superadmin"),
   async (req, res) => {
     try {
       const result = await createBookFromPayload(req.body, req.user);
@@ -1354,7 +1354,7 @@ router.get("/:id/episodes", async (req, res) => {
 router.post(
   "/:id/episodes",
   verifyToken,
-  allowRoles("writer", "admin", "superadmin"),
+  allowRoles("user", "writer", "admin", "superadmin"),
   async (req, res) => {
     try {
       const {

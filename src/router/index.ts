@@ -35,6 +35,7 @@ type UserRole = "user" | "writer" | "admin" | "superadmin";
 
 const memberRoles: UserRole[] = ["user", "writer", "admin", "superadmin"];
 const writerRoles: UserRole[] = ["writer"];
+const uploaderRoles: UserRole[] = ["user", "writer", "admin", "superadmin"];
 const adminRoles: UserRole[] = ["admin", "superadmin"];
 const superAdminRoles: UserRole[] = ["superadmin"];
 
@@ -285,7 +286,7 @@ const routes: RouteRecordRaw[] = [
     path: "/writer/upload",
     name: "WriterUpload",
     component: () => import("../pages/writer/Upload.vue"),
-    meta: { requiresAuth: true, allowedRoles: writerRoles },
+    meta: { requiresAuth: true, allowedRoles: uploaderRoles },
   },
   {
     path: "/writer/books/:id/edit",

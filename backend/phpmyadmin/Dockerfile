@@ -1,5 +1,7 @@
 FROM phpmyadmin:5.2-apache
 
+COPY config.inc.php /etc/phpmyadmin/config.user.inc.php
+
 RUN a2dismod -f mpm_event mpm_worker || true \
   && a2enmod mpm_prefork \
   && rm -f \

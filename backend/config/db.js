@@ -18,7 +18,7 @@ console.log(
 if (candidates.length === 0) {
   console.error("Missing database config.");
   console.error(
-    "Set DB_HOST/DB_USER/DB_PASSWORD/DB_NAME/DB_PORT or Railway MYSQLHOST/MYSQLUSER/MYSQLPASSWORD/MYSQLDATABASE/MYSQLPORT."
+    "Set DB_HOST/DB_USER/DB_PASSWORD/DB_NAME/DB_PORT, DATABASE_URL, LOCAL_DB_*, or CLOUD_DB_*."
   );
   process.exit(1);
 }

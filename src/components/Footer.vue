@@ -22,6 +22,7 @@ const currentRole = computed<UserRole | null>(() => {
 const canManageCategories = computed(
   () => currentRole.value === "admin" || currentRole.value === "superadmin",
 );
+const canUploadBooks = computed(() => Boolean(currentRole.value));
 const canWriteBooks = computed(() => currentRole.value === "writer");
 const memberLink = computed(() => (isLoggedIn.value ? "/my-library" : "/login"));
 const recentLink = computed(() => (isLoggedIn.value ? "/profile" : "/login"));
@@ -52,7 +53,7 @@ const notificationSettingsLink = computed(() =>
         <router-link v-if="canWriteBooks" to="/writer/books">
           {{ t("account.writerDashboard") }}
         </router-link>
-        <router-link v-if="canWriteBooks" to="/writer/upload">
+        <router-link v-if="canUploadBooks" to="/writer/upload">
           {{ t("account.uploadBook") }}
         </router-link>
       </section>

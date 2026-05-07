@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import axios from "axios";
-import { api, API_BASE_URL } from "../../utils/api";
-import { getAuthHeaders } from "../../utils/auth";
+import { api } from "../../utils/api";
 
 type UploadMode = "ebook" | "serial" | "studio";
 type AccessType = "free" | "paid" | "subscription";
@@ -32,7 +30,7 @@ type StudioBlock = {
   sentences: StudioSentence[];
 };
 
-const mode = ref<UploadMode>("studio");
+const mode = ref<UploadMode>("ebook");
 const activeStudioStep = ref(0);
 
 const title = ref("");
@@ -83,6 +81,8 @@ const contentPreview = ref<StudioBlock[]>([]);
 const loading = ref(false);
 const message = ref("");
 const error = ref("");
+const uploadProgress = ref(0);
+const uploadStage = ref<"idle" | "uploading" | "processing" | "done">("idle");
 
 const selectedUnit = computed(() => {
   return studioUnits.value.find((unit) => unit.id === selectedUnitId.value) || null;
@@ -120,6 +120,26 @@ const totalPreviewSentences = computed(() => {
   return contentPreview.value.reduce((sum, block) => sum + block.sentences.length, 0);
 });
 
+const isUploadingEbook = computed(() => {
+  return mode.value === "ebook" && loading.value && uploadStage.value !== "idle";
+});
+
+const uploadProgressLabel = computed(() => {
+  if (uploadStage.value === "processing") {
+    return "อัปโหลดครบ 100% แล้ว กำลังประมวลผลไฟล์หนังสือ...";
+  }
+
+  if (uploadStage.value === "done") {
+    return "อัปโหลดสำเร็จ 100%";
+  }
+
+  if (uploadStage.value === "uploading") {
+    return `กำลังอัปโหลด ${uploadProgress.value}%`;
+  }
+
+  return "";
+});
+
 const canOpenStudioStep = (index: number) => {
   if (index <= 0) return true;
   if (index === 1) return Boolean(studioBookId.value);
@@ -155,6 +175,11 @@ const resetStatus = () => {
   error.value = "";
 };
 
+const resetUploadProgress = () => {
+  uploadProgress.value = 0;
+  uploadStage.value = "idle";
+};
+
 const setError = (err: unknown, fallback: string) => {
   const maybeAxios = err as {
     response?: { data?: { message?: string; error?: string } };
@@ -168,6 +193,7 @@ const setError = (err: unknown, fallback: string) => {
 const onFileChange = (event: Event) => {
   const target = event.target as HTMLInputElement;
   bookFile.value = target.files?.[0] || null;
+  resetUploadProgress();
 };
 
 const onCoverFileChange = (event: Event) => {
@@ -177,6 +203,7 @@ const onCoverFileChange = (event: Event) => {
 
 const uploadEbook = async () => {
   resetStatus();
+  resetUploadProgress();
 
   if (!title.value || !author.value || !bookFile.value) {
     error.value = "กรุณากรอกชื่อหนังสือ ผู้เขียน และเลือกไฟล์หนังสือ";
@@ -184,6 +211,7 @@ const uploadEbook = async () => {
   }
 
   loading.value = true;
+  uploadStage.value = "uploading";
 
   try {
     const formData = new FormData();
@@ -208,19 +236,32 @@ const uploadEbook = async () => {
       formData.append("cover_file", coverFile.value);
     }
 
-    const res = await axios.post(`${API_BASE_URL}/api/books/upload`, formData, {
-      headers: {
-        ...getAuthHeaders(),
-        "Content-Type": "multipart/form-data",
+    const res = await api.post("/books/upload", formData, {
+      onUploadProgress: (progressEvent) => {
+        if (!progressEvent.total) {
+          uploadStage.value = "uploading";
+          return;
+        }
+
+        uploadProgress.value = Math.min(
+          100,
+          Math.round((progressEvent.loaded * 100) / progressEvent.total),
+        );
+
+        uploadStage.value =
+          uploadProgress.value >= 100 ? "processing" : "uploading";
       },
       timeout: 30 * 60 * 1000,
     });
 
+    uploadProgress.value = 100;
+    uploadStage.value = "done";
     message.value = `อัปโหลดเล่มเต็มสำเร็จ: หนังสือ #${res.data.book_id}`;
     bookFile.value = null;
     coverFile.value = null;
   } catch (err) {
     setError(err, "อัปโหลดเล่มเต็มไม่สำเร็จ");
+    uploadStage.value = "idle";
   } finally {
     loading.value = false;
   }
@@ -836,8 +877,28 @@ const publishStudioBook = async () => {
             />
           </label>
         </div>
+        <div
+          v-if="isUploadingEbook || uploadStage === 'done'"
+          class="upload-progress"
+          role="status"
+          aria-live="polite"
+        >
+          <div class="upload-progress__meta">
+            <span>{{ uploadProgressLabel }}</span>
+            <strong>{{ uploadProgress }}%</strong>
+          </div>
+          <div
+            class="upload-progress__track"
+            role="progressbar"
+            :aria-valuenow="uploadProgress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+          >
+            <span :style="{ width: `${uploadProgress}%` }"></span>
+          </div>
+        </div>
         <button class="primary-btn" :disabled="loading" @click="uploadEbook">
-          {{ loading ? "กำลังอัปโหลด..." : "อัปโหลดเล่มเต็ม" }}
+          {{ isUploadingEbook ? `กำลังอัปโหลด ${uploadProgress}%` : loading ? "กำลังทำงาน..." : "อัปโหลดเล่มเต็ม" }}
         </button>
       </div>
 
@@ -1285,6 +1346,43 @@ textarea {
 
 .empty-note {
   margin: 0;
+}
+
+.upload-progress {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.upload-progress__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.upload-progress__meta strong {
+  color: var(--text-strong);
+  font-size: 15px;
+}
+
+.upload-progress__track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.upload-progress__track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+  transition: width 180ms ease;
 }
 
 .episode-form {

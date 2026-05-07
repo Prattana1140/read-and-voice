@@ -35,6 +35,12 @@ function parseDatabaseUrl(value) {
   }
 }
 
+function normalizeDbMode(value) {
+  const mode = String(value || "auto").trim().toLowerCase();
+
+  return ["auto", "local", "cloud"].includes(mode) ? mode : "auto";
+}
+
 function normalizePort(value) {
   const port = Number(value);
 
@@ -116,6 +122,30 @@ function getConfigFromDbEnv() {
   };
 }
 
+function getConfigFromPrefixedDbEnv(prefix, source) {
+  const password = firstEnv([`${prefix}_DB_PASSWORD`], { allowEmpty: true });
+
+  return {
+    source,
+    host: firstEnv([`${prefix}_DB_HOST`]),
+    port: normalizePort(firstEnv([`${prefix}_DB_PORT`])),
+    user: firstEnv([`${prefix}_DB_USER`]),
+    password: password !== undefined ? password : "",
+    database: firstEnv([`${prefix}_DB_NAME`]),
+  };
+}
+
+function getConfigFromPrefixedUrl(prefix, source) {
+  const urlConfig = parseDatabaseUrl(
+    firstEnv([`${prefix}_DATABASE_URL`, `${prefix}_MYSQL_URL`])
+  );
+
+  return {
+    source,
+    ...urlConfig,
+  };
+}
+
 function getConfigFromMysqlEnv() {
   const password = firstEnv(["MYSQLPASSWORD", "MYSQL_PASSWORD"], {
     allowEmpty: true,
@@ -140,6 +170,68 @@ function getConfigFromUrl() {
     source: "DATABASE_URL",
     ...urlConfig,
   };
+}
+
+function orderConfigsByMode(configsByName) {
+  const dbMode = normalizeDbMode(process.env.DB_MODE);
+
+  if (dbMode === "local") {
+    return [
+      configsByName.localFields,
+      configsByName.localUrl,
+      configsByName.dbFields,
+      configsByName.mysqlFields,
+      configsByName.url,
+      configsByName.cloudFields,
+      configsByName.cloudUrl,
+    ];
+  }
+
+  if (dbMode === "cloud") {
+    return [
+      configsByName.cloudFields,
+      configsByName.cloudUrl,
+      configsByName.mysqlFields,
+      configsByName.url,
+      configsByName.dbFields,
+      configsByName.localFields,
+      configsByName.localUrl,
+    ];
+  }
+
+  if (isRailway()) {
+    return [
+      configsByName.mysqlFields,
+      configsByName.url,
+      configsByName.cloudFields,
+      configsByName.cloudUrl,
+      configsByName.dbFields,
+      configsByName.localFields,
+      configsByName.localUrl,
+    ];
+  }
+
+  if (isRender()) {
+    return [
+      configsByName.url,
+      configsByName.cloudUrl,
+      configsByName.cloudFields,
+      configsByName.dbFields,
+      configsByName.mysqlFields,
+      configsByName.localFields,
+      configsByName.localUrl,
+    ];
+  }
+
+  return [
+    configsByName.localFields,
+    configsByName.localUrl,
+    configsByName.dbFields,
+    configsByName.mysqlFields,
+    configsByName.url,
+    configsByName.cloudFields,
+    configsByName.cloudUrl,
+  ];
 }
 
 function getExpandedConfigs(configs) {
@@ -181,12 +273,17 @@ function configHasDatabaseIdentity(config) {
 }
 
 function getDbConfigCandidates() {
-  const configs = [getConfigFromDbEnv(), getConfigFromMysqlEnv(), getConfigFromUrl()];
-  const orderedConfigs = isRailway()
-    ? [configs[1], configs[2], configs[0]]
-    : isRender()
-      ? [configs[2], configs[0], configs[1]]
-      : [configs[0], configs[1], configs[2]];
+  const configsByName = {
+    localFields: getConfigFromPrefixedDbEnv("LOCAL", "LOCAL_DB_*"),
+    localUrl: getConfigFromPrefixedUrl("LOCAL", "LOCAL_DATABASE_URL"),
+    cloudFields: getConfigFromPrefixedDbEnv("CLOUD", "CLOUD_DB_*"),
+    cloudUrl: getConfigFromPrefixedUrl("CLOUD", "CLOUD_DATABASE_URL"),
+    dbFields: getConfigFromDbEnv(),
+    mysqlFields: getConfigFromMysqlEnv(),
+    url: getConfigFromUrl(),
+  };
+  const configs = Object.values(configsByName);
+  const orderedConfigs = orderConfigsByMode(configsByName);
   const expandedConfigs = isRailway() ? getExpandedConfigs(configs) : [];
 
   const seen = new Set();
@@ -208,8 +305,21 @@ function getDbConfigCandidates() {
 
 function describeDbEnvironment() {
   return {
+    dbMode: normalizeDbMode(process.env.DB_MODE),
     railway: isRailway(),
     render: isRender(),
+    hasLocalDbHost: Boolean(process.env.LOCAL_DB_HOST),
+    hasLocalDbPort: Boolean(process.env.LOCAL_DB_PORT),
+    hasLocalDbUser: Boolean(process.env.LOCAL_DB_USER),
+    hasLocalDbPassword: process.env.LOCAL_DB_PASSWORD !== undefined,
+    hasLocalDbName: Boolean(process.env.LOCAL_DB_NAME),
+    hasLocalDatabaseUrl: Boolean(process.env.LOCAL_DATABASE_URL || process.env.LOCAL_MYSQL_URL),
+    hasCloudDbHost: Boolean(process.env.CLOUD_DB_HOST),
+    hasCloudDbPort: Boolean(process.env.CLOUD_DB_PORT),
+    hasCloudDbUser: Boolean(process.env.CLOUD_DB_USER),
+    hasCloudDbPassword: process.env.CLOUD_DB_PASSWORD !== undefined,
+    hasCloudDbName: Boolean(process.env.CLOUD_DB_NAME),
+    hasCloudDatabaseUrl: Boolean(process.env.CLOUD_DATABASE_URL || process.env.CLOUD_MYSQL_URL),
     hasDbHost: Boolean(process.env.DB_HOST),
     hasDbPort: Boolean(process.env.DB_PORT),
     hasDbUser: Boolean(process.env.DB_USER),
@@ -228,15 +338,7 @@ function describeDbEnvironment() {
       process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.MYSQL_PUBLIC_URL
     ),
     hasRenderExternalUrl: Boolean(process.env.RENDER_EXTERNAL_URL),
-    hasDbSsl:
-      parseBooleanEnv(process.env.DB_SSL || process.env.MYSQL_SSL) ||
-      Boolean(
-        process.env.DB_SSL_CA ||
-          process.env.DB_SSL_CA_FILE ||
-          process.env.DB_SSL_CA_BASE64 ||
-          process.env.DB_SSL_MODE ||
-          process.env.MYSQL_SSL_MODE
-      ),
+    hasDbSsl: Boolean(getSslConfig()),
   };
 }
 

@@ -5,6 +5,9 @@ const path = require("path");
 const DEFAULT_TESSERACT_COMMAND =
   process.env.TESSERACT_COMMAND ||
   (process.platform === "win32" ? "C:\\Program Files\\Tesseract-OCR\\tesseract.exe" : "tesseract");
+const DEFAULT_GHOSTSCRIPT_COMMAND =
+  process.env.GHOSTSCRIPT_COMMAND ||
+  (process.platform === "win32" ? "C:\\Program Files\\gs\\gs10.07.0\\bin\\gswin64c.exe" : "gs");
 const DEFAULT_OCR_LANG = process.env.OCR_LANG || "tha+eng";
 const OCR_PSM = process.env.OCR_PSM || "3";
 const OCR_PAGE_TIMEOUT_MS = Number(process.env.OCR_PAGE_TIMEOUT_MS || 120000);
@@ -121,13 +124,8 @@ async function mapWithConcurrency(items, concurrency, worker) {
   return results;
 }
 
-async function renderPdfToPngPages(filePath) {
+async function getPdfPageCount(filePath) {
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const { createCanvas } = require("@napi-rs/canvas");
-
-  const tempDir = path.join(__dirname, "..", "uploads", "ocr-temp");
-  fs.mkdirSync(tempDir, { recursive: true });
-
   const data = new Uint8Array(fs.readFileSync(filePath));
   const loadingTask = getDocument({
     data,
@@ -136,6 +134,25 @@ async function renderPdfToPngPages(filePath) {
     useSystemFonts: true,
   });
 
+  const pdf = await loadingTask.promise;
+
+  try {
+    return pdf.numPages;
+  } finally {
+    await pdf.destroy();
+  }
+}
+
+async function renderPdfToPngPagesWithPdfJs(filePath, tempDir) {
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const { createCanvas } = require("@napi-rs/canvas");
+  const data = new Uint8Array(fs.readFileSync(filePath));
+  const loadingTask = getDocument({
+    data,
+    useWorkerFetch: false,
+    isEvalSupported: false,
+    useSystemFonts: true,
+  });
   const pdf = await loadingTask.promise;
   const imagePaths = [];
 
@@ -161,6 +178,50 @@ async function renderPdfToPngPages(filePath) {
   }
 
   return imagePaths;
+}
+
+async function renderPdfToPngPagesWithGhostscript(filePath, tempDir) {
+  const pageCount = await getPdfPageCount(filePath);
+  const imagePaths = [];
+  const dpi = Math.max(120, Math.min(260, Math.round(OCR_RENDER_SCALE * 110)));
+
+  for (let pageNo = 1; pageNo <= pageCount; pageNo += 1) {
+    const imagePath = path.join(tempDir, `page.${pageNo}.png`);
+    await execFileAsync(
+      DEFAULT_GHOSTSCRIPT_COMMAND,
+      [
+        "-dSAFER",
+        "-dBATCH",
+        "-dNOPAUSE",
+        "-sDEVICE=pnggray",
+        `-r${dpi}`,
+        `-dFirstPage=${pageNo}`,
+        `-dLastPage=${pageNo}`,
+        `-sOutputFile=${imagePath}`,
+        filePath,
+      ],
+      {
+        windowsHide: true,
+        timeout: OCR_PAGE_TIMEOUT_MS,
+        maxBuffer: 10 * 1024 * 1024,
+      },
+    );
+    imagePaths.push(imagePath);
+  }
+
+  return imagePaths;
+}
+
+async function renderPdfToPngPages(filePath) {
+  const tempDir = path.join(__dirname, "..", "uploads", "ocr-temp");
+  fs.mkdirSync(tempDir, { recursive: true });
+
+  try {
+    return await renderPdfToPngPagesWithPdfJs(filePath, tempDir);
+  } catch (pdfJsError) {
+    console.warn("PDF.js page rendering failed, trying Ghostscript:", pdfJsError.message);
+    return renderPdfToPngPagesWithGhostscript(filePath, tempDir);
+  }
 }
 
 async function runTesseractCliOCR(filePath) {

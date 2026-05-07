@@ -11,6 +11,7 @@
     "db:seed:catalog": "node services/scripts/seedCatalogData.js",
     "db:seed:launch": "node services/scripts/seedLaunchCatalog.js",
     "db:seed:platform": "node services/scripts/seedPlatformUsers.js",
+    "import:harn-v1-12": "node services/scripts/importHarnThaChataFaPdf.js",
     "db:migrate:subscriptions": "node services/scripts/initSubscriptionTables.js",
     "db:migrate:content": "node services/scripts/migrateContentModel.js",
     "db:migrate:tts-architecture": "node services/scripts/migrateTtsArchitecture.js",

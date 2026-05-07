@@ -281,6 +281,11 @@ const accountGroups = computed<NavGroup[]>(() => {
       title: t("account.writerSpace"),
       items: [
         {
+          label: t("account.uploadBook"),
+          to: "/writer/upload",
+          roles: ["user", "writer", "admin", "superadmin"],
+        },
+        {
           label: t("account.writerDashboard"),
           to: "/writer",
           roles: ["writer"],

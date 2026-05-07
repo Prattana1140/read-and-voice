@@ -11,6 +11,7 @@ function isPlaceholder(value) {
   return (
     !text ||
     text.includes("change-this") ||
+    text.includes("replace-with") ||
     text.includes("your-") ||
     text.includes("example") ||
     ["x", "xx", "xxx", "xxxx", "xxxxx"].includes(text)
@@ -30,6 +31,17 @@ function statusFromEnv(name, options = {}) {
 
 function hasRealEnv(name) {
   return !isPlaceholder(readEnv(name));
+}
+
+function hasDbFieldSet(prefix) {
+  const namePrefix = prefix ? `${prefix}_` : "";
+
+  return (
+    hasRealEnv(`${namePrefix}DB_HOST`) &&
+    hasRealEnv(`${namePrefix}DB_USER`) &&
+    hasRealEnv(`${namePrefix}DB_PASSWORD`) &&
+    hasRealEnv(`${namePrefix}DB_NAME`)
+  );
 }
 
 function getProductionReadiness() {
@@ -52,12 +64,14 @@ function getProductionReadiness() {
   });
 
   const hasDatabaseUrl =
-    hasRealEnv("DATABASE_URL") || hasRealEnv("MYSQL_URL") || hasRealEnv("MYSQL_PUBLIC_URL");
-  const hasDbFields =
-    hasRealEnv("DB_HOST") &&
-    hasRealEnv("DB_USER") &&
-    hasRealEnv("DB_PASSWORD") &&
-    hasRealEnv("DB_NAME");
+    hasRealEnv("DATABASE_URL") ||
+    hasRealEnv("MYSQL_URL") ||
+    hasRealEnv("MYSQL_PUBLIC_URL") ||
+    hasRealEnv("LOCAL_DATABASE_URL") ||
+    hasRealEnv("LOCAL_MYSQL_URL") ||
+    hasRealEnv("CLOUD_DATABASE_URL") ||
+    hasRealEnv("CLOUD_MYSQL_URL");
+  const hasDbFields = hasDbFieldSet("") || hasDbFieldSet("LOCAL") || hasDbFieldSet("CLOUD");
 
   checks.push({
     name: "database",
@@ -66,8 +80,8 @@ function getProductionReadiness() {
     message: hasDatabaseUrl
       ? "database connection string is configured"
       : hasDbFields
-        ? "DB_HOST/DB_USER/DB_PASSWORD/DB_NAME are configured"
-        : "Set DATABASE_URL or DB_HOST/DB_USER/DB_PASSWORD/DB_NAME",
+        ? "database host/user/password/name fields are configured"
+        : "Set DATABASE_URL, DB_* fields, LOCAL_DB_* fields, or CLOUD_DB_* fields",
   });
 
   const frontendUrl = readEnv("FRONTEND_URL");
