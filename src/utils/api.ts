@@ -1,4 +1,5 @@
 import axios from "axios";
+import { AUTH_CHANGED_EVENT } from "./auth";
 
 // Central API helper for the frontend.
 // Supports both Thai and English UI text by keeping this file in UTF-8.
@@ -96,6 +97,12 @@ export function getApiErrorMessage(error: unknown, fallback: string) {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (error?.response?.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.dispatchEvent(new CustomEvent(AUTH_CHANGED_EVENT));
+    }
+
     const message = getApiErrorMessage(error, "ทำรายการไม่สำเร็จ");
 
     if (error?.response?.data) {

@@ -76,7 +76,7 @@ async function addConstraint(databaseName, tableName, constraintName, definition
   console.log(`Added constraint ${tableName}.${constraintName}`);
 }
 
-async function main() {
+async function migrateContentModel() {
   const databaseName = await getDatabaseName();
 
   if (!databaseName) {
@@ -170,13 +170,23 @@ async function main() {
   );
 
   console.log("Content model migration complete.");
+}
+
+async function main() {
+  await migrateContentModel();
   await db.end();
 }
 
-main().catch(async (error) => {
-  console.error("Content model migration failed:", error);
-  try {
-    await db.end();
-  } catch (_) {}
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch(async (error) => {
+    console.error("Content model migration failed:", error);
+    try {
+      await db.end();
+    } catch (_) {}
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  migrateContentModel,
+};

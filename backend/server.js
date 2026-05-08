@@ -32,6 +32,7 @@ const paymentsRoutes = require("./routes/payments");
 const writersRoutes = require("./routes/writers");
 const { generateBookCoverPath } = require("./services/bookCover");
 const { ensureDatabaseInitialized } = require("./services/scripts/initDatabase");
+const { migrateContentModel } = require("./services/scripts/migrateContentModel");
 const { ensureTtsArchitectureMigrated } = require("./services/scripts/migrateTtsArchitecture");
 
 const app = express();
@@ -215,6 +216,7 @@ function listen(port, label) {
 (async () => {
   try {
     await ensureDatabaseInitialized();
+    await migrateContentModel();
     await ensureTtsArchitectureMigrated();
   } catch (error) {
     console.error("Database bootstrap failed:", error);
