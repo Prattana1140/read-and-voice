@@ -150,6 +150,7 @@ type Book = {
   title: string;
   author: string;
   cover_url?: string;
+  cover_image_url?: string;
   cover_image?: string;
 };
 
@@ -259,13 +260,13 @@ const bannerItems = computed(() => {
       const campaign = fallbackCampaigns[index % fallbackCampaigns.length];
       const covers = [book, books[index + 1], books[index + 2]]
         .filter(Boolean)
-        .map((item) => item.cover_url || item.cover_image || "")
+        .map((item) => item.cover_url || item.cover_image_url || item.cover_image || "")
         .filter(Boolean);
 
       return {
         id: `book-${book.id}`,
         kind: "fallback" as const,
-        image_url: book.cover_url || book.cover_image || "",
+        image_url: book.cover_url || book.cover_image_url || book.cover_image || "",
         title: book.title,
         link_url: `/book/${book.id}`,
         is_active: true,
@@ -289,7 +290,7 @@ const homeSections = computed(() =>
 );
 
 const getBookCover = (book: Book) => {
-  return resolveAssetUrl(book.cover_url || book.cover_image);
+  return resolveAssetUrl(book.cover_url || book.cover_image_url || book.cover_image);
 };
 
 const handleImgError = (event: Event) => {
@@ -371,9 +372,10 @@ async function fetchPageContent() {
 }
 
 async function loadHomeContent() {
-  const [, recommendedBooks, ...sectionBooks] = await Promise.all([
+  const [, recommendedBooks, allBooks, ...sectionBooks] = await Promise.all([
     fetchPageContent().catch(() => undefined),
     fetchShelfBooks("/recommended").catch(() => []),
+    fetchShelfBooks("/ebooks").catch(() => []),
     ...sectionDefinitions.map((section) =>
       fetchShelfBooks(section.endpoint).catch(() => []),
     ),
@@ -382,6 +384,7 @@ async function loadHomeContent() {
   fallbackBannerBooks.value = [
     ...recommendedBooks,
     ...sectionBooks.flat(),
+    ...allBooks,
   ].filter(
     (book, index, books) =>
       books.findIndex((candidate) => candidate.id === book.id) === index,
@@ -390,8 +393,19 @@ async function loadHomeContent() {
   homeSectionItems.value = sectionDefinitions.map((section, index) => ({
     title: section.title,
     to: section.to,
-    books: sectionBooks[index].slice(0, section.limit),
+    books: (sectionBooks[index].length ? sectionBooks[index] : allBooks).slice(
+      0,
+      section.limit,
+    ),
   }));
+
+  if (allBooks.length > 0) {
+    homeSectionItems.value.unshift({
+      title: "หนังสือทั้งหมด",
+      to: "/store",
+      books: allBooks,
+    });
+  }
   activeBannerIndex.value = 0;
 }
 

@@ -85,7 +85,8 @@ const notificationLoading = ref(false);
 const notificationError = ref("");
 const allRoles: UserRole[] = ["guest", "user", "writer", "admin", "superadmin"];
 const compactNavBreakpoint = 780;
-const compactNavHysteresis = 96;
+const compactNavHysteresis = 260;
+const compactNavRestoreBreakpoint = 1560;
 let navResizeObserver: ResizeObserver | null = null;
 let compactMeasureFrame = 0;
 let compactExpandWidth = 0;
@@ -407,7 +408,12 @@ const scheduleCompactNavMeasure = () => {
     }
 
     if (isCompactNav.value) {
-      if (compactExpandWidth && viewportWidth < compactExpandWidth) {
+      const restoreWidth = Math.max(
+        compactExpandWidth || 0,
+        compactNavRestoreBreakpoint,
+      );
+
+      if (viewportWidth < restoreWidth) {
         return;
       }
 
