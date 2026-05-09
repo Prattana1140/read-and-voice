@@ -325,6 +325,30 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, allowedRoles: adminRoles },
   },
   {
+    path: "/admin/coin-topups",
+    name: "AdminCoinTopups",
+    component: () => import("../pages/admin/CoinTopups.vue"),
+    meta: { requiresAuth: true, allowedRoles: adminRoles },
+  },
+  {
+    path: "/admin/order-payments",
+    name: "AdminOrderPayments",
+    component: () => import("../pages/admin/OrderPayments.vue"),
+    meta: { requiresAuth: true, allowedRoles: adminRoles },
+  },
+  {
+    path: "/admin/subscription-payments",
+    name: "AdminSubscriptionPayments",
+    component: () => import("../pages/admin/SubscriptionPayments.vue"),
+    meta: { requiresAuth: true, allowedRoles: adminRoles },
+  },
+  {
+    path: "/admin/payments",
+    name: "AdminPayments",
+    component: () => import("../pages/admin/Payments.vue"),
+    meta: { requiresAuth: true, allowedRoles: adminRoles },
+  },
+  {
     path: "/admin/page-content",
     name: "AdminPageContent",
     component: () => import("../pages/admin/PageContentManager.vue"),

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import api from "../utils/api";
 
 type CoinPackage = {
@@ -29,9 +29,16 @@ const balance = ref(0);
 const packages = ref<CoinPackage[]>([]);
 const transactions = ref<Transaction[]>([]);
 const loading = ref(true);
+const creatingTopup = ref("");
+const confirmingTopup = ref(false);
 const message = ref("");
 const errorMessage = ref("");
 const pendingTopup = ref<PendingTopup>(null);
+const transferReference = ref("");
+
+const hasPendingManualTopup = computed(() => {
+  return Boolean(pendingTopup.value?.topup_id && !pendingTopup.value?.checkout_url);
+});
 
 async function loadWallet() {
   loading.value = true;
@@ -48,7 +55,7 @@ async function loadWallet() {
     packages.value = packageRes.data || [];
     transactions.value = txRes.data || [];
   } catch (error: any) {
-    errorMessage.value = error?.response?.data?.message || "โหลดกระเป๋าคอยน์ไม่สำเร็จ";
+    errorMessage.value = error?.response?.data?.message || "โหลดกระเป๋าเหรียญไม่สำเร็จ";
   } finally {
     loading.value = false;
   }
@@ -58,10 +65,13 @@ async function topup(packageId: string) {
   message.value = "";
   errorMessage.value = "";
   pendingTopup.value = null;
+  transferReference.value = "";
+  creatingTopup.value = packageId;
 
   try {
     const { data } = await api.post("/coins/topup", { package_id: packageId });
-    message.value = data?.message || "สร้างรายการเติมคอยน์สำเร็จ";
+    message.value = data?.message || "สร้างรายการเติมเหรียญสำเร็จ";
+
     if (data?.payment_status === "pending") {
       pendingTopup.value = {
         topup_id: data.topup_id,
@@ -70,15 +80,46 @@ async function topup(packageId: string) {
         payment_status: data.payment_status,
       };
     }
+
     await loadWallet();
   } catch (error: any) {
-    errorMessage.value = error?.response?.data?.message || "เติมคอยน์ไม่สำเร็จ";
+    errorMessage.value = error?.response?.data?.message || "เติมเหรียญไม่สำเร็จ";
+  } finally {
+    creatingTopup.value = "";
+  }
+}
+
+async function confirmManualTopup() {
+  if (!pendingTopup.value?.topup_id || confirmingTopup.value) return;
+
+  message.value = "";
+  errorMessage.value = "";
+  confirmingTopup.value = true;
+
+  try {
+    const { data } = await api.patch(`/coins/topups/${pendingTopup.value.topup_id}/confirm`, {
+      provider_ref: transferReference.value,
+    });
+    message.value = data?.message || "แจ้งโอนแล้ว รอแอดมินอนุมัติ";
+    transferReference.value = "";
+  } catch (error: any) {
+    errorMessage.value = error?.response?.data?.message || "แจ้งโอนไม่สำเร็จ";
+  } finally {
+    confirmingTopup.value = false;
   }
 }
 
 function formatDate(value?: string) {
   if (!value) return "-";
   return new Date(value).toLocaleString("th-TH");
+}
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat("th-TH", {
+    style: "currency",
+    currency: "THB",
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
 }
 
 onMounted(loadWallet);
@@ -88,43 +129,70 @@ onMounted(loadWallet);
   <main class="wallet-page">
     <section class="hero">
       <div>
-        <p class="eyebrow">คอยน์ Read and Voice</p>
-        <h1>เติมคอยน์สำหรับซื้อหนังสือและรายตอน</h1>
-        <p>ใช้คอยน์ซื้ออีบุ๊ก รายตอน และสมัครแพ็กเกจอ่านรายเดือนในระบบเดียว</p>
+        <p class="eyebrow">Read and Voice Coins</p>
+        <h1>เติมเหรียญสำหรับซื้อหนังสือและรายตอน</h1>
+        <p>
+          วิธีที่ง่ายและไม่มีค่าระบบคือโอนผ่าน PromptPay แล้วแจ้งเลขอ้างอิง
+          แอดมินจะตรวจสอบก่อนเติมเหรียญเข้ากระเป๋า
+        </p>
       </div>
 
       <div class="balance-card">
-        <span>ยอดคอยน์</span>
+        <span>ยอดเหรียญ</span>
         <strong>{{ balance }}</strong>
       </div>
     </section>
 
     <p v-if="message" class="alert success">{{ message }}</p>
     <p v-if="errorMessage" class="alert error">{{ errorMessage }}</p>
-    <section v-if="pendingTopup" class="alert info">
-      <strong>รายการเติมคอยน์ #{{ pendingTopup.topup_id }}</strong>
-      <p v-if="pendingTopup.payment_instructions">{{ pendingTopup.payment_instructions }}</p>
-      <a v-if="pendingTopup.checkout_url" :href="pendingTopup.checkout_url">
-        ไปหน้าชำระเงิน
-      </a>
-      <p>หลังชำระเงินแล้ว ระบบจะเติมคอยน์เมื่อรายการได้รับการยืนยัน</p>
+
+    <section v-if="pendingTopup" class="pending-panel">
+      <div>
+        <p class="eyebrow">รายการรอชำระเงิน</p>
+        <h2>เติมเหรียญ #{{ pendingTopup.topup_id }}</h2>
+        <p v-if="pendingTopup.payment_instructions" class="instruction">
+          {{ pendingTopup.payment_instructions }}
+        </p>
+        <a v-if="pendingTopup.checkout_url" :href="pendingTopup.checkout_url">
+          ไปหน้าชำระเงิน
+        </a>
+        <p class="hint">
+          หลังชำระเงินแล้ว ระบบจะเพิ่มเหรียญเมื่อรายการได้รับการยืนยัน
+        </p>
+      </div>
+
+      <form v-if="hasPendingManualTopup" class="confirm-box" @submit.prevent="confirmManualTopup">
+        <label for="transfer-reference">เลขอ้างอิงหรือเวลาที่โอน</label>
+        <input
+          id="transfer-reference"
+          v-model.trim="transferReference"
+          type="text"
+          placeholder="เช่น 202605081430 หรือ สลิปเวลา 14:30"
+          required
+        />
+        <button type="submit" :disabled="confirmingTopup">
+          {{ confirmingTopup ? "กำลังแจ้งโอน..." : "แจ้งโอนแล้ว" }}
+        </button>
+      </form>
     </section>
 
-    <section v-if="loading" class="panel">กำลังโหลดกระเป๋าคอยน์...</section>
+    <section v-if="loading" class="panel">กำลังโหลดกระเป๋าเหรียญ...</section>
 
     <template v-else>
-      <section class="package-grid">
+      <section class="package-grid" aria-label="แพ็กเกจเติมเหรียญ">
         <article v-for="item in packages" :key="item.id" class="package-card">
           <span>{{ item.label }}</span>
-          <strong>{{ item.coins }} คอยน์</strong>
-          <p>{{ item.price }} บาท</p>
-          <button type="button" @click="topup(item.id)">เติมแพ็กนี้</button>
+          <strong>{{ item.coins }} เหรียญ</strong>
+          <p>{{ formatMoney(item.price) }}</p>
+          <button type="button" :disabled="Boolean(creatingTopup)" @click="topup(item.id)">
+            {{ creatingTopup === item.id ? "กำลังสร้างรายการ..." : "เติมแพ็กนี้" }}
+          </button>
         </article>
       </section>
 
       <section class="panel">
         <div class="panel-head">
-          <h2>ประวัติคอยน์</h2>
+          <h2>ประวัติเหรียญ</h2>
           <button type="button" @click="loadWallet">รีเฟรช</button>
         </div>
 
@@ -137,7 +205,7 @@ onMounted(loadWallet);
             </div>
             <div class="tx-amount" :class="{ plus: Number(tx.amount) > 0 }">
               {{ Number(tx.amount) > 0 ? "+" : "" }}{{ tx.amount }}
-              <small>เหลือ {{ tx.balance_after }}</small>
+              <small>คงเหลือ {{ tx.balance_after }}</small>
             </div>
           </article>
         </div>
@@ -157,7 +225,8 @@ onMounted(loadWallet);
 
 .hero,
 .panel,
-.package-card {
+.package-card,
+.pending-panel {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -186,8 +255,11 @@ h2 {
   margin: 0;
 }
 
-.hero p:not(.eyebrow) {
+.hero p:not(.eyebrow),
+.hint,
+.instruction {
   color: var(--text-muted);
+  line-height: 1.7;
 }
 
 .balance-card {
@@ -208,7 +280,8 @@ h2 {
 
 .alert,
 .panel,
-.package-grid {
+.package-grid,
+.pending-panel {
   margin: 0 auto 16px;
   max-width: 1120px;
 }
@@ -229,20 +302,38 @@ h2 {
   color: #dc2626;
 }
 
-.info {
-  background: #eff6ff;
-  color: #1d4ed8;
+.pending-panel {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  padding: 20px;
 }
 
-.info p {
-  margin: 8px 0 0;
-}
-
-.info a {
-  color: inherit;
+.pending-panel a {
+  color: #0f766e;
   display: inline-block;
   font-weight: 900;
   margin-top: 8px;
+}
+
+.confirm-box {
+  align-content: start;
+  display: grid;
+  gap: 10px;
+}
+
+.confirm-box label {
+  color: var(--text-strong);
+  font-weight: 900;
+}
+
+.confirm-box input {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-strong);
+  font: inherit;
+  min-height: 44px;
+  padding: 0 12px;
 }
 
 .package-grid {
@@ -280,6 +371,11 @@ button {
   padding: 11px 14px;
 }
 
+button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
 .panel {
   padding: 20px;
 }
@@ -287,8 +383,8 @@ button {
 .panel-head {
   align-items: center;
   display: flex;
-  justify-content: space-between;
   gap: 12px;
+  justify-content: space-between;
   margin-bottom: 14px;
 }
 
@@ -302,8 +398,8 @@ button {
   border: 1px solid var(--border);
   border-radius: 8px;
   display: flex;
-  justify-content: space-between;
   gap: 14px;
+  justify-content: space-between;
   padding: 14px;
 }
 
@@ -327,8 +423,9 @@ button {
   color: var(--text-muted);
 }
 
-@media (max-width: 720px) {
-  .hero {
+@media (max-width: 760px) {
+  .hero,
+  .pending-panel {
     grid-template-columns: 1fr;
     padding: 20px;
   }

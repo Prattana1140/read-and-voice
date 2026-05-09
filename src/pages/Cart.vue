@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import api from "../utils/api";
@@ -28,6 +28,9 @@ const total = computed(() => {
   }, 0);
 });
 
+const hasEnoughCoins = computed(() => balance.value >= total.value);
+const coinShortage = computed(() => Math.max(0, total.value - balance.value));
+
 async function loadCart() {
   loading.value = true;
   errorMessage.value = "";
@@ -45,7 +48,7 @@ async function loadCart() {
       router.push({ name: "Login" });
       return;
     }
-    errorMessage.value = error?.response?.data?.message || "โหลดตะกร้าไม่สำเร็จ";
+    errorMessage.value = error?.response?.data?.message || "เนเธซเธฅเธ”เธ•เธฐเธเธฃเนเธฒเนเธกเนเธชเธณเน€เธฃเนเธ";
   } finally {
     loading.value = false;
   }
@@ -56,28 +59,35 @@ async function removeItem(id: number) {
     await api.delete(`/cart/${id}`);
     cart.value = cart.value.filter((item) => item.id !== id);
   } catch (error: any) {
-    errorMessage.value = error?.response?.data?.message || "ลบสินค้าไม่สำเร็จ";
+    errorMessage.value = error?.response?.data?.message || "เธฅเธเธฃเธฒเธขเธเธฒเธฃเนเธกเนเธชเธณเน€เธฃเนเธ";
   }
 }
 
 async function checkout() {
   if (!cart.value.length) return;
 
+  if (!hasEnoughCoins.value) {
+    errorMessage.value = `เหรียญไม่พอ กรุณาเติมอีก ${coinShortage.value} เหรียญก่อนชำระเงิน`;
+    return;
+  }
+
   checkingOut.value = true;
   errorMessage.value = "";
 
   try {
-    const { data } = await api.post("/orders/checkout", {
+    await api.post("/orders/checkout", {
       payment_method: "coin",
     });
 
-    alert(data?.message || "ซื้อสำเร็จ");
+    window.alert("ซื้อสำเร็จ หนังสือถูกเพิ่มเข้าคลังหนังสือแล้ว");
     cart.value = [];
-    router.push({ name: "OrderHistory" });
+    await loadCart();
+    router.push({ name: "MyLibrary" });
   } catch (error: any) {
     if (error?.response?.status === 402) {
-      errorMessage.value = "คอยน์ไม่พอ กรุณาเติมคอยน์ก่อนซื้อ";
-      router.push({ name: "CoinWallet" });
+      const currentBalance = Number(error?.response?.data?.balance ?? balance.value);
+      balance.value = currentBalance;
+      errorMessage.value = "เหรียญไม่พอ กรุณาเติมเหรียญก่อนซื้อ";
       return;
     }
     errorMessage.value = error?.response?.data?.message || "ซื้อไม่สำเร็จ";
@@ -85,9 +95,12 @@ async function checkout() {
     checkingOut.value = false;
   }
 }
-
 function itemKind(item: CartItem) {
-  return item.episode_id ? "รายตอน" : "อีบุ๊ก";
+  return item.episode_id ? "เธฃเธฒเธขเธ•เธญเธ" : "เธญเธตเธเธธเนเธ";
+}
+
+function goTopup() {
+  router.push({ name: "CoinWallet" });
 }
 
 onMounted(loadCart);
@@ -98,25 +111,25 @@ onMounted(loadCart);
     <section class="header-card">
       <div>
         <p class="eyebrow">Checkout</p>
-        <h1>ตะกร้าของฉัน</h1>
-        <p>ซื้ออีบุ๊กและรายตอนด้วยคอยน์ในกระเป๋า</p>
+        <h1>เธ•เธฐเธเธฃเนเธฒเธเธญเธเธเธฑเธ</h1>
+        <p>เธเธทเนเธญเธญเธตเธเธธเนเธเนเธฅเธฐเธฃเธฒเธขเธ•เธญเธเธ”เนเธงเธขเธเธญเธขเธเนเนเธเธเธฃเธฐเน€เธเนเธฒ เธ–เนเธฒเธขเธญเธ”เธเธญเธขเธเนเธเธญ เธฃเธฐเธเธเธเธฐเธเธทเนเธญเนเธซเนเธ—เธฑเธเธ—เธต</p>
       </div>
 
       <div class="wallet-pill">
-        <span>ยอดคอยน์</span>
+        <span>เธขเธญเธ”เธเธญเธขเธเน</span>
         <strong>{{ balance }}</strong>
       </div>
     </section>
 
     <p v-if="errorMessage" class="alert error">{{ errorMessage }}</p>
     <p class="alert info">
-      การชำระเงินใช้คอยน์ในกระเป๋า หากคอยน์ไม่พอให้เติมคอยน์ก่อนทำรายการ
+      เธซเธฒเธเธเธญเธขเธเนเธกเธฒเธเธเธงเนเธฒเธซเธฃเธทเธญเน€เธ—เนเธฒเธเธฑเธเธขเธญเธ”เธฃเธงเธก เธเธธเธ“เธชเธฒเธกเธฒเธฃเธ–เธเธ”เธเธทเนเธญเนเธ”เนเธ—เธฑเธเธ—เธต เธ–เนเธฒเธเธญเธขเธเนเนเธกเนเธเธญเนเธซเนเน€เธ•เธดเธกเธเธญเธขเธเนเธเนเธญเธ
     </p>
 
-    <section v-if="loading" class="state-card">กำลังโหลดตะกร้า...</section>
+    <section v-if="loading" class="state-card">เธเธณเธฅเธฑเธเนเธซเธฅเธ”เธ•เธฐเธเธฃเนเธฒ...</section>
     <section v-else-if="cart.length === 0" class="state-card empty">
-      ยังไม่มีสินค้าในตะกร้า
-      <button type="button" @click="router.push('/store')">ไปเลือกหนังสือ</button>
+      เธขเธฑเธเนเธกเนเธกเธตเธชเธดเธเธเนเธฒเนเธเธ•เธฐเธเธฃเนเธฒ
+      <button type="button" @click="router.push('/store')">เนเธเน€เธฅเธทเธญเธเธซเธเธฑเธเธชเธทเธญ</button>
     </section>
 
     <section v-else class="cart-layout">
@@ -126,37 +139,45 @@ onMounted(loadCart);
             <span>{{ itemKind(item) }}</span>
             <h2>{{ item.title }}</h2>
             <p v-if="item.book_title && item.episode_id">
-              {{ item.book_title }} ตอนที่ {{ item.episode_number || "-" }}
+              {{ item.book_title }} เธ•เธญเธเธ—เธตเน {{ item.episode_number || "-" }}
             </p>
             <p>{{ item.access_type || "paid" }}</p>
           </div>
 
           <div class="item-side">
-            <strong>{{ Number(item.price || 0) * Number(item.quantity || 1) }} คอยน์</strong>
-            <small>จำนวน {{ item.quantity || 1 }}</small>
-            <button type="button" @click="removeItem(item.id)">ลบ</button>
+            <strong>{{ Number(item.price || 0) * Number(item.quantity || 1) }} เธเธญเธขเธเน</strong>
+            <small>เธเธณเธเธงเธ {{ item.quantity || 1 }}</small>
+            <button type="button" @click="removeItem(item.id)">เธฅเธ</button>
           </div>
         </article>
       </div>
 
       <aside class="summary-card">
-        <h2>สรุปรายการ</h2>
-        <p>จำนวนสินค้า: {{ cart.length }}</p>
-        <p class="total">รวม {{ total }} คอยน์</p>
-        <p :class="balance >= total ? 'enough' : 'not-enough'">
-          {{ balance >= total ? "คอยน์เพียงพอสำหรับชำระเงิน" : "คอยน์ไม่พอสำหรับรายการนี้" }}
+        <h2>เธชเธฃเธธเธเธฃเธฒเธขเธเธฒเธฃ</h2>
+        <p>เธเธณเธเธงเธเธชเธดเธเธเนเธฒ: {{ cart.length }}</p>
+        <p class="total">เธฃเธงเธก {{ total }} เธเธญเธขเธเน</p>
+        <p :class="hasEnoughCoins ? 'enough' : 'not-enough'">
+          {{
+            hasEnoughCoins
+              ? "เธเธญเธขเธเนเน€เธเธตเธขเธเธเธญเธชเธณเธซเธฃเธฑเธเธเธณเธฃเธฐเน€เธเธดเธ"
+              : `เธเธญเธขเธเนเนเธกเนเธเธญ เธ•เนเธญเธเน€เธ•เธดเธกเธญเธตเธ ${coinShortage} เธเธญเธขเธเน`
+          }}
         </p>
 
         <button
+          v-if="hasEnoughCoins"
           class="checkout-btn"
           type="button"
           :disabled="checkingOut"
           @click="checkout"
         >
-          {{ checkingOut ? "กำลังซื้อ..." : "ชำระด้วยคอยน์" }}
+          {{ checkingOut ? "เธเธณเธฅเธฑเธเธเธทเนเธญ..." : "เธเธณเธฃเธฐเธ”เนเธงเธขเธเธญเธขเธเน" }}
         </button>
-        <button class="topup-btn" type="button" @click="router.push('/coin-wallet')">
-          เติมคอยน์
+        <button v-else class="topup-btn urgent" type="button" @click="goTopup">
+          เน€เธ•เธดเธกเธเธญเธขเธเน
+        </button>
+        <button v-if="hasEnoughCoins" class="topup-btn" type="button" @click="goTopup">
+          เน€เธ•เธดเธกเธเธญเธขเธเนเน€เธเธดเนเธก
         </button>
       </aside>
     </section>
@@ -185,8 +206,8 @@ onMounted(loadCart);
 .header-card {
   align-items: center;
   display: flex;
-  justify-content: space-between;
   gap: 20px;
+  justify-content: space-between;
   margin: 0 auto 18px;
   max-width: 1120px;
   padding: 24px;
@@ -275,8 +296,8 @@ h2 {
 .cart-item {
   align-items: center;
   display: flex;
-  justify-content: space-between;
   gap: 16px;
+  justify-content: space-between;
   padding: 18px;
 }
 
@@ -329,6 +350,11 @@ button {
   color: #3730a3;
 }
 
+.topup-btn.urgent {
+  background: #dc2626;
+  color: white;
+}
+
 .item-side button {
   background: #fee2e2;
   color: #b91c1c;
@@ -375,3 +401,4 @@ button {
   }
 }
 </style>
+

@@ -169,8 +169,10 @@ router.post("/checkout", verifyToken, async (req, res) => {
 
     const orderId = orderResult.insertId;
 
+    let balanceAfter = null;
+
     if (normalizedPaymentMethod === "coin" && totalAmount > 0) {
-      await debitCoins(
+      balanceAfter = await debitCoins(
         connection,
         userId,
         Math.ceil(totalAmount),
@@ -205,6 +207,7 @@ router.post("/checkout", verifyToken, async (req, res) => {
       message: "สั่งซื้อสำเร็จ",
       order_id: orderId,
       total_amount: totalAmount,
+      balance: balanceAfter,
     });
   } catch (error) {
     await connection.rollback();
@@ -304,9 +307,10 @@ router.post("/purchase", verifyToken, async (req, res) => {
     );
 
     const orderId = orderResult.insertId;
+    let balanceAfter = null;
 
     if (normalizedPaymentMethod === "coin" && totalAmount > 0) {
-      await debitCoins(
+      balanceAfter = await debitCoins(
         connection,
         userId,
         Math.ceil(totalAmount),
@@ -337,6 +341,7 @@ router.post("/purchase", verifyToken, async (req, res) => {
       message: "สั่งซื้อสำเร็จ",
       order_id: orderId,
       total_amount: totalAmount,
+      balance: balanceAfter,
     });
   } catch (error) {
     await connection.rollback();

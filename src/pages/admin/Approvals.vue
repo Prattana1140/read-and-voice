@@ -154,6 +154,12 @@ onMounted(fetchPendingBooks);
           ขายดี, มาใหม่, โปรโมชั่น, ฟรีรายวัน, ฮิตขึ้นหิ้ง หรือแนะนำหรือไม่
         </span>
       </div>
+      <div class="hero-actions">
+        <router-link to="/admin">← กลับ Dashboard</router-link>
+        <button type="button" :disabled="loading" @click="fetchPendingBooks">
+          รีเฟรช
+        </button>
+      </div>
     </section>
 
     <p v-if="error" class="message error">{{ error }}</p>
@@ -280,6 +286,10 @@ onMounted(fetchPendingBooks);
 }
 
 .hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
   padding: 24px 28px;
 }
 
@@ -306,6 +316,43 @@ onMounted(fetchPendingBooks);
   margin-top: 10px;
   color: var(--text-muted);
   line-height: 1.7;
+}
+
+.hero-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.hero-actions a,
+.hero-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 900;
+  padding: 0 16px;
+  text-decoration: none;
+}
+
+.hero-actions a {
+  background: #eef2f7;
+  color: #0f172a;
+}
+
+.hero-actions button {
+  background: #6557f5;
+  color: #ffffff;
+}
+
+.hero-actions button:disabled {
+  cursor: wait;
+  opacity: 0.68;
 }
 
 .message {
@@ -536,6 +583,20 @@ textarea {
 }
 
 @media (max-width: 900px) {
+  .hero {
+    flex-direction: column;
+  }
+
+  .hero-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .hero-actions a,
+  .hero-actions button {
+    flex: 1 1 160px;
+  }
+
   .layout,
   .placement-grid,
   .form-grid,

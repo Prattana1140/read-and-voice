@@ -64,15 +64,15 @@
                   :disabled="purchasingBook"
                   @click="purchaseBookNow"
                 >
-                  {{ purchasingBook ? "กำลังซื้อ..." : "ซื้อเพื่ออ่าน" }}
+                  {{ purchasingBook ? "กำลังซื้อ..." : `ซื้อ ${formatCoinAmount(book.price)} คอยน์` }}
                 </button>
                 <button
                   v-if="heroDecision === 'subscribe'"
                   class="primary-action"
                   type="button"
-                  @click="router.push('/subscription-plans')"
+                  @click="handleReadAction"
                 >
-                  สมัครเพื่ออ่าน
+                  {{ subscriptionActionLabel }}
                 </button>
               </div>
             </div>
@@ -211,9 +211,9 @@
                     v-else-if="heroDecision === 'subscribe'"
                     class="primary-action"
                     type="button"
-                    @click="router.push('/subscription-plans')"
+                    @click="handleReadAction"
                   >
-                    สมัครเพื่ออ่าน
+                    {{ subscriptionActionLabel }}
                   </button>
                   <button v-else class="primary-action" type="button" @click="handleReadAction">{{ book.content_type === "serial" ? "อ่านเลย" : "ทดลองอ่าน" }}</button>
                 </div>
@@ -243,7 +243,7 @@
               <article v-for="episode in displayedEpisodes" :key="episode.id" class="episode-row">
                 <span class="episode-number">#{{ episode.episode_number }}</span>
                 <div class="episode-title-wrap">
-                  <button type="button" class="episode-title" @click="openEpisodeReader(episode)">
+                  <button type="button" class="episode-title" @click="handleEpisodeReadAction(episode)">
                     {{ episode.title }}
                   </button>
                   <span class="episode-access">{{ getEpisodeAccessLabel(episode) }}</span>
@@ -262,10 +262,11 @@
                   v-if="getEpisodePrimaryAction(episode) === 'purchase'"
                   class="episode-buy"
                   type="button"
+                  :aria-label="purchasingEpisodeId === episode.id ? 'กำลังซื้อ' : getEpisodeActionLabel(episode)"
                   :disabled="purchasingEpisodeId === episode.id"
                   @click="purchaseEpisodeNow(episode)"
                 >
-                  {{ purchasingEpisodeId === episode.id ? "กำลังซื้อ..." : "ซื้อและอ่าน" }}
+                  {{ purchasingEpisodeId === episode.id ? "กำลังซื้อ..." : getEpisodeActionLabel(episode) }}
                 </button>
                 <button
                   v-else-if="getEpisodePrimaryAction(episode) === 'subscribe'"
@@ -273,10 +274,16 @@
                   type="button"
                   @click="router.push('/subscription-plans')"
                 >
-                  สมัครเพื่ออ่าน
+                  {{ getEpisodeActionLabel(episode) }}
                 </button>
-                <button v-else class="episode-buy" type="button" @click="openEpisodeReader(episode)">
-                  อ่านเลย
+                <button
+                  v-else
+                  class="episode-buy"
+                  :class="{ 'episode-buy--read': isEpisodeRead(episode) }"
+                  type="button"
+                  @click="handleEpisodeReadAction(episode)"
+                >
+                  {{ getEpisodeActionLabel(episode) }}
                 </button>
               </article>
               <div v-if="!episodes.length" class="empty-content">ยังไม่มีตอนที่เผยแพร่</div>
@@ -479,7 +486,7 @@
               </div>
 
               <div class="episode-actions">
-                <button class="small-btn" @click="openEpisodeReader(episode)">
+                <button class="small-btn" @click="handleEpisodeReadAction(episode)">
                   {{ isEpisodeFree(episode) ? "อ่านตอนนี้" : "ดูสถานะตอน" }}
                 </button>
 
@@ -499,10 +506,11 @@
                 <button
                   v-if="isEpisodePaid(episode)"
                   class="small-btn buy-now-small"
+                  :aria-label="purchasingEpisodeId === episode.id ? 'กำลังซื้อ' : getEpisodeActionLabel(episode)"
                   :disabled="purchasingEpisodeId === episode.id"
                   @click="purchaseEpisodeNow(episode)"
                 >
-                  {{ purchasingEpisodeId === episode.id ? "กำลังซื้อ..." : "ซื้อและอ่าน" }}
+                  {{ purchasingEpisodeId === episode.id ? "กำลังซื้อ..." : getEpisodeActionLabel(episode) }}
                 </button>
 
                 <router-link
@@ -623,6 +631,63 @@
           </section>
         </main>
       </div>
+
+      <div
+        v-if="purchaseDialogMode"
+        class="purchase-modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="purchaseDialogMode === 'confirm' ? 'ยืนยันการซื้อตอน' : 'ซื้อสำเร็จ'"
+      >
+        <section class="purchase-modal">
+          <div v-if="purchaseDialogMode === 'confirm'" class="purchase-modal-icon">
+            <span class="coin-icon" aria-hidden="true"></span>
+          </div>
+          <div v-else class="purchase-modal-icon purchase-modal-icon--success" aria-hidden="true">✓</div>
+
+          <h2>{{ purchaseDialogMode === "confirm" ? "ซื้อตอนนี้" : "ซื้อสำเร็จแล้ว" }}</h2>
+          <p class="purchase-modal-title">{{ pendingPurchaseEpisode?.title || purchasedEpisode?.title }}</p>
+          <p v-if="purchaseDialogMode === 'confirm'" class="purchase-modal-price">
+            ชำระ {{ formatCoinAmount(pendingPurchaseEpisode?.price) }} คอยน์
+          </p>
+          <p v-else class="purchase-modal-price">
+            ยอดคงเหลือ {{ formatCoinAmount(purchaseSuccessBalance) }} คอยน์
+          </p>
+
+          <p v-if="purchaseDialogError" class="purchase-modal-error">{{ purchaseDialogError }}</p>
+
+          <div class="purchase-modal-actions">
+            <button
+              v-if="purchaseDialogNeedsTopup"
+              class="purchase-confirm-btn"
+              type="button"
+              @click="goToCoinWallet"
+            >
+              เติมคอยน์
+            </button>
+            <button
+              v-else-if="purchaseDialogMode === 'confirm'"
+              class="purchase-confirm-btn"
+              type="button"
+              :disabled="purchasingEpisodeId === pendingPurchaseEpisode?.id"
+              @click="confirmEpisodePurchase"
+            >
+              {{ purchasingEpisodeId === pendingPurchaseEpisode?.id ? "กำลังซื้อ..." : "ยืนยันซื้อ" }}
+            </button>
+            <button
+              v-else
+              class="purchase-confirm-btn"
+              type="button"
+              @click="readPurchasedEpisode"
+            >
+              อ่านเลย
+            </button>
+            <button class="purchase-cancel-btn" type="button" @click="closePurchaseDialog">
+              ยกเลิก
+            </button>
+          </div>
+        </section>
+      </div>
     </div>
   </div>
 </template>
@@ -686,6 +751,9 @@ type Episode = {
   read_count?: number;
   comment_count?: number;
   word_count?: number;
+  has_read?: boolean | number;
+  can_read?: boolean | number;
+  has_access?: boolean | number;
   created_at?: string;
   updated_at?: string;
 };
@@ -752,6 +820,12 @@ const buyingBook = ref(false);
 const buyingEpisodeId = ref<number | null>(null);
 const purchasingBook = ref(false);
 const purchasingEpisodeId = ref<number | null>(null);
+const purchaseDialogMode = ref<"" | "confirm" | "success">("");
+const pendingPurchaseEpisode = ref<Episode | null>(null);
+const purchasedEpisode = ref<Episode | null>(null);
+const purchaseSuccessBalance = ref<number | null>(null);
+const purchaseDialogError = ref("");
+const purchaseDialogNeedsTopup = ref(false);
 
 // state รีวิว
 const reviews = ref<BookReview[]>([]);
@@ -797,6 +871,9 @@ const bookCover = computed(() => {
 const progressKey = computed(() => {
   return book.value ? `book-preview-progress-${book.value.id}` : "";
 });
+const readEpisodesKey = computed(() => {
+  return book.value ? `read-voice-read-episodes-${book.value.id}` : "";
+});
 
 // =========================
 // helper functions
@@ -815,12 +892,55 @@ const isEpisodePaid = (episode: Episode) => {
   return episode.access_type === "paid" || (!isEpisodeFree(episode) && episode.access_type !== "subscription");
 };
 
+const getStoredReadEpisodeIds = () => {
+  if (!readEpisodesKey.value) return new Set<number>();
+
+  try {
+    const raw = localStorage.getItem(readEpisodesKey.value);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return new Set(
+      Array.isArray(parsed)
+        ? parsed.map((id) => Number(id)).filter((id) => Number.isFinite(id))
+        : [],
+    );
+  } catch {
+    return new Set<number>();
+  }
+};
+
+const hasStoredReadEpisode = (episode: Episode) => {
+  return getStoredReadEpisodeIds().has(Number(episode.id));
+};
+
+const canOpenEpisodeNow = (episode: Episode) => {
+  return (
+    isEpisodeFree(episode) ||
+    Boolean(episode.can_read) ||
+    Boolean(episode.has_access) ||
+    Boolean(episode.has_read) ||
+    (episode.access_type === "subscription" && hasActiveSubscription.value)
+  );
+};
+
+const isEpisodeRead = (episode: Episode) => {
+  return Boolean(episode.has_read) || (canOpenEpisodeNow(episode) && hasStoredReadEpisode(episode));
+};
+
+const markEpisodeRead = (episode: Episode) => {
+  episode.has_read = true;
+  if (!readEpisodesKey.value) return;
+
+  const ids = getStoredReadEpisodeIds();
+  ids.add(Number(episode.id));
+  localStorage.setItem(readEpisodesKey.value, JSON.stringify([...ids]));
+};
+
 const getEpisodePrimaryAction = (episode: Episode) => {
   if (episode.access_type === "subscription" && !hasActiveSubscription.value) {
     return "subscribe";
   }
 
-  if (isEpisodePaid(episode)) {
+  if (isEpisodePaid(episode) && !isEpisodeRead(episode)) {
     return "purchase";
   }
 
@@ -837,6 +957,20 @@ const getEpisodeAccessLabel = (episode: Episode) => {
   }
 
   return `ใช้ ${episode.price || 0} คอยน์`;
+};
+
+const getEpisodeActionLabel = (episode: Episode) => {
+  const action = getEpisodePrimaryAction(episode);
+
+  if (action === "subscribe") {
+    return "อ่านด้วยแพ็กเกจ";
+  }
+
+  if (action === "purchase") {
+    return `ซื้อ ${formatCoinAmount(episode.price)} คอยน์`;
+  }
+
+  return isEpisodeRead(episode) ? "อ่านแล้ว" : "อ่านเลย";
 };
 
 const getWriterFollowPayload = () => {
@@ -883,6 +1017,9 @@ const accessPresentation = computed(() => {
 const bookAccessLabel = computed(() => accessPresentation.value.label);
 const bookPriceLabel = computed(() => accessPresentation.value.priceLabel);
 const bookAccessHint = computed(() => accessPresentation.value.hint);
+const subscriptionActionLabel = computed(() => {
+  return hasActiveSubscription.value ? "อ่านเลย" : "อ่านด้วยแพ็กเกจ";
+});
 
 const heroDecision = computed(() => {
   return getBookHeroDecision({
@@ -953,6 +1090,11 @@ const displayReadCount = computed(() => {
   if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
   return String(count);
 });
+
+const formatCoinAmount = (value?: number | null) => {
+  const amount = Number(value || 0);
+  return Number.isFinite(amount) ? Math.ceil(amount).toLocaleString() : "0";
+};
 
 const getInitial = (value: string) => {
   return String(value || "R").trim().charAt(0).toUpperCase() || "R";
@@ -1225,7 +1367,9 @@ const fetchBook = async () => {
 
     // ถ้าเป็น serial ให้โหลดเฉพาะรายการตอน
     if (book.value?.content_type === "serial") {
-      const episodeRes = await axios.get(`${API_BASE_URL}/api/books/${id}/episodes`);
+      const episodeRes = await axios.get(`${API_BASE_URL}/api/books/${id}/episodes`, {
+        headers: getAuthHeaders(),
+      });
       episodes.value = Array.isArray(episodeRes.data) ? episodeRes.data : [];
       sentences.value = [];
       return;
@@ -1553,13 +1697,36 @@ const openListenPage = (episode?: Episode | null) => {
 
 const openEpisodeReader = (episode: Episode) => {
   if (!book.value) return;
+
+  if (!canOpenEpisodeNow(episode)) {
+    handleEpisodeReadAction(episode);
+    return;
+  }
+
   stopSpeech();
+  markEpisodeRead(episode);
 
   router.push({
     name: "ReaderPage",
     params: { id: book.value.id },
     query: { episode: String(episode.id) },
   });
+};
+
+const handleEpisodeReadAction = (episode: Episode) => {
+  const action = getEpisodePrimaryAction(episode);
+
+  if (action === "subscribe") {
+    router.push("/subscription-plans");
+    return;
+  }
+
+  if (action === "purchase") {
+    purchaseEpisodeNow(episode);
+    return;
+  }
+
+  openEpisodeReader(episode);
 };
 
 const getPrimaryEpisode = () => {
@@ -1787,6 +1954,11 @@ const handlePurchaseError = (error: any) => {
   alert(error?.response?.data?.message || "ซื้อไม่สำเร็จ");
 };
 
+const goToCoinWallet = () => {
+  closePurchaseDialog();
+  router.push({ name: "CoinWallet" });
+};
+
 const purchaseBookNow = async (target: "read" | "listen" = "read") => {
   if (!book.value || purchasingBook.value) return;
   if (!ensureLoggedInForPurchase()) return;
@@ -1814,25 +1986,74 @@ const purchaseBookNow = async (target: "read" | "listen" = "read") => {
   }
 };
 
-const purchaseEpisodeNow = async (episode: Episode) => {
+const closePurchaseDialog = () => {
+  if (purchasingEpisodeId.value) return;
+  purchaseDialogMode.value = "";
+  pendingPurchaseEpisode.value = null;
+  purchaseDialogError.value = "";
+  purchaseDialogNeedsTopup.value = false;
+};
+
+const readPurchasedEpisode = () => {
+  const episode = purchasedEpisode.value || pendingPurchaseEpisode.value;
+  closePurchaseDialog();
+  if (episode) {
+    openEpisodeReader(episode);
+  }
+};
+
+const purchaseEpisodeNow = async (episode: Episode, confirmed = false) => {
+  if (!confirmed) {
+    if (!ensureLoggedInForPurchase()) return;
+    pendingPurchaseEpisode.value = episode;
+    purchasedEpisode.value = null;
+    purchaseSuccessBalance.value = null;
+    purchaseDialogError.value = "";
+    purchaseDialogNeedsTopup.value = false;
+    purchaseDialogMode.value = "confirm";
+    return;
+  }
+
   if (purchasingEpisodeId.value) return;
   if (!ensureLoggedInForPurchase()) return;
 
   purchasingEpisodeId.value = episode.id;
+  purchaseDialogError.value = "";
+  purchaseDialogNeedsTopup.value = false;
 
   try {
-    await api.post("/orders/purchase", {
+    const { data } = await api.post("/orders/purchase", {
       episode_id: episode.id,
       payment_method: "coin",
     });
 
-    alert("ซื้อตอนสำเร็จ กำลังเปิดหน้าอ่าน");
-    openEpisodeReader(episode);
+    episode.can_read = true;
+    purchasedEpisode.value = episode;
+    purchaseSuccessBalance.value =
+      data?.balance === null || data?.balance === undefined
+        ? null
+        : Number(data.balance);
+    purchaseDialogMode.value = "success";
   } catch (error: any) {
-    handlePurchaseError(error);
+    if (error?.response?.status === 402) {
+      purchaseDialogError.value =
+        error?.response?.data?.message || "คอยน์ไม่พอ กรุณาเติมคอยน์ก่อน";
+      purchaseDialogNeedsTopup.value = true;
+      purchaseSuccessBalance.value = Number(error?.response?.data?.balance || 0);
+      return;
+    }
+
+    purchaseDialogNeedsTopup.value = false;
+    purchaseDialogError.value =
+      error?.response?.data?.message || "ซื้อไม่สำเร็จ";
   } finally {
     purchasingEpisodeId.value = null;
   }
+};
+
+const confirmEpisodePurchase = () => {
+  if (!pendingPurchaseEpisode.value) return;
+  purchaseEpisodeNow(pendingPurchaseEpisode.value, true);
 };
 
 // =========================
@@ -2186,7 +2407,12 @@ input[type="range"] {
   display: flex;
   gap: 16px;
   justify-content: space-between;
+  min-width: 0;
   padding: 16px;
+}
+
+.episode-item > div:first-child {
+  min-width: 0;
 }
 
 .episode-item p {
@@ -2199,6 +2425,8 @@ input[type="range"] {
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .purchase-actions {
@@ -2399,6 +2627,7 @@ input[type="range"] {
 
   .episode-actions {
     justify-content: flex-start;
+    width: 100%;
   }
 }
 /* Reference-style layout override */
@@ -3072,11 +3301,12 @@ input[type="range"] {
 
 .episode-row {
   display: grid;
-  grid-template-columns: 64px minmax(240px, 1.8fr) minmax(120px, 140px) minmax(130px, 150px) 88px 96px 120px;
+  grid-template-columns: 56px minmax(0, 1.7fr) minmax(86px, 0.65fr) minmax(98px, 0.75fr) minmax(54px, 0.45fr) minmax(54px, 0.45fr) minmax(92px, auto);
   gap: 12px;
   align-items: center;
   min-height: 72px;
   border-bottom: 1px solid #e6ecec;
+  min-width: 0;
 }
 
 .episode-number,
@@ -3104,6 +3334,9 @@ input[type="range"] {
   cursor: pointer;
   font: inherit;
   font-weight: 900;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: 0;
   text-align: left;
 }
@@ -3137,9 +3370,161 @@ input[type="range"] {
 }
 
 .episode-buy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   justify-self: end;
+  max-width: 100%;
   min-height: 32px;
   padding: 0 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coin-icon {
+  position: relative;
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 34% 28%, #fff7b2 0 12%, transparent 13%),
+    radial-gradient(circle at 50% 50%, #ffd957 0 44%, #f6b51f 45% 68%, #c77700 69% 100%);
+  border: 2px solid #ffe886;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -3px 0 rgba(130, 75, 0, 0.28),
+    0 2px 4px rgba(86, 54, 0, 0.24);
+}
+
+.coin-icon::after {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 2px solid rgba(130, 76, 0, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.episode-loading-text {
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.purchase-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.48);
+}
+
+.purchase-modal {
+  width: min(100%, 390px);
+  background: #ffffff;
+  border: 1px solid #dfe7e8;
+  border-radius: 16px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.26);
+  padding: 26px 22px 22px;
+  text-align: center;
+}
+
+.purchase-modal-icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 14px;
+  border-radius: 999px;
+  background: #e8fbf8;
+}
+
+.purchase-modal-icon .coin-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.purchase-modal-icon--success {
+  background: #22c55e;
+  color: #ffffff;
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.purchase-modal h2 {
+  margin: 0 0 8px;
+  color: #111827;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.purchase-modal-title {
+  margin: 0;
+  color: #334155;
+  font-size: 15px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.purchase-modal-price {
+  margin: 12px 0 0;
+  color: #0f766e;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.purchase-modal-error {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff1f2;
+  color: #be123c;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.purchase-modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.purchase-confirm-btn,
+.purchase-cancel-btn {
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 900;
+  min-height: 42px;
+  padding: 0 14px;
+}
+
+.purchase-confirm-btn {
+  background: #55c6bd;
+  color: #ffffff;
+}
+
+.purchase-confirm-btn:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.purchase-cancel-btn {
+  background: #eef2f3;
+  color: #475569;
+}
+
+.episode-buy--read {
+  background: #9aa3a6;
+  color: #ffffff;
 }
 
 .ebook-preview-section .reader-box {
@@ -3309,14 +3694,45 @@ input[type="range"] {
   }
 
   .episode-buy {
-    justify-self: stretch;
-    width: min(100%, 156px);
+    justify-self: end;
+    width: fit-content;
     min-height: 38px;
     margin-top: 4px;
     padding: 0 12px;
-    white-space: normal;
+    white-space: nowrap;
     line-height: 1.25;
     text-align: center;
+  }
+
+  .episode-actions .small-btn,
+  .episode-actions .buy-btn {
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 380px) {
+  .episode-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 8px;
+  }
+
+  .episode-number,
+  .episode-title-wrap,
+  .episode-meta-stack {
+    grid-column: 1 / -1;
+  }
+
+  .episode-stat {
+    justify-self: start;
+  }
+
+  .episode-buy {
+    justify-self: end;
+    max-width: 136px;
   }
 }
 </style>

@@ -13,8 +13,6 @@
     <section
       class="hero-strip"
       aria-label="แบนเนอร์แนะนำ"
-      @mouseenter="pauseCarousel"
-      @mouseleave="startCarousel"
     >
       <button
         v-if="bannerPages > 1"
@@ -130,28 +128,142 @@
             />
             <div class="book-info">
               <p>{{ book.title }}</p>
-              <small>{{ book.author }}</small>
-              <strong>ดูรายละเอียด</strong>
+              <small>{{ getSellerName(book) }}</small>
+              <div class="book-card-footer">
+                <div class="rating-box" :aria-label="getReviewLabel(book)">
+                  <span class="heart-row" aria-hidden="true">
+                    <span
+                      v-for="index in 5"
+                      :key="index"
+                      :class="{ active: index <= getFilledHearts(book) }"
+                    >
+                      ♥
+                    </span>
+                  </span>
+                  <small>{{ formatRatingCount(book) }}</small>
+                </div>
+                <button
+                  class="price-pill"
+                  type="button"
+                  @click.stop="openSupportDialog(book)"
+                >
+                  {{ formatBookPrice(book) }}
+                </button>
+              </div>
             </div>
           </article>
         </div>
       </section>
     </main>
+
+    <div
+      v-if="supportDialogBook"
+      class="support-modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="support-modal-title"
+      @click.self="closeSupportDialog"
+    >
+      <section class="support-modal">
+        <button
+          class="support-close"
+          type="button"
+          aria-label="ปิด"
+          @click="closeSupportDialog"
+        >
+          ×
+        </button>
+        <template v-if="supportDialogMode === 'select'">
+          <h2 id="support-modal-title">ให้กำลังใจนักเขียน</h2>
+          <p>
+            คุณสามารถให้กำลังใจนักเขียนได้ โดยให้ทิปเพิ่มจากราคาปกติ
+          </p>
+          <strong class="support-book-title">{{ supportDialogBook.title }}</strong>
+
+          <div class="support-options">
+            <button
+              v-for="amount in supportAmountOptions"
+              :key="amount"
+              type="button"
+              :class="{ active: selectedSupportAmount === amount }"
+              @click="selectedSupportAmount = amount"
+            >
+              {{ amount }} บาท
+              <small v-if="amount === supportAmountOptions[0]">(ราคาปกติ)</small>
+            </button>
+            <button
+              type="button"
+              class="custom"
+              :class="{ active: selectedSupportAmount === customSupportAmount }"
+              @click="selectCustomSupportAmount"
+            >
+              กำหนดเอง
+            </button>
+          </div>
+
+          <p v-if="supportDialogMessage" class="support-message">
+            {{ supportDialogMessage }}
+          </p>
+
+          <div class="support-actions">
+            <button class="support-cancel" type="button" @click="closeSupportDialog">
+              ยกเลิก
+            </button>
+            <button
+              class="support-confirm"
+              type="button"
+              :disabled="addingToCart"
+              @click="confirmSupport"
+            >
+              {{ addingToCart ? "กำลังเพิ่ม..." : "ยืนยัน" }}
+            </button>
+          </div>
+        </template>
+
+        <template v-else>
+          <h2 id="support-modal-title" class="support-added-title">
+            เพิ่มหนังสือลงตะกร้าแล้ว
+          </h2>
+          <strong class="support-book-title">{{ supportDialogBook.title }}</strong>
+
+          <div class="support-next-actions">
+            <button class="support-outline-wide" type="button" @click="continueShopping">
+              เลือกซื้อหนังสือเล่มอื่นต่อ
+            </button>
+            <button class="support-solid-wide" type="button" @click="goToCheckout">
+              ชำระเงิน
+            </button>
+          </div>
+
+          <div class="support-divider"></div>
+
+          <button class="support-coin-pay" type="button" @click="goToCheckout">
+            ชำระเงินด้วย <span class="support-coin-dot" aria-hidden="true"></span>
+            Read coin
+          </button>
+        </template>
+      </section>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import api, { resolveAssetUrl } from "../utils/api";
-import { computed, ref, onMounted, onUnmounted } from "vue";
+import { computed, ref, onMounted, onUnmounted, watch } from "vue";
 import { useRouter } from "vue-router";
 
 type Book = {
   id: number;
   title: string;
   author: string;
+  author_name?: string;
   cover_url?: string;
   cover_image_url?: string;
   cover_image?: string;
+  price?: number | string;
+  coin_price?: number | string;
+  review_count?: number | string;
+  average_rating?: number | string;
 };
 
 type HomeSection = {
@@ -191,6 +303,12 @@ const homeBanners = ref<HomeBanner[]>([]);
 const fallbackBannerBooks = ref<Book[]>([]);
 const homeSectionItems = ref<HomeSection[]>([]);
 const activeBannerIndex = ref(0);
+const supportDialogBook = ref<Book | null>(null);
+const supportDialogMode = ref<"select" | "added">("select");
+const supportDialogMessage = ref("");
+const selectedSupportAmount = ref(99);
+const customSupportAmount = ref(0);
+const addingToCart = ref(false);
 let carouselTimer: ReturnType<typeof window.setInterval> | undefined;
 
 const bannerLabels = [
@@ -289,8 +407,109 @@ const homeSections = computed(() =>
   homeSectionItems.value.filter((section) => section.books.length > 0),
 );
 
+const supportAmountOptions = computed(() => {
+  const base = supportDialogBook.value
+    ? getBaseSupportAmount(supportDialogBook.value)
+    : 99;
+  return [base, base * 3, base * 5];
+});
+
 const getBookCover = (book: Book) => {
   return resolveAssetUrl(book.cover_url || book.cover_image_url || book.cover_image);
+};
+
+const getSellerName = (book: Book) => {
+  return book.author || book.author_name || "Read and Voice";
+};
+
+const getReviewPercent = (book: Book) => {
+  const rating = Number(book.average_rating || 0);
+  if (!Number.isFinite(rating) || rating <= 0) return 0;
+  return Math.min(100, Math.max(0, (rating / 5) * 100));
+};
+
+const getFilledHearts = (book: Book) => {
+  return Math.max(0, Math.min(5, Math.round(getReviewPercent(book) / 20)));
+};
+
+const formatRatingCount = (book: Book) => {
+  const count = Number(book.review_count || 0);
+  return `${Number.isFinite(count) ? count : 0} Rating`;
+};
+
+const getReviewLabel = (book: Book) => {
+  return `รีวิว ${Math.round(getReviewPercent(book))} เปอร์เซ็นต์, ${formatRatingCount(book)}`;
+};
+
+const formatBookPrice = (book: Book) => {
+  const price = Number(book.coin_price ?? book.price ?? 0);
+  if (!Number.isFinite(price) || price <= 0) return "ฟรี";
+  return `฿ ${price.toLocaleString("th-TH", { maximumFractionDigits: 0 })}`;
+};
+
+const getBaseSupportAmount = (book: Book) => {
+  const price = Number(book.coin_price ?? book.price ?? 99);
+  return Number.isFinite(price) && price > 0 ? Math.round(price) : 99;
+};
+
+const openSupportDialog = (book: Book) => {
+  supportDialogBook.value = book;
+  supportDialogMode.value = "select";
+  supportDialogMessage.value = "";
+  selectedSupportAmount.value = getBaseSupportAmount(book);
+  customSupportAmount.value = 0;
+};
+
+const closeSupportDialog = () => {
+  supportDialogBook.value = null;
+  supportDialogMode.value = "select";
+  supportDialogMessage.value = "";
+  customSupportAmount.value = 0;
+  addingToCart.value = false;
+};
+
+const selectCustomSupportAmount = () => {
+  const value = window.prompt("ระบุจำนวนเงินที่ต้องการให้กำลังใจ", "99");
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0) return;
+  customSupportAmount.value = Math.round(amount);
+  selectedSupportAmount.value = customSupportAmount.value;
+};
+
+const confirmSupport = async () => {
+  if (!supportDialogBook.value || addingToCart.value) return;
+
+  addingToCart.value = true;
+  supportDialogMessage.value = "";
+
+  try {
+    await api.post("/cart", {
+      book_id: supportDialogBook.value.id,
+      quantity: 1,
+    });
+    supportDialogMode.value = "added";
+  } catch (error: any) {
+    if (error?.response?.status === 401) {
+      closeSupportDialog();
+      router.push({ name: "Login" });
+      return;
+    }
+
+    supportDialogMessage.value =
+      error?.response?.data?.message || "เพิ่มหนังสือลงตะกร้าไม่สำเร็จ";
+  } finally {
+    addingToCart.value = false;
+  }
+};
+
+const continueShopping = () => {
+  closeSupportDialog();
+  router.push({ name: "Store" });
+};
+
+const goToCheckout = () => {
+  closeSupportDialog();
+  router.push({ name: "Cart" });
 };
 
 const handleImgError = (event: Event) => {
@@ -339,10 +558,6 @@ const startCarousel = () => {
   }, 4200);
 };
 
-const pauseCarousel = () => {
-  stopCarousel();
-};
-
 const setActiveBanner = (index: number) => {
   activeBannerIndex.value = Math.min(Math.max(index, 0), bannerPages.value - 1);
   startCarousel();
@@ -358,6 +573,15 @@ const goToPrevBanner = () => {
 
 const goToNextBanner = () => {
   activeBannerIndex.value = (activeBannerIndex.value + 1) % bannerPages.value;
+  startCarousel();
+};
+
+const handleVisibilityChange = () => {
+  if (document.hidden) {
+    stopCarousel();
+    return;
+  }
+
   startCarousel();
 };
 
@@ -413,6 +637,7 @@ onMounted(async () => {
   try {
     await loadHomeContent();
     startCarousel();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
   } catch (error) {
     console.error("โหลดข้อมูลหนังสือไม่สำเร็จ:", error);
   }
@@ -420,6 +645,12 @@ onMounted(async () => {
 
 onUnmounted(() => {
   stopCarousel();
+  document.removeEventListener("visibilitychange", handleVisibilityChange);
+});
+
+watch(bannerPages, () => {
+  activeBannerIndex.value = Math.min(activeBannerIndex.value, bannerPages.value - 1);
+  startCarousel();
 });
 </script>
 
@@ -814,7 +1045,7 @@ onUnmounted(() => {
 }
 
 .storefront {
-  width: min(100% - calc(var(--page-gutter, 14px) * 2), 1000px);
+  width: min(100% - calc(var(--page-gutter, 14px) * 2), 1280px);
   margin: 0 auto;
   padding-top: 22px;
 }
@@ -1068,7 +1299,7 @@ onUnmounted(() => {
 .section {
   width: 100%;
   margin: 0;
-  max-width: 1120px;
+  max-width: 1280px;
   margin-inline: auto;
   padding: clamp(28px, 4vw, 54px) var(--page-gutter, 20px) 0;
 }
@@ -1112,7 +1343,7 @@ onUnmounted(() => {
 .book-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
+  gap: 18px;
   margin-top: 10px;
   align-items: stretch;
 }
@@ -1146,43 +1377,315 @@ onUnmounted(() => {
 
 .book-info {
   display: grid;
-  grid-template-rows: minmax(34px, auto) 16px auto;
+  grid-template-rows: minmax(42px, auto) 17px auto;
   align-content: start;
   gap: 5px;
   flex: 1 1 auto;
-  padding: 8px 7px 9px;
+  min-width: 0;
+  padding: 10px 9px;
 }
 
 .book-info p {
   display: -webkit-box;
-  min-height: 34px;
+  min-height: 42px;
   margin: 0;
   overflow: hidden;
   color: var(--text-strong);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
+  line-height: 1.45;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.book-info small {
+  display: -webkit-box;
+  min-height: 18px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  line-clamp: 1;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.book-card-footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  margin-top: 2px;
+}
+
+.rating-box {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.heart-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  color: #d1d5db;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.heart-row span.active {
+  color: #ec4899;
+}
+
+.rating-box small {
+  min-height: 14px;
+  color: #475569;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.price-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 60px;
+  min-height: 30px;
+  border: 0;
+  border-radius: 2px;
+  background: #0abf6b;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 0 9px;
+  text-align: center;
+  white-space: nowrap;
+  overflow-wrap: anywhere;
+}
+
+.price-pill:hover {
+  background: #009c64;
+}
+
+.support-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.42);
+  padding: 18px;
+}
+
+.support-modal {
+  position: relative;
+  width: min(100%, 430px);
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 26px 70px rgba(15, 23, 42, 0.24);
+  color: #0f172a;
+  padding: 28px 28px 22px;
+  text-align: center;
+}
+
+.support-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 32px;
+  line-height: 1;
+}
+
+.support-close:hover {
+  background: #e8f8f6;
+  color: #0f766e;
+}
+
+.support-modal h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.support-modal p {
+  width: min(100%, 290px);
+  margin: 18px auto 8px;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.support-book-title {
+  display: -webkit-box;
+  margin: 0 auto 16px;
+  max-width: 310px;
+  overflow: hidden;
+  color: #0f766e;
+  font-size: 13px;
   line-height: 1.35;
   line-clamp: 2;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 
-.book-info small {
-  display: block;
-  min-height: 16px;
-  color: var(--text-muted);
-  font-size: 11px;
+.support-added-title {
+  margin-bottom: 18px;
+  font-size: 16px;
 }
 
-.book-info strong {
-  display: inline-flex;
-  align-self: start;
-  margin-top: 2px;
+.support-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  width: min(100%, 250px);
+  margin: 0 auto 26px;
+}
+
+.support-options button {
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  border: 1px solid #cbd5e1;
+  border-radius: 0;
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 8px;
+}
+
+.support-options button small {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.support-options button.active {
+  border-color: #11b99a;
+  box-shadow: 0 0 0 2px rgba(17, 185, 154, 0.12);
+  color: #0f766e;
+}
+
+.support-message {
+  width: min(100%, 260px);
+  margin: -12px auto 16px;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.support-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.support-actions button {
+  min-width: 86px;
+  min-height: 34px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--primary) 90%, white);
-  color: var(--on-primary);
-  font-size: 11px;
-  padding: 3px 7px;
+  cursor: pointer;
+  font-weight: 900;
+  padding: 0 18px;
+}
+
+.support-cancel {
+  border: 1px solid #11b99a;
+  background: #ffffff;
+  color: #0f766e;
+}
+
+.support-confirm {
+  border: 1px solid #11b99a;
+  background: #11b99a;
+  color: #ffffff;
+}
+
+.support-confirm:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.support-confirm:hover {
+  background: #0f9f87;
+}
+
+.support-next-actions {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 240px);
+  margin: 0 auto;
+}
+
+.support-outline-wide,
+.support-solid-wide,
+.support-coin-pay {
+  min-height: 34px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 0 18px;
+}
+
+.support-outline-wide {
+  border: 1px solid #11b99a;
+  background: #ffffff;
+  color: #0f766e;
+}
+
+.support-solid-wide {
+  border: 1px solid #11b99a;
+  background: #11b99a;
+  color: #ffffff;
+}
+
+.support-divider {
+  width: min(100%, 240px);
+  height: 1px;
+  margin: 20px auto 16px;
+  background: #e2e8f0;
+}
+
+.support-coin-pay {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 240px;
+  border: 0;
+  background: #ff8a12;
+  color: #ffffff;
+}
+
+.support-coin-dot {
+  width: 15px;
+  height: 15px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 32%, #fff8c7 0%, #ffd44d 42%, #f59e0b 100%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.55);
 }
 
 .compact-section {
@@ -1260,31 +1763,46 @@ onUnmounted(() => {
   }
 
   .book-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 6px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
     margin-top: 8px;
   }
 
   .book-info {
-    grid-template-rows: minmax(26px, auto) 12px auto;
-    gap: 3px;
-    padding: 5px 4px 6px;
+    grid-template-rows: minmax(30px, auto) 13px auto;
+    gap: 4px;
+    padding: 6px 4px;
   }
 
   .book-info p {
-    min-height: 26px;
+    min-height: 30px;
     font-size: 9px;
     line-height: 1.35;
   }
 
   .book-info small {
-    min-height: 12px;
+    min-height: 13px;
     font-size: 8px;
   }
 
-  .book-info strong {
+  .book-card-footer {
+    gap: 3px;
+  }
+
+  .heart-row {
+    font-size: 9px;
+  }
+
+  .rating-box small {
+    min-height: 10px;
+    font-size: 7px;
+  }
+
+  .price-pill {
+    min-width: 36px;
+    min-height: 20px;
     font-size: 8px;
-    padding: 2px 4px;
+    padding: 0 4px;
   }
 
   .category-bar,
@@ -1345,6 +1863,7 @@ onUnmounted(() => {
 
 @media (max-width: 420px) {
   .book-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 4px;
   }
 
@@ -1356,8 +1875,20 @@ onUnmounted(() => {
     font-size: 8px;
   }
 
-  .book-info small,
-  .book-info strong {
+  .book-info small {
+    font-size: 7px;
+  }
+
+  .heart-row {
+    font-size: 8px;
+  }
+
+  .rating-box small {
+    font-size: 6px;
+  }
+
+  .price-pill {
+    min-width: 32px;
     font-size: 7px;
   }
 

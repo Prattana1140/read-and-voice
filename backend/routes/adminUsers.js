@@ -482,6 +482,345 @@ async function updateCoinTopup(req, res) {
   }
 }
 
+async function addOrderItemsToLibrary(connection, orderId, userId) {
+  const [items] = await connection.query(
+    `SELECT book_id
+     FROM order_items
+     WHERE order_id = ?`,
+    [orderId],
+  );
+
+  for (const item of items) {
+    if (item.book_id) {
+      await connection.query(
+        "INSERT IGNORE INTO `library` (user_id, book_id) VALUES (?, ?)",
+        [userId, item.book_id],
+      );
+    }
+  }
+}
+
+async function listPaymentApprovals(req, res) {
+  try {
+    await ensureAccountAdminTables();
+    const status = String(req.query.status || "pending").trim();
+    const params = [];
+    const topupParams = [];
+    const orderParams = [];
+    const subscriptionParams = [];
+
+    let topupWhere = "";
+    let orderWhere = "";
+    let subscriptionWhere = "";
+
+    if (status !== "all") {
+      if (!["pending", "paid", "failed", "cancelled", "completed"].includes(status)) {
+        return res.status(400).json({ message: "Invalid payment status" });
+      }
+
+      topupWhere = "WHERE cto.status = ?";
+      topupParams.push(status === "completed" ? "paid" : status);
+      orderWhere = "WHERE o.payment_status = ?";
+      orderParams.push(status === "completed" ? "paid" : status);
+      subscriptionWhere = "WHERE us.payment_status = ?";
+      subscriptionParams.push(status === "completed" ? "paid" : status);
+    }
+
+    const [topups] = await db.query(
+      `SELECT
+         'coin_topup' AS item_type,
+         cto.id,
+         cto.user_id,
+         u.name,
+         u.email,
+         cto.package_id,
+         cto.coins,
+         cto.price AS amount,
+         cto.status AS payment_status,
+         cto.status AS item_status,
+         cto.provider_ref,
+         cto.paid_at,
+         cto.created_at,
+         cto.updated_at,
+         NULL AS title,
+         NULL AS detail
+       FROM coin_topup_orders cto
+       JOIN users u ON u.id = cto.user_id
+       ${topupWhere}
+       ORDER BY cto.created_at DESC, cto.id DESC
+       LIMIT 200`,
+      topupParams,
+    );
+
+    const [orders] = await db.query(
+      `SELECT
+         'order' AS item_type,
+         o.id,
+         o.user_id,
+         u.name,
+         u.email,
+         NULL AS package_id,
+         NULL AS coins,
+         o.total_amount AS amount,
+         o.payment_status,
+         o.order_status AS item_status,
+         o.payment_method AS provider_ref,
+         NULL AS paid_at,
+         o.created_at,
+         o.created_at AS updated_at,
+         GROUP_CONCAT(COALESCE(e.title, b.title) ORDER BY oi.id SEPARATOR ', ') AS title,
+         CONCAT(COUNT(oi.id), ' item(s)') AS detail
+       FROM orders o
+       JOIN users u ON u.id = o.user_id
+       LEFT JOIN order_items oi ON oi.order_id = o.id
+       LEFT JOIN books b ON b.id = oi.book_id
+       LEFT JOIN book_episodes e ON e.id = oi.episode_id
+       ${orderWhere}
+       GROUP BY o.id
+       ORDER BY o.created_at DESC, o.id DESC
+       LIMIT 200`,
+      orderParams,
+    );
+
+    const [subscriptions] = await db.query(
+      `SELECT
+         'subscription' AS item_type,
+         us.id,
+         us.user_id,
+         u.name,
+         u.email,
+         us.plan_id AS package_id,
+         NULL AS coins,
+         sp.price AS amount,
+         us.payment_status,
+         us.status AS item_status,
+         sp.name AS provider_ref,
+         NULL AS paid_at,
+         us.created_at,
+         us.updated_at,
+         sp.name AS title,
+         CONCAT(us.start_at, ' - ', us.end_at) AS detail
+       FROM user_subscriptions us
+       JOIN users u ON u.id = us.user_id
+       JOIN subscription_plans sp ON sp.id = us.plan_id
+       ${subscriptionWhere}
+       ORDER BY us.created_at DESC, us.id DESC
+       LIMIT 200`,
+      subscriptionParams,
+    );
+
+    const items = [...topups, ...orders, ...subscriptions].sort((a, b) => {
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+    });
+
+    return res.json({
+      items,
+      summary: {
+        total: items.length,
+        pending: items.filter((item) => item.payment_status === "pending").length,
+      },
+    });
+  } catch (error) {
+    console.error("GET /admin/payment-approvals error:", error);
+    return res.status(500).json({ message: "Unable to load payment approvals" });
+  }
+}
+
+async function updateOrderPayment(connection, paymentId, status, note) {
+  const [orders] = await connection.query(
+    `SELECT id, user_id, payment_status
+     FROM orders
+     WHERE id = ?
+     LIMIT 1
+     FOR UPDATE`,
+    [paymentId],
+  );
+  const order = orders[0];
+
+  if (!order) {
+    const error = new Error("ORDER_NOT_FOUND");
+    error.status = 404;
+    throw error;
+  }
+
+  if (order.payment_status === "paid") {
+    return { message: "Order was already paid", status: "paid" };
+  }
+
+  if (status === "paid") {
+    await connection.query(
+      `UPDATE orders
+       SET payment_status = 'paid', order_status = 'completed'
+       WHERE id = ?`,
+      [paymentId],
+    );
+    await addOrderItemsToLibrary(connection, paymentId, order.user_id);
+  } else {
+    await connection.query(
+      `UPDATE orders
+       SET payment_status = ?, order_status = 'cancelled'
+       WHERE id = ?`,
+      [status, paymentId],
+    );
+  }
+
+  return { message: note || "Order payment updated successfully", status };
+}
+
+async function updateSubscriptionPayment(connection, paymentId, status, note) {
+  const [subscriptions] = await connection.query(
+    `SELECT id, payment_status
+     FROM user_subscriptions
+     WHERE id = ?
+     LIMIT 1
+     FOR UPDATE`,
+    [paymentId],
+  );
+  const subscription = subscriptions[0];
+
+  if (!subscription) {
+    const error = new Error("SUBSCRIPTION_NOT_FOUND");
+    error.status = 404;
+    throw error;
+  }
+
+  if (subscription.payment_status === "paid") {
+    return { message: "Subscription was already paid", status: "paid" };
+  }
+
+  if (status === "paid") {
+    await connection.query(
+      `UPDATE user_subscriptions
+       SET payment_status = 'paid', status = 'active', updated_at = NOW()
+       WHERE id = ?`,
+      [paymentId],
+    );
+  } else {
+    await connection.query(
+      `UPDATE user_subscriptions
+       SET payment_status = ?, status = 'cancelled', updated_at = NOW()
+       WHERE id = ?`,
+      [status, paymentId],
+    );
+  }
+
+  return { message: note || "Subscription payment updated successfully", status };
+}
+
+async function updateCoinTopupPayment(connection, paymentId, status, note) {
+  const [topups] = await connection.query(
+    `SELECT id, user_id, coins, status
+     FROM coin_topup_orders
+     WHERE id = ?
+     LIMIT 1
+     FOR UPDATE`,
+    [paymentId],
+  );
+  const topup = topups[0];
+
+  if (!topup) {
+    const error = new Error("TOPUP_NOT_FOUND");
+    error.status = 404;
+    throw error;
+  }
+
+  if (topup.status === "paid") {
+    return { message: "Coin topup was already paid", status: "paid" };
+  }
+
+  if (status === "paid") {
+    await connection.query(
+      "INSERT IGNORE INTO coin_wallets (user_id, balance) VALUES (?, 0)",
+      [topup.user_id],
+    );
+    await connection.query(
+      "UPDATE coin_wallets SET balance = balance + ? WHERE user_id = ?",
+      [topup.coins, topup.user_id],
+    );
+    const [walletRows] = await connection.query(
+      "SELECT balance FROM coin_wallets WHERE user_id = ? LIMIT 1",
+      [topup.user_id],
+    );
+    const balanceAfter = Number(walletRows[0]?.balance || 0);
+
+    await connection.query(
+      `INSERT INTO coin_transactions
+       (user_id, type, amount, balance_after, ref_type, ref_id, description)
+       VALUES (?, 'topup', ?, ?, 'manual_payment', ?, ?)`,
+      [topup.user_id, topup.coins, balanceAfter, topup.id, note || `Manual topup #${topup.id}`],
+    );
+
+    await connection.query(
+      `UPDATE coin_topup_orders
+       SET status = 'paid', provider_ref = ?, paid_at = NOW(), updated_at = NOW()
+       WHERE id = ?`,
+      [note, topup.id],
+    );
+  } else {
+    await connection.query(
+      `UPDATE coin_topup_orders
+       SET status = ?, provider_ref = ?, updated_at = NOW()
+       WHERE id = ?`,
+      [status, note, topup.id],
+    );
+  }
+
+  return { message: "Coin topup updated successfully", status };
+}
+
+async function updatePaymentApproval(req, res) {
+  const connection = await db.getConnection();
+
+  try {
+    await ensureAccountAdminTables();
+    const itemType = String(req.params.type || "").trim();
+    const paymentId = Number(req.params.id);
+    const status = String(req.body.status || "").trim();
+    const note = String(req.body.provider_ref || req.body.note || "").trim() || null;
+
+    if (!["coin_topup", "order", "subscription"].includes(itemType)) {
+      return res.status(400).json({ message: "Invalid payment type" });
+    }
+
+    if (!Number.isInteger(paymentId) || paymentId <= 0) {
+      return res.status(400).json({ message: "Invalid payment id" });
+    }
+
+    if (!["paid", "failed", "cancelled"].includes(status)) {
+      return res.status(400).json({ message: "Invalid payment status" });
+    }
+
+    await connection.beginTransaction();
+
+    let result;
+    if (itemType === "coin_topup") {
+      result = await updateCoinTopupPayment(connection, paymentId, status, note);
+    } else if (itemType === "order") {
+      result = await updateOrderPayment(connection, paymentId, status, note);
+    } else {
+      result = await updateSubscriptionPayment(connection, paymentId, status, note);
+    }
+
+    await connection.commit();
+    return res.json(result);
+  } catch (error) {
+    await connection.rollback();
+    console.error("PATCH /admin/payment-approvals/:type/:id error:", error);
+    return res.status(error.status || 500).json({
+      message:
+        error.message === "ORDER_NOT_FOUND"
+          ? "Order not found"
+          : error.message === "SUBSCRIPTION_NOT_FOUND"
+            ? "Subscription not found"
+            : error.message === "TOPUP_NOT_FOUND"
+              ? "Coin topup not found"
+            : "Unable to update payment approval",
+    });
+  } finally {
+    connection.release();
+  }
+}
+
 router.get("/", verifyToken, requireAdmin, listUsers);
 router.get("/users", verifyToken, requireAdmin, listUsers);
 
@@ -505,5 +844,8 @@ router.post("/users/:userId/gift-codes", verifyToken, requireAdmin, issueGiftCod
 router.get("/coin-topups", verifyToken, requireAdmin, listCoinTopups);
 router.put("/coin-topups/:id", verifyToken, requireAdmin, updateCoinTopup);
 router.patch("/coin-topups/:id", verifyToken, requireAdmin, updateCoinTopup);
+router.get("/payment-approvals", verifyToken, requireAdmin, listPaymentApprovals);
+router.put("/payment-approvals/:type/:id", verifyToken, requireAdmin, updatePaymentApproval);
+router.patch("/payment-approvals/:type/:id", verifyToken, requireAdmin, updatePaymentApproval);
 
 module.exports = router;

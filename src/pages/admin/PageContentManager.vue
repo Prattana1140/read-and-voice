@@ -112,11 +112,13 @@
         <label>
           Image URL
           <input v-model="homeBannerUrl" type="url" placeholder="https://example.com/promo.jpg" />
+          <small class="image-size-hint">Recommended image size: 1200 x 360 px (or 1600 x 480 px)</small>
         </label>
 
         <label>
           Upload image
           <input type="file" accept="image/*" @change="selectHomeBannerFile" />
+          <small class="image-size-hint">Recommended image size: 1200 x 360 px (or 1600 x 480 px)</small>
         </label>
 
         <div class="banner-actions">
@@ -803,6 +805,14 @@ onUnmounted(() => {
 
 .banner-form input[type="file"] {
   padding: 10px 12px;
+}
+
+.image-size-hint {
+  color: #dc2626;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  margin-top: 4px;
 }
 
 .banner-actions {

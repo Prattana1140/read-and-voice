@@ -259,4 +259,56 @@ router.get("/topups/:id", verifyToken, async (req, res) => {
   }
 });
 
+router.patch("/topups/:id/confirm", verifyToken, async (req, res) => {
+  try {
+    await ensureTopupTables();
+    const topupId = Number(req.params.id);
+    const providerRef = String(req.body.provider_ref || req.body.note || "").trim();
+
+    if (!Number.isInteger(topupId) || topupId <= 0) {
+      return res.status(400).json({ message: "topup id ไม่ถูกต้อง" });
+    }
+
+    if (!providerRef) {
+      return res.status(400).json({ message: "กรุณากรอกเลขอ้างอิงหรือหมายเหตุการโอน" });
+    }
+
+    const [topups] = await db.query(
+      `SELECT id, status
+       FROM coin_topup_orders
+       WHERE id = ? AND user_id = ?
+       LIMIT 1`,
+      [topupId, req.user.id],
+    );
+
+    const topup = topups[0];
+    if (!topup) {
+      return res.status(404).json({ message: "ไม่พบรายการเติม coin" });
+    }
+
+    if (topup.status === "paid") {
+      return res.json({ message: "รายการนี้ได้รับการอนุมัติแล้ว", status: "paid" });
+    }
+
+    if (topup.status !== "pending") {
+      return res.status(400).json({ message: "รายการนี้ไม่อยู่ในสถานะรอชำระเงิน" });
+    }
+
+    await db.query(
+      `UPDATE coin_topup_orders
+       SET provider_ref = ?, updated_at = NOW()
+       WHERE id = ? AND user_id = ?`,
+      [providerRef, topupId, req.user.id],
+    );
+
+    return res.json({
+      message: "บันทึกข้อมูลการโอนแล้ว รอแอดมินตรวจสอบและอนุมัติ",
+      status: "pending",
+    });
+  } catch (error) {
+    console.error("PATCH /coins/topups/:id/confirm error:", error);
+    return res.status(500).json({ message: "บันทึกข้อมูลการโอนไม่สำเร็จ" });
+  }
+});
+
 module.exports = router;

@@ -9,6 +9,7 @@ import {
   getUser,
   logout as clearAuth,
 } from "../utils/auth";
+import { filterBooks, type SearchableBook } from "../utils/bookSearch";
 import { useI18n } from "../utils/i18n";
 
 type ThemeMode = "normal" | "dark" | "reading";
@@ -76,6 +77,8 @@ const isMenuOpen = ref(false);
 const isSearchOpen = ref(false);
 const isNotificationsOpen = ref(false);
 const search = ref("");
+const searchBooks = ref<SearchableBook[]>([]);
+const searchLoading = ref(false);
 const authVersion = ref(0);
 const walletBalance = ref(0);
 const membershipLabel = ref(t("account.noMembership"));
@@ -121,9 +124,9 @@ const currentRole = computed<UserRole>(() => {
   return isLoggedIn.value ? normalizeRole(user.value?.role) : "guest";
 });
 
-const memberRoles: UserRole[] = ["user", "writer", "admin", "superadmin"];
+const memberRoles: UserRole[] = ["user", "writer"];
 const readerRoles: UserRole[] = ["user", "writer"];
-const adminRoles: UserRole[] = ["admin", "superadmin"];
+const adminRoles: UserRole[] = ["admin"];
 const superAdminRoles: UserRole[] = ["superadmin"];
 const isReaderRole = computed(() => readerRoles.includes(currentRole.value));
 const isAdminRole = computed(() => adminRoles.includes(currentRole.value));
@@ -152,16 +155,8 @@ const userAvatarUrl = computed(() => {
   const avatar = user.value?.avatar_url?.trim();
   return avatar ? resolveAssetUrl(avatar) : "";
 });
-const userMeta = computed(() => {
-  if (user.value?.id) {
-    return `member-${String(user.value.id).padStart(6, "0")}`;
-  }
-
-  return t("account.memberOf");
-});
-
 const accountQuickLinks = computed<NavItem[]>(() => {
-  if (!isLoggedIn.value) return [];
+  if (!isLoggedIn.value || !isReaderRole.value) return [];
 
   return [
     { label: t("account.bookshelf"), to: "/my-library", roles: readerRoles },
@@ -206,156 +201,91 @@ const mainNavItems = computed(() =>
   publicNavItems.value.filter((item) => item.roles.includes(currentRole.value)),
 );
 
+const searchSuggestions = computed(() => {
+  const keyword = search.value.trim();
+  if (!keyword) return [];
+  return filterBooks(searchBooks.value, keyword).slice(0, 8);
+});
+
 const accountGroups = computed<NavGroup[]>(() => {
   const role = currentRole.value;
-  const groups: NavGroup[] = [
-    {
-      title: t("account.myAccount"),
-      items: [
-        { label: t("account.profile"), to: "/profile", roles: memberRoles },
-        {
-          label: t("account.userDevices"),
-          to: "/account/devices",
-          roles: memberRoles,
-        },
-        {
-          label: t("account.notifications"),
-          to: "/account/notifications",
-          roles: memberRoles,
-        },
-      ],
-      defaultOpen: true,
-    },
-    {
-      title: t("account.readingMember"),
-      items: [
-        {
-          label: t("account.bookshelf"),
-          to: "/my-library",
-          roles: readerRoles,
-        },
-        { label: t("account.wishlist"), to: "/wishlist", roles: readerRoles },
-        {
-          label: t("account.following"),
-          to: "/account/following",
-          roles: readerRoles,
-        },
-        {
-          label: t("account.package"),
-          to: "/account/buffet",
-          roles: readerRoles,
-        },
-        {
-          label: t("account.benefits"),
-          to: "/account/benefits",
-          roles: readerRoles,
-        },
-        {
-          label: t("account.orders"),
-          to: "/orders/history",
-          roles: readerRoles,
-        },
-        {
-          label: t("account.reviews"),
-          to: "/account/reviews",
-          roles: readerRoles,
-        },
-        {
-          label: t("account.ageVerification"),
-          to: "/account/age-verification",
-          roles: readerRoles,
-        },
-      ],
-    },
-    {
-      title: t("account.settings"),
-      items: [
-        {
-          label: t("account.giftCodes"),
-          to: "/account/gift-codes",
-          roles: memberRoles,
-        },
-        {
-          label: t("notification.settings"),
-          to: "/notification-settings",
-          roles: memberRoles,
-        },
-      ],
-      defaultOpen: true,
-    },
-    {
-      title: t("account.writerSpace"),
-      items: [
-        {
-          label: t("account.uploadBook"),
-          to: "/writer/upload",
-          roles: ["user", "writer", "admin", "superadmin"],
-        },
-        {
-          label: t("account.writerDashboard"),
-          to: "/writer",
-          roles: ["writer"],
-        },
-      ],
-    },
-    {
-      title: t("account.adminTools"),
-      items: [
-        {
-          label: t("account.adminDashboard"),
-          to: "/admin",
-          roles: adminRoles,
-        },
-        {
-          label: t("account.contentManagement"),
-          to: "/admin/page-content",
-          roles: adminRoles,
-        },
-        {
-          label: t("account.bookManagement"),
-          to: "/admin/books",
-          roles: adminRoles,
-        },
-        {
-          label: t("account.uploadBook"),
-          to: "/admin/upload-book",
-          roles: adminRoles,
-        },
-        {
-          label: t("account.approvals"),
-          to: "/admin/approvals",
-          roles: adminRoles,
-        },
-      ],
-    },
-    {
-      title: t("account.superadmin"),
-      items: [
-        {
-          label: t("account.superDashboard"),
-          to: "/superadmin",
-          roles: superAdminRoles,
-        },
-        {
-          label: t("account.userManagement"),
-          to: "/superadmin/users",
-          roles: superAdminRoles,
-        },
-        {
-          label: t("account.roleManagement"),
-          to: "/superadmin/roles",
-          roles: superAdminRoles,
-        },
-        {
-          label: t("account.settingsSystem"),
-          to: "/superadmin/settings",
-          roles: superAdminRoles,
-        },
-      ],
-    },
-  ];
+  const personalGroup: NavGroup = {
+    title: t("account.myAccount"),
+    items: [
+      { label: t("account.profile"), to: "/profile", roles: memberRoles },
+      { label: t("account.userDevices"), to: "/account/devices", roles: memberRoles },
+      { label: t("account.notifications"), to: "/account/notifications", roles: memberRoles },
+    ],
+    defaultOpen: true,
+  };
 
-  return groups
+  const readingGroup: NavGroup = {
+    title: t("account.readingMember"),
+    items: [
+      { label: t("account.bookshelf"), to: "/my-library", roles: readerRoles },
+      { label: t("account.wishlist"), to: "/wishlist", roles: readerRoles },
+      { label: t("account.following"), to: "/account/following", roles: readerRoles },
+      { label: t("account.package"), to: "/account/buffet", roles: readerRoles },
+      { label: t("account.benefits"), to: "/account/benefits", roles: readerRoles },
+      { label: t("account.orders"), to: "/orders/history", roles: readerRoles },
+      { label: t("account.reviews"), to: "/account/reviews", roles: readerRoles },
+      { label: t("account.ageVerification"), to: "/account/age-verification", roles: readerRoles },
+    ],
+  };
+
+  const settingsGroup: NavGroup = {
+    title: t("account.settings"),
+    items: [
+      { label: t("account.giftCodes"), to: "/account/gift-codes", roles: memberRoles },
+      { label: t("notification.settings"), to: "/notification-settings", roles: memberRoles },
+    ],
+    defaultOpen: true,
+  };
+
+  const writerGroup: NavGroup = {
+    title: t("account.writerSpace"),
+    items: [
+      { label: t("account.uploadBook"), to: "/writer/upload", roles: ["user", "writer"] },
+      { label: t("account.writerDashboard"), to: "/writer", roles: ["writer"] },
+    ],
+  };
+
+  const adminGroup: NavGroup = {
+    title: t("account.adminTools"),
+    items: [
+      { label: t("account.adminDashboard"), to: "/admin", roles: ["admin", "superadmin"] },
+      { label: t("account.contentManagement"), to: "/admin/page-content", roles: ["admin", "superadmin"] },
+      { label: t("account.bookManagement"), to: "/admin/books", roles: ["admin", "superadmin"] },
+      { label: t("account.approvals"), to: "/admin/approvals", roles: ["admin", "superadmin"] },
+      { label: "อนุมัติชำระเงิน", to: "/admin/payments", roles: ["admin", "superadmin"] },
+      { label: "อนุมัติเติมเหรียญ", to: "/admin/coin-topups", roles: ["admin", "superadmin"] },
+      { label: "อนุมัติคำสั่งซื้อ", to: "/admin/order-payments", roles: ["admin", "superadmin"] },
+      { label: "อนุมัติสมาชิก", to: "/admin/subscription-payments", roles: ["admin", "superadmin"] },
+      { label: t("account.uploadBook"), to: "/admin/upload-book", roles: ["admin"] },
+    ],
+    defaultOpen: true,
+  };
+
+  const superAdminGroup: NavGroup = {
+    title: t("account.superadmin"),
+    items: [
+      { label: t("account.superDashboard"), to: "/superadmin", roles: superAdminRoles },
+      { label: t("account.userManagement"), to: "/superadmin/users", roles: superAdminRoles },
+      { label: t("account.roleManagement"), to: "/superadmin/roles", roles: superAdminRoles },
+      { label: t("account.settingsSystem"), to: "/superadmin/settings", roles: superAdminRoles },
+    ],
+    defaultOpen: true,
+  };
+
+  const roleGroups: Record<UserRole, NavGroup[]> = {
+    guest: [],
+    user: [personalGroup, readingGroup, settingsGroup, writerGroup],
+    writer: [personalGroup, readingGroup, settingsGroup, writerGroup],
+    admin: [adminGroup],
+    superadmin: [adminGroup, superAdminGroup],
+  };
+
+  return roleGroups[role]
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => item.roles.includes(role)),
@@ -440,6 +370,7 @@ const openSearch = () => {
   closeMenu();
   closeFloatingMenus();
   isSearchOpen.value = true;
+  loadSearchBooks();
   nextTick(() => {
     searchInputRef.value?.focus();
   });
@@ -508,6 +439,31 @@ const submitSearch = () => {
   router.push(
     keyword ? { name: "Store", query: { q: keyword } } : { name: "Store" },
   );
+};
+
+const loadSearchBooks = async () => {
+  if (searchBooks.value.length || searchLoading.value) return;
+  searchLoading.value = true;
+
+  try {
+    const { data } = await api.get("/books");
+    searchBooks.value = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.books)
+        ? data.books
+        : [];
+  } catch {
+    searchBooks.value = [];
+  } finally {
+    searchLoading.value = false;
+  }
+};
+
+const openSearchBook = (book: SearchableBook) => {
+  closeMenu();
+  closeSearch();
+  search.value = "";
+  router.push({ name: "BookDetail", params: { id: book.id } });
 };
 
 const formatNotificationTime = (value: string) => {
@@ -732,7 +688,8 @@ watch(isCompactNav, (compact) => {
           :aria-label="t('nav.home')"
           @click="closeMenu"
         >
-          <img class="brand-logo" :src="logoUrl" alt="Read and Voice" />
+          <img class="brand-logo" :src="logoUrl" alt="" aria-hidden="true" />
+          <span class="brand-name">Read and Voice</span>
         </router-link>
 
         <router-link
@@ -1016,7 +973,6 @@ watch(isCompactNav, (compact) => {
                 </div>
                 <div class="account-summary-copy">
                   <strong>{{ userDisplayName }}</strong>
-                  <span>{{ userMeta }}</span>
                   <small
                     class="role-badge"
                     :class="`role-badge--${currentRole}`"
@@ -1025,9 +981,6 @@ watch(isCompactNav, (compact) => {
                   </small>
                   <small v-if="isReaderRole" class="account-membership">
                     {{ membershipLabel }}
-                  </small>
-                  <small v-else class="account-role-hint">
-                    {{ roleHint }}
                   </small>
                 </div>
                 <button class="logout-chip" type="button" @click="logout">
@@ -1140,6 +1093,25 @@ watch(isCompactNav, (compact) => {
           </svg>
         </button>
       </div>
+      <section class="search-results" aria-label="หนังสือที่เกี่ยวข้อง">
+        <p v-if="searchLoading">กำลังค้นหา...</p>
+        <template v-else-if="search.trim()">
+          <button
+            v-for="book in searchSuggestions"
+            :key="book.id"
+            type="button"
+            @click="openSearchBook(book)"
+          >
+            <img :src="resolveAssetUrl(book.cover_url || book.cover_image)" :alt="book.title || 'book cover'" />
+            <span>
+              <strong>{{ book.title }}</strong>
+              <small>{{ book.author || book.author_name || "ไม่ระบุผู้เขียน" }} · {{ book.category_name || "หนังสือ" }}</small>
+            </span>
+            <em>{{ book.content_type === "serial" ? "รายตอน" : "อีบุ๊ก" }}</em>
+          </button>
+          <p v-if="searchSuggestions.length === 0">ไม่พบหนังสือที่เกี่ยวข้อง</p>
+        </template>
+      </section>
     </form>
 
     <div
@@ -1163,7 +1135,15 @@ watch(isCompactNav, (compact) => {
             />
           </svg>
         </button>
-        <img class="mobile-panel-logo" :src="logoUrl" alt="Read and Voice" />
+        <router-link class="mobile-panel-brand" to="/" @click="closeMenu">
+          <img
+            class="mobile-panel-logo"
+            :src="logoUrl"
+            alt=""
+            aria-hidden="true"
+          />
+          <span>Read and Voice</span>
+        </router-link>
       </div>
 
       <section class="mobile-group mobile-card">
@@ -1253,19 +1233,29 @@ watch(isCompactNav, (compact) => {
 .brand {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  flex: 0 0 152px;
-  width: 152px;
+  justify-content: flex-start;
+  flex: 0 1 clamp(172px, 18vw, 230px);
+  gap: clamp(7px, 0.8vw, 11px);
+  width: clamp(172px, 18vw, 230px);
+  min-width: 0;
   height: 58px;
   border-radius: 8px;
+  overflow: hidden;
 }
 .brand-logo {
-  width: 216px;
-  height: auto;
-  max-height: 64px;
+  flex: 0 0 clamp(44px, 4.4vw, 58px);
+  width: clamp(44px, 4.4vw, 58px);
+  height: clamp(44px, 4.4vw, 58px);
   object-fit: contain;
-  transform: scale(1.75);
-  transform-origin: center;
+}
+.brand-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: #0f172a;
+  font-size: clamp(15px, 1.15vw, 18px);
+  font-weight: 900;
+  line-height: 1.08;
+  overflow-wrap: anywhere;
 }
 .desktop-public-nav {
   position: absolute;
@@ -1709,13 +1699,8 @@ watch(isCompactNav, (compact) => {
 .account-summary-copy strong {
   color: #1f2937;
   font-size: 16px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.account-summary-copy span {
-  color: #64748b;
-  font-size: 12px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 .account-membership {
   color: #0f766e;
@@ -1849,9 +1834,10 @@ watch(isCompactNav, (compact) => {
   position: fixed;
   inset: 0;
   z-index: 5000;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 14px;
   padding: max(18px, env(safe-area-inset-top)) 18px 18px;
   background:
     linear-gradient(
@@ -1901,6 +1887,75 @@ watch(isCompactNav, (compact) => {
   color: #64748b;
   font-weight: 600;
 }
+.search-results {
+  width: min(860px, calc(100vw - 36px));
+  max-height: min(66vh, 560px);
+  overflow: auto;
+  border: 1px solid rgba(15, 118, 110, 0.12);
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 20px 54px rgba(15, 23, 42, 0.18);
+  padding: 10px;
+}
+.search-results:empty {
+  display: none;
+}
+.search-results p {
+  margin: 0;
+  padding: 14px;
+  color: #64748b;
+  font-weight: 800;
+}
+.search-results button {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  min-height: 62px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: #0f172a;
+  cursor: pointer;
+  padding: 8px;
+  text-align: left;
+}
+.search-results button:hover,
+.search-results button:focus-visible {
+  background: #ecfdf5;
+  outline: 0;
+}
+.search-results img {
+  width: 44px;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  background: #e2e8f0;
+}
+.search-results span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.search-results strong,
+.search-results small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search-results strong {
+  font-size: 15px;
+}
+.search-results small,
+.search-results em {
+  color: #64748b;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+.search-results em {
+  color: #0f766e;
+}
 .mobile-backdrop {
   position: fixed;
   inset: 0;
@@ -1941,10 +1996,31 @@ watch(isCompactNav, (compact) => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
+}
+.mobile-panel-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+  color: #0f172a;
+  font-weight: 900;
+  line-height: 1.1;
+  text-align: right;
+  text-decoration: none;
 }
 .mobile-panel-logo {
-  width: 132px;
-  height: auto;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+.mobile-panel-brand span {
+  min-width: 0;
+  max-width: 180px;
+  font-size: 17px;
+  overflow-wrap: anywhere;
 }
 .mobile-group {
   display: grid;
@@ -2008,13 +2084,17 @@ watch(isCompactNav, (compact) => {
   display: inline-grid;
 }
 .navbar--compact .brand {
-  flex: 0 0 136px;
-  width: 136px;
+  flex: 0 1 176px;
+  width: 176px;
   height: 52px;
 }
 .navbar--compact .brand-logo {
-  width: 190px;
-  transform: scale(1.65);
+  flex-basis: 48px;
+  width: 48px;
+  height: 48px;
+}
+.navbar--compact .brand-name {
+  font-size: 15px;
 }
 .navbar--compact .top-actions {
   margin-left: auto;
@@ -2076,13 +2156,17 @@ watch(isCompactNav, (compact) => {
     display: inline-grid;
   }
   .brand {
-    flex: 0 0 136px;
-    width: 136px;
+    flex: 0 1 176px;
+    width: 176px;
     height: 52px;
   }
   .brand-logo {
-    width: 190px;
-    transform: scale(1.65);
+    flex-basis: 48px;
+    width: 48px;
+    height: 48px;
+  }
+  .brand-name {
+    font-size: 15px;
   }
   .mobile-cta-group {
     display: grid;
@@ -2154,13 +2238,18 @@ watch(isCompactNav, (compact) => {
     padding: 0 6px;
   }
   .brand {
-    flex: 0 0 88px;
-    width: 88px;
+    flex: 0 1 150px;
+    width: 150px;
     height: 44px;
   }
   .brand-logo {
-    width: 138px;
-    transform: scale(1.42);
+    flex-basis: 40px;
+    width: 40px;
+    height: 40px;
+  }
+  .brand-name {
+    font-size: 13px;
+    line-height: 1.05;
   }
   .icon-button,
   .notification-button,
@@ -2249,14 +2338,20 @@ watch(isCompactNav, (compact) => {
   }
 
   .brand {
-    flex: 0 0 72px;
-    width: 72px;
+    flex: 0 1 118px;
+    width: 118px;
     height: 40px;
+    gap: 6px;
   }
 
   .brand-logo {
-    width: 116px;
-    transform: scale(1.32);
+    flex-basis: 34px;
+    width: 34px;
+    height: 34px;
+  }
+
+  .brand-name {
+    font-size: 11px;
   }
 
   .icon-button,
@@ -2295,13 +2390,18 @@ watch(isCompactNav, (compact) => {
   }
 
   .brand {
-    flex-basis: 64px;
-    width: 64px;
+    flex-basis: 104px;
+    width: 104px;
   }
 
   .brand-logo {
-    width: 104px;
-    transform: scale(1.28);
+    flex-basis: 30px;
+    width: 30px;
+    height: 30px;
+  }
+
+  .brand-name {
+    font-size: 10px;
   }
 
   .top-actions > .icon-button,

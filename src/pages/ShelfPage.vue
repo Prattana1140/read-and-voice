@@ -690,7 +690,7 @@ watch(
 }
 
 .shelf-content {
-  width: min(100% - calc(var(--page-gutter, 14px) * 2), 920px);
+  width: min(100% - calc(var(--page-gutter, 14px) * 2), 1120px);
   margin: 0 auto;
   padding-top: 58px;
 }
@@ -782,8 +782,8 @@ watch(
 .book-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  column-gap: 34px;
-  row-gap: 44px;
+  column-gap: 24px;
+  row-gap: 48px;
 }
 
 .free-shelves,
@@ -892,9 +892,9 @@ watch(
 
 .promo-book-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  column-gap: 26px;
-  row-gap: 32px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  column-gap: 24px;
+  row-gap: 36px;
 }
 
 .discount-ribbon {
@@ -993,28 +993,32 @@ watch(
 
 .book-card h3 {
   display: -webkit-box;
-  min-height: 38px;
-  margin: 10px 0 4px;
+  min-height: 50px;
+  margin: 12px 0 5px;
   overflow: hidden;
   color: var(--text-strong);
-  font-size: 14px;
+  font-size: 17px;
   font-weight: 900;
-  line-height: 1.35;
+  line-height: 1.45;
   line-clamp: 2;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 
 .book-card p {
   display: -webkit-box;
-  min-height: 18px;
+  min-height: 23px;
   margin: 0 0 4px;
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.45;
   line-clamp: 1;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
 }
@@ -1033,7 +1037,9 @@ watch(
 
 .meta-line small {
   color: #4b5563;
-  font-size: 11px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .price {
@@ -1059,13 +1065,13 @@ watch(
 
 @media (max-width: 980px) {
   .shelf-content {
-    width: min(100% - 24px, 760px);
+    width: min(100% - 24px, 900px);
     padding-top: 36px;
   }
 
   .book-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    column-gap: 24px;
+    column-gap: 18px;
   }
 
   .promo-layout {
@@ -1090,8 +1096,8 @@ watch(
   }
 
   .book-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 16px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    column-gap: 12px;
     row-gap: 34px;
   }
 
@@ -1101,8 +1107,8 @@ watch(
   }
 
   .promo-book-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 16px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    column-gap: 12px;
   }
 
   .promo-section-head > div {
@@ -1142,7 +1148,28 @@ watch(
 
   .book-grid,
   .promo-book-grid {
-    column-gap: 12px;
+    column-gap: 8px;
+    row-gap: 28px;
+  }
+
+  .book-card h3 {
+    min-height: 34px;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .book-card p,
+  .meta-line small {
+    min-height: 16px;
+    font-size: 9px;
+    line-height: 1.35;
+  }
+
+  .price {
+    min-width: 44px;
+    min-height: 22px;
+    font-size: 10px;
+    padding: 0 5px;
   }
 
   .promo-feature strong {

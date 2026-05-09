@@ -1312,7 +1312,7 @@ router.get("/:id/content", optionalVerifyToken, async (req, res) => {
   }
 });
 
-router.get("/:id/episodes", async (req, res) => {
+router.get("/:id/episodes", optionalVerifyToken, async (req, res) => {
   try {
     await ensureCatalogAnalyticsSchema();
     await ensureEpisodeCommentsTable();
@@ -1336,12 +1336,61 @@ router.get("/:id/episodes", async (req, res) => {
            FROM episode_views ev
            WHERE ev.episode_id = book_episodes.id
          ) AS read_count,
+         ${
+           req.user?.id
+             ? `EXISTS (
+                 SELECT 1
+                 FROM episode_views user_ev
+                 WHERE user_ev.episode_id = book_episodes.id
+                   AND user_ev.user_id = ?
+                 LIMIT 1
+               )`
+             : "0"
+         } AS has_read,
+         ${
+           req.user?.id
+             ? `CASE
+                 WHEN is_free = 1 OR COALESCE(access_type, IF(is_free = 1 OR price <= 0, 'free', 'paid')) = 'free' THEN 1
+                 WHEN EXISTS (
+                   SELECT 1
+                   FROM books owner_book
+                   WHERE owner_book.id = book_episodes.book_id
+                     AND (owner_book.created_by = ? OR ? IN ('admin', 'superadmin'))
+                   LIMIT 1
+                 ) THEN 1
+                 WHEN COALESCE(access_type, IF(is_free = 1 OR price <= 0, 'free', 'paid')) = 'paid'
+                   AND EXISTS (
+                     SELECT 1
+                     FROM order_items oi
+                     JOIN orders o ON o.id = oi.order_id
+                     WHERE o.user_id = ?
+                       AND o.payment_status = 'paid'
+                       AND o.order_status = 'completed'
+                       AND oi.episode_id = book_episodes.id
+                     LIMIT 1
+                   ) THEN 1
+                 WHEN COALESCE(access_type, IF(is_free = 1 OR price <= 0, 'free', 'paid')) = 'subscription'
+                   AND EXISTS (
+                     SELECT 1
+                     FROM user_subscriptions us
+                     WHERE us.user_id = ?
+                       AND us.status = 'active'
+                       AND us.payment_status = 'paid'
+                       AND us.end_at > NOW()
+                     LIMIT 1
+                   ) THEN 1
+                 ELSE 0
+               END`
+             : "IF(is_free = 1 OR COALESCE(access_type, IF(is_free = 1 OR price <= 0, 'free', 'paid')) = 'free', 1, 0)"
+         } AS can_read,
          created_at,
          updated_at
        FROM book_episodes
        WHERE book_id = ? AND is_published = 1
        ORDER BY episode_number ASC, id ASC`,
-      [req.params.id],
+      req.user?.id
+        ? [req.user.id, req.user.id, req.user.role, req.user.id, req.user.id, req.params.id]
+        : [req.params.id],
     );
 
     return res.json(rows);

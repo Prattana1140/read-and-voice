@@ -93,6 +93,22 @@ const goToApprovals = () => {
   router.push({ name: "AdminApprovals" });
 };
 
+const goToCoinTopups = () => {
+  router.push({ name: "AdminPayments" });
+};
+
+const goToCoinTopupApprovals = () => {
+  router.push({ name: "AdminCoinTopups" });
+};
+
+const goToOrderPaymentApprovals = () => {
+  router.push({ name: "AdminOrderPayments" });
+};
+
+const goToSubscriptionPaymentApprovals = () => {
+  router.push({ name: "AdminSubscriptionPayments" });
+};
+
 const deleteBook = async (id: number, title: string) => {
   const confirmed = window.confirm(`ต้องการลบหนังสือ "${title}" ใช่หรือไม่?`);
   if (!confirmed) return;
@@ -142,6 +158,18 @@ onMounted(() => {
 
           <button class="top-btn secondary" @click="goToApprovals">
             อนุมัติหนังสือ
+          </button>
+          <button class="top-btn secondary" @click="goToCoinTopups">
+            อนุมัติชำระเงิน
+          </button>
+          <button class="top-btn secondary" @click="goToCoinTopupApprovals">
+            อนุมัติเติมเหรียญ
+          </button>
+          <button class="top-btn secondary" @click="goToOrderPaymentApprovals">
+            อนุมัติคำสั่งซื้อ
+          </button>
+          <button class="top-btn secondary" @click="goToSubscriptionPaymentApprovals">
+            อนุมัติสมาชิก
           </button>
           <button class="top-btn primary" @click="goToUpload">
             + เพิ่มหนังสือใหม่

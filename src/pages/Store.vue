@@ -1,68 +1,9 @@
-<template>
-  <div class="store-page">
-    <div class="store-header">
-      <div>
-        <h1>ร้านหนังสือ</h1>
-        <p>
-          เลือกหนังสือที่ชอบ เพิ่มเข้าชั้นหนังสือ เพิ่ม Wishlist หรือใส่ตะกร้าได้ทันที
-        </p>
-      </div>
-
-      <div class="header-actions">
-        <button class="top-btn" @click="goToWishlist">Wishlist</button>
-        <button class="top-btn" @click="goToCart">ตะกร้า</button>
-        <button class="top-btn primary" @click="goToMyLibrary">
-          ชั้นหนังสือของฉัน
-        </button>
-      </div>
-    </div>
-
-    <input
-      v-model="search"
-      type="text"
-      placeholder="ค้นหาชื่อหนังสือหรือผู้เขียน"
-      class="search-box"
-      aria-label="ค้นหาหนังสือหรือผู้เขียน"
-    />
-
-    <p class="sr-status" aria-live="polite">{{ statusMessage }}</p>
-
-    <div v-if="filteredBooks.length === 0" class="empty-state">
-      ยังไม่มีหนังสือแสดงผล
-    </div>
-
-    <div v-else class="book-grid">
-      <article v-for="book in filteredBooks" :key="book.id" class="book-card">
-        <div class="book-clickable" tabindex="0" role="button" :aria-label="`เปิดรายละเอียดหนังสือ ${book.title}`" @click="goToBook(book.id)" @keydown.enter.prevent="goToBook(book.id)" @keydown.space.prevent="goToBook(book.id)">
-          <img
-            :src="getBookCover(book)"
-            :alt="book.title"
-            @error="handleImgError"
-          />
-          <h3>{{ book.title }}</h3>
-          <p>{{ book.author }}</p>
-          <small v-if="book.category_name">{{ book.category_name }}</small>
-        </div>
-
-        <div class="card-actions">
-          <button class="mini-btn" @click="addToWishlist(book)">
-            เพิ่ม Wishlist
-          </button>
-          <button class="mini-btn primary" @click="addToCart(book.id)">
-            ใส่ตะกร้า
-          </button>
-        </div>
-      </article>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import api, { API_BASE_URL, resolveAssetUrl } from "../utils/api";
-import { ref, onMounted, computed, watch } from "vue";
-import axios from "axios";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import api, { API_BASE_URL, resolveAssetUrl } from "../utils/api";
 import { announceAccessibilityMessage } from "../utils/accessibility";
+import { filterBooks, uniqueBookCategories } from "../utils/bookSearch";
 
 type Book = {
   id: number;
@@ -72,85 +13,119 @@ type Book = {
   cover_image?: string;
   category_name?: string;
   price?: number;
+  coin_price?: number;
   access_type?: string;
+  content_type?: string;
+  description?: string;
 };
 
 const router = useRouter();
 const route = useRoute();
 
 const books = ref<Book[]>([]);
+const loading = ref(true);
 const search = ref(String(route.query.q || ""));
+const contentFilter = ref(String(route.query.type || "all"));
+const accessFilter = ref(String(route.query.access || "all"));
+const categoryFilter = ref(String(route.query.category || "all"));
 const statusMessage = ref("");
 
-const notifyStoreStatus = (message: string) => {
+const filteredBooks = computed(() => {
+  return filterBooks(books.value, search.value, {
+    contentType: contentFilter.value,
+    accessType: accessFilter.value,
+    category: categoryFilter.value,
+  }) as Book[];
+});
+
+const categoryOptions = computed(() => uniqueBookCategories(books.value));
+const suggestedBooks = computed(() => filteredBooks.value.slice(0, 8));
+
+function notifyStoreStatus(message: string) {
   statusMessage.value = message;
   announceAccessibilityMessage(message);
-};
+}
 
-const alert = (message?: string) => {
-  if (message) notifyStoreStatus(String(message));
-};
+function getBookCover(book: Book) {
+  return resolveAssetUrl(book.cover_url || book.cover_image);
+}
 
-const getBookCover = (book: Book) =>
-  resolveAssetUrl(book.cover_url || book.cover_image);
+function getAccessLabel(book: Book) {
+  if (book.access_type === "subscription") return "แพ็กเกจ";
+  const price = Number(book.coin_price ?? book.price ?? 0);
+  return price > 0 ? `${price} เหรียญ` : "อ่านฟรี";
+}
 
-const handleImgError = (event: Event) => {
+function getTypeLabel(book: Book) {
+  return book.content_type === "serial" ? "รายตอน" : "อีบุ๊ก";
+}
+
+function handleImgError(event: Event) {
   const target = event.target as HTMLImageElement;
   if (target.src.endsWith("/no-cover.png")) return;
   target.src = "/no-cover.png";
-};
+}
 
-const addToWishlist = async (book: Book) => {
-  const token = localStorage.getItem("token");
-
-  if (!token) {
-    alert("กรุณาเข้าสู่ระบบก่อนเพิ่มรายการที่อยากอ่าน");
+async function addToWishlist(book: Book) {
+  if (!localStorage.getItem("token")) {
+    notifyStoreStatus("กรุณาเข้าสู่ระบบก่อนเพิ่มรายการที่อยากอ่าน");
     router.push({ name: "Login" });
     return;
   }
 
   try {
     const { data } = await api.post("/wishlist", { book_id: book.id });
-    alert(data?.message || "เพิ่มเข้ารายการที่อยากอ่านสำเร็จ");
+    notifyStoreStatus(data?.message || "เพิ่มเข้ารายการที่อยากอ่านสำเร็จ");
   } catch (error: any) {
-    alert(error?.response?.data?.message || "เพิ่มเข้ารายการที่อยากอ่านไม่สำเร็จ");
+    notifyStoreStatus(error?.response?.data?.message || "เพิ่มเข้ารายการที่อยากอ่านไม่สำเร็จ");
   }
-};
+}
 
-const addToCart = async (bookId: number) => {
-  const token = localStorage.getItem("token");
-
-  if (!token) {
-    alert("กรุณาเข้าสู่ระบบก่อน");
+async function addToCart(book: Book) {
+  if (!localStorage.getItem("token")) {
+    notifyStoreStatus("กรุณาเข้าสู่ระบบก่อน");
     router.push({ name: "Login" });
     return;
   }
 
   try {
-    await axios.post(
-      `${API_BASE_URL}/api/cart`,
-      { book_id: bookId },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
-
-    alert("เพิ่มลงตะกร้าแล้ว");
-  } catch (err: any) {
-    alert(err?.response?.data?.message || "เพิ่มไม่สำเร็จ");
+    await api.post("/cart", { book_id: book.id });
+    notifyStoreStatus("เพิ่มลงตะกร้าแล้ว");
+  } catch (error: any) {
+    notifyStoreStatus(error?.response?.data?.message || "เพิ่มลงตะกร้าไม่สำเร็จ");
   }
-};
+}
 
-onMounted(async () => {
+async function loadBooks() {
+  loading.value = true;
+
   try {
-    const { data } = await api.get("/ebooks");
-    books.value = Array.isArray(data?.books) ? data.books : [];
+    const { data } = await api.get("/books");
+    books.value = Array.isArray(data) ? data : Array.isArray(data?.books) ? data.books : [];
   } catch (error) {
-    console.error("โหลดหนังสือไม่สำเร็จ", error);
+    console.error("load store books error:", error);
+    notifyStoreStatus("โหลดหนังสือไม่สำเร็จ");
+  } finally {
+    loading.value = false;
   }
-});
+}
+
+function goToBook(id: number) {
+  notifyStoreStatus("เปิดรายละเอียดหนังสือ");
+  router.push({ name: "BookDetail", params: { id } });
+}
+
+function goToMyLibrary() {
+  router.push({ name: "MyLibrary" });
+}
+
+function goToWishlist() {
+  router.push({ name: "WishList" });
+}
+
+function goToCart() {
+  router.push({ name: "Cart" });
+}
 
 watch(
   () => route.query.q,
@@ -159,76 +134,154 @@ watch(
   },
 );
 
-const filteredBooks = computed(() => {
-  if (!search.value.trim()) return books.value;
-
-  return books.value.filter((book) => {
-    const title = book.title?.toLowerCase() || "";
-    const author = book.author?.toLowerCase() || "";
-    const keyword = search.value.toLowerCase();
-
-    return title.includes(keyword) || author.includes(keyword);
-  });
-});
-
-const goToBook = (id: number) => {
-  notifyStoreStatus("เปิดรายละเอียดหนังสือ");
-  router.push({ name: "BookDetail", params: { id } });
-};
-
-const goToMyLibrary = () => {
-  router.push({ name: "MyLibrary" });
-};
-
-const goToWishlist = () => {
-  router.push({ name: "WishList" });
-};
-
-const goToCart = () => {
-  router.push({ name: "Cart" });
-};
+onMounted(loadBooks);
 </script>
+
+<template>
+  <main class="store-page">
+    <header class="store-header">
+      <div>
+        <h1>ร้านหนังสือ</h1>
+        <p>
+          เลือกหนังสือที่ชอบ เพิ่มเข้าชั้นหนังสือ รายการที่อยากอ่าน หรือตะกร้าได้ทันที
+        </p>
+      </div>
+
+      <div class="header-actions">
+        <button class="top-btn" type="button" @click="goToWishlist">Wishlist</button>
+        <button class="top-btn" type="button" @click="goToCart">ตะกร้า</button>
+        <button class="top-btn primary" type="button" @click="goToMyLibrary">
+          ชั้นหนังสือของฉัน
+        </button>
+      </div>
+    </header>
+
+    <section class="search-panel" aria-label="ค้นหาและกรองหนังสือ">
+      <input
+        v-model="search"
+        type="search"
+        placeholder="ค้นหาชื่อหนังสือ ผู้เขียน หรือหมวดหมู่"
+        class="search-box"
+        aria-label="ค้นหาหนังสือ"
+      />
+
+      <div class="filter-row">
+        <select v-model="contentFilter" aria-label="กรองตามรูปแบบหนังสือ">
+          <option value="all">ทุกรูปแบบ</option>
+          <option value="ebook">อีบุ๊ก</option>
+          <option value="serial">รายตอน</option>
+        </select>
+        <select v-model="accessFilter" aria-label="กรองตามสิทธิ์อ่าน">
+          <option value="all">ทุกสิทธิ์อ่าน</option>
+          <option value="free">อ่านฟรี</option>
+          <option value="paid">ใช้เหรียญ</option>
+          <option value="subscription">แพ็กเกจ</option>
+        </select>
+        <select v-model="categoryFilter" aria-label="กรองตามหมวดหมู่">
+          <option value="all">ทุกหมวดหมู่</option>
+          <option v-for="category in categoryOptions" :key="category" :value="category">
+            {{ category }}
+          </option>
+        </select>
+      </div>
+
+      <div v-if="search.trim()" class="suggestion-row" aria-label="หนังสือที่เกี่ยวข้อง">
+        <button
+          v-for="book in suggestedBooks"
+          :key="book.id"
+          type="button"
+          @click="goToBook(book.id)"
+        >
+          {{ book.title }}
+        </button>
+      </div>
+    </section>
+
+    <p class="sr-status" aria-live="polite">{{ statusMessage }}</p>
+
+    <section v-if="loading" class="empty-state">กำลังโหลดหนังสือ...</section>
+    <section v-else-if="filteredBooks.length === 0" class="empty-state">
+      ไม่พบหนังสือที่ตรงกับการค้นหา
+    </section>
+
+    <section v-else class="book-grid" aria-label="รายการหนังสือ">
+      <article v-for="book in filteredBooks" :key="book.id" class="book-card">
+        <div
+          class="book-clickable"
+          tabindex="0"
+          role="button"
+          :aria-label="`เปิดรายละเอียดหนังสือ ${book.title}`"
+          @click="goToBook(book.id)"
+          @keydown.enter.prevent="goToBook(book.id)"
+          @keydown.space.prevent="goToBook(book.id)"
+        >
+          <img :src="getBookCover(book)" :alt="book.title" @error="handleImgError" />
+          <div class="meta-row">
+            <span>{{ getTypeLabel(book) }}</span>
+            <span>{{ getAccessLabel(book) }}</span>
+          </div>
+          <h2>{{ book.title }}</h2>
+          <p>{{ book.author || "ไม่ระบุผู้เขียน" }}</p>
+          <small v-if="book.category_name">{{ book.category_name }}</small>
+        </div>
+
+        <div class="card-actions">
+          <button class="mini-btn" type="button" @click="addToWishlist(book)">
+            Wishlist
+          </button>
+          <button class="mini-btn primary" type="button" @click="addToCart(book)">
+            ใส่ตะกร้า
+          </button>
+        </div>
+      </article>
+    </section>
+  </main>
+</template>
 
 <style scoped>
 .store-page {
+  background: var(--bg);
+  margin: 0 auto;
   max-width: var(--content-width);
   min-height: 100%;
-  margin: 0 auto;
   padding: var(--page-block, 28px) var(--page-gutter, 20px) 44px;
-  background: var(--bg);
 }
 
 .store-header {
-  display: flex;
-  justify-content: space-between;
   align-items: flex-start;
+  display: flex;
   gap: 16px;
+  justify-content: space-between;
   margin-bottom: 24px;
 }
 
 .store-header h1 {
-  margin: 0 0 8px;
   color: var(--text-strong);
   font-size: 36px;
+  margin: 0 0 8px;
 }
 
 .store-header p {
-  margin: 0;
   color: var(--text-muted);
   line-height: 1.7;
+  margin: 0;
 }
 
-.header-actions {
+.header-actions,
+.filter-row,
+.suggestion-row,
+.card-actions,
+.meta-row {
   display: flex;
-  gap: 10px;
   flex-wrap: wrap;
+  gap: 10px;
 }
 
 .top-btn,
 .mini-btn {
+  background: var(--surface-soft);
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--surface-soft);
   color: var(--text-strong);
   cursor: pointer;
   font-weight: 800;
@@ -240,27 +293,60 @@ const goToCart = () => {
 
 .top-btn.primary,
 .mini-btn.primary {
-  border-color: var(--primary);
   background: var(--primary);
+  border-color: var(--primary);
   color: var(--on-primary);
 }
 
-.search-box {
-  width: 100%;
-  max-width: 420px;
+.search-panel {
+  display: grid;
+  gap: 12px;
   margin-bottom: 24px;
-  padding: 12px 16px;
+}
+
+.search-box {
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--surface);
   color: var(--text-strong);
   font-size: 16px;
+  max-width: 520px;
   outline: none;
+  padding: 12px 16px;
+  width: 100%;
 }
 
 .search-box:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.filter-row select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-strong);
+  font-weight: 800;
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.suggestion-row button {
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--primary) 34%, var(--border));
+  border-radius: 999px;
+  color: var(--primary-strong);
+  cursor: pointer;
+  font-weight: 900;
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.sr-status {
+  color: var(--primary-strong);
+  font-weight: 700;
+  margin: -10px 0 16px;
+  min-height: 24px;
 }
 
 .empty-state,
@@ -270,24 +356,17 @@ const goToCart = () => {
   box-shadow: var(--shadow);
 }
 
-.sr-status {
-  min-height: 24px;
-  margin: -10px 0 16px;
-  color: var(--primary-strong);
-  font-weight: 700;
-}
-
 .empty-state {
-  padding: 24px;
   border-radius: 8px;
   color: var(--text-muted);
+  padding: 24px;
   text-align: center;
 }
 
 .book-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
-  gap: 20px;
+  gap: 28px;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
 }
 
 .book-card {
@@ -295,6 +374,7 @@ const goToCart = () => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-width: 0;
   padding: 14px;
 }
 
@@ -306,48 +386,78 @@ const goToCart = () => {
 }
 
 .book-card img {
-  width: 100%;
-  height: 280px;
-  object-fit: cover;
+  aspect-ratio: 3 / 4;
+  background: var(--surface-soft);
   border-radius: 8px;
   margin-bottom: 12px;
-  background: var(--surface-soft);
+  object-fit: cover;
+  width: 100%;
 }
 
-.book-card h3 {
-  margin: 0 0 8px;
+.meta-row {
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.meta-row span {
+  background: var(--surface-soft);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 900;
+  padding: 5px 9px;
+}
+
+.book-card h2 {
+  display: -webkit-box;
   color: var(--text-strong);
   font-size: 18px;
+  line-height: 1.45;
+  margin: 0 0 8px;
   min-height: 52px;
+  overflow: hidden;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .book-card p {
-  margin: 0 0 4px;
+  display: -webkit-box;
   color: var(--text);
+  line-height: 1.45;
+  margin: 0 0 4px;
   min-height: 24px;
+  overflow: hidden;
+  line-clamp: 1;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
 }
 
 .book-card small {
   color: var(--text-muted);
   min-height: 20px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .card-actions {
-  display: flex;
-  gap: 8px;
+  flex-wrap: nowrap;
   margin-top: auto;
   padding-top: 14px;
-  flex-wrap: nowrap;
 }
 
 .mini-btn {
-  flex: 1;
-  min-height: 56px;
-  display: inline-flex;
   align-items: center;
+  display: inline-flex;
+  flex: 1;
   justify-content: center;
-  text-align: center;
+  min-height: 48px;
   padding: 10px 12px;
+  text-align: center;
 }
 
 @media (max-width: 768px) {
@@ -361,25 +471,21 @@ const goToCart = () => {
 
   .header-actions,
   .top-btn,
-  .search-box {
+  .search-box,
+  .filter-row select {
     width: 100%;
   }
 
   .book-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   }
 
   .book-card {
     padding: 10px;
   }
 
-  .book-card img {
-    height: auto;
-    aspect-ratio: 3 / 4;
-  }
-
-  .book-card h3 {
+  .book-card h2 {
     font-size: 15px;
     min-height: 42px;
   }
