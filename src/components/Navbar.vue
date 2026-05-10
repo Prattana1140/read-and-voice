@@ -2205,15 +2205,10 @@ watch(isCompactNav, (compact) => {
     display: none;
   }
   .left-cluster > .accessibility-link {
-    display: inline-flex;
-    width: auto;
-    height: 32px;
-    min-height: 32px;
-    padding: 0 11px;
-    font-size: 11px;
+    display: none;
   }
   .mobile-accessibility-button {
-    display: none;
+    display: inline-grid;
   }
   .top-actions {
     flex: 0 0 auto;
@@ -2304,11 +2299,7 @@ watch(isCompactNav, (compact) => {
   }
 
   .left-cluster > .accessibility-link {
-    width: auto;
-    height: 30px;
-    min-height: 30px;
-    padding: 0 9px;
-    font-size: 10px;
+    display: none;
   }
 
   .top-actions {
@@ -2338,9 +2329,9 @@ watch(isCompactNav, (compact) => {
   }
 
   .brand {
-    flex: 0 0 92px;
-    width: 92px;
-    min-width: 92px;
+    flex: 0 1 clamp(76px, 24vw, 92px);
+    width: clamp(76px, 24vw, 92px);
+    min-width: 76px;
     height: 44px;
   }
 
@@ -2374,17 +2365,13 @@ watch(isCompactNav, (compact) => {
   }
 
   .left-cluster > .accessibility-link {
-    width: auto;
-    height: 28px;
-    min-height: 28px;
-    padding: 0 7px;
-    font-size: 9px;
+    display: none;
   }
 
   .brand {
-    flex-basis: 82px;
-    width: 82px;
-    min-width: 82px;
+    flex-basis: 74px;
+    width: 74px;
+    min-width: 74px;
   }
 
   .top-actions > .icon-button,
