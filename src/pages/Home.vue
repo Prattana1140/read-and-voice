@@ -252,7 +252,7 @@
 import api, { resolveAssetUrl } from "../utils/api";
 import { computed, ref, onMounted, onUnmounted, watch } from "vue";
 import { useRouter } from "vue-router";
-import { getUser } from "../utils/auth";
+import { getUser, isAuthenticated } from "../utils/auth";
 
 type Book = {
   id: number;
@@ -478,9 +478,11 @@ const addFreeBookToLibrary = async (book: Book) => {
   if (addingFreeBookId.value === book.id) return;
 
   const user = getUser();
-  if (!user) {
+  if (!user && !isAuthenticated()) {
+    router.push({ name: "Login", query: { redirect: router.currentRoute.value.fullPath } });
+    return;
     window.alert("กรุณาเข้าสู่ระบบก่อนเพิ่มหนังสือเข้าคลัง");
-    router.push({ name: "Login" });
+    router.push({ name: "Login", query: { redirect: router.currentRoute.value.fullPath } });
     return;
   }
 

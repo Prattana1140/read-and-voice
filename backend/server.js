@@ -62,6 +62,7 @@ app.get("/uploads/book-covers/:filename", async (req, res, next) => {
 
   const coverPath = path.join(__dirname, "uploads", "book-covers", filename);
   if (require("fs").existsSync(coverPath)) {
+    res.set("Cache-Control", "public, max-age=31536000, immutable");
     return res.sendFile(coverPath);
   }
 
@@ -90,13 +91,20 @@ app.get("/uploads/book-covers/:filename", async (req, res, next) => {
     });
 
     if (path.basename(generatedPath) !== filename) return next();
+    res.set("Cache-Control", "public, max-age=31536000, immutable");
     return res.sendFile(coverPath);
   } catch (error) {
     return next(error);
   }
 });
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "uploads"), {
+    immutable: true,
+    maxAge: "1y",
+  }),
+);
 
 app.get("/", (_req, res) => {
   return res.status(200).json({
