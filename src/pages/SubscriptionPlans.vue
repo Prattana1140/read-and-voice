@@ -2,13 +2,14 @@
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import api, { API_BASE_URL } from "../utils/api";
+import { getToken } from "../utils/auth";
 
 type Plan = {
   id: number;
   name: string;
-  description: string;
-  price: number;
-  duration_days: number;
+  description?: string | null;
+  price: number | string;
+  duration_days: number | string;
 };
 
 type CurrentPlan = {
@@ -17,7 +18,8 @@ type CurrentPlan = {
     plan_name?: string;
     name?: string;
     end_at?: string;
-  };
+    duration_days?: number | string;
+  } | null;
 };
 
 type PageContent = {
@@ -27,47 +29,42 @@ type PageContent = {
   };
 };
 
+type Wallet = {
+  balance?: number | string;
+};
+
 const router = useRouter();
 const plans = ref<Plan[]>([]);
 const currentPlan = ref<CurrentPlan | null>(null);
 const pageContent = ref<PageContent | null>(null);
+const walletBalance = ref<number | null>(null);
 const message = ref("");
 const errorMessage = ref("");
 const loading = ref(true);
+const walletLoading = ref(false);
 const subscribingId = ref<number | null>(null);
 
+const isLoggedIn = computed(() => !!getToken());
+
 const sortedPlans = computed(() => {
-  return [...plans.value].sort((a, b) => a.duration_days - b.duration_days);
+  return [...plans.value].sort((a, b) => getPlanDays(a) - getPlanDays(b));
+});
+
+const featuredPlanId = computed(() => {
+  const quarterly = sortedPlans.value.find((plan) => getPlanDays(plan) >= 90);
+  return quarterly?.id || sortedPlans.value[Math.min(1, sortedPlans.value.length - 1)]?.id;
 });
 
 const activePlanText = computed(() => {
   if (!currentPlan.value?.isActive) return "";
-  const endAt = currentPlan.value.subscription?.end_at
-    ? new Date(currentPlan.value.subscription.end_at).toLocaleDateString("th-TH")
-    : "";
+  const sub = currentPlan.value.subscription;
+  const planName = sub?.plan_name || sub?.name || "แพ็กเกจสมาชิก";
+  const endAt = sub?.end_at ? new Date(sub.end_at).toLocaleDateString("th-TH") : "";
 
   return endAt
-    ? `แพ็กเกจสมาชิกของคุณใช้งานได้ถึงวันที่ ${endAt}`
-    : "แพ็กเกจสมาชิกของคุณกำลังใช้งานอยู่";
+    ? `${planName} ของคุณใช้งานได้ถึง ${endAt}`
+    : `${planName} ของคุณกำลังใช้งานอยู่`;
 });
-
-function getPlanTitle(plan: Plan) {
-  if (plan.duration_days >= 365) return "แพ็กเกจสมาชิก 365 วัน";
-  if (plan.duration_days >= 90) return "แพ็กเกจสมาชิก 90 วัน";
-  if (plan.duration_days >= 30) return "แพ็กเกจสมาชิก 30 วัน";
-  return `แพ็กเกจสมาชิก ${plan.duration_days} วัน`;
-}
-
-function getDiscount(plan: Plan) {
-  if (plan.duration_days >= 365) return 7;
-  if (plan.duration_days >= 90) return 6;
-  return 5;
-}
-
-function getOldPrice(plan: Plan) {
-  const discount = getDiscount(plan);
-  return Math.ceil(Number(plan.price || 0) / (1 - discount / 100));
-}
 
 const resolveImageUrl = (url: string) => {
   if (!url) return "";
@@ -78,6 +75,95 @@ const resolveImageUrl = (url: string) => {
 const heroImageUrl = computed(() => {
   return resolveImageUrl(pageContent.value?.subscriptionHero?.image_url || "");
 });
+
+const walletText = computed(() => {
+  if (!isLoggedIn.value) return "เข้าสู่ระบบเพื่อดูยอดคอยน์";
+  if (walletLoading.value) return "กำลังโหลดยอดคอยน์...";
+  if (walletBalance.value === null) return "ยังไม่พบยอดคอยน์";
+  return `${formatCoins(walletBalance.value)} คอยน์`;
+});
+
+function getPlanDays(plan: Plan) {
+  return Number(plan.duration_days || 0);
+}
+
+function getPlanPrice(plan: Plan) {
+  return Number(plan.price || 0);
+}
+
+function formatCoins(value: number | string) {
+  const amount = Number(value || 0);
+  return amount.toLocaleString("th-TH", { maximumFractionDigits: 0 });
+}
+
+function getPlanTitle(plan: Plan) {
+  const days = getPlanDays(plan);
+  if (days >= 365) return "รายปี";
+  if (days >= 90) return "รายไตรมาส";
+  if (days >= 30) return "รายเดือน";
+  return `${days} วัน`;
+}
+
+function getPlanSubtitle(plan: Plan) {
+  const days = getPlanDays(plan);
+  if (days >= 365) return "เหมาะกับนักอ่านประจำ คุ้มที่สุด";
+  if (days >= 90) return "ต่อเนื่องยาวขึ้น จ่ายน้อยลง";
+  if (days >= 30) return "เริ่มต้นอ่านแบบสมาชิก";
+  return "ทดลองใช้สิทธิ์สมาชิก";
+}
+
+function getDailyPrice(plan: Plan) {
+  const days = Math.max(getPlanDays(plan), 1);
+  const price = getPlanPrice(plan);
+  return price / days;
+}
+
+function getDiscount(plan: Plan) {
+  const dailyPrice = getDailyPrice(plan);
+  const base = sortedPlans.value[0] ? getDailyPrice(sortedPlans.value[0]) : dailyPrice;
+  if (!base || dailyPrice >= base) return 0;
+  return Math.round((1 - dailyPrice / base) * 100);
+}
+
+function getPlanBenefits(plan: Plan) {
+  const days = getPlanDays(plan);
+  const benefits = [
+    `ใช้สิทธิ์สมาชิกได้ ${days.toLocaleString("th-TH")} วัน`,
+    "อ่านหนังสือ/ตอนที่กำหนดเป็นสมาชิกได้ทันที",
+    "ชำระด้วยคอยน์จากกระเป๋า Read and Voice",
+  ];
+
+  if (days >= 90) {
+    benefits.push("เหมาะกับการอ่านต่อเนื่องและลดต้นทุนต่อวัน");
+  }
+
+  if (days >= 365) {
+    benefits.push("ดีที่สุดสำหรับผู้อ่านประจำทั้งปี");
+  }
+
+  return benefits;
+}
+
+function canAfford(plan: Plan) {
+  return walletBalance.value !== null && walletBalance.value >= Math.ceil(getPlanPrice(plan));
+}
+
+async function loadWallet() {
+  if (!isLoggedIn.value) {
+    walletBalance.value = null;
+    return;
+  }
+
+  walletLoading.value = true;
+  try {
+    const { data } = await api.get<Wallet>("/coins/wallet");
+    walletBalance.value = Number(data?.balance || 0);
+  } catch {
+    walletBalance.value = null;
+  } finally {
+    walletLoading.value = false;
+  }
+}
 
 async function loadPlans() {
   loading.value = true;
@@ -96,103 +182,151 @@ async function loadPlans() {
     } else {
       plans.value = [];
       errorMessage.value =
-        plansRes.reason?.response?.data?.message ||
-        "โหลดแพ็กเกจรายเดือนไม่สำเร็จ";
+        plansRes.reason?.response?.data?.message || "โหลดแพ็กเกจสมาชิกไม่สำเร็จ";
     }
 
     currentPlan.value = meRes.status === "fulfilled" ? meRes.value.data || null : null;
     pageContent.value =
       pageContentRes.status === "fulfilled" ? pageContentRes.value.data || null : null;
   } catch (error: any) {
-    errorMessage.value =
-      error?.response?.data?.message || "โหลดแพ็กเกจไม่สำเร็จ";
+    errorMessage.value = error?.response?.data?.message || "โหลดแพ็กเกจไม่สำเร็จ";
   } finally {
     loading.value = false;
   }
 }
 
-async function subscribe(planId: number) {
+async function subscribe(plan: Plan) {
   message.value = "";
   errorMessage.value = "";
-  subscribingId.value = planId;
+
+  if (!isLoggedIn.value) {
+    router.push({ name: "Login" });
+    return;
+  }
+
+  const price = Math.ceil(getPlanPrice(plan));
+  const confirmed = window.confirm(
+    `ยืนยันสมัคร ${getPlanTitle(plan)} โดยชำระ ${formatCoins(price)} คอยน์ใช่ไหม?`,
+  );
+  if (!confirmed) return;
+
+  subscribingId.value = plan.id;
 
   try {
-    const { data } = await api.post("/subscriptions/checkout", { planId });
-    message.value = data?.message || "สมัครแพ็กเกจสำเร็จ";
-    await loadPlans();
+    const { data } = await api.post("/subscriptions/checkout", { planId: plan.id });
+    walletBalance.value = Number(data?.balance ?? walletBalance.value ?? 0);
+    message.value =
+      data?.message ||
+      `สมัคร ${getPlanTitle(plan)} สำเร็จ หัก ${formatCoins(price)} คอยน์แล้ว`;
+    window.alert(`สมัคร ${getPlanTitle(plan)} สำเร็จ หัก ${formatCoins(price)} เหรียญแล้ว`);
+    await Promise.all([loadPlans(), loadWallet()]);
   } catch (error: any) {
     if (error?.response?.status === 402) {
-      errorMessage.value = "คอยน์ไม่พอ กรุณาเติมคอยน์ก่อนสมัครแพ็กเกจ";
-      router.push({ name: "CoinWallet" });
+      const balance = Number(error?.response?.data?.balance ?? walletBalance.value ?? 0);
+      window.alert(`เหรียญไม่พอ ตอนนี้มี ${formatCoins(balance)} เหรียญ ต้องใช้ ${formatCoins(price)} เหรียญ`);
+      walletBalance.value = balance;
+      errorMessage.value = `คอยน์ไม่พอ ตอนนี้มี ${formatCoins(balance)} คอยน์ ต้องใช้ ${formatCoins(price)} คอยน์`;
+      return;
+    }
+
+    if (error?.response?.status === 401) {
+      router.push({ name: "Login" });
       return;
     }
 
     errorMessage.value =
-      error?.response?.data?.message || "สมัครแพ็กเกจไม่สำเร็จ";
+      error?.response?.data?.message || "สมัครแพ็กเกจไม่สำเร็จ กรุณาลองอีกครั้ง";
+    window.alert(errorMessage.value || "สมัครแพ็กเกจไม่สำเร็จ กรุณาลองอีกครั้ง");
   } finally {
     subscribingId.value = null;
   }
 }
 
-onMounted(loadPlans);
+function goTopUp() {
+  router.push({ name: "CoinWallet" });
+}
+
+function handlePlanAction(plan: Plan) {
+  if (isLoggedIn.value && walletBalance.value !== null && !canAfford(plan)) {
+    const price = Math.ceil(getPlanPrice(plan));
+    window.alert(
+      `เหรียญไม่พอ ตอนนี้มี ${formatCoins(walletBalance.value)} เหรียญ ต้องใช้ ${formatCoins(price)} เหรียญ`,
+    );
+    return;
+  }
+
+  subscribe(plan);
+}
+
+onMounted(async () => {
+  await Promise.all([loadPlans(), loadWallet()]);
+});
 </script>
 
 <template>
   <main class="vip-page">
     <nav class="crumb" aria-label="breadcrumb">
       <router-link to="/">หน้าแรก</router-link>
-      <span>›</span>
+      <span>/</span>
       <strong>สมาชิกพิเศษ Pinto</strong>
     </nav>
 
-    <section class="vip-hero" :class="{ 'has-admin-image': heroImageUrl }">
-      <img
-        v-if="heroImageUrl"
-        class="admin-hero-image"
-        :src="heroImageUrl"
-        alt="สมาชิกพิเศษ Pinto"
-      />
+    <section class="vip-hero">
       <div class="hero-copy">
-        <p>สมาชิกพิเศษ Pinto</p>
-        <h1>สมัครไว้ซื้ออีบุ๊กได้คุ้มกว่าใคร</h1>
-        <span>รับสิทธิพิเศษทุกเดือน ใช้คอยน์สมัคร แล้วเริ่มอ่านได้ทันที</span>
+        <p class="eyebrow">Pinto VIP</p>
+        <h1>สมัครสมาชิกพิเศษ อ่านได้คุ้มกว่าเดิม</h1>
+        <span>
+          เลือกแพ็กเกจที่เหมาะกับจังหวะการอ่านของคุณ แล้วชำระด้วยคอยน์จากกระเป๋าได้ทันที
+        </span>
+        <div class="hero-actions">
+          <a href="#plans">เลือกแพ็กเกจ</a>
+          <button type="button" @click="goTopUp">เติมคอยน์</button>
+        </div>
       </div>
 
-      <div class="benefit-board" aria-label="สิทธิพิเศษ">
-        <article>
-          <small>ส่วนลด</small>
-          <strong>ลดทุกครั้ง</strong>
-          <span>ซื้ออีบุ๊กคุ้มขึ้น</span>
-        </article>
-        <article>
-          <small>โค้ดสมาชิกพิเศษ</small>
-          <strong>โค้ดพิเศษ</strong>
-          <span>รับสิทธิทุกเดือน</span>
-        </article>
-        <article>
-          <small>คืนคอยน์</small>
-          <strong>คืนกำไร</strong>
-          <span>มีโปรพิเศษตามช่วงเวลา</span>
-        </article>
+      <div class="hero-panel">
+        <img
+          v-if="heroImageUrl"
+          class="hero-image"
+          :src="heroImageUrl"
+          alt="สมาชิกพิเศษ Pinto"
+        />
+        <div v-else class="vip-token" aria-hidden="true">
+          <strong>VIP</strong>
+          <span>Pinto</span>
+        </div>
+
+        <div class="wallet-card">
+          <small>คอยน์ของคุณ</small>
+          <strong>{{ walletText }}</strong>
+          <button type="button" @click="goTopUp">เติมคอยน์</button>
+        </div>
       </div>
     </section>
 
-    <p v-if="activePlanText" class="alert success">{{ activePlanText }}</p>
+    <section class="status-strip" aria-label="สถานะสมาชิกและการชำระเงิน">
+      <article>
+        <span>สถานะสมาชิก</span>
+        <strong>{{ activePlanText || "ยังไม่มีแพ็กเกจที่ใช้งานอยู่" }}</strong>
+      </article>
+      <article>
+        <span>การชำระเงิน</span>
+        <strong>หักคอยน์จริงจากกระเป๋าเมื่อกดยืนยันสมัคร</strong>
+      </article>
+    </section>
+
     <p v-if="message" class="alert success">{{ message }}</p>
     <p v-if="errorMessage" class="alert error">{{ errorMessage }}</p>
-    <p class="alert demo">
-      โหมดเดโม: การสมัครแพ็กเกจใช้คอยน์จำลองในระบบ ยังไม่เชื่อมต่อการชำระเงินจริง
-    </p>
 
-    <section class="plans-section">
-      <header>
-        <h2>ต่ออายุอัตโนมัติ</h2>
-        <p>เลือกแพ็กเกจที่เหมาะกับการอ่านของคุณ</p>
-      </header>
+    <section id="plans" class="plans-section">
+      <div class="section-head">
+        <p>เลือกแพ็กเกจ</p>
+        <h2>จ่ายด้วยคอยน์ เริ่มใช้สิทธิ์ทันที</h2>
+      </div>
 
       <div v-if="loading" class="state-card">กำลังโหลดแพ็กเกจ...</div>
       <div v-else-if="sortedPlans.length === 0" class="state-card">
-        ยังไม่มีแพ็กเกจรายเดือนในระบบ
+        ยังไม่มีแพ็กเกจสมาชิกในระบบ
       </div>
 
       <div v-else class="plan-grid">
@@ -200,88 +334,100 @@ onMounted(loadPlans);
           v-for="plan in sortedPlans"
           :key="plan.id"
           class="plan-card"
-          :class="{ featured: plan.duration_days >= 90 }"
+          :class="{
+            featured: plan.id === featuredPlanId,
+            unaffordable: isLoggedIn && walletBalance !== null && !canAfford(plan),
+          }"
         >
-          <span class="discount">-{{ getDiscount(plan) }}%</span>
-          <h3>{{ getPlanTitle(plan) }}</h3>
-          <strong>{{ plan.price }} คอยน์</strong>
-          <del>{{ getOldPrice(plan) }} คอยน์</del>
+          <span v-if="plan.id === featuredPlanId" class="plan-ribbon">แนะนำ</span>
+          <span v-else-if="getDiscount(plan)" class="plan-ribbon quiet">
+            ประหยัด {{ getDiscount(plan) }}%
+          </span>
+
+          <div>
+            <p>{{ getPlanSubtitle(plan) }}</p>
+            <h3>{{ getPlanTitle(plan) }}</h3>
+          </div>
+
+          <div class="price-line">
+            <strong>{{ formatCoins(getPlanPrice(plan)) }}</strong>
+            <span>คอยน์</span>
+          </div>
+          <small class="daily-price">
+            เฉลี่ย {{ getDailyPrice(plan).toLocaleString("th-TH", { maximumFractionDigits: 1 }) }} คอยน์/วัน
+          </small>
+
           <ul>
-            <li>อ่านคอนเทนต์แบบแพ็กเกจสมาชิกได้ {{ plan.duration_days }} วัน</li>
-            <li>รับสิทธิส่วนลดสมาชิกพิเศษในหน้าร้าน</li>
-            <li>ใช้ร่วมกับระบบคอยน์ของ Read and Voice</li>
+            <li v-for="benefit in getPlanBenefits(plan)" :key="benefit">
+              {{ benefit }}
+            </li>
           </ul>
+
           <button
             type="button"
             :disabled="subscribingId === plan.id"
-            @click="subscribe(plan.id)"
+            @click="handlePlanAction(plan)"
           >
-            {{ subscribingId === plan.id ? "กำลังสมัคร..." : "สมัคร" }}
+            {{
+              subscribingId === plan.id
+                ? "กำลังชำระ..."
+                : isLoggedIn && walletBalance !== null && !canAfford(plan)
+                  ? "เติมคอยน์ก่อนสมัคร"
+                  : "สมัครด้วยคอยน์"
+            }}
           </button>
         </article>
       </div>
     </section>
 
-    <section class="compare-section">
-      <table>
-        <thead>
-          <tr>
-            <th>รายละเอียด</th>
-            <th>สมาชิกทั่วไป</th>
-            <th>สมาชิกพิเศษ Pinto</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>อ่านหนังสือฟรี</td>
-            <td>ได้เฉพาะเล่มฟรี</td>
-            <td>ได้เฉพาะเล่มฟรี</td>
-          </tr>
-          <tr>
-            <td>อ่านคอนเทนต์รายเดือน</td>
-            <td>×</td>
-            <td>✓ เมื่อหนังสือกำหนดเป็นแพ็กเกจสมาชิก</td>
-          </tr>
-          <tr>
-            <td>ซื้อหนังสือด้วยคอยน์</td>
-            <td>✓</td>
-            <td>✓ พร้อมสิทธิสมาชิกพิเศษตามโปรโมชัน</td>
-          </tr>
-          <tr>
-            <td>สิทธิพิเศษ</td>
-            <td>ตามโปรปกติ</td>
-            <td>โค้ดและแคมเปญสำหรับสมาชิกพิเศษ</td>
-          </tr>
-        </tbody>
-      </table>
+    <section class="benefits-section" aria-label="สิทธิ์สมาชิก">
+      <article>
+        <span>01</span>
+        <h3>อ่านเนื้อหาสมาชิก</h3>
+        <p>ปลดล็อกหนังสือหรือตอนที่ตั้งค่าสำหรับสมาชิกตามระยะเวลาแพ็กเกจ</p>
+      </article>
+      <article>
+        <span>02</span>
+        <h3>ต่ออายุแบบทบวัน</h3>
+        <p>ถ้ายังมีแพ็กเกจเดิมอยู่ ระบบจะต่อวันจากวันหมดอายุล่าสุด</p>
+      </article>
+      <article>
+        <span>03</span>
+        <h3>ตรวจสอบได้ในประวัติคอยน์</h3>
+        <p>ทุกการสมัครจะถูกบันทึกเป็นรายการใช้คอยน์ในกระเป๋าของผู้ใช้</p>
+      </article>
     </section>
 
-    <section class="details-section">
-      <h2>ข้อกำหนดและเงื่อนไขการสมัครสมาชิกพิเศษ Pinto</h2>
-      <p>
-        แพ็กเกจสมาชิกพิเศษใช้คอยน์ในการสมัคร สิทธิจะเริ่มนับทันทีหลังสมัครสำเร็จ
-        และใช้กับหนังสือหรือตอนที่ระบบกำหนดเป็นแพ็กเกจสมาชิกเท่านั้น
-      </p>
-      <ul>
-        <li>หากคอยน์ไม่พอ ระบบจะพาไปหน้าเติมคอยน์ก่อนสมัคร</li>
-        <li>เมื่อสมัครซ้ำ ระบบจะขยายวันใช้งานต่อจากแพ็กเกจเดิม</li>
-        <li>สิทธิพิเศษอาจเปลี่ยนแปลงตามช่วงโปรโมชันของระบบ</li>
-      </ul>
+    <section class="compare-section">
+      <h2>เปรียบเทียบสิทธิ์</h2>
+      <div class="compare-grid">
+        <div>
+          <strong>สมาชิกทั่วไป</strong>
+          <span>อ่านฟรีและซื้อด้วยคอยน์เป็นรายเล่ม</span>
+        </div>
+        <div>
+          <strong>สมาชิกพิเศษ Pinto</strong>
+          <span>อ่านคอนเทนต์สมาชิกตามแพ็กเกจ พร้อมซื้อรายเล่มด้วยคอยน์ได้เหมือนเดิม</span>
+        </div>
+      </div>
     </section>
 
     <section class="faq-section">
       <h2>คำถามที่พบบ่อย</h2>
       <details open>
-        <summary>อ่านแบบรายเดือนคืออะไร?</summary>
-        <p>คือการสมัครแพ็กเกจเพื่ออ่านหนังสือหรือรายตอนที่กำหนดสิทธิ์เป็นแพ็กเกจสมาชิก</p>
-      </details>
-      <details>
-        <summary>สมัครแล้วอ่านหนังสือได้ทุกเล่มไหม?</summary>
-        <p>อ่านได้เฉพาะเล่มที่ตั้งค่าเป็นแพ็กเกจสมาชิกหรือเล่มฟรี ส่วนเล่มขายแยกยังใช้คอยน์ซื้อได้ตามปกติ</p>
+        <summary>สมัครแล้วหักคอยน์จริงไหม?</summary>
+        <p>
+          หักจริงผ่าน API <code>/subscriptions/checkout</code> ระบบจะล็อกกระเป๋าคอยน์
+          ตรวจยอด หักยอด และบันทึก transaction ก่อนเปิดสิทธิ์สมาชิก
+        </p>
       </details>
       <details>
         <summary>คอยน์ไม่พอต้องทำอย่างไร?</summary>
-        <p>เติมคอยน์ที่หน้ากระเป๋าคอยน์ แล้วกลับมาสมัครแพ็กเกจอีกครั้ง</p>
+        <p>กดเติมคอยน์ ระบบจะพาไปหน้ากระเป๋าคอยน์ แล้วกลับมาสมัครแพ็กเกจอีกครั้งได้</p>
+      </details>
+      <details>
+        <summary>สมัครซ้ำจะทับแพ็กเกจเดิมไหม?</summary>
+        <p>ระบบจะนำวันคงเหลือเดิมมาเป็นฐาน แล้วต่ออายุแพ็กเกจใหม่จากวันหมดอายุล่าสุด</p>
       </details>
     </section>
   </main>
@@ -291,294 +437,367 @@ onMounted(loadPlans);
 .vip-page {
   min-height: 100vh;
   min-height: 100dvh;
-  background: var(--bg);
+  background:
+    radial-gradient(circle at 10% 10%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 28%),
+    radial-gradient(circle at 92% 4%, color-mix(in srgb, #f59e0b 14%, transparent), transparent 26%),
+    var(--bg);
   color: var(--text);
-  padding: var(--page-block, 22px) var(--page-gutter, 20px) 72px;
+  padding: var(--page-block, 28px) var(--page-gutter, 20px) 72px;
 }
 
 .crumb,
 .vip-hero,
+.status-strip,
 .plans-section,
+.benefits-section,
 .compare-section,
-.details-section,
 .faq-section,
 .alert {
-  width: min(100%, 760px);
-  margin-inline: auto;
-}
-
-.vip-hero {
   width: min(100%, 1120px);
+  margin-inline: auto;
 }
 
 .crumb {
   display: flex;
-  align-items: center;
   gap: 8px;
-  color: #6b7280;
-  font-size: 12px;
-  margin-bottom: 14px;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 16px;
 }
 
 .crumb a {
-  color: #6b7280;
+  color: var(--accent-strong);
+  font-weight: 800;
   text-decoration: none;
 }
 
 .vip-hero {
-  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 36%);
-  min-height: 315px;
-  overflow: hidden;
-  border-radius: 4px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 26px;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 8px;
   background:
-    radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.34), transparent 18%),
-    radial-gradient(circle at 82% 18%, rgba(255, 255, 255, 0.22), transparent 24%),
-    linear-gradient(105deg, #f03a57 0%, #ff775d 48%, #ffd168 100%);
-  color: #ffffff;
-  padding: 34px 32px 28px;
-}
-
-.vip-hero::after {
-  content: "VIP";
-  position: absolute;
-  right: 26px;
-  bottom: 20px;
-  width: clamp(76px, 10vw, 128px);
-  height: clamp(76px, 10vw, 128px);
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background: #ffffff;
-  color: #e11d48;
-  font-size: clamp(26px, 4vw, 50px);
-  font-weight: 900;
-  box-shadow: 0 16px 30px rgba(124, 45, 18, 0.24);
-}
-
-.vip-hero.has-admin-image {
-  display: block;
-  min-height: 0;
-  padding: 0;
-  background: #f3f4f6;
-}
-
-.vip-hero.has-admin-image .hero-copy,
-.vip-hero.has-admin-image .benefit-board {
-  display: none;
-}
-
-.vip-hero.has-admin-image::after {
-  content: none;
-}
-
-.admin-hero-image {
-  display: block;
-  width: 100%;
-  aspect-ratio: 16 / 7;
-  object-fit: cover;
+    linear-gradient(135deg, color-mix(in srgb, #f43f5e 92%, var(--surface) 8%), #ff7a59 52%, #ffc861);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  padding: clamp(26px, 5vw, 54px);
 }
 
 .hero-copy {
-  position: relative;
-  z-index: 1;
   display: grid;
   align-content: center;
-  text-align: left;
+  gap: 18px;
+  color: #fff;
 }
 
-.hero-copy p,
+.eyebrow,
 .hero-copy h1,
-.hero-copy span {
+.hero-copy span,
+.section-head p,
+.section-head h2,
+.plan-card p,
+.plan-card h3,
+.benefits-section h3,
+.benefits-section p,
+.compare-section h2,
+.faq-section h2 {
   margin: 0;
 }
 
-.hero-copy p {
-  color: #fff8d6;
-  font-size: clamp(34px, 6vw, 76px);
+.eyebrow {
+  width: fit-content;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
   font-weight: 900;
-  letter-spacing: 0;
-  line-height: 1;
-  text-shadow: 0 4px 12px rgba(116, 30, 12, 0.3);
+  padding: 6px 12px;
 }
 
 .hero-copy h1 {
-  margin-top: 12px;
-  font-size: clamp(26px, 4.5vw, 46px);
+  max-width: 660px;
+  font-size: clamp(38px, 6vw, 78px);
   font-weight: 900;
-  line-height: 1.08;
-  text-shadow: 0 3px 10px rgba(116, 30, 12, 0.24);
+  line-height: 1;
+  text-wrap: balance;
 }
 
 .hero-copy span {
-  display: block;
-  margin-top: 10px;
-  max-width: 540px;
-  font-size: 16px;
+  max-width: 620px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 18px;
   font-weight: 800;
+  line-height: 1.7;
 }
 
-.benefit-board {
-  position: relative;
-  z-index: 1;
-  align-self: center;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-  margin-top: 0;
-  padding-right: clamp(86px, 10vw, 135px);
+.hero-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.benefit-board article {
-  min-height: 78px;
-  border: 1px solid rgba(255, 255, 255, 0.7);
+.hero-actions a,
+.hero-actions button,
+.wallet-card button,
+.plan-card button {
+  min-height: 44px;
+  border: 0;
   border-radius: 8px;
-  background: linear-gradient(180deg, #fff6bc, #ffd86a);
-  color: #d72323;
+  cursor: pointer;
+  font-weight: 900;
+  padding: 0 18px;
+}
+
+.hero-actions a {
+  display: inline-flex;
+  align-items: center;
+  background: #fff;
+  color: #e11d48;
+  text-decoration: none;
+}
+
+.hero-actions button,
+.wallet-card button {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.44);
+}
+
+.hero-panel {
   display: grid;
   align-content: center;
-  gap: 3px;
-  padding: 12px 14px;
-  text-align: left;
-  box-shadow: 0 10px 18px rgba(122, 37, 8, 0.18);
+  gap: 16px;
 }
 
-.benefit-board small {
-  color: #7c2d12;
-  font-weight: 900;
+.hero-image,
+.vip-token,
+.wallet-card {
+  border-radius: 8px;
+  box-shadow: 0 20px 38px rgba(124, 45, 18, 0.18);
 }
 
-.benefit-board strong {
+.hero-image {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.vip-token {
+  display: grid;
+  place-items: center;
+  min-height: 230px;
+  background:
+    radial-gradient(circle at 30% 18%, rgba(255, 255, 255, 0.9), transparent 16%),
+    linear-gradient(145deg, #fff7d1, #ffffff);
+  color: #e11d48;
+}
+
+.vip-token strong {
+  font-size: clamp(64px, 10vw, 108px);
+  line-height: 0.9;
+}
+
+.vip-token span {
+  color: #a16207;
   font-size: 22px;
   font-weight: 900;
 }
 
-.benefit-board span {
-  color: #7c2d12;
+.wallet-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 14px;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  color: #fff;
+  padding: 18px;
+}
+
+.wallet-card small {
+  color: rgba(255, 255, 255, 0.78);
+  font-weight: 800;
+}
+
+.wallet-card strong {
+  font-size: 24px;
+}
+
+.wallet-card button {
+  grid-row: span 2;
+}
+
+.status-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.status-strip article,
+.state-card,
+.plan-card,
+.benefits-section article,
+.compare-section,
+.faq-section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.status-strip article {
+  display: grid;
+  gap: 5px;
+  padding: 16px 18px;
+}
+
+.status-strip span {
+  color: var(--text-muted);
   font-size: 13px;
   font-weight: 800;
 }
 
+.status-strip strong {
+  color: var(--text-strong);
+}
+
 .alert {
-  border-radius: 4px;
-  font-weight: 800;
-  margin-top: 16px;
+  border-radius: 8px;
+  font-weight: 900;
+  margin-top: 14px;
   padding: 12px 14px;
 }
 
 .success {
-  background: #ecfdf5;
-  color: #047857;
+  background: color-mix(in srgb, #22c55e 14%, var(--surface) 86%);
+  color: color-mix(in srgb, #15803d 82%, var(--text-strong) 18%);
 }
 
 .error {
-  background: #fef2f2;
-  color: #dc2626;
+  background: color-mix(in srgb, #ef4444 14%, var(--surface) 86%);
+  color: color-mix(in srgb, #dc2626 82%, var(--text-strong) 18%);
 }
 
-.demo {
-  background: #fffbeb;
-  color: #92400e;
+.plans-section,
+.benefits-section,
+.compare-section,
+.faq-section {
+  margin-top: 30px;
 }
 
-.plans-section {
-  margin-top: 28px;
-  text-align: center;
+.section-head {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 18px;
 }
 
-.plans-section header h2 {
-  margin: 0;
-  color: var(--text-strong);
-  font-size: 20px;
-}
-
-.plans-section header p {
-  margin: 4px 0 18px;
-  color: #6b7280;
+.section-head p {
+  color: var(--accent-strong);
   font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.section-head h2,
+.compare-section h2,
+.faq-section h2 {
+  color: var(--text-strong);
+  font-size: clamp(24px, 4vw, 36px);
+  line-height: 1.15;
 }
 
 .state-card {
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  color: #6b7280;
-  padding: 22px;
+  color: var(--text-muted);
+  padding: 28px;
+  text-align: center;
 }
 
 .plan-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .plan-card {
   position: relative;
   display: grid;
-  gap: 10px;
-  border: 1px solid #cfd8dc;
-  border-top: 3px solid #9ca3af;
-  border-radius: 4px;
-  background: var(--surface);
-  padding: 22px 14px 14px;
-  text-align: left;
+  gap: 16px;
+  align-content: start;
+  overflow: hidden;
+  padding: 24px 20px 20px;
 }
 
 .plan-card.featured {
-  border-top-color: #20b7d2;
+  border-color: color-mix(in srgb, var(--primary) 44%, var(--border));
+  transform: translateY(-6px);
 }
 
-.discount {
+.plan-card.unaffordable {
+  opacity: 0.78;
+}
+
+.plan-ribbon {
   position: absolute;
-  top: -1px;
-  right: -1px;
-  background: #ef3f45;
-  color: #ffffff;
+  top: 12px;
+  right: 12px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
   font-size: 12px;
   font-weight: 900;
-  padding: 5px 8px;
+  padding: 5px 10px;
 }
 
-.plan-card h3,
-.plan-card strong,
-.plan-card del {
-  text-align: center;
+.plan-ribbon.quiet {
+  background: color-mix(in srgb, var(--primary) 16%, var(--surface) 84%);
+  color: var(--accent-strong);
+}
+
+.plan-card p {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .plan-card h3 {
-  margin: 0;
   color: var(--text-strong);
-  font-size: 16px;
+  font-size: 24px;
 }
 
-.plan-card strong {
+.price-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
   color: var(--text-strong);
-  font-size: 22px;
 }
 
-.plan-card del {
-  color: #6b7280;
-  font-size: 13px;
+.price-line strong {
+  font-size: 36px;
+  line-height: 1;
+}
+
+.daily-price {
+  color: var(--text-muted);
+  font-weight: 800;
 }
 
 .plan-card ul {
   display: grid;
-  gap: 6px;
-  margin: 6px 0;
-  color: #374151;
-  font-size: 12px;
-  line-height: 1.5;
-  padding-left: 16px;
+  gap: 8px;
+  margin: 0;
+  color: var(--text);
+  line-height: 1.6;
+  padding-left: 18px;
 }
 
 .plan-card button {
-  min-height: 34px;
-  border: 0;
-  border-radius: 4px;
-  background: #f14747;
-  color: #ffffff;
-  cursor: pointer;
-  font-weight: 900;
+  width: 100%;
+  margin-top: auto;
+  background: var(--primary);
+  color: var(--on-primary);
 }
 
 .plan-card button:disabled {
@@ -586,123 +805,122 @@ onMounted(loadPlans);
   opacity: 0.65;
 }
 
-.compare-section {
-  margin-top: 30px;
-  overflow-x: auto;
+.benefits-section {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
+.benefits-section article {
+  padding: 20px;
+}
+
+.benefits-section span {
+  color: var(--accent-strong);
   font-size: 13px;
+  font-weight: 900;
 }
 
-th,
-td {
-  border: 1px solid #d1d5db;
-  padding: 14px;
-  vertical-align: top;
+.benefits-section h3 {
+  margin-top: 8px;
+  color: var(--text-strong);
+  font-size: 20px;
 }
 
-th {
-  background: #232329;
-  color: #ffffff;
+.benefits-section p {
+  margin-top: 8px;
+  color: var(--text-muted);
+  line-height: 1.7;
 }
 
-th:nth-child(2) {
-  background: #2fa9bf;
-}
-
-th:nth-child(3) {
-  background: #ef3f45;
-}
-
-.details-section,
+.compare-section,
 .faq-section {
-  margin-top: 28px;
+  padding: 24px;
 }
 
-.details-section h2,
-.faq-section h2 {
-  margin: 0 0 12px;
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.compare-grid div {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+}
+
+.compare-grid strong {
   color: var(--text-strong);
   font-size: 18px;
 }
 
-.details-section p,
-.details-section li,
+.compare-grid span,
 .faq-section p {
-  color: #374151;
-  font-size: 14px;
+  color: var(--text-muted);
   line-height: 1.7;
 }
 
-.details-section ul {
-  padding-left: 20px;
+.faq-section details {
+  border-top: 1px solid var(--border);
+  padding: 16px 0;
 }
 
-.faq-section details {
-  border-bottom: 1px solid #d1d5db;
-  padding: 14px 0;
+.faq-section details:first-of-type {
+  margin-top: 12px;
 }
 
 .faq-section summary {
+  color: var(--text-strong);
   cursor: pointer;
   font-weight: 900;
 }
 
-@media (max-width: 760px) {
-  .vip-page {
-    padding-inline: var(--page-gutter, 12px);
-  }
+.faq-section code {
+  color: var(--accent-strong);
+  font-weight: 900;
+}
 
+@media (max-width: 1040px) {
   .vip-hero {
     grid-template-columns: 1fr;
-    min-height: auto;
-    padding: 28px 16px 18px;
-  }
-
-  .benefit-board {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    margin-top: 22px;
-    padding-right: 0;
   }
 
   .plan-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .benefit-board article {
-    min-height: 118px;
-  }
-
-  table {
-    min-width: 620px;
+  .plan-card.featured {
+    transform: none;
   }
 }
 
-@media (max-width: 420px) {
-  .vip-hero::after {
-    right: 12px;
-    bottom: 12px;
-    opacity: 0.92;
-  }
-
-  .hero-copy p {
-    font-size: 38px;
+@media (max-width: 680px) {
+  .vip-hero {
+    padding: 24px 18px;
   }
 
   .hero-copy h1 {
-    font-size: 24px;
+    font-size: 40px;
   }
 
-  .admin-hero-image {
-    aspect-ratio: 4 / 3;
-  }
-
-  .benefit-board {
+  .status-strip,
+  .plan-grid,
+  .benefits-section,
+  .compare-grid {
     grid-template-columns: 1fr;
-    padding-right: 72px;
+  }
+
+  .wallet-card {
+    grid-template-columns: 1fr;
+  }
+
+  .wallet-card button {
+    grid-row: auto;
   }
 }
 </style>

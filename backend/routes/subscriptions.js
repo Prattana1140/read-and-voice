@@ -274,7 +274,7 @@ async function checkoutSubscription(req, res) {
 
     if (error.message === "COINS_NOT_ENOUGH") {
       return res.status(402).json({
-        message: "coin ไม่พอ กรุณาเติม coin ก่อน",
+        message: "เหรียญไม่พอ กรุณาเติมเหรียญก่อนสมัครแพ็กเกจ",
         balance: error.balance,
       });
     }

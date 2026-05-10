@@ -1808,9 +1808,25 @@ const addToLibrary = async () => {
       { headers: getAuthHeaders() },
     );
 
-    alert(res.data.message || "เพิ่มเข้าชั้นหนังสือสำเร็จ");
+    const goLibrary = window.confirm(
+      `${res.data.message || "เพิ่มเข้าชั้นหนังสือสำเร็จ"} ต้องการไปที่คลังหนังสือเลยไหม?`,
+    );
+
+    if (goLibrary) {
+      router.push({ name: "MyLibrary" });
+    }
   } catch (err: any) {
-    alert(err?.response?.data?.message || "เพิ่มเข้าชั้นหนังสือไม่สำเร็จ");
+    const message = err?.response?.data?.message || "เพิ่มเข้าชั้นหนังสือไม่สำเร็จ";
+    alert(message);
+
+    if (
+      err?.response?.status === 402 &&
+      book.value?.access_type === "paid" &&
+      window.confirm("ต้องการชำระด้วยคอยน์เพื่อเพิ่มหนังสือเข้าคลังไหม?")
+    ) {
+      purchaseBookNow("read");
+    }
+
     console.error("addToLibrary error:", err);
   }
 };
@@ -1970,6 +1986,12 @@ const purchaseBookNow = async (target: "read" | "listen" = "read") => {
       book_id: book.value.id,
       payment_method: "coin",
     });
+
+    const goLibrary = window.confirm("ซื้อสำเร็จ หนังสือถูกเพิ่มเข้าคลังแล้ว ต้องการไปที่คลังหนังสือเลยไหม?");
+    if (goLibrary) {
+      router.push({ name: "MyLibrary" });
+      return;
+    }
 
     if (target === "listen") {
       alert("ซื้อสำเร็จ กำลังเปิดโหมดอ่านให้ฟัง");

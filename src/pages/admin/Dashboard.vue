@@ -280,9 +280,25 @@ onMounted(() => {
 
 <style scoped>
 .admin-page {
+  --admin-page-bg: var(--bg);
+  --admin-card-bg: var(--surface);
+  --admin-card-soft: var(--surface-soft);
+  --admin-table-head: color-mix(in srgb, var(--surface-soft) 72%, var(--surface) 28%);
+  --admin-border: var(--border);
+  --admin-action-bg: color-mix(in srgb, var(--primary-soft) 58%, var(--surface) 42%);
+  --admin-action-text: var(--accent-strong);
+  --admin-secondary-bg: color-mix(in srgb, #f6c955 24%, var(--surface) 76%);
+  --admin-secondary-text: color-mix(in srgb, #8a5a00 76%, var(--text-strong) 24%);
+  --admin-primary-bg: var(--secondary);
+  --admin-primary-text: #ffffff;
+  --admin-danger-bg: #ff5b6e;
+  --admin-danger-text: #ffffff;
+  --admin-success-bg: color-mix(in srgb, #22c55e 14%, var(--surface) 86%);
+  --admin-success-text: color-mix(in srgb, #15803d 82%, var(--text-strong) 18%);
+
   min-height: 100vh;
   min-height: 100dvh;
-  background: #f6f8fc;
+  background: var(--admin-page-bg);
   padding: var(--page-block, 24px) var(--page-gutter, 24px);
 }
 
@@ -302,12 +318,12 @@ onMounted(() => {
 .page-header h1 {
   margin: 0 0 8px;
   font-size: 34px;
-  color: #1f2430;
+  color: var(--text-strong);
 }
 
 .page-header p {
   margin: 0;
-  color: #667085;
+  color: var(--text-muted);
   line-height: 1.7;
 }
 
@@ -318,23 +334,23 @@ onMounted(() => {
 }
 
 .top-btn {
-  border: none;
+  border: 1px solid transparent;
   border-radius: 12px;
   padding: 12px 16px;
-  background: #e8edf7;
-  color: #1f2430;
+  background: var(--admin-action-bg);
+  color: var(--admin-action-text);
   font-weight: 700;
   cursor: pointer;
 }
 
 .top-btn.primary {
-  background: #6c63ff;
-  color: white;
+  background: var(--admin-primary-bg);
+  color: var(--admin-primary-text);
 }
 
 .top-btn.secondary {
-  background: #fff4d6;
-  color: #9a6700;
+  background: var(--admin-secondary-bg);
+  color: var(--admin-secondary-text);
 }
 
 .stats-grid {
@@ -345,7 +361,8 @@ onMounted(() => {
 }
 
 .stat-card {
-  background: var(--surface);
+  border: 1px solid var(--border);
+  background: var(--admin-card-bg);
   border-radius: 20px;
   padding: 20px;
   box-shadow: var(--shadow);
@@ -370,15 +387,20 @@ onMounted(() => {
   width: 100%;
   max-width: 460px;
   padding: 14px 16px;
-  border: 1px solid #d8dfeb;
+  border: 1px solid var(--admin-border);
   border-radius: 14px;
   outline: none;
-  background: var(--surface);
+  background: var(--input-bg);
   color: var(--text-strong);
 }
 
+.search-input::placeholder {
+  color: var(--text-muted);
+}
+
 .state-box {
-  background: var(--surface);
+  border: 1px solid var(--border);
+  background: var(--admin-card-bg);
   border-radius: 18px;
   padding: 24px;
   box-shadow: var(--shadow);
@@ -394,7 +416,8 @@ onMounted(() => {
 }
 
 .table-wrap {
-  background: var(--surface);
+  border: 1px solid var(--border);
+  background: var(--admin-card-bg);
   border-radius: 20px;
   overflow: hidden;
   box-shadow: var(--shadow);
@@ -408,15 +431,20 @@ onMounted(() => {
 }
 
 .book-table thead {
-  background: #f2f5fb;
+  background: var(--admin-table-head);
 }
 
 .book-table th,
 .book-table td {
   text-align: left;
   padding: 16px;
-  border-bottom: 1px solid #edf1f7;
+  border-bottom: 1px solid var(--admin-border);
   vertical-align: top;
+  color: var(--text);
+}
+
+.book-table th {
+  color: var(--text-strong);
 }
 
 .cover-thumb {
@@ -424,7 +452,7 @@ onMounted(() => {
   height: 96px;
   object-fit: cover;
   border-radius: 10px;
-  background: #eceff5;
+  background: var(--surface-soft);
 }
 
 .title-cell {
@@ -434,11 +462,11 @@ onMounted(() => {
 }
 
 .title-cell strong {
-  color: #1f2430;
+  color: var(--text-strong);
 }
 
 .title-cell small {
-  color: #667085;
+  color: var(--text-muted);
   line-height: 1.5;
 }
 
@@ -446,8 +474,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #eef1f7;
-  color: #667085;
+  background: var(--surface-soft);
+  color: var(--text-muted);
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 16px;
@@ -456,8 +484,8 @@ onMounted(() => {
 }
 
 .status-badge.active {
-  background: #e7f8ed;
-  color: #15803d;
+  background: var(--admin-success-bg);
+  color: var(--admin-success-text);
 }
 
 .action-buttons {
@@ -467,23 +495,23 @@ onMounted(() => {
 }
 
 .btn {
-  border: none;
+  border: 1px solid transparent;
   border-radius: 10px;
   padding: 10px 12px;
   cursor: pointer;
   font-weight: 700;
-  background: #edf1f7;
-  color: #1f2430;
+  background: var(--admin-action-bg);
+  color: var(--admin-action-text);
 }
 
 .btn.edit {
-  background: #fff4d6;
-  color: #9a6700;
+  background: var(--admin-secondary-bg);
+  color: var(--admin-secondary-text);
 }
 
 .btn.danger {
-  background: #ff5b6e;
-  color: white;
+  background: var(--admin-danger-bg);
+  color: var(--admin-danger-text);
 }
 
 @media (max-width: 768px) {

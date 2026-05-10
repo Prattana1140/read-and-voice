@@ -1,6 +1,7 @@
 ﻿<script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import logoNavUrl from "../assets/Logo-nav.png";
 import logoUrl from "../assets/Logo-transparent.png";
 import api, { resolveAssetUrl } from "../utils/api";
 import {
@@ -209,6 +210,15 @@ const searchSuggestions = computed(() => {
 
 const accountGroups = computed<NavGroup[]>(() => {
   const role = currentRole.value;
+  const adminAccountGroup: NavGroup = {
+    title: "บัญชี",
+    items: [
+      { label: "โปรไฟล์ของฉัน", to: "/profile", roles: ["admin", "superadmin"] },
+      { label: "แจ้งเตือน", to: "/account/notifications", roles: ["admin", "superadmin"] },
+    ],
+    defaultOpen: true,
+  };
+
   const personalGroup: NavGroup = {
     title: t("account.myAccount"),
     items: [
@@ -277,12 +287,20 @@ const accountGroups = computed<NavGroup[]>(() => {
     defaultOpen: true,
   };
 
+  const adminUtilityGroup: NavGroup = {
+    title: "ทางลัด",
+    items: [
+      { label: "ดูหน้าเว็บ", to: "/", roles: ["admin", "superadmin"] },
+      { label: "ตั้งค่าระบบ", to: "/superadmin/settings", roles: ["superadmin"] },
+    ],
+  };
+
   const roleGroups: Record<UserRole, NavGroup[]> = {
     guest: [],
     user: [personalGroup, readingGroup, settingsGroup, writerGroup],
     writer: [personalGroup, readingGroup, settingsGroup, writerGroup],
-    admin: [adminGroup],
-    superadmin: [adminGroup, superAdminGroup],
+    admin: [adminAccountGroup, adminGroup, adminUtilityGroup],
+    superadmin: [adminAccountGroup, adminGroup, superAdminGroup, adminUtilityGroup],
   };
 
   return roleGroups[role]
@@ -688,8 +706,7 @@ watch(isCompactNav, (compact) => {
           :aria-label="t('nav.home')"
           @click="closeMenu"
         >
-          <img class="brand-logo" :src="logoUrl" alt="" aria-hidden="true" />
-          <span class="brand-name">Read and Voice</span>
+          <img class="brand-logo" :src="logoNavUrl" alt="Read and Voice" />
         </router-link>
 
         <router-link
@@ -972,7 +989,6 @@ watch(isCompactNav, (compact) => {
                   {{ userDisplayName.slice(0, 1).toUpperCase() }}
                 </div>
                 <div class="account-summary-copy">
-                  <strong>{{ userDisplayName }}</strong>
                   <small
                     class="role-badge"
                     :class="`role-badge--${currentRole}`"
@@ -1234,28 +1250,18 @@ watch(isCompactNav, (compact) => {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  flex: 0 1 clamp(172px, 18vw, 230px);
-  gap: clamp(7px, 0.8vw, 11px);
-  width: clamp(172px, 18vw, 230px);
-  min-width: 0;
+  flex: 0 0 clamp(106px, 11vw, 148px);
+  width: clamp(106px, 11vw, 148px);
+  min-width: clamp(106px, 11vw, 148px);
   height: 58px;
   border-radius: 8px;
   overflow: hidden;
 }
 .brand-logo {
-  flex: 0 0 clamp(44px, 4.4vw, 58px);
-  width: clamp(44px, 4.4vw, 58px);
-  height: clamp(44px, 4.4vw, 58px);
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
-}
-.brand-name {
-  flex: 1 1 auto;
-  min-width: 0;
-  color: #0f172a;
-  font-size: clamp(15px, 1.15vw, 18px);
-  font-weight: 900;
-  line-height: 1.08;
-  overflow-wrap: anywhere;
 }
 .desktop-public-nav {
   position: absolute;
@@ -1283,20 +1289,26 @@ watch(isCompactNav, (compact) => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 38px;
+  box-sizing: border-box;
+  width: 184px;
+  height: 40px;
   border-radius: 999px;
   font-size: 14px;
   font-weight: 900;
+  line-height: 1.15;
+  text-align: center;
   white-space: nowrap;
 }
 .subscription-link {
-  padding: 0 16px;
+  padding: 0 14px;
   background: linear-gradient(135deg, #15b8c7, #0ea5a8);
   color: #fff;
 }
 .coin-link {
   gap: 8px;
-  padding: 0 18px;
+  width: auto;
+  min-width: 122px;
+  padding: 0 14px;
   background: linear-gradient(180deg, #ff9d10 0%, #f28a00 100%);
   color: #fff;
   box-shadow:
@@ -1304,7 +1316,8 @@ watch(isCompactNav, (compact) => {
     0 4px 10px rgba(200, 112, 0, 0.18);
 }
 .accessibility-link {
-  padding: 0 16px;
+  width: 200px;
+  padding: 0 14px;
   border: 1px solid rgba(15, 118, 110, 0.16);
   background: rgba(255, 255, 255, 0.82);
   color: #0f766e;
@@ -1696,12 +1709,6 @@ watch(isCompactNav, (compact) => {
   gap: 2px;
   min-width: 0;
 }
-.account-summary-copy strong {
-  color: #1f2937;
-  font-size: 16px;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-}
 .account-membership {
   color: #0f766e;
   font-size: 12px;
@@ -2053,6 +2060,7 @@ watch(isCompactNav, (compact) => {
 }
 .mobile-pill-link {
   width: 100%;
+  height: 44px;
   justify-content: center;
 }
 
@@ -2076,6 +2084,8 @@ watch(isCompactNav, (compact) => {
 }
 .navbar--compact .left-cluster > .accessibility-link {
   display: inline-flex;
+  width: auto;
+  height: 36px;
   min-height: 36px;
   padding: 0 14px;
   font-size: 12px;
@@ -2084,17 +2094,10 @@ watch(isCompactNav, (compact) => {
   display: inline-grid;
 }
 .navbar--compact .brand {
-  flex: 0 1 176px;
-  width: 176px;
-  height: 52px;
-}
-.navbar--compact .brand-logo {
-  flex-basis: 48px;
-  width: 48px;
-  height: 48px;
-}
-.navbar--compact .brand-name {
-  font-size: 15px;
+  flex-basis: 128px;
+  width: 128px;
+  min-width: 128px;
+  height: 54px;
 }
 .navbar--compact .top-actions {
   margin-left: auto;
@@ -2113,6 +2116,8 @@ watch(isCompactNav, (compact) => {
 }
 .navbar--compact .mobile-cta-group .subscription-link,
 .navbar--compact .mobile-cta-group .coin-link {
+  width: 100%;
+  height: 44px;
   min-height: 44px;
   padding: 0 14px;
 }
@@ -2148,6 +2153,8 @@ watch(isCompactNav, (compact) => {
   }
   .left-cluster > .accessibility-link {
     display: inline-flex;
+    width: auto;
+    height: 36px;
     min-height: 36px;
     padding: 0 14px;
     font-size: 12px;
@@ -2156,17 +2163,10 @@ watch(isCompactNav, (compact) => {
     display: inline-grid;
   }
   .brand {
-    flex: 0 1 176px;
-    width: 176px;
-    height: 52px;
-  }
-  .brand-logo {
-    flex-basis: 48px;
-    width: 48px;
-    height: 48px;
-  }
-  .brand-name {
-    font-size: 15px;
+    flex-basis: 128px;
+    width: 128px;
+    min-width: 128px;
+    height: 54px;
   }
   .mobile-cta-group {
     display: grid;
@@ -2178,6 +2178,8 @@ watch(isCompactNav, (compact) => {
   }
   .mobile-cta-group .subscription-link,
   .mobile-cta-group .coin-link {
+    width: 100%;
+    height: 44px;
     min-height: 44px;
     padding: 0 14px;
   }
@@ -2204,6 +2206,8 @@ watch(isCompactNav, (compact) => {
   }
   .left-cluster > .accessibility-link {
     display: inline-flex;
+    width: auto;
+    height: 32px;
     min-height: 32px;
     padding: 0 11px;
     font-size: 11px;
@@ -2238,18 +2242,10 @@ watch(isCompactNav, (compact) => {
     padding: 0 6px;
   }
   .brand {
-    flex: 0 1 150px;
-    width: 150px;
-    height: 44px;
-  }
-  .brand-logo {
-    flex-basis: 40px;
-    width: 40px;
-    height: 40px;
-  }
-  .brand-name {
-    font-size: 13px;
-    line-height: 1.05;
+    flex: 0 0 108px;
+    width: 108px;
+    min-width: 108px;
+    height: 50px;
   }
   .icon-button,
   .notification-button,
@@ -2285,6 +2281,8 @@ watch(isCompactNav, (compact) => {
   }
   .mobile-cta-group .subscription-link,
   .mobile-cta-group .coin-link {
+    width: 100%;
+    height: 44px;
     min-height: 44px;
     padding: 0 14px;
   }
@@ -2306,6 +2304,8 @@ watch(isCompactNav, (compact) => {
   }
 
   .left-cluster > .accessibility-link {
+    width: auto;
+    height: 30px;
     min-height: 30px;
     padding: 0 9px;
     font-size: 10px;
@@ -2338,20 +2338,10 @@ watch(isCompactNav, (compact) => {
   }
 
   .brand {
-    flex: 0 1 118px;
-    width: 118px;
-    height: 40px;
-    gap: 6px;
-  }
-
-  .brand-logo {
-    flex-basis: 34px;
-    width: 34px;
-    height: 34px;
-  }
-
-  .brand-name {
-    font-size: 11px;
+    flex: 0 0 92px;
+    width: 92px;
+    min-width: 92px;
+    height: 44px;
   }
 
   .icon-button,
@@ -2384,24 +2374,17 @@ watch(isCompactNav, (compact) => {
   }
 
   .left-cluster > .accessibility-link {
+    width: auto;
+    height: 28px;
     min-height: 28px;
     padding: 0 7px;
     font-size: 9px;
   }
 
   .brand {
-    flex-basis: 104px;
-    width: 104px;
-  }
-
-  .brand-logo {
-    flex-basis: 30px;
-    width: 30px;
-    height: 30px;
-  }
-
-  .brand-name {
-    font-size: 10px;
+    flex-basis: 82px;
+    width: 82px;
+    min-width: 82px;
   }
 
   .top-actions > .icon-button,

@@ -93,37 +93,37 @@
 
     <section class="banner-manager">
       <div class="banner-form">
-        <h2>Home promotion banners</h2>
+        <h2>แบนเนอร์โปรโมชั่นหน้าแรก</h2>
         <p>
-          Add wide promotional artwork for novels or books. These images appear in
-          the homepage carousel and should already include the campaign text/design.
+          เพิ่มภาพโปรโมตแนวกว้างสำหรับนิยายหรือหนังสือ ภาพเหล่านี้จะแสดงในสไลด์หน้าแรก
+          และควรมีข้อความหรือดีไซน์แคมเปญอยู่ในภาพเรียบร้อยแล้ว
         </p>
 
         <label>
-          Banner title
-          <input v-model="homeBannerTitle" type="text" placeholder="Campaign name" />
+          ชื่อแบนเนอร์
+          <input v-model="homeBannerTitle" type="text" placeholder="ชื่อแคมเปญ" />
         </label>
 
         <label>
-          Link URL
+          ลิงก์ปลายทาง
           <input v-model="homeBannerLink" type="text" placeholder="/book/1 or /promotions" />
         </label>
 
         <label>
-          Image URL
+          ลิงก์รูปภาพ
           <input v-model="homeBannerUrl" type="url" placeholder="https://example.com/promo.jpg" />
-          <small class="image-size-hint">Recommended image size: 1200 x 360 px (or 1600 x 480 px)</small>
+          <small class="image-size-hint">ขนาดภาพแนะนำ: 1200 x 360 px หรือ 1600 x 480 px</small>
         </label>
 
         <label>
-          Upload image
+          อัปโหลดรูปภาพ
           <input type="file" accept="image/*" @change="selectHomeBannerFile" />
-          <small class="image-size-hint">Recommended image size: 1200 x 360 px (or 1600 x 480 px)</small>
+          <small class="image-size-hint">ขนาดภาพแนะนำ: 1200 x 360 px หรือ 1600 x 480 px</small>
         </label>
 
         <div class="banner-actions">
           <button type="button" :disabled="savingHomeBanner" @click="saveHomeBanner">
-            {{ savingHomeBanner ? "Saving..." : "Add homepage banner" }}
+            {{ savingHomeBanner ? "กำลังบันทึก..." : "เพิ่มแบนเนอร์หน้าแรก" }}
           </button>
         </div>
 
@@ -132,17 +132,17 @@
 
       <div class="home-banner-list">
         <article v-for="banner in homeBannerList" :key="banner.id" class="home-banner-item">
-          <img :src="resolveImageUrl(banner.image_url)" :alt="banner.title || 'Home banner'" />
+          <img :src="resolveImageUrl(banner.image_url)" :alt="banner.title || 'แบนเนอร์หน้าแรก'" />
           <div>
-            <strong>{{ banner.title || "Untitled banner" }}</strong>
-            <small>{{ banner.link_url || "No link" }}</small>
+            <strong>{{ banner.title || "ยังไม่ได้ตั้งชื่อแบนเนอร์" }}</strong>
+            <small>{{ banner.link_url || "ยังไม่มีลิงก์" }}</small>
           </div>
-          <button type="button" @click="deleteHomeBanner(banner.id)">Delete</button>
+          <button type="button" @click="deleteHomeBanner(banner.id)">ลบ</button>
         </article>
 
         <div v-if="homeBannerList.length === 0" class="empty-preview">
-          <strong>No homepage banners</strong>
-          <span>Add promotional artwork to show the carousel on the homepage.</span>
+          <strong>ยังไม่มีแบนเนอร์หน้าแรก</strong>
+          <span>เพิ่มภาพโปรโมตเพื่อแสดงสไลด์บนหน้าแรก</span>
         </div>
       </div>
     </section>
@@ -533,10 +533,10 @@ const saveHomeBanner = async () => {
     homeBannerLink.value = "";
     homeBannerUrl.value = "";
     homeBannerFile.value = null;
-    homeBannerMessage.value = data?.message || "Saved homepage banner";
+    homeBannerMessage.value = data?.message || "บันทึกแบนเนอร์หน้าแรกสำเร็จ";
   } catch (error: any) {
     homeBannerMessage.value =
-      error?.response?.data?.message || "Could not save homepage banner";
+      error?.response?.data?.message || "บันทึกแบนเนอร์หน้าแรกไม่สำเร็จ";
   } finally {
     savingHomeBanner.value = false;
   }
@@ -549,10 +549,10 @@ const deleteHomeBanner = async (id: string) => {
   try {
     const { data } = await api.delete(`/page-content/home-banners/${id}`);
     homeBannerList.value = Array.isArray(data?.homeBanners) ? data.homeBanners : [];
-    homeBannerMessage.value = data?.message || "Deleted homepage banner";
+    homeBannerMessage.value = data?.message || "ลบแบนเนอร์หน้าแรกสำเร็จ";
   } catch (error: any) {
     homeBannerMessage.value =
-      error?.response?.data?.message || "Could not delete homepage banner";
+      error?.response?.data?.message || "ลบแบนเนอร์หน้าแรกไม่สำเร็จ";
   } finally {
     savingHomeBanner.value = false;
   }

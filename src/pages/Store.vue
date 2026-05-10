@@ -17,6 +17,8 @@ type Book = {
   access_type?: string;
   content_type?: string;
   description?: string;
+  average_rating?: number | string;
+  review_count?: number | string;
 };
 
 const router = useRouter();
@@ -58,6 +60,30 @@ function getAccessLabel(book: Book) {
 
 function getTypeLabel(book: Book) {
   return book.content_type === "serial" ? "รายตอน" : "อีบุ๊ก";
+}
+
+function getBookPrice(book: Book) {
+  return Number(book.coin_price ?? book.price ?? 0);
+}
+
+function formatBookPrice(book: Book) {
+  const price = getBookPrice(book);
+  if (!Number.isFinite(price) || price <= 0 || book.access_type === "free") return "ฟรี";
+  return `${price.toLocaleString("th-TH", { maximumFractionDigits: 0 })}`;
+}
+
+function getFilledHearts(book: Book) {
+  const average = Number(book.average_rating || 0);
+  if (Number.isFinite(average) && average > 0) {
+    return Math.max(1, Math.min(5, Math.round(average)));
+  }
+
+  return 0;
+}
+
+function formatRatingCount(book: Book) {
+  const count = Number(book.review_count ?? 0);
+  return `${Number.isFinite(count) ? count : 0} Rating`;
 }
 
 function handleImgError(event: Event) {
@@ -224,13 +250,23 @@ onMounted(loadBooks);
           <p>{{ book.author || "ไม่ระบุผู้เขียน" }}</p>
           <small v-if="book.category_name">{{ book.category_name }}</small>
         </div>
+        <div class="book-card-footer">
+          <div class="rating-box" aria-label="คะแนนและจำนวนรีวิว">
+            <span class="heart-row" aria-hidden="true">
+              <span
+                v-for="index in 5"
+                :key="index"
+                :class="{ active: index <= getFilledHearts(book) }"
+              >
+                ♥
+              </span>
+            </span>
+            <small>{{ formatRatingCount(book) }}</small>
+          </div>
 
-        <div class="card-actions">
-          <button class="mini-btn" type="button" @click="addToWishlist(book)">
-            Wishlist
-          </button>
-          <button class="mini-btn primary" type="button" @click="addToCart(book)">
-            ใส่ตะกร้า
+          <button class="price-pill" type="button" @click="addToCart(book)">
+            <span aria-hidden="true">฿</span>
+            {{ formatBookPrice(book) }}
           </button>
         </div>
       </article>
@@ -270,15 +306,13 @@ onMounted(loadBooks);
 .header-actions,
 .filter-row,
 .suggestion-row,
-.card-actions,
 .meta-row {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.top-btn,
-.mini-btn {
+.top-btn {
   background: var(--surface-soft);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -291,8 +325,7 @@ onMounted(loadBooks);
   padding: 12px 16px;
 }
 
-.top-btn.primary,
-.mini-btn.primary {
+.top-btn.primary {
   background: var(--primary);
   border-color: var(--primary);
   color: var(--on-primary);
@@ -365,17 +398,18 @@ onMounted(loadBooks);
 
 .book-grid {
   display: grid;
-  gap: 28px;
-  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  gap: 16px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .book-card {
-  border-radius: 8px;
+  border-radius: 2px;
   display: flex;
   flex-direction: column;
   height: 100%;
   min-width: 0;
-  padding: 14px;
+  overflow: hidden;
+  padding: 0;
 }
 
 .book-clickable {
@@ -383,38 +417,39 @@ onMounted(loadBooks);
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
+  padding: 0;
 }
 
 .book-card img {
   aspect-ratio: 3 / 4;
   background: var(--surface-soft);
-  border-radius: 8px;
-  margin-bottom: 12px;
+  border-radius: 0;
+  margin-bottom: 0;
   object-fit: cover;
   width: 100%;
 }
 
 .meta-row {
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin: 8px 8px 7px;
 }
 
 .meta-row span {
   background: var(--surface-soft);
   border-radius: 999px;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 900;
-  padding: 5px 9px;
+  padding: 4px 7px;
 }
 
 .book-card h2 {
   display: -webkit-box;
   color: var(--text-strong);
-  font-size: 18px;
+  font-size: 13px;
   line-height: 1.45;
-  margin: 0 0 8px;
-  min-height: 52px;
+  margin: 0 8px 6px;
+  min-height: 38px;
   overflow: hidden;
   line-clamp: 2;
   overflow-wrap: anywhere;
@@ -426,9 +461,10 @@ onMounted(loadBooks);
 .book-card p {
   display: -webkit-box;
   color: var(--text);
+  font-size: 11px;
   line-height: 1.45;
-  margin: 0 0 4px;
-  min-height: 24px;
+  margin: 0 8px 2px;
+  min-height: 16px;
   overflow: hidden;
   line-clamp: 1;
   overflow-wrap: anywhere;
@@ -439,25 +475,64 @@ onMounted(loadBooks);
 
 .book-card small {
   color: var(--text-muted);
-  min-height: 20px;
+  font-size: 10px;
+  min-height: 14px;
+  margin: 0 8px;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
-.card-actions {
-  flex-wrap: nowrap;
+.book-card-footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
   margin-top: auto;
-  padding-top: 14px;
+  padding: 8px;
 }
 
-.mini-btn {
-  align-items: center;
+.rating-box {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.heart-row {
   display: inline-flex;
-  flex: 1;
+  align-items: center;
+  gap: 1px;
+  color: #d1d5db;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.heart-row span.active {
+  color: #ec4899;
+}
+
+.rating-box small {
+  color: var(--text-muted);
+  font-size: 9px;
+  line-height: 1.1;
+  margin: 0;
+  min-height: 0;
+}
+
+.price-pill {
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  min-height: 48px;
-  padding: 10px 12px;
-  text-align: center;
+  gap: 3px;
+  min-width: 46px;
+  min-height: 24px;
+  border: 0;
+  border-radius: 2px;
+  background: #00b874;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 0 7px;
 }
 
 @media (max-width: 768px) {
@@ -477,32 +552,59 @@ onMounted(loadBooks);
   }
 
   .book-grid {
-    gap: 14px;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .book-card {
-    padding: 10px;
+    padding: 0;
   }
 
   .book-card h2 {
-    font-size: 15px;
-    min-height: 42px;
-  }
-
-  .card-actions {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-
-  .mini-btn {
-    min-height: 44px;
+    font-size: 11px;
+    min-height: 32px;
   }
 }
 
 @media (max-width: 380px) {
   .book-grid {
-    grid-template-columns: 1fr;
+    gap: 8px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .meta-row {
+    margin: 6px 5px 5px;
+  }
+
+  .meta-row span,
+  .book-card p,
+  .book-card small,
+  .price-pill {
+    font-size: 8px;
+  }
+
+  .book-card h2 {
+    font-size: 9px;
+    margin-inline: 5px;
+  }
+
+  .book-card p,
+  .book-card small {
+    margin-inline: 5px;
+  }
+
+  .book-card-footer {
+    padding: 6px 5px;
+  }
+
+  .heart-row {
+    font-size: 8px;
+  }
+
+  .price-pill {
+    min-width: 36px;
+    min-height: 20px;
+    padding: 0 4px;
   }
 }
 </style>

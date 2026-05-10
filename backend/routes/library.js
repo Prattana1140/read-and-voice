@@ -4,6 +4,45 @@ const { verifyToken } = require("../middleware/auth");
 
 const router = express.Router();
 
+async function hasPurchasedBook(userId, bookId) {
+  const [rows] = await db.query(
+    `SELECT oi.id
+     FROM order_items oi
+     JOIN orders o ON oi.order_id = o.id
+     WHERE o.user_id = ?
+       AND oi.book_id = ?
+       AND o.payment_status = 'paid'
+       AND o.order_status = 'completed'
+     LIMIT 1`,
+    [userId, bookId],
+  );
+
+  return rows.length > 0;
+}
+
+async function hasActiveSubscription(userId) {
+  const [rows] = await db.query(
+    `SELECT id
+     FROM user_subscriptions
+     WHERE user_id = ?
+       AND status = 'active'
+       AND payment_status = 'paid'
+       AND end_at > NOW()
+     LIMIT 1`,
+    [userId],
+  );
+
+  return rows.length > 0;
+}
+
+function getBookAccessType(book) {
+  if (["free", "paid", "subscription"].includes(book.access_type)) {
+    return book.access_type;
+  }
+
+  return Number(book.price || 0) > 0 ? "paid" : "free";
+}
+
 router.post("/", verifyToken, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -11,6 +50,34 @@ router.post("/", verifyToken, async (req, res) => {
 
     if (!book_id) {
       return res.status(400).json({ message: "กรอกข้อมูลไม่ครบ" });
+    }
+
+    const [books] = await db.query(
+      `SELECT id, access_type, price
+       FROM books
+       WHERE id = ? AND is_published = 1
+       LIMIT 1`,
+      [book_id],
+    );
+
+    const book = books[0];
+    if (!book) {
+      return res.status(404).json({ message: "ไม่พบหนังสือ" });
+    }
+
+    const accessType = getBookAccessType(book);
+    const canAddToLibrary =
+      accessType === "free" ||
+      (accessType === "paid" && (await hasPurchasedBook(userId, book.id))) ||
+      (accessType === "subscription" && (await hasActiveSubscription(userId)));
+
+    if (!canAddToLibrary) {
+      return res.status(402).json({
+        message:
+          accessType === "subscription"
+            ? "หนังสือเล่มนี้ต้องสมัครแพ็กเกจก่อนเพิ่มเข้าคลัง"
+            : "หนังสือเล่มนี้ต้องชำระเงินก่อนเพิ่มเข้าคลัง",
+      });
     }
 
     const [exists] = await db.query(

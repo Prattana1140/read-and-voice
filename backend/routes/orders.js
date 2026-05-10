@@ -220,7 +220,7 @@ router.post("/checkout", verifyToken, async (req, res) => {
 
     if (error.message === "COINS_NOT_ENOUGH") {
       return res.status(402).json({
-        message: "coin ไม่พอ กรุณาเติม coin ก่อน",
+        message: "เหรียญไม่พอ กรุณาเติมเหรียญก่อนซื้อ",
         balance: error.balance,
       });
     }
@@ -348,7 +348,7 @@ router.post("/purchase", verifyToken, async (req, res) => {
 
     if (error.message === "COINS_NOT_ENOUGH") {
       return res.status(402).json({
-        message: "coin ไม่พอ กรุณาเติม coin ก่อน",
+        message: "เหรียญไม่พอ กรุณาเติมเหรียญก่อนซื้อ",
         balance: error.balance,
       });
     }

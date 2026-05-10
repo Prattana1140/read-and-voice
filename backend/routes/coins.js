@@ -18,7 +18,12 @@ function isProduction() {
 }
 
 function isMockCoinTopupEnabled() {
-  return !isProduction() || /^(1|true|yes)$/i.test(process.env.ENABLE_MOCK_COIN_TOPUP || "");
+  const configuredValue = String(process.env.ENABLE_MOCK_COIN_TOPUP || "").trim();
+
+  if (/^(1|true|yes)$/i.test(configuredValue)) return true;
+  if (/^(0|false|no)$/i.test(configuredValue)) return false;
+
+  return !isProduction();
 }
 
 function isManualPaymentEnabled() {

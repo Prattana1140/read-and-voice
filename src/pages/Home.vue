@@ -145,9 +145,10 @@
                 <button
                   class="price-pill"
                   type="button"
+                  :disabled="addingFreeBookId === book.id"
                   @click.stop="openSupportDialog(book)"
                 >
-                  {{ formatBookPrice(book) }}
+                  {{ addingFreeBookId === book.id ? "กำลังเพิ่ม..." : formatBookPrice(book) }}
                 </button>
               </div>
             </div>
@@ -251,6 +252,7 @@
 import api, { resolveAssetUrl } from "../utils/api";
 import { computed, ref, onMounted, onUnmounted, watch } from "vue";
 import { useRouter } from "vue-router";
+import { getUser } from "../utils/auth";
 
 type Book = {
   id: number;
@@ -260,6 +262,7 @@ type Book = {
   cover_url?: string;
   cover_image_url?: string;
   cover_image?: string;
+  access_type?: string;
   price?: number | string;
   coin_price?: number | string;
   review_count?: number | string;
@@ -309,6 +312,7 @@ const supportDialogMessage = ref("");
 const selectedSupportAmount = ref(99);
 const customSupportAmount = ref(0);
 const addingToCart = ref(false);
+const addingFreeBookId = ref<number | null>(null);
 let carouselTimer: ReturnType<typeof window.setInterval> | undefined;
 
 const bannerLabels = [
@@ -443,8 +447,13 @@ const getReviewLabel = (book: Book) => {
 
 const formatBookPrice = (book: Book) => {
   const price = Number(book.coin_price ?? book.price ?? 0);
-  if (!Number.isFinite(price) || price <= 0) return "ฟรี";
+  if (!Number.isFinite(price) || price <= 0 || book.access_type === "free") return "ฟรี";
   return `฿ ${price.toLocaleString("th-TH", { maximumFractionDigits: 0 })}`;
+};
+
+const isFreeBook = (book: Book) => {
+  const price = Number(book.coin_price ?? book.price ?? 0);
+  return book.access_type === "free" || !Number.isFinite(price) || price <= 0;
 };
 
 const getBaseSupportAmount = (book: Book) => {
@@ -453,11 +462,42 @@ const getBaseSupportAmount = (book: Book) => {
 };
 
 const openSupportDialog = (book: Book) => {
+  if (isFreeBook(book)) {
+    addFreeBookToLibrary(book);
+    return;
+  }
+
   supportDialogBook.value = book;
   supportDialogMode.value = "select";
   supportDialogMessage.value = "";
   selectedSupportAmount.value = getBaseSupportAmount(book);
   customSupportAmount.value = 0;
+};
+
+const addFreeBookToLibrary = async (book: Book) => {
+  if (addingFreeBookId.value === book.id) return;
+
+  const user = getUser();
+  if (!user) {
+    window.alert("กรุณาเข้าสู่ระบบก่อนเพิ่มหนังสือเข้าคลัง");
+    router.push({ name: "Login" });
+    return;
+  }
+
+  addingFreeBookId.value = book.id;
+
+  try {
+    await api.post("/library", { book_id: book.id });
+    const goLibrary = window.confirm(`เพิ่ม "${book.title}" เข้าคลังหนังสือแล้ว ต้องการไปที่คลังเลยไหม?`);
+
+    if (goLibrary) {
+      router.push({ name: "MyLibrary" });
+    }
+  } catch (error: any) {
+    window.alert(error?.response?.data?.message || "เพิ่มหนังสือเข้าคลังไม่สำเร็จ");
+  } finally {
+    addingFreeBookId.value = null;
+  }
 };
 
 const closeSupportDialog = () => {

@@ -67,7 +67,9 @@ async function checkout() {
   if (!cart.value.length) return;
 
   if (!hasEnoughCoins.value) {
-    errorMessage.value = `เหรียญไม่พอ กรุณาเติมอีก ${coinShortage.value} เหรียญก่อนชำระเงิน`;
+    const message = `เหรียญไม่พอ กรุณาเติมอีก ${coinShortage.value} เหรียญก่อนชำระเงิน`;
+    errorMessage.value = message;
+    window.alert(message);
     return;
   }
 
@@ -87,10 +89,13 @@ async function checkout() {
     if (error?.response?.status === 402) {
       const currentBalance = Number(error?.response?.data?.balance ?? balance.value);
       balance.value = currentBalance;
-      errorMessage.value = "เหรียญไม่พอ กรุณาเติมเหรียญก่อนซื้อ";
+      const message = error?.response?.data?.message || "เหรียญไม่พอ กรุณาเติมเหรียญก่อนซื้อ";
+      errorMessage.value = message;
+      window.alert(message);
       return;
     }
     errorMessage.value = error?.response?.data?.message || "ซื้อไม่สำเร็จ";
+    window.alert(errorMessage.value);
   } finally {
     checkingOut.value = false;
   }
@@ -173,8 +178,8 @@ onMounted(loadCart);
         >
           {{ checkingOut ? "เธเธณเธฅเธฑเธเธเธทเนเธญ..." : "เธเธณเธฃเธฐเธ”เนเธงเธขเธเธญเธขเธเน" }}
         </button>
-        <button v-else class="topup-btn urgent" type="button" @click="goTopup">
-          เน€เธ•เธดเธกเธเธญเธขเธเน
+        <button v-else class="topup-btn urgent" type="button" @click="checkout">
+          ชำระด้วยคอยน์
         </button>
         <button v-if="hasEnoughCoins" class="topup-btn" type="button" @click="goTopup">
           เน€เธ•เธดเธกเธเธญเธขเธเนเน€เธเธดเนเธก

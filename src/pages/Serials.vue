@@ -13,9 +13,11 @@ type SerialBook = {
   description?: string;
   category_name?: string;
   access_type?: "free" | "paid" | "subscription";
-  price?: number;
+  price?: number | string;
+  coin_price?: number | string;
   episode_count?: number;
   read_count?: number;
+  view_count?: number;
   review_count?: number;
   average_rating?: number;
 };
@@ -25,16 +27,20 @@ type ShelfResponse = {
   count?: number;
 };
 
+type SerialSection = {
+  title: string;
+  books: SerialBook[];
+};
+
 const route = useRoute();
 const router = useRouter();
+
 const books = ref<SerialBook[]>([]);
 const loading = ref(true);
 const errorMessage = ref("");
 const search = ref(String(route.query.q || ""));
 const accessFilter = ref("all");
 const categoryFilter = ref("all");
-
-const featuredBook = computed(() => filteredBooks.value[0] || books.value[0] || null);
 
 const filteredBooks = computed(() => {
   return filterBooks(books.value, search.value, {
@@ -43,21 +49,82 @@ const filteredBooks = computed(() => {
     category: categoryFilter.value,
   }) as SerialBook[];
 });
+
 const categoryOptions = computed(() => uniqueBookCategories(books.value));
 
-const getBookCover = (book: SerialBook) => {
+const heroBooks = computed(() => filteredBooks.value.slice(0, 5));
+
+const continueBooks = computed(() => {
+  return [...filteredBooks.value]
+    .sort((a, b) => {
+      const readDiff = getReadCount(b) - getReadCount(a);
+      if (readDiff !== 0) return readDiff;
+      return getEpisodeCount(b) - getEpisodeCount(a);
+    })
+    .slice(0, 6);
+});
+
+const categorySections = computed<SerialSection[]>(() => {
+  const groups = new Map<string, SerialBook[]>();
+
+  for (const book of filteredBooks.value) {
+    const category = book.category_name || "นิยายรายตอน";
+    if (!groups.has(category)) groups.set(category, []);
+    groups.get(category)?.push(book);
+  }
+
+  return [...groups.entries()].map(([title, items]) => ({
+    title,
+    books: items.slice(0, 8),
+  }));
+});
+
+function getBookCover(book: SerialBook) {
   return resolveAssetUrl(book.cover_url || book.cover_image);
-};
+}
 
-const getAccessLabel = (book: SerialBook) => {
-  if (book.access_type === "subscription") return "อ่านด้วยแพ็กเกจ";
-  if (book.access_type === "paid") return `${Math.ceil(Number(book.price || 0)).toLocaleString()} คอยน์`;
-  return "อ่านฟรี";
-};
+function getEpisodeCount(book: SerialBook) {
+  return Number(book.episode_count || 0);
+}
 
-const goToBook = (id: number) => {
+function getReadCount(book: SerialBook) {
+  return Number(book.read_count || book.view_count || 0);
+}
+
+function getPrice(book: SerialBook) {
+  return Number(book.coin_price ?? book.price ?? 0);
+}
+
+function formatCompactCount(value: number) {
+  if (value >= 1000000) return `${(value / 1000000).toFixed(value >= 10000000 ? 0 : 1)}M`;
+  if (value >= 1000) return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}K`;
+  return value.toLocaleString("th-TH");
+}
+
+function getAccessLabel(book: SerialBook) {
+  if (book.access_type === "subscription") return "แพ็กเกจ";
+  const price = getPrice(book);
+  if (book.access_type === "paid" || price > 0) return `${Math.ceil(price).toLocaleString("th-TH")} คอยน์`;
+  return "ฟรี";
+}
+
+function getBookMeta(book: SerialBook) {
+  return `${getEpisodeCount(book)} ตอน • ${formatCompactCount(getReadCount(book))} อ่าน • ${Number(book.review_count || 0).toLocaleString("th-TH")} รีวิว`;
+}
+
+function handleImgError(event: Event) {
+  const target = event.target as HTMLImageElement;
+  if (target.src.endsWith("/no-cover.png")) return;
+  target.src = "/no-cover.png";
+}
+
+function goToBook(id: number) {
   router.push({ name: "BookDetail", params: { id } });
-};
+}
+
+function goToCoinWallet() {
+  router.push({ name: "CoinWallet" });
+}
 
 async function loadSerialBooks() {
   loading.value = true;
@@ -67,8 +134,7 @@ async function loadSerialBooks() {
     const { data } = await api.get<ShelfResponse>("/serials");
     books.value = Array.isArray(data?.books) ? data.books : [];
   } catch (error: any) {
-    errorMessage.value =
-      error?.response?.data?.message || "โหลดรายการหนังสือรายตอนไม่สำเร็จ";
+    errorMessage.value = error?.response?.data?.message || "โหลดรายการรายตอนไม่สำเร็จ";
     books.value = [];
   } finally {
     loading.value = false;
@@ -87,217 +153,281 @@ onMounted(loadSerialBooks);
 
 <template>
   <main class="serial-page">
-    <section class="serial-hero">
-      <div class="hero-copy">
-        <p>Read and Voice รายตอน</p>
-        <h1>หนังสือระบบรายตอน</h1>
-        <span>รวมเรื่องที่ผู้เขียนเผยแพร่เป็นตอน เลือกเรื่องแล้วเข้าไปดูรายการตอนทั้งหมดได้ทันที</span>
-      </div>
-
-      <article v-if="featuredBook" class="featured-card" @click="goToBook(featuredBook.id)">
-        <img :src="getBookCover(featuredBook)" :alt="featuredBook.title" />
-        <div>
-          <small>เรื่องเด่น</small>
-          <strong>{{ featuredBook.title }}</strong>
-          <span>{{ featuredBook.episode_count || 0 }} ตอน | {{ getAccessLabel(featuredBook) }}</span>
-        </div>
-      </article>
+    <section v-if="heroBooks.length" class="hero-strip" aria-label="นิยายรายตอนแนะนำ">
+      <button
+        v-for="(book, index) in heroBooks"
+        :key="book.id"
+        class="hero-tile"
+        :class="{ wide: index > 0 && index < heroBooks.length - 1 }"
+        type="button"
+        @click="goToBook(book.id)"
+      >
+        <img :src="getBookCover(book)" :alt="book.title" @error="handleImgError" />
+        <span>{{ book.title }}</span>
+      </button>
     </section>
 
-    <section class="serial-toolbar">
+    <div class="coin-row">
+      <button class="coin-btn" type="button" @click="goToCoinWallet">
+        <span aria-hidden="true">M</span>
+        เติมคอยน์
+      </button>
+    </div>
+
+    <section class="filter-panel" aria-label="ค้นหาและกรองนิยายรายตอน">
       <div>
-        <h2>รายการหนังสือรายตอน</h2>
-        <p>{{ filteredBooks.length }} เรื่อง</p>
+        <h1>รายตอน</h1>
+        <p>{{ filteredBooks.length.toLocaleString("th-TH") }} เรื่องจากข้อมูลจริงในระบบ</p>
       </div>
+
       <input
         v-model="search"
         type="search"
         placeholder="ค้นหาชื่อเรื่อง ผู้เขียน หรือหมวดหมู่"
-        aria-label="ค้นหาหนังสือรายตอน"
+        aria-label="ค้นหานิยายรายตอน"
       />
-      <div class="filter-row">
-        <select v-model="accessFilter" aria-label="กรองตามสิทธิ์อ่าน">
-          <option value="all">ทุกสิทธิ์อ่าน</option>
-          <option value="free">อ่านฟรี</option>
-          <option value="paid">ใช้คอยน์</option>
-          <option value="subscription">แพ็กเกจ</option>
-        </select>
-        <select v-model="categoryFilter" aria-label="กรองตามหมวดหมู่">
-          <option value="all">ทุกหมวดหมู่</option>
-          <option v-for="category in categoryOptions" :key="category" :value="category">
-            {{ category }}
-          </option>
-        </select>
-      </div>
+
+      <select v-model="accessFilter" aria-label="กรองตามสิทธิ์อ่าน">
+        <option value="all">ทุกสิทธิ์อ่าน</option>
+        <option value="free">ฟรี</option>
+        <option value="paid">ใช้คอยน์</option>
+        <option value="subscription">แพ็กเกจ</option>
+      </select>
+
+      <select v-model="categoryFilter" aria-label="กรองตามหมวดหมู่">
+        <option value="all">ทุกหมวดหมู่</option>
+        <option v-for="category in categoryOptions" :key="category" :value="category">
+          {{ category }}
+        </option>
+      </select>
     </section>
 
     <div v-if="loading" class="state-box">กำลังโหลดรายการรายตอน...</div>
     <div v-else-if="errorMessage" class="state-box error">{{ errorMessage }}</div>
     <div v-else-if="filteredBooks.length === 0" class="state-box">
-      ยังไม่มีหนังสือรายตอนในระบบ
+      ยังไม่มีนิยายรายตอนที่ตรงกับเงื่อนไขนี้
     </div>
 
-    <section v-else class="serial-grid" aria-label="รายการหนังสือรายตอน">
-      <article
-        v-for="book in filteredBooks"
-        :key="book.id"
-        class="serial-card"
-        role="button"
-        tabindex="0"
-        :aria-label="`เปิดรายการตอนของ ${book.title}`"
-        @click="goToBook(book.id)"
-        @keydown.enter.prevent="goToBook(book.id)"
-        @keydown.space.prevent="goToBook(book.id)"
-      >
-        <img :src="getBookCover(book)" :alt="book.title" />
-        <div class="serial-card-copy">
-          <div class="serial-card-meta">
-            <span>{{ book.category_name || "รายตอน" }}</span>
-            <span>{{ book.episode_count || 0 }} ตอน</span>
-          </div>
-          <h3>{{ book.title }}</h3>
-          <p>{{ book.author || "ไม่ระบุผู้เขียน" }}</p>
-          <small>{{ book.description || "เข้าไปดูรายละเอียดและรายการตอนทั้งหมดของเรื่องนี้" }}</small>
-          <div class="serial-card-footer">
-            <strong>{{ getAccessLabel(book) }}</strong>
-            <button type="button" @click.stop="goToBook(book.id)">ดูรายการตอน</button>
-          </div>
+    <template v-else>
+      <section class="continue-section">
+        <div class="section-head">
+          <h2>อ่านต่อ</h2>
+          <button type="button" @click="categoryFilter = 'all'">ดูทั้งหมด</button>
         </div>
-      </article>
-    </section>
+
+        <div class="continue-rail" aria-label="รายการอ่านต่อ">
+          <article
+            v-for="book in continueBooks"
+            :key="book.id"
+            class="continue-card"
+            role="button"
+            tabindex="0"
+            @click="goToBook(book.id)"
+            @keydown.enter.prevent="goToBook(book.id)"
+            @keydown.space.prevent="goToBook(book.id)"
+          >
+            <img :src="getBookCover(book)" :alt="book.title" @error="handleImgError" />
+            <div>
+              <h3>{{ book.title }}</h3>
+              <p>{{ getEpisodeCount(book) }} ตอนล่าสุด • {{ getAccessLabel(book) }}</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="serial-group">
+        <div class="section-head">
+          <h2>Love Novel</h2>
+          <button type="button" @click="categoryFilter = 'all'">ดูทั้งหมด</button>
+        </div>
+
+        <div class="book-row" aria-label="นิยายรายตอนทั้งหมด">
+          <article
+            v-for="book in filteredBooks.slice(0, 8)"
+            :key="book.id"
+            class="book-card"
+            role="button"
+            tabindex="0"
+            @click="goToBook(book.id)"
+            @keydown.enter.prevent="goToBook(book.id)"
+            @keydown.space.prevent="goToBook(book.id)"
+          >
+            <img :src="getBookCover(book)" :alt="book.title" @error="handleImgError" />
+            <h3>{{ book.title }}</h3>
+            <p>{{ book.author || "ไม่ระบุผู้เขียน" }}</p>
+            <small>{{ getBookMeta(book) }}</small>
+          </article>
+        </div>
+      </section>
+
+      <section
+        v-for="section in categorySections"
+        :key="section.title"
+        class="serial-group"
+      >
+        <div class="section-head">
+          <h2>{{ section.title }}</h2>
+          <button type="button" @click="categoryFilter = section.title">ดูทั้งหมด</button>
+        </div>
+
+        <div class="book-row" :aria-label="section.title">
+          <article
+            v-for="book in section.books"
+            :key="book.id"
+            class="book-card"
+            role="button"
+            tabindex="0"
+            @click="goToBook(book.id)"
+            @keydown.enter.prevent="goToBook(book.id)"
+            @keydown.space.prevent="goToBook(book.id)"
+          >
+            <img :src="getBookCover(book)" :alt="book.title" @error="handleImgError" />
+            <h3>{{ book.title }}</h3>
+            <p>{{ book.author || "ไม่ระบุผู้เขียน" }}</p>
+            <small>{{ getBookMeta(book) }}</small>
+          </article>
+        </div>
+      </section>
+    </template>
   </main>
 </template>
 
 <style scoped>
 .serial-page {
-  width: min(100% - calc(var(--page-gutter, 18px) * 2), 1120px);
-  min-height: 100%;
-  margin: 0 auto;
-  padding: var(--page-block, 28px) 0 56px;
+  background: var(--bg);
   color: var(--text-strong);
+  min-height: 100%;
+  padding: 14px 0 56px;
 }
 
-.serial-hero {
+.hero-strip {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
-  gap: 22px;
-  align-items: stretch;
-  border-radius: 0;
-  background: #111827;
-  color: #ffffff;
-  padding: 28px;
-}
-
-.hero-copy {
-  display: grid;
-  align-content: center;
+  grid-template-columns: minmax(150px, 190px) repeat(3, minmax(260px, 1fr)) minmax(150px, 190px);
   gap: 10px;
+  overflow-x: auto;
+  padding: 0 12px 10px;
+  scrollbar-width: thin;
 }
 
-.hero-copy p,
-.hero-copy h1,
-.hero-copy span {
-  margin: 0;
-}
-
-.hero-copy p {
-  color: #5eead4;
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: 0;
-}
-
-.hero-copy h1 {
-  font-size: clamp(28px, 4vw, 44px);
-  letter-spacing: 0;
-}
-
-.hero-copy span {
-  max-width: 620px;
-  color: #d1d5db;
-  line-height: 1.8;
-}
-
-.featured-card {
-  display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  gap: 14px;
-  align-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.08);
+.hero-tile {
+  position: relative;
+  display: block;
+  min-width: 150px;
+  height: 230px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px;
+  background: var(--surface-soft);
   cursor: pointer;
-  padding: 14px;
+  padding: 0;
 }
 
-.featured-card img {
-  width: 96px;
-  aspect-ratio: 3 / 4;
+.hero-tile.wide {
+  min-width: 360px;
+}
+
+.hero-tile img {
+  width: 100%;
+  height: 100%;
+  display: block;
   object-fit: cover;
-  background: #e5e7eb;
 }
 
-.featured-card div {
-  min-width: 0;
+.hero-tile.wide img {
+  object-fit: cover;
 }
 
-.featured-card small,
-.featured-card span {
-  display: block;
-  color: #cbd5e1;
-  font-weight: 800;
+.hero-tile span {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  color: #ffffff;
+  display: -webkit-box;
+  font-weight: 900;
+  line-height: 1.3;
+  overflow: hidden;
+  text-align: left;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
-.featured-card strong {
-  display: block;
-  margin: 6px 0;
-  overflow-wrap: anywhere;
-  font-size: 20px;
-}
-
-.serial-toolbar {
+.coin-row {
   display: flex;
-  gap: 18px;
-  align-items: center;
-  justify-content: space-between;
-  margin: 30px 0 18px;
+  justify-content: center;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 12px;
 }
 
-.serial-toolbar h2,
-.serial-toolbar p {
+.coin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: #ff8a00;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 900;
+  min-height: 36px;
+  padding: 0 18px;
+}
+
+.coin-btn span {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffd36a;
+  color: #b45309;
+  font-size: 11px;
+}
+
+.filter-panel,
+.continue-section,
+.serial-group {
+  width: min(100% - 28px, 900px);
+  margin: 0 auto;
+}
+
+.filter-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 260px) minmax(130px, 160px) minmax(130px, 180px);
+  gap: 10px;
+  align-items: end;
+  padding: 22px 0 10px;
+}
+
+.filter-panel h1,
+.filter-panel p,
+.section-head h2 {
   margin: 0;
 }
 
-.serial-toolbar p {
+.filter-panel h1 {
+  font-size: 30px;
+}
+
+.filter-panel p {
   color: var(--text-muted);
   font-weight: 800;
 }
 
-.serial-toolbar input {
-  width: min(100%, 360px);
-  min-height: 44px;
+.filter-panel input,
+.filter-panel select {
+  min-height: 38px;
   border: 1px solid var(--border);
+  border-radius: 4px;
   background: var(--surface);
   color: var(--text-strong);
-  padding: 0 14px;
-}
-
-.filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: flex-end;
-}
-
-.filter-row select {
-  min-height: 42px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-strong);
-  font-weight: 800;
   padding: 0 12px;
 }
 
 .state-box {
+  width: min(100% - 28px, 900px);
+  margin: 20px auto;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-muted);
@@ -311,147 +441,197 @@ onMounted(loadSerialBooks);
   color: #be123c;
 }
 
-.serial-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
+.continue-section {
+  padding: 12px 0 30px;
 }
 
-.serial-card {
-  display: grid;
-  grid-template-columns: 92px minmax(0, 1fr);
-  gap: 14px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  cursor: pointer;
-  min-width: 0;
-  padding: 14px;
-  transition:
-    border-color 0.18s ease,
-    transform 0.18s ease;
-}
-
-.serial-card:hover,
-.serial-card:focus-visible {
-  border-color: #20c7b4;
-  transform: translateY(-2px);
-}
-
-.serial-card img {
-  width: 92px;
-  aspect-ratio: 3 / 4;
-  object-fit: cover;
-  background: #e5e7eb;
-}
-
-.serial-card-copy {
-  display: grid;
-  gap: 7px;
-  min-width: 0;
-}
-
-.serial-card-meta,
-.serial-card-footer {
+.section-head {
   display: flex;
-  gap: 8px;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
 }
 
-.serial-card-meta span {
-  color: #0f766e;
-  font-size: 12px;
+.section-head h2 {
+  font-size: 28px;
+}
+
+.section-head button {
+  border: 0;
+  background: transparent;
+  color: #00a99d;
+  cursor: pointer;
   font-weight: 900;
 }
 
-.serial-card h3,
-.serial-card p,
-.serial-card small {
+.continue-rail,
+.book-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 185px;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+}
+
+.continue-card {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  min-height: 58px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  cursor: pointer;
+  padding: 6px;
+}
+
+.continue-card img {
+  width: 52px;
+  aspect-ratio: 1 / 1;
+  border-radius: 5px;
+  object-fit: cover;
+}
+
+.continue-card h3,
+.continue-card p,
+.book-card h3,
+.book-card p,
+.book-card small {
   margin: 0;
   min-width: 0;
-  overflow-wrap: anywhere;
 }
 
-.serial-card h3 {
-  color: var(--text-strong);
-  font-size: 17px;
-}
-
-.serial-card p,
-.serial-card small {
-  color: var(--text-muted);
-}
-
-.serial-card small {
+.continue-card h3 {
   display: -webkit-box;
+  color: var(--text-strong);
+  font-size: 13px;
+  line-height: 1.35;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.continue-card p {
+  display: -webkit-box;
+  color: #ff4f87;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.serial-group {
+  padding: 12px 0 22px;
+}
+
+.serial-group .section-head h2 {
+  font-size: 22px;
+}
+
+.book-row {
+  grid-auto-columns: 135px;
+}
+
+.book-card {
+  cursor: pointer;
+  min-width: 0;
+}
+
+.book-card img {
+  width: 100%;
+  aspect-ratio: 1 / 1.18;
+  display: block;
+  border-radius: 6px;
+  background: var(--surface-soft);
+  object-fit: cover;
+}
+
+.book-card h3 {
+  display: -webkit-box;
+  color: var(--text-strong);
+  font-size: 13px;
+  line-height: 1.38;
+  margin-top: 8px;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  line-height: 1.55;
 }
 
-.serial-card-footer {
+.book-card p {
+  display: -webkit-box;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 6px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.book-card small {
+  display: -webkit-box;
+  color: #7a7f87;
+  font-size: 11px;
+  line-height: 1.35;
   margin-top: 4px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
 }
 
-.serial-card-footer strong {
-  color: #0f766e;
-  font-size: 13px;
+@media (max-width: 920px) {
+  .hero-strip {
+    grid-template-columns: unset;
+    grid-auto-flow: column;
+    grid-auto-columns: 78vw;
+  }
+
+  .hero-tile,
+  .hero-tile.wide {
+    min-width: 78vw;
+    height: 210px;
+  }
+
+  .filter-panel {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .filter-panel > div,
+  .filter-panel input {
+    grid-column: 1 / -1;
+  }
 }
 
-.serial-card-footer button {
-  border: 0;
-  background: #55c6bd;
-  color: #ffffff;
-  cursor: pointer;
-  font-weight: 900;
-  min-height: 34px;
-  padding: 0 12px;
-  white-space: nowrap;
-}
+@media (max-width: 560px) {
+  .serial-page {
+    padding-top: 8px;
+  }
 
-@media (max-width: 720px) {
-  .serial-hero,
-  .serial-toolbar {
+  .hero-tile,
+  .hero-tile.wide {
+    height: 168px;
+  }
+
+  .filter-panel {
     grid-template-columns: 1fr;
   }
 
-  .serial-toolbar {
-    align-items: stretch;
-    flex-direction: column;
+  .filter-panel h1 {
+    font-size: 26px;
   }
 
-  .serial-toolbar input {
-    width: 100%;
+  .continue-rail {
+    grid-auto-columns: 170px;
   }
 
-  .filter-row {
-    justify-content: stretch;
-  }
-
-  .filter-row select {
-    flex: 1 1 150px;
-  }
-}
-
-@media (max-width: 420px) {
-  .serial-hero {
-    padding: 20px;
-  }
-
-  .featured-card,
-  .serial-card {
-    grid-template-columns: 72px minmax(0, 1fr);
-  }
-
-  .featured-card img,
-  .serial-card img {
-    width: 72px;
-  }
-
-  .serial-card-footer {
-    align-items: flex-start;
-    flex-direction: column;
+  .book-row {
+    grid-auto-columns: 118px;
   }
 }
 </style>
