@@ -2009,26 +2009,32 @@ watch(bannerPages, () => {
   }
 
   .book-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
     margin-top: 8px;
   }
 
   .book-info {
-    grid-template-rows: auto minmax(34px, auto) auto auto auto;
-    gap: 4px;
-    padding: 6px 4px;
+    grid-template-rows: auto auto auto auto auto;
+    gap: 5px;
+    padding: 8px 7px;
   }
 
   .book-info p {
-    min-height: 30px;
-    font-size: 9px;
-    line-height: 1.35;
+    display: block;
+    min-height: 0;
+    font-size: 12px;
+    line-height: 1.4;
+    line-clamp: unset;
+    -webkit-line-clamp: unset;
   }
 
   .book-info small {
-    min-height: 13px;
-    font-size: 8px;
+    display: block;
+    min-height: 0;
+    font-size: 10px;
+    line-clamp: unset;
+    -webkit-line-clamp: unset;
   }
 
   .book-card-footer {
@@ -2036,19 +2042,19 @@ watch(bannerPages, () => {
   }
 
   .heart-row {
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .rating-box small {
-    min-height: 10px;
-    font-size: 7px;
+    min-height: 0;
+    font-size: 9px;
   }
 
   .price-pill {
-    min-width: 36px;
-    min-height: 20px;
-    font-size: 8px;
-    padding: 0 4px;
+    min-width: 46px;
+    min-height: 24px;
+    font-size: 10px;
+    padding: 0 6px;
   }
 
   .category-bar,
@@ -2100,6 +2106,7 @@ watch(bannerPages, () => {
   .section-head {
     align-items: flex-start;
     flex-direction: column;
+    gap: 6px;
   }
 
   .section-head h2 {
@@ -2138,13 +2145,13 @@ watch(bannerPages, () => {
   }
 
   .book-info {
-    grid-template-rows: auto minmax(38px, auto) auto auto auto;
+    grid-template-rows: auto auto auto auto auto;
     gap: 5px;
     padding: 8px 7px;
   }
 
   .book-info p {
-    min-height: 38px;
+    min-height: 0;
     font-size: 12px;
   }
 

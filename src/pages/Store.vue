@@ -553,7 +553,7 @@ onMounted(loadBooks);
 
   .book-grid {
     gap: 12px;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .book-card {
@@ -561,8 +561,19 @@ onMounted(loadBooks);
   }
 
   .book-card h2 {
-    font-size: 11px;
-    min-height: 32px;
+    display: block;
+    font-size: 12px;
+    min-height: 0;
+    line-clamp: unset;
+    -webkit-line-clamp: unset;
+  }
+
+  .book-card p,
+  .book-card small {
+    display: block;
+    min-height: 0;
+    line-clamp: unset;
+    -webkit-line-clamp: unset;
   }
 }
 

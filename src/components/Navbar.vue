@@ -2123,11 +2123,12 @@ watch(isCompactNav, (compact) => {
 @media (max-width: 780px) {
   .top-bar {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     gap: 16px;
     width: 100%;
     max-width: 100vw;
-    overflow: hidden;
+    overflow: visible;
     min-height: 82px;
     padding: 10px clamp(18px, 3vw, 40px);
   }
@@ -2142,8 +2143,31 @@ watch(isCompactNav, (compact) => {
     position: static;
     transform: none;
   }
-  .desktop-public-nav {
-    display: none;
+  .desktop-public-nav,
+  .navbar--compact .desktop-public-nav {
+    order: 3;
+    position: static;
+    display: flex;
+    flex: 0 0 100%;
+    width: 100%;
+    min-width: 0;
+    transform: none;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .desktop-public-nav a,
+  .navbar--compact .desktop-public-nav a {
+    flex: 1 1 calc(33.333% - 6px);
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--surface) 86%, transparent);
+    font-size: 12px;
+    line-height: 1.1;
+    text-align: center;
+    white-space: normal;
   }
   .left-cluster > .subscription-link,
   .left-cluster > .coin-link {
@@ -2186,11 +2210,12 @@ watch(isCompactNav, (compact) => {
 @media (max-width: 780px) {
   .top-bar {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     gap: 6px;
     width: 100%;
     max-width: 100vw;
-    overflow: hidden;
+    overflow: visible;
     min-height: 76px;
     padding: 10px 8px;
   }
@@ -2290,6 +2315,19 @@ watch(isCompactNav, (compact) => {
     min-height: 70px;
     padding-inline: max(6px, env(safe-area-inset-left))
       max(6px, env(safe-area-inset-right));
+  }
+
+  .desktop-public-nav,
+  .navbar--compact .desktop-public-nav {
+    gap: 5px;
+  }
+
+  .desktop-public-nav a,
+  .navbar--compact .desktop-public-nav a {
+    flex-basis: calc(33.333% - 5px);
+    min-height: 30px;
+    font-size: 11px;
+    padding: 4px 2px;
   }
 
   .left-cluster {
