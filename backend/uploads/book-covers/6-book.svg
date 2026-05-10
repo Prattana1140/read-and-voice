@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="1600" viewBox="0 0 1200 1600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="1600" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#090d16"/>
+      <stop offset="1" stop-color="#233654"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="28" flood-color="#000000" flood-opacity="0.24"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="1600" fill="url(#bg)"/>
+  <rect x="64" y="64" width="1072" height="1472" rx="50" fill="#ffffff" fill-opacity="0.055" stroke="#f3efe7" stroke-opacity="0.22" stroke-width="4"/>
+  <circle cx="1015" cy="214" r="205" fill="#c89246" fill-opacity="0.16"/>
+  <circle cx="180" cy="1260" r="190" fill="#f3efe7" fill-opacity="0.12"/>
+  <path d="M96 190H390" stroke="#c89246" stroke-width="18" stroke-linecap="round"/>
+  <path d="M96 232H285" stroke="#f3efe7" stroke-width="10" stroke-linecap="round" stroke-opacity="0.55"/>
+  <path d="M96 292H520" stroke="#090d16" stroke-width="84" stroke-linecap="round" stroke-opacity="0.18"/>
+  <g filter="url(#shadow)">
+
+  <path d="M500 1245H1090V892C1002 862 916 868 827 920C748 966 691 1043 614 1072C570 1088 532 1084 500 1068V1245Z" fill="#f3efe7" fill-opacity="0.12"/>
+  <rect x="575" y="852" width="88" height="392" fill="#f3efe7" fill-opacity="0.88"/>
+  <rect x="704" y="772" width="122" height="472" fill="#f3efe7" fill-opacity="0.72"/>
+  <rect x="874" y="900" width="82" height="344" fill="#f3efe7" fill-opacity="0.58"/>
+  <rect x="612" y="914" width="18" height="36" fill="#c89246" fill-opacity="0.6"/>
+  <rect x="752" y="840" width="22" height="44" fill="#c89246" fill-opacity="0.56"/>
+  <rect x="910" y="964" width="16" height="34" fill="#c89246" fill-opacity="0.52"/>
+  <path d="M575 724L1022 724" stroke="#c89246" stroke-width="18" stroke-linecap="round"/>
+  <path d="M628 668L968 668" stroke="#f3efe7" stroke-width="8" stroke-linecap="round" stroke-opacity="0.72"/>
+  <path d="M606 760L548 904M738 760L680 904M870 760L812 904M1002 760L944 904" stroke="#8193ad" stroke-width="10" stroke-linecap="round" stroke-opacity="0.58"/>
+  <path d="M570 1246C724 1164 914 1164 1068 1246" stroke="#c89246" stroke-width="12" stroke-linecap="round" stroke-opacity="0.54"/>
+  </g>
+  <text x="96" y="348" font-size="62" font-weight="800" fill="#f7fbff" stroke="#090d16" stroke-width="2" paint-order="stroke" font-family="Tahoma, Noto Sans Thai, sans-serif">เมืองหลังฝน</text>
+  <text x="96" y="665" font-size="28" font-weight="600" fill="#f7fbff" fill-opacity="0.78" font-family="Tahoma, Noto Sans Thai, sans-serif">นิยายลึกลับในคืนที่ฟ้าปิด</text>
+  <path d="M96 1290H470" stroke="#c89246" stroke-width="8" stroke-linecap="round" stroke-opacity="0.78"/>
+  <text x="96" y="1342" font-size="30" font-weight="800" fill="#f7fbff" font-family="Tahoma, Noto Sans Thai, sans-serif">มนนภา ศรีดารา</text>
+  <text x="96" y="1400" font-size="22" font-weight="700" fill="#f7fbff" fill-opacity="0.64" font-family="Tahoma, Noto Sans Thai, sans-serif">นิยายลึกลับ</text>
+</svg>

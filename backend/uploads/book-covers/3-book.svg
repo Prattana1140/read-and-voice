@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="1600" viewBox="0 0 1200 1600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="1600" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f2f5f8"/>
+      <stop offset="1" stop-color="#dce6ef"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="28" flood-color="#000000" flood-opacity="0.24"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="1600" fill="url(#bg)"/>
+  <rect x="64" y="64" width="1072" height="1472" rx="50" fill="#ffffff" fill-opacity="0.055" stroke="#203a55" stroke-opacity="0.22" stroke-width="4"/>
+  <circle cx="1015" cy="214" r="205" fill="#e29057" fill-opacity="0.16"/>
+  <circle cx="180" cy="1260" r="190" fill="#203a55" fill-opacity="0.12"/>
+  <path d="M96 190H390" stroke="#e29057" stroke-width="18" stroke-linecap="round"/>
+  <path d="M96 232H285" stroke="#203a55" stroke-width="10" stroke-linecap="round" stroke-opacity="0.55"/>
+  <path d="M96 292H520" stroke="#f2f5f8" stroke-width="84" stroke-linecap="round" stroke-opacity="0.18"/>
+  <g filter="url(#shadow)">
+
+  <rect x="600" y="980" width="92" height="240" rx="14" fill="#203a55" fill-opacity="0.78"/>
+  <rect x="735" y="900" width="92" height="320" rx="14" fill="#e29057" fill-opacity="0.88"/>
+  <rect x="870" y="805" width="92" height="415" rx="14" fill="#203a55" fill-opacity="0.9"/>
+  <path d="M590 885C695 850 767 812 842 725C880 682 918 660 975 640" stroke="#e29057" stroke-width="20" stroke-linecap="round" fill="none"/>
+  <path d="M930 625L985 638L958 690" stroke="#e29057" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+  <text x="96" y="348" font-size="56" font-weight="800" fill="#17293e" stroke="#f2f5f8" stroke-width="2" paint-order="stroke" font-family="Tahoma, Noto Sans Thai, sans-serif">เช้าวันให</text><text x="96" y="422" font-size="56" font-weight="800" fill="#17293e" stroke="#f2f5f8" stroke-width="2" paint-order="stroke" font-family="Tahoma, Noto Sans Thai, sans-serif">ม่อย่างมี</text><text x="96" y="496" font-size="56" font-weight="800" fill="#17293e" stroke="#f2f5f8" stroke-width="2" paint-order="stroke" font-family="Tahoma, Noto Sans Thai, sans-serif">สติ</text>
+  <text x="96" y="665" font-size="28" font-weight="600" fill="#17293e" fill-opacity="0.78" font-family="Tahoma, Noto Sans Thai, sans-serif">แนวทางเริ่มต้นวันด้วยใจที่นิ่งและชัดเจน</text>
+  <path d="M96 1290H470" stroke="#e29057" stroke-width="8" stroke-linecap="round" stroke-opacity="0.78"/>
+  <text x="96" y="1342" font-size="30" font-weight="800" fill="#17293e" font-family="Tahoma, Noto Sans Thai, sans-serif">ทีม Read and Voice</text>
+  <text x="96" y="1400" font-size="22" font-weight="700" fill="#17293e" fill-opacity="0.64" font-family="Tahoma, Noto Sans Thai, sans-serif">Work</text>
+</svg>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="1600" viewBox="0 0 1200 1600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="1600" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0d1f17"/>
+      <stop offset="1" stop-color="#1f5b52"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="28" flood-color="#000000" flood-opacity="0.24"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="1600" fill="url(#bg)"/>
+  <rect x="64" y="64" width="1072" height="1472" rx="50" fill="#ffffff" fill-opacity="0.055" stroke="#edf9e7" stroke-opacity="0.22" stroke-width="4"/>
+  
+  <rect x="720" y="205" width="420" height="1120" rx="210" fill="#edf9e7" fill-opacity="0.06" transform="rotate(14 720 205)"/>
+  <rect x="840" y="260" width="240" height="880" rx="120" fill="#e9a33f" fill-opacity="0.12" transform="rotate(14 840 260)"/>
+  <circle cx="993" cy="793" r="160" fill="#edf9e7" fill-opacity="0.12"/>
+  <circle cx="1015" cy="214" r="205" fill="#e9a33f" fill-opacity="0.12"/>
+  <circle cx="180" cy="1260" r="190" fill="#edf9e7" fill-opacity="0.12"/>
+  <path d="M96 190H390" stroke="#e9a33f" stroke-width="18" stroke-linecap="round"/>
+  <path d="M96 232H285" stroke="#edf9e7" stroke-width="10" stroke-linecap="round" stroke-opacity="0.55"/>
+  <path d="M96 292H520" stroke="#0d1f17" stroke-width="84" stroke-linecap="round" stroke-opacity="0.18"/>
+  <g filter="url(#shadow)">
+
+  <rect x="585" y="850" width="460" height="310" rx="28" fill="#edf9e7" fill-opacity="0.14" stroke="#e9a33f" stroke-width="8"/>
+  <path d="M690 1005L635 960L690 915M938 915L994 960L938 1005" stroke="#e9a33f" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M842 895L790 1025" stroke="#edf9e7" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="640" cy="1230" r="18" fill="#e9a33f"/><circle cx="815" cy="1230" r="18" fill="#e9a33f"/><circle cx="990" cy="1230" r="18" fill="#e9a33f"/>
+  <path d="M640 1230H990M815 1160V1230" stroke="#84aaa0" stroke-width="10" stroke-opacity="0.62"/>
+  </g>
+  <text x="96" y="348" font-size="56" font-weight="800" fill="#f5fff5" stroke="#0d1f17" stroke-width="2" paint-order="stroke" font-family="Tahoma, Noto Sans Thai, sans-serif">เด็กและเย</text><text x="96" y="422" font-size="56" font-weight="800" fill="#f5fff5" stroke="#0d1f17" stroke-width="2" paint-order="stroke" font-family="Tahoma, Noto Sans Thai, sans-serif">าวชนคู่มื</text><text x="96" y="496" font-size="56" font-weight="800" fill="#f5fff5" stroke="#0d1f17" stroke-width="2" paint-order="stroke" font-family="Tahoma, Noto Sans Thai, sans-serif">อเริ่มต้น</text>
+  <text x="96" y="665" font-size="28" font-weight="600" fill="#f5fff5" fill-opacity="0.78" font-family="Tahoma, Noto Sans Thai, sans-serif">ฉบับอ่านง่ายสำหรับคนที่อยากเริ่มต้นอย่างมั่นใจ</text>
+  <path d="M96 1290H470" stroke="#e9a33f" stroke-width="8" stroke-linecap="round" stroke-opacity="0.78"/>
+  <text x="96" y="1342" font-size="30" font-weight="800" fill="#f5fff5" font-family="Tahoma, Noto Sans Thai, sans-serif">กฤตเมธ อนันต์</text>
+  <text x="96" y="1400" font-size="22" font-weight="700" fill="#f5fff5" fill-opacity="0.64" font-family="Tahoma, Noto Sans Thai, sans-serif">Digital</text>
+</svg>

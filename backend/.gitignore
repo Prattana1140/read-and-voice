@@ -6,7 +6,7 @@ node_modules/
 uploads/*
 !uploads/book-covers/
 uploads/book-covers/*
-!uploads/book-covers/launch-*.svg
+!uploads/book-covers/*.svg
 *.log
 npm-debug.log*
 yarn-debug.log*

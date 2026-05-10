@@ -17,7 +17,7 @@ backend/.env
 backend/uploads/*
 !backend/uploads/book-covers/
 backend/uploads/book-covers/*
-!backend/uploads/book-covers/launch-*.svg
+!backend/uploads/book-covers/*.svg
 .sixth/
 tmp-upload-book*.txt
 
