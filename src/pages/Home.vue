@@ -103,14 +103,39 @@
         ยังไม่มีหนังสือแสดงผล
       </div>
 
+      <section v-if="categoryLinks.length" class="category-overview" aria-label="หมวดหมู่หนังสือ">
+        <div class="section-head section-head--stacked">
+          <div>
+            <span class="section-kicker">เลือกอ่านตามหมวด</span>
+            <h2>หมวดหมู่หนังสือ</h2>
+          </div>
+          <router-link to="/store">ดูทั้งหมด</router-link>
+        </div>
+        <div class="category-chip-grid">
+          <router-link
+            v-for="category in categoryLinks"
+            :key="category.name"
+            class="category-chip"
+            :to="{ name: 'Store', query: { category: category.name } }"
+          >
+            <strong>{{ category.name }}</strong>
+            <span>{{ category.count }} เรื่อง</span>
+          </router-link>
+        </div>
+      </section>
+
       <section
         v-for="section in homeSections"
-        v-else
         :key="section.title"
         class="shelf-section"
+        :class="`shelf-section--${section.kind || 'mixed'}`"
       >
-        <div class="section-head">
-          <h2>{{ section.title }}</h2>
+        <div class="section-head section-head--stacked">
+          <div>
+            <span v-if="section.kicker" class="section-kicker">{{ section.kicker }}</span>
+            <h2>{{ section.title }}</h2>
+            <p v-if="section.description">{{ section.description }}</p>
+          </div>
           <router-link :to="section.to">ดูทั้งหมด</router-link>
         </div>
 
@@ -127,7 +152,11 @@
               @error="handleImgError"
             />
             <div class="book-info">
+              <span class="content-badge" :class="`content-badge--${getContentKind(book)}`">
+                {{ getContentLabel(book) }}
+              </span>
               <p>{{ book.title }}</p>
+              <small v-if="book.category_name" class="book-category">{{ book.category_name }}</small>
               <small>{{ getSellerName(book) }}</small>
               <div class="book-card-footer">
                 <div class="rating-box" :aria-label="getReviewLabel(book)">
@@ -262,6 +291,8 @@ type Book = {
   cover_url?: string;
   cover_image_url?: string;
   cover_image?: string;
+  category_name?: string;
+  content_type?: string;
   access_type?: string;
   price?: number | string;
   coin_price?: number | string;
@@ -273,6 +304,9 @@ type HomeSection = {
   title: string;
   to: string;
   books: Book[];
+  kind?: "ebook" | "serial" | "mixed";
+  kicker?: string;
+  description?: string;
 };
 
 type ShelfResponse = {
@@ -305,6 +339,7 @@ const router = useRouter();
 const homeBanners = ref<HomeBanner[]>([]);
 const fallbackBannerBooks = ref<Book[]>([]);
 const homeSectionItems = ref<HomeSection[]>([]);
+const categorySourceBooks = ref<Book[]>([]);
 const activeBannerIndex = ref(0);
 const supportDialogBook = ref<Book | null>(null);
 const supportDialogMode = ref<"select" | "added">("select");
@@ -411,6 +446,21 @@ const homeSections = computed(() =>
   homeSectionItems.value.filter((section) => section.books.length > 0),
 );
 
+const categoryLinks = computed(() => {
+  const counts = new Map<string, number>();
+
+  categorySourceBooks.value.forEach((book) => {
+    const name = String(book.category_name || "").trim();
+    if (!name) return;
+    counts.set(name, (counts.get(name) || 0) + 1);
+  });
+
+  return [...counts.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "th"))
+    .slice(0, 8);
+});
+
 const supportAmountOptions = computed(() => {
   const base = supportDialogBook.value
     ? getBaseSupportAmount(supportDialogBook.value)
@@ -449,6 +499,14 @@ const formatBookPrice = (book: Book) => {
   const price = Number(book.coin_price ?? book.price ?? 0);
   if (!Number.isFinite(price) || price <= 0 || book.access_type === "free") return "ฟรี";
   return `฿ ${price.toLocaleString("th-TH", { maximumFractionDigits: 0 })}`;
+};
+
+const getContentKind = (book: Book) => {
+  return book.content_type === "serial" ? "serial" : "ebook";
+};
+
+const getContentLabel = (book: Book) => {
+  return getContentKind(book) === "serial" ? "รายตอน" : "อีบุ๊ก";
 };
 
 const isFreeBook = (book: Book) => {
@@ -638,19 +696,35 @@ async function fetchPageContent() {
 }
 
 async function loadHomeContent() {
-  const [, recommendedBooks, allBooks, ...sectionBooks] = await Promise.all([
+  const [, recommendedBooks, ebookBooks, serialBooks, ...sectionBooks] = await Promise.all([
     fetchPageContent().catch(() => undefined),
     fetchShelfBooks("/recommended").catch(() => []),
     fetchShelfBooks("/ebooks").catch(() => []),
+    fetchShelfBooks("/serials").catch(() => []),
     ...sectionDefinitions.map((section) =>
       fetchShelfBooks(section.endpoint).catch(() => []),
     ),
   ]);
 
+  const normalizedEbooks = ebookBooks.map((book) => ({
+    ...book,
+    content_type: book.content_type || "ebook",
+  }));
+  const normalizedSerials = serialBooks.map((book) => ({
+    ...book,
+    content_type: "serial",
+  }));
+  const catalogBooks = [...normalizedEbooks, ...normalizedSerials].filter(
+    (book, index, books) =>
+      books.findIndex((candidate) => candidate.id === book.id) === index,
+  );
+
+  categorySourceBooks.value = catalogBooks;
+
   fallbackBannerBooks.value = [
     ...recommendedBooks,
     ...sectionBooks.flat(),
-    ...allBooks,
+    ...catalogBooks,
   ].filter(
     (book, index, books) =>
       books.findIndex((candidate) => candidate.id === book.id) === index,
@@ -659,19 +733,38 @@ async function loadHomeContent() {
   homeSectionItems.value = sectionDefinitions.map((section, index) => ({
     title: section.title,
     to: section.to,
-    books: (sectionBooks[index].length ? sectionBooks[index] : allBooks).slice(
-      0,
-      section.limit,
-    ),
+    kind: "mixed",
+    kicker: "คัดจากคลัง",
+    description: "รายการเด่นที่ผู้อ่านเลือกดูบ่อย",
+    books: (sectionBooks[index].length ? sectionBooks[index] : catalogBooks)
+      .map((book) => ({
+        ...book,
+        content_type:
+          book.content_type ||
+          catalogBooks.find((candidate) => candidate.id === book.id)?.content_type ||
+          "ebook",
+      }))
+      .slice(0, section.limit),
   }));
 
-  if (allBooks.length > 0) {
-    homeSectionItems.value.unshift({
-      title: "หนังสือทั้งหมด",
+  homeSectionItems.value.unshift(
+    {
+      title: "อีบุ๊กเป็นเล่ม",
       to: "/store",
-      books: allBooks,
-    });
-  }
+      kind: "ebook",
+      kicker: "อ่านจบเป็นเล่ม",
+      description: "เลือกซื้อหรือเพิ่มเข้าคลังสำหรับอ่านและฟังแบบเป็นเล่ม",
+      books: normalizedEbooks.slice(0, 10),
+    },
+    {
+      title: "รายตอนกำลังอัปเดต",
+      to: "/serials",
+      kind: "serial",
+      kicker: "ติดตามต่อเนื่อง",
+      description: "เรื่องแบบตอนต่อ ตอนใหม่อ่านต่อได้ง่าย ไม่ปนกับอีบุ๊ก",
+      books: normalizedSerials.slice(0, 10),
+    },
+  );
   activeBannerIndex.value = 0;
 }
 
@@ -1154,6 +1247,47 @@ watch(bannerPages, () => {
   padding: 18px 0 12px;
 }
 
+.category-overview {
+  padding: 18px 0 8px;
+}
+
+.category-chip-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.category-chip {
+  display: grid;
+  gap: 4px;
+  min-height: 76px;
+  align-content: center;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 86%, var(--primary-soft));
+  color: var(--text-strong);
+  padding: 12px;
+  text-decoration: none;
+}
+
+.category-chip strong {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.3;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.category-chip span {
+  color: var(--primary-strong);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .hero-dots button:hover {
   background: color-mix(in srgb, var(--primary) 82%, white);
   transform: translateY(-1px);
@@ -1359,10 +1493,30 @@ watch(bannerPages, () => {
   min-height: 28px;
 }
 
+.section-head--stacked {
+  align-items: flex-end;
+}
+
 .section-head h2 {
   margin: 0;
   color: var(--text-strong);
   font-size: 17px;
+  font-weight: 900;
+}
+
+.section-head p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.section-kicker {
+  display: inline-flex;
+  margin-bottom: 4px;
+  color: var(--primary-strong);
+  font-size: 11px;
   font-weight: 900;
 }
 
@@ -1424,12 +1578,33 @@ watch(bannerPages, () => {
 
 .book-info {
   display: grid;
-  grid-template-rows: minmax(42px, auto) 17px auto;
+  grid-template-rows: auto minmax(42px, auto) auto auto auto;
   align-content: start;
   gap: 5px;
   flex: 1 1 auto;
   min-width: 0;
   padding: 10px 9px;
+}
+
+.content-badge {
+  justify-self: start;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-soft) 74%, white);
+  color: var(--primary-strong);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 4px 7px;
+}
+
+.content-badge--serial {
+  background: #fff1c9;
+  color: #a15c00;
+}
+
+.book-category {
+  color: var(--primary-strong) !important;
+  font-weight: 800;
 }
 
 .book-info p {
@@ -1805,6 +1980,10 @@ watch(bannerPages, () => {
 }
 
 @media (max-width: 640px) {
+  .category-chip-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .category-bar {
     justify-content: center;
     gap: 8px;
@@ -1836,7 +2015,7 @@ watch(bannerPages, () => {
   }
 
   .book-info {
-    grid-template-rows: minmax(30px, auto) 13px auto;
+    grid-template-rows: auto minmax(34px, auto) auto auto auto;
     gap: 4px;
     padding: 6px 4px;
   }
@@ -1933,6 +2112,15 @@ watch(bannerPages, () => {
     width: min(100% - 20px, 1280px);
   }
 
+  .category-chip {
+    min-height: 68px;
+    padding: 10px;
+  }
+
+  .category-chip strong {
+    font-size: 13px;
+  }
+
   .category-bar {
     gap: 6px;
   }
@@ -1950,7 +2138,7 @@ watch(bannerPages, () => {
   }
 
   .book-info {
-    grid-template-rows: minmax(38px, auto) 16px auto;
+    grid-template-rows: auto minmax(38px, auto) auto auto auto;
     gap: 5px;
     padding: 8px 7px;
   }
