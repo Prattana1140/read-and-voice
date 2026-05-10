@@ -515,12 +515,13 @@ watch(
 
 .shelf-tabs {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: 24px;
+  gap: 10px 18px;
   min-height: 34px;
   background: color-mix(in srgb, var(--surface-soft) 72%, var(--bg));
   border-bottom: 1px solid #e6ecea;
-  overflow-x: auto;
+  overflow-x: hidden;
   padding: 0 16px;
 }
 
@@ -1093,7 +1094,23 @@ watch(
 
 @media (max-width: 680px) {
   .shelf-content {
+    width: min(100% - 20px, 900px);
     padding-top: 24px;
+  }
+
+  .shelf-tabs {
+    gap: 6px 10px;
+    padding: 6px 8px;
+  }
+
+  .shelf-tabs a {
+    flex: 1 1 calc(25% - 10px);
+    justify-content: center;
+    min-width: 0;
+    min-height: 34px;
+    font-size: 12px;
+    text-align: center;
+    white-space: normal;
   }
 
   .shelf-toolbar,
@@ -1103,18 +1120,18 @@ watch(
   }
 
   .book-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     column-gap: 12px;
-    row-gap: 34px;
+    row-gap: 32px;
   }
 
   .promo-strip {
-    grid-auto-columns: minmax(320px, 88vw);
-    overflow-x: auto;
+    grid-auto-columns: 100%;
+    overflow-x: hidden;
   }
 
   .promo-book-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     column-gap: 12px;
   }
 
@@ -1126,6 +1143,11 @@ watch(
 }
 
 @media (max-width: 420px) {
+  .shelf-tabs a {
+    flex-basis: calc(25% - 8px);
+    font-size: 11px;
+  }
+
   .promo-strip-card {
     grid-template-columns: minmax(0, 1fr) 108px;
     min-height: 154px;
@@ -1155,28 +1177,29 @@ watch(
 
   .book-grid,
   .promo-book-grid {
-    column-gap: 8px;
-    row-gap: 28px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 12px;
+    row-gap: 30px;
   }
 
   .book-card h3 {
-    min-height: 34px;
-    font-size: 11px;
+    min-height: 42px;
+    font-size: 13px;
     line-height: 1.35;
   }
 
   .book-card p,
   .meta-line small {
-    min-height: 16px;
-    font-size: 9px;
+    min-height: 17px;
+    font-size: 10px;
     line-height: 1.35;
   }
 
   .price {
-    min-width: 44px;
-    min-height: 22px;
+    min-width: 48px;
+    min-height: 24px;
     font-size: 10px;
-    padding: 0 5px;
+    padding: 0 6px;
   }
 
   .promo-feature strong {

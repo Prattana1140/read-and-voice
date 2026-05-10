@@ -553,7 +553,7 @@ onMounted(loadBooks);
 
   .book-grid {
     gap: 12px;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .book-card {
@@ -566,10 +566,10 @@ onMounted(loadBooks);
   }
 }
 
-@media (max-width: 380px) {
+@media (max-width: 420px) {
   .book-grid {
-    gap: 8px;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .meta-row {
@@ -580,11 +580,11 @@ onMounted(loadBooks);
   .book-card p,
   .book-card small,
   .price-pill {
-    font-size: 8px;
+    font-size: 10px;
   }
 
   .book-card h2 {
-    font-size: 9px;
+    font-size: 12px;
     margin-inline: 5px;
   }
 
@@ -598,13 +598,13 @@ onMounted(loadBooks);
   }
 
   .heart-row {
-    font-size: 8px;
+    font-size: 11px;
   }
 
   .price-pill {
-    min-width: 36px;
-    min-height: 20px;
-    padding: 0 4px;
+    min-width: 46px;
+    min-height: 24px;
+    padding: 0 6px;
   }
 }
 </style>

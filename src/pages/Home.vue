@@ -715,15 +715,20 @@ watch(bannerPages, () => {
 
 .category-bar {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 14px;
   width: 100%;
   min-height: 46px;
   padding: 8px clamp(12px, 3vw, 48px);
-  overflow-x: auto;
+  overflow-x: hidden;
   background: color-mix(in srgb, var(--surface) 82%, transparent);
   border-bottom: 1px solid var(--border);
-  scrollbar-width: thin;
+  scrollbar-width: none;
+}
+
+.category-bar::-webkit-scrollbar {
+  display: none;
 }
 
 .category-bar button {
@@ -1801,19 +1806,32 @@ watch(bannerPages, () => {
 
 @media (max-width: 640px) {
   .category-bar {
-    justify-content: flex-start;
+    justify-content: center;
+    gap: 8px;
+    padding-inline: 8px;
+  }
+
+  .category-bar button {
+    flex: 1 1 calc(25% - 8px);
+    min-width: 0;
+    max-width: calc(25% - 8px);
+    min-height: 38px;
+    padding: 6px 2px;
+    font-size: 12px;
+    line-height: 1.15;
+    white-space: normal;
   }
 
   .promo-banner {
-    flex: 0 0 86%;
+    flex: 0 0 calc(100% - 10px);
     min-height: 118px;
     max-height: none;
     border-radius: 0;
   }
 
   .book-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
     margin-top: 8px;
   }
 
@@ -1911,34 +1929,54 @@ watch(bannerPages, () => {
 }
 
 @media (max-width: 420px) {
+  .storefront {
+    width: min(100% - 20px, 1280px);
+  }
+
+  .category-bar {
+    gap: 6px;
+  }
+
+  .category-bar button {
+    flex-basis: calc(25% - 6px);
+    max-width: calc(25% - 6px);
+    min-height: 36px;
+    font-size: 11px;
+  }
+
   .book-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 4px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
   }
 
   .book-info {
-    padding: 4px 3px 5px;
+    grid-template-rows: minmax(38px, auto) 16px auto;
+    gap: 5px;
+    padding: 8px 7px;
   }
 
   .book-info p {
-    font-size: 8px;
+    min-height: 38px;
+    font-size: 12px;
   }
 
   .book-info small {
-    font-size: 7px;
+    font-size: 10px;
   }
 
   .heart-row {
-    font-size: 8px;
+    font-size: 11px;
   }
 
   .rating-box small {
-    font-size: 6px;
+    font-size: 9px;
   }
 
   .price-pill {
-    min-width: 32px;
-    font-size: 7px;
+    min-width: 48px;
+    min-height: 24px;
+    font-size: 10px;
+    padding-inline: 6px;
   }
 
   .hero-track {
@@ -1947,7 +1985,7 @@ watch(bannerPages, () => {
   }
 
   .promo-banner {
-    flex-basis: 88%;
+    flex-basis: calc(100% - 8px);
     min-height: 104px;
     padding: 0;
   }

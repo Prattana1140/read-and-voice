@@ -2083,12 +2083,7 @@ watch(isCompactNav, (compact) => {
   display: none;
 }
 .navbar--compact .left-cluster > .accessibility-link {
-  display: inline-flex;
-  width: auto;
-  height: 36px;
-  min-height: 36px;
-  padding: 0 14px;
-  font-size: 12px;
+  display: none;
 }
 .navbar--compact .menu-toggle {
   display: inline-grid;
@@ -2130,6 +2125,9 @@ watch(isCompactNav, (compact) => {
     display: flex;
     justify-content: space-between;
     gap: 16px;
+    width: 100%;
+    max-width: 100vw;
+    overflow: hidden;
     min-height: 82px;
     padding: 10px clamp(18px, 3vw, 40px);
   }
@@ -2152,12 +2150,10 @@ watch(isCompactNav, (compact) => {
     display: none;
   }
   .left-cluster > .accessibility-link {
-    display: inline-flex;
-    width: auto;
-    height: 36px;
-    min-height: 36px;
-    padding: 0 14px;
-    font-size: 12px;
+    display: none;
+  }
+  .mobile-accessibility-button {
+    display: inline-grid;
   }
   .menu-toggle {
     display: inline-grid;
@@ -2192,6 +2188,9 @@ watch(isCompactNav, (compact) => {
     display: flex;
     justify-content: space-between;
     gap: 6px;
+    width: 100%;
+    max-width: 100vw;
+    overflow: hidden;
     min-height: 76px;
     padding: 10px 8px;
   }
