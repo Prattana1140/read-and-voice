@@ -1458,7 +1458,8 @@ watch(bannerPages, () => {
 }
 
 .book-card-footer {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: flex-end;
   justify-content: space-between;
   gap: 8px;
@@ -1516,6 +1517,12 @@ watch(bannerPages, () => {
 
 .price-pill:hover {
   background: #009c64;
+}
+
+@media (max-width: 1180px) {
+  .book-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .support-modal-backdrop {

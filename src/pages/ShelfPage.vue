@@ -897,6 +897,13 @@ watch(
   row-gap: 36px;
 }
 
+@media (max-width: 1180px) {
+  .book-grid,
+  .promo-book-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 .discount-ribbon {
   position: absolute;
   top: 0;
