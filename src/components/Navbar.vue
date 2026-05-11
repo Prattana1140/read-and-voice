@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import logoNavUrl from "../assets/Logo-nav.png";
@@ -66,6 +66,7 @@ const {
   setLocale,
   t,
 } = useI18n();
+
 const navbarRef = ref<HTMLElement | null>(null);
 const topBarRef = ref<HTMLElement | null>(null);
 const leftClusterRef = ref<HTMLElement | null>(null);
@@ -73,10 +74,12 @@ const desktopNavRef = ref<HTMLElement | null>(null);
 const topActionsRef = ref<HTMLElement | null>(null);
 const themeDropdownRef = ref<HTMLDetailsElement | null>(null);
 const searchInputRef = ref<HTMLInputElement | null>(null);
+
 const isCompactNav = ref(false);
 const isMenuOpen = ref(false);
 const isSearchOpen = ref(false);
 const isNotificationsOpen = ref(false);
+
 const search = ref("");
 const searchBooks = ref<SearchableBook[]>([]);
 const searchLoading = ref(false);
@@ -87,10 +90,12 @@ const isMembershipActive = ref(false);
 const notificationItems = ref<NotificationItem[]>([]);
 const notificationLoading = ref(false);
 const notificationError = ref("");
+
 const allRoles: UserRole[] = ["guest", "user", "writer", "admin", "superadmin"];
 const compactNavBreakpoint = 780;
 const compactNavHysteresis = 260;
 const compactNavRestoreBreakpoint = 1560;
+
 let navResizeObserver: ResizeObserver | null = null;
 let compactMeasureFrame = 0;
 let compactExpandWidth = 0;
@@ -129,11 +134,13 @@ const memberRoles: UserRole[] = ["user", "writer"];
 const readerRoles: UserRole[] = ["user", "writer"];
 const adminRoles: UserRole[] = ["admin"];
 const superAdminRoles: UserRole[] = ["superadmin"];
+
 const isReaderRole = computed(() => readerRoles.includes(currentRole.value));
 const isAdminRole = computed(() => adminRoles.includes(currentRole.value));
 const isSuperAdminRole = computed(() =>
   superAdminRoles.includes(currentRole.value),
 );
+
 const roleLabel = computed(() => {
   if (currentRole.value === "superadmin") return t("account.role.superadmin");
   if (currentRole.value === "admin") return t("account.role.admin");
@@ -141,6 +148,7 @@ const roleLabel = computed(() => {
   if (currentRole.value === "user") return t("account.role.user");
   return t("account.role.guest");
 });
+
 const roleHint = computed(() => {
   if (isSuperAdminRole.value) return t("account.roleHint.superadmin");
   if (currentRole.value === "admin") return t("account.roleHint.admin");
@@ -152,10 +160,12 @@ const roleHint = computed(() => {
 const userDisplayName = computed(
   () => user.value?.name?.trim() || "Read and Voice",
 );
+
 const userAvatarUrl = computed(() => {
   const avatar = user.value?.avatar_url?.trim();
   return avatar ? resolveAssetUrl(avatar) : "";
 });
+
 const accountQuickLinks = computed<NavItem[]>(() => {
   if (!isLoggedIn.value || !isReaderRole.value) return [];
 
@@ -210,11 +220,20 @@ const searchSuggestions = computed(() => {
 
 const accountGroups = computed<NavGroup[]>(() => {
   const role = currentRole.value;
+
   const adminAccountGroup: NavGroup = {
     title: "บัญชี",
     items: [
-      { label: "โปรไฟล์ของฉัน", to: "/profile", roles: ["admin", "superadmin"] },
-      { label: "แจ้งเตือน", to: "/account/notifications", roles: ["admin", "superadmin"] },
+      {
+        label: "โปรไฟล์ของฉัน",
+        to: "/profile",
+        roles: ["admin", "superadmin"],
+      },
+      {
+        label: "แจ้งเตือน",
+        to: "/account/notifications",
+        roles: ["admin", "superadmin"],
+      },
     ],
     defaultOpen: true,
   };
@@ -223,8 +242,16 @@ const accountGroups = computed<NavGroup[]>(() => {
     title: t("account.myAccount"),
     items: [
       { label: t("account.profile"), to: "/profile", roles: memberRoles },
-      { label: t("account.userDevices"), to: "/account/devices", roles: memberRoles },
-      { label: t("account.notifications"), to: "/account/notifications", roles: memberRoles },
+      {
+        label: t("account.userDevices"),
+        to: "/account/devices",
+        roles: memberRoles,
+      },
+      {
+        label: t("account.notifications"),
+        to: "/account/notifications",
+        roles: memberRoles,
+      },
     ],
     defaultOpen: true,
   };
@@ -234,20 +261,48 @@ const accountGroups = computed<NavGroup[]>(() => {
     items: [
       { label: t("account.bookshelf"), to: "/my-library", roles: readerRoles },
       { label: t("account.wishlist"), to: "/wishlist", roles: readerRoles },
-      { label: t("account.following"), to: "/account/following", roles: readerRoles },
-      { label: t("account.package"), to: "/account/buffet", roles: readerRoles },
-      { label: t("account.benefits"), to: "/account/benefits", roles: readerRoles },
+      {
+        label: t("account.following"),
+        to: "/account/following",
+        roles: readerRoles,
+      },
+      {
+        label: t("account.package"),
+        to: "/account/buffet",
+        roles: readerRoles,
+      },
+      {
+        label: t("account.benefits"),
+        to: "/account/benefits",
+        roles: readerRoles,
+      },
       { label: t("account.orders"), to: "/orders/history", roles: readerRoles },
-      { label: t("account.reviews"), to: "/account/reviews", roles: readerRoles },
-      { label: t("account.ageVerification"), to: "/account/age-verification", roles: readerRoles },
+      {
+        label: t("account.reviews"),
+        to: "/account/reviews",
+        roles: readerRoles,
+      },
+      {
+        label: t("account.ageVerification"),
+        to: "/account/age-verification",
+        roles: readerRoles,
+      },
     ],
   };
 
   const settingsGroup: NavGroup = {
     title: t("account.settings"),
     items: [
-      { label: t("account.giftCodes"), to: "/account/gift-codes", roles: memberRoles },
-      { label: t("notification.settings"), to: "/notification-settings", roles: memberRoles },
+      {
+        label: t("account.giftCodes"),
+        to: "/account/gift-codes",
+        roles: memberRoles,
+      },
+      {
+        label: t("notification.settings"),
+        to: "/notification-settings",
+        roles: memberRoles,
+      },
     ],
     defaultOpen: true,
   };
@@ -255,7 +310,11 @@ const accountGroups = computed<NavGroup[]>(() => {
   const writerGroup: NavGroup = {
     title: t("account.writerSpace"),
     items: [
-      { label: t("account.uploadBook"), to: "/writer/upload", roles: ["user", "writer"] },
+      {
+        label: t("account.uploadBook"),
+        to: "/writer/upload",
+        roles: ["user", "writer"],
+      },
       { label: t("account.writerDashboard"), to: "/writer", roles: ["writer"] },
     ],
   };
@@ -263,15 +322,51 @@ const accountGroups = computed<NavGroup[]>(() => {
   const adminGroup: NavGroup = {
     title: t("account.adminTools"),
     items: [
-      { label: t("account.adminDashboard"), to: "/admin", roles: ["admin", "superadmin"] },
-      { label: t("account.contentManagement"), to: "/admin/page-content", roles: ["admin", "superadmin"] },
-      { label: t("account.bookManagement"), to: "/admin/books", roles: ["admin", "superadmin"] },
-      { label: t("account.approvals"), to: "/admin/approvals", roles: ["admin", "superadmin"] },
-      { label: "อนุมัติชำระเงิน", to: "/admin/payments", roles: ["admin", "superadmin"] },
-      { label: "อนุมัติเติมเหรียญ", to: "/admin/coin-topups", roles: ["admin", "superadmin"] },
-      { label: "อนุมัติคำสั่งซื้อ", to: "/admin/order-payments", roles: ["admin", "superadmin"] },
-      { label: "อนุมัติสมาชิก", to: "/admin/subscription-payments", roles: ["admin", "superadmin"] },
-      { label: t("account.uploadBook"), to: "/admin/upload-book", roles: ["admin"] },
+      {
+        label: t("account.adminDashboard"),
+        to: "/admin",
+        roles: ["admin", "superadmin"],
+      },
+      {
+        label: t("account.contentManagement"),
+        to: "/admin/page-content",
+        roles: ["admin", "superadmin"],
+      },
+      {
+        label: t("account.bookManagement"),
+        to: "/admin/books",
+        roles: ["admin", "superadmin"],
+      },
+      {
+        label: t("account.approvals"),
+        to: "/admin/approvals",
+        roles: ["admin", "superadmin"],
+      },
+      {
+        label: "อนุมัติชำระเงิน",
+        to: "/admin/payments",
+        roles: ["admin", "superadmin"],
+      },
+      {
+        label: "อนุมัติเติมเหรียญ",
+        to: "/admin/coin-topups",
+        roles: ["admin", "superadmin"],
+      },
+      {
+        label: "อนุมัติคำสั่งซื้อ",
+        to: "/admin/order-payments",
+        roles: ["admin", "superadmin"],
+      },
+      {
+        label: "อนุมัติสมาชิก",
+        to: "/admin/subscription-payments",
+        roles: ["admin", "superadmin"],
+      },
+      {
+        label: t("account.uploadBook"),
+        to: "/admin/upload-book",
+        roles: ["admin"],
+      },
     ],
     defaultOpen: true,
   };
@@ -279,10 +374,26 @@ const accountGroups = computed<NavGroup[]>(() => {
   const superAdminGroup: NavGroup = {
     title: t("account.superadmin"),
     items: [
-      { label: t("account.superDashboard"), to: "/superadmin", roles: superAdminRoles },
-      { label: t("account.userManagement"), to: "/superadmin/users", roles: superAdminRoles },
-      { label: t("account.roleManagement"), to: "/superadmin/roles", roles: superAdminRoles },
-      { label: t("account.settingsSystem"), to: "/superadmin/settings", roles: superAdminRoles },
+      {
+        label: t("account.superDashboard"),
+        to: "/superadmin",
+        roles: superAdminRoles,
+      },
+      {
+        label: t("account.userManagement"),
+        to: "/superadmin/users",
+        roles: superAdminRoles,
+      },
+      {
+        label: t("account.roleManagement"),
+        to: "/superadmin/roles",
+        roles: superAdminRoles,
+      },
+      {
+        label: t("account.settingsSystem"),
+        to: "/superadmin/settings",
+        roles: superAdminRoles,
+      },
     ],
     defaultOpen: true,
   };
@@ -291,7 +402,11 @@ const accountGroups = computed<NavGroup[]>(() => {
     title: "ทางลัด",
     items: [
       { label: "ดูหน้าเว็บ", to: "/", roles: ["admin", "superadmin"] },
-      { label: "ตั้งค่าระบบ", to: "/superadmin/settings", roles: ["superadmin"] },
+      {
+        label: "ตั้งค่าระบบ",
+        to: "/superadmin/settings",
+        roles: ["superadmin"],
+      },
     ],
   };
 
@@ -300,7 +415,12 @@ const accountGroups = computed<NavGroup[]>(() => {
     user: [personalGroup, readingGroup, settingsGroup, writerGroup],
     writer: [personalGroup, readingGroup, settingsGroup, writerGroup],
     admin: [adminAccountGroup, adminGroup, adminUtilityGroup],
-    superadmin: [adminAccountGroup, adminGroup, superAdminGroup, adminUtilityGroup],
+    superadmin: [
+      adminAccountGroup,
+      adminGroup,
+      superAdminGroup,
+      adminUtilityGroup,
+    ],
   };
 
   return roleGroups[role]
@@ -329,9 +449,14 @@ const hasNavbarOverflow = () => {
   const leftRect = leftCluster?.getBoundingClientRect();
   const navRect = desktopNav?.getBoundingClientRect();
   const actionsRect = topActions?.getBoundingClientRect();
+
   const hasCollision =
-    Boolean(leftRect && navRect && leftRect.right + collisionGap > navRect.left) ||
-    Boolean(navRect && actionsRect && navRect.right + collisionGap > actionsRect.left);
+    Boolean(
+      leftRect && navRect && leftRect.right + collisionGap > navRect.left,
+    ) ||
+    Boolean(
+      navRect && actionsRect && navRect.right + collisionGap > actionsRect.left,
+    );
 
   return (
     topBar.scrollWidth > topBar.clientWidth + 1 ||
@@ -433,6 +558,7 @@ const handleDocumentPointerDown = (event: PointerEvent) => {
   const activeDropdown = target.closest(
     ".icon-dropdown",
   ) as HTMLDetailsElement | null;
+
   document
     .querySelectorAll<HTMLDetailsElement>(".icon-dropdown[open]")
     .forEach((item) => {
@@ -717,11 +843,7 @@ watch(isCompactNav, (compact) => {
           {{ t("nav.subscription") }}
         </router-link>
 
-        <router-link
-          class="coin-link"
-          to="/coin-wallet"
-          @click="closeMenu"
-        >
+        <router-link class="coin-link" to="/coin-wallet" @click="closeMenu">
           <span class="coin-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="8.5" class="coin-face" />
@@ -731,6 +853,7 @@ watch(isCompactNav, (compact) => {
           </span>
           {{ t("nav.topUp") }}
         </router-link>
+
         <button
           class="accessibility-link"
           type="button"
@@ -798,21 +921,25 @@ watch(isCompactNav, (compact) => {
           :title="nextLanguageLabel"
         >
           <span class="language-switch__label">{{ t("language.label") }}</span>
+
           <button
+            v-if="locale === 'th'"
             type="button"
-            :class="{ active: locale === 'th' }"
-            :aria-pressed="locale === 'th'"
-            @click="selectLanguage('th')"
-          >
-            ไทย
-          </button>
-          <button
-            type="button"
-            :class="{ active: locale === 'en' }"
-            :aria-pressed="locale === 'en'"
+            class="language-switch__single-btn"
+            aria-label="Switch language to English"
             @click="selectLanguage('en')"
           >
             EN
+          </button>
+
+          <button
+            v-else
+            type="button"
+            class="language-switch__single-btn"
+            aria-label="เปลี่ยนภาษาเป็นไทย"
+            @click="selectLanguage('th')"
+          >
+            ไทย
           </button>
         </div>
 
@@ -855,6 +982,26 @@ watch(isCompactNav, (compact) => {
                 <button
                   class="notification-icon-action"
                   type="button"
+                  aria-label="Mark all notifications as read"
+                  :disabled="notificationItems.length === 0"
+                  @click="markAllNotificationsRead"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </button>
+
+                <button
+                  class="notification-icon-action"
+                  type="button"
                   :aria-label="t('notification.settings')"
                   @click="openNotificationSettings"
                 >
@@ -873,6 +1020,7 @@ watch(isCompactNav, (compact) => {
                     <circle cx="12" cy="12" r="3" />
                   </svg>
                 </button>
+
                 <button
                   class="notification-icon-action notification-icon-action--danger"
                   type="button"
@@ -905,6 +1053,7 @@ watch(isCompactNav, (compact) => {
             <p v-else-if="notificationLoading" class="notification-empty">
               {{ t("notification.loading") }}
             </p>
+
             <div v-else-if="notificationItems.length" class="notification-list">
               <article
                 v-for="item in notificationItems"
@@ -931,9 +1080,11 @@ watch(isCompactNav, (compact) => {
                 </button>
               </article>
             </div>
+
             <p v-else class="notification-empty">
               {{ t("notification.empty") }}
             </p>
+
             <router-link
               class="notification-footer-link"
               to="/account/notifications"
@@ -995,6 +1146,11 @@ watch(isCompactNav, (compact) => {
                   >
                     {{ roleLabel }}
                   </small>
+
+                  <small v-if="roleHint" class="account-role-hint">
+                    {{ roleHint }}
+                  </small>
+
                   <small v-if="isReaderRole" class="account-membership">
                     {{ membershipLabel }}
                   </small>
@@ -1089,6 +1245,7 @@ watch(isCompactNav, (compact) => {
             d="M10.8 4.2a6.6 6.6 0 1 1 0 13.2 6.6 6.6 0 0 1 0-13.2Zm0 2a4.6 4.6 0 1 0 0 9.2 4.6 4.6 0 0 0 0-9.2Zm5.4 9 4 4-1.4 1.4-4-4 1.4-1.4Z"
           />
         </svg>
+
         <input
           ref="searchInputRef"
           v-model="search"
@@ -1096,6 +1253,7 @@ watch(isCompactNav, (compact) => {
           :placeholder="t('common.search')"
           :aria-label="t('common.search')"
         />
+
         <button
           class="search-close"
           type="button"
@@ -1109,8 +1267,10 @@ watch(isCompactNav, (compact) => {
           </svg>
         </button>
       </div>
+
       <section class="search-results" aria-label="หนังสือที่เกี่ยวข้อง">
         <p v-if="searchLoading">กำลังค้นหา...</p>
+
         <template v-else-if="search.trim()">
           <button
             v-for="book in searchSuggestions"
@@ -1118,13 +1278,20 @@ watch(isCompactNav, (compact) => {
             type="button"
             @click="openSearchBook(book)"
           >
-            <img :src="resolveAssetUrl(book.cover_url || book.cover_image)" :alt="book.title || 'book cover'" />
+            <img
+              :src="resolveAssetUrl(book.cover_url || book.cover_image)"
+              :alt="book.title || 'book cover'"
+            />
             <span>
               <strong>{{ book.title }}</strong>
-              <small>{{ book.author || book.author_name || "ไม่ระบุผู้เขียน" }} · {{ book.category_name || "หนังสือ" }}</small>
+              <small>
+                {{ book.author || book.author_name || "ไม่ระบุผู้เขียน" }} ·
+                {{ book.category_name || "หนังสือ" }}
+              </small>
             </span>
             <em>{{ book.content_type === "serial" ? "รายตอน" : "อีบุ๊ก" }}</em>
           </button>
+
           <p v-if="searchSuggestions.length === 0">ไม่พบหนังสือที่เกี่ยวข้อง</p>
         </template>
       </section>
@@ -1151,19 +1318,20 @@ watch(isCompactNav, (compact) => {
             />
           </svg>
         </button>
+
         <router-link class="mobile-panel-brand" to="/" @click="closeMenu">
           <img
             class="mobile-panel-logo"
-            :src="logoUrl"
-            alt=""
-            aria-hidden="true"
+            :src="logoNavUrl"
+            alt="Read and Voice"
           />
-          <span>Read and Voice</span>
         </router-link>
+
+        <div class="mobile-panel-header-spacer" aria-hidden="true"></div>
       </div>
 
-      <section class="mobile-group mobile-card">
-        <h3>{{ t("common.mainMenu") }}</h3>
+      <section class="mobile-group mobile-card mobile-main-card">
+        <h3>เมนูหลัก</h3>
         <router-link
           v-for="item in mainNavItems"
           :key="item.to"
@@ -1174,14 +1342,15 @@ watch(isCompactNav, (compact) => {
         </router-link>
       </section>
 
-      <section class="mobile-group mobile-card mobile-cta-group">
+      <section class="mobile-group mobile-cta-group">
         <router-link
           class="subscription-link mobile-pill-link"
           to="/subscription-plans"
           @click="closeMenu"
         >
-          {{ t("nav.subscription") }}
+          สมัครแพ็กเกจสมาชิก
         </router-link>
+
         <router-link
           class="coin-link mobile-pill-link"
           to="/coin-wallet"
@@ -1194,18 +1363,8 @@ watch(isCompactNav, (compact) => {
               <ellipse cx="9.2" cy="8.4" rx="2.2" ry="1.5" class="coin-shine" />
             </svg>
           </span>
-          {{ t("nav.topUp") }}
+          เติมคอยน์
         </router-link>
-        <button
-          v-if="isReaderRole"
-          class="accessibility-link mobile-pill-link"
-          type="button"
-          data-accessibility-toggle="true"
-          :aria-label="t('a11y.open')"
-          @click="openAccessibilityPanel"
-        >
-          {{ t("a11y.open") }}
-        </button>
       </section>
     </div>
   </header>
@@ -1223,6 +1382,7 @@ watch(isCompactNav, (compact) => {
   box-shadow: 0 10px 28px rgba(17, 156, 145, 0.1);
   backdrop-filter: blur(16px);
 }
+
 .top-bar {
   position: relative;
   display: flex;
@@ -1232,6 +1392,7 @@ watch(isCompactNav, (compact) => {
   min-height: 76px;
   padding: 8px clamp(24px, 3.4vw, 58px);
 }
+
 .left-cluster {
   display: flex;
   align-items: center;
@@ -1239,6 +1400,7 @@ watch(isCompactNav, (compact) => {
   min-width: max-content;
   gap: clamp(8px, 1vw, 14px);
 }
+
 .brand,
 .desktop-public-nav a,
 .account-link,
@@ -1246,6 +1408,7 @@ watch(isCompactNav, (compact) => {
 .coin-link {
   text-decoration: none;
 }
+
 .brand {
   display: inline-flex;
   align-items: center;
@@ -1257,12 +1420,14 @@ watch(isCompactNav, (compact) => {
   border-radius: 8px;
   overflow: hidden;
 }
+
 .brand-logo {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
 }
+
 .desktop-public-nav {
   position: absolute;
   left: 50%;
@@ -1274,15 +1439,18 @@ watch(isCompactNav, (compact) => {
   min-width: max-content;
   gap: clamp(14px, 1.5vw, 30px);
 }
+
 .desktop-public-nav a {
   color: #1f2937;
   font-size: 15px;
   font-weight: 800;
   white-space: nowrap;
 }
+
 .desktop-public-nav a.router-link-active {
   color: #0f766e;
 }
+
 .subscription-link,
 .coin-link,
 .accessibility-link {
@@ -1299,11 +1467,13 @@ watch(isCompactNav, (compact) => {
   text-align: center;
   white-space: nowrap;
 }
+
 .subscription-link {
   padding: 0 14px;
   background: linear-gradient(135deg, #15b8c7, #0ea5a8);
   color: #fff;
 }
+
 .coin-link {
   gap: 8px;
   width: auto;
@@ -1315,6 +1485,7 @@ watch(isCompactNav, (compact) => {
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
     0 4px 10px rgba(200, 112, 0, 0.18);
 }
+
 .accessibility-link {
   width: 200px;
   padding: 0 14px;
@@ -1323,6 +1494,7 @@ watch(isCompactNav, (compact) => {
   color: #0f766e;
   cursor: pointer;
 }
+
 .coin-mark {
   display: inline-grid;
   place-items: center;
@@ -1339,20 +1511,25 @@ watch(isCompactNav, (compact) => {
     inset 0 1px 1px rgba(255, 255, 255, 0.42),
     0 1px 2px rgba(181, 118, 0, 0.3);
 }
+
 .coin-mark svg {
   width: 14px;
   height: 14px;
   filter: drop-shadow(0 1px 0 rgba(181, 118, 0, 0.18));
 }
+
 .coin-face {
   fill: #ffd24d;
 }
+
 .coin-core {
   fill: #f6b301;
 }
+
 .coin-shine {
   fill: rgba(255, 245, 186, 0.52);
 }
+
 .top-actions {
   position: relative;
   z-index: 2;
@@ -1363,9 +1540,11 @@ watch(isCompactNav, (compact) => {
   margin-left: auto;
   gap: 8px;
 }
+
 .top-actions > * {
   flex: 0 0 auto;
 }
+
 .icon-button,
 .notification-button,
 .avatar-button,
@@ -1381,6 +1560,7 @@ watch(isCompactNav, (compact) => {
   color: #0f172a;
   cursor: pointer;
 }
+
 .icon-button svg,
 .notification-button svg,
 .avatar-button svg,
@@ -1392,10 +1572,12 @@ watch(isCompactNav, (compact) => {
   stroke: currentColor;
   stroke-width: 1.2;
 }
+
 .avatar-button {
   position: relative;
   overflow: visible;
 }
+
 .avatar-button--member {
   border: 0;
   padding: 3px;
@@ -1408,6 +1590,7 @@ watch(isCompactNav, (compact) => {
     0 8px 20px rgba(13, 148, 136, 0.24),
     0 0 22px rgba(245, 158, 11, 0.18);
 }
+
 .avatar-button--member::after,
 .account-avatar--member::after {
   content: "";
@@ -1421,6 +1604,7 @@ watch(isCompactNav, (compact) => {
   background: linear-gradient(135deg, #ffd166, #f59e0b);
   box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
 }
+
 .nav-avatar-image {
   position: relative;
   z-index: 1;
@@ -1430,6 +1614,7 @@ watch(isCompactNav, (compact) => {
   object-fit: cover;
   background: #fff;
 }
+
 .avatar-button--member svg {
   position: relative;
   z-index: 1;
@@ -1437,21 +1622,27 @@ watch(isCompactNav, (compact) => {
   background: #fff;
   padding: 6px;
 }
+
 .menu-toggle {
   display: none;
 }
+
 .mobile-accessibility-button {
   display: none;
 }
+
 .icon-dropdown {
   position: relative;
 }
+
 .icon-dropdown summary {
   list-style: none;
 }
+
 .icon-dropdown summary::-webkit-details-marker {
   display: none;
 }
+
 .dropdown-panel,
 .notification-panel {
   position: absolute;
@@ -1464,10 +1655,12 @@ watch(isCompactNav, (compact) => {
   box-shadow: 0 20px 48px rgba(15, 23, 42, 0.16);
   padding: 18px;
 }
+
 .theme-panel {
   display: grid;
   gap: 8px;
 }
+
 .theme-panel button,
 .account-btn {
   min-height: 42px;
@@ -1478,22 +1671,36 @@ watch(isCompactNav, (compact) => {
   cursor: pointer;
   font-weight: 900;
 }
+
 .theme-panel button.active {
   background: #0f766e;
   color: #fff;
 }
+
 .language-switch {
-  display: inline-grid;
-  flex: 0 0 auto;
-  grid-template-columns: 1fr 1fr;
+  display: inline-flex;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
   min-height: 36px;
   border: 1px solid rgba(15, 118, 110, 0.18);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.82);
   padding: 3px;
 }
+
+.language-switch__single-btn {
+  min-width: 44px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: #0f766e;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 0 10px;
+}
+
 .language-switch__label {
   position: absolute;
   width: 1px;
@@ -1502,6 +1709,7 @@ watch(isCompactNav, (compact) => {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
 .language-switch button {
   min-width: 31px;
   height: 30px;
@@ -1514,16 +1722,20 @@ watch(isCompactNav, (compact) => {
   font-weight: 900;
   padding: 0 7px;
 }
+
 .language-switch button.active {
   background: #0f766e;
   color: #fff;
 }
+
 .notification-wrapper {
   position: relative;
 }
+
 .notification-button {
   position: relative;
 }
+
 .notification-badge {
   position: absolute;
   top: -4px;
@@ -1539,6 +1751,7 @@ watch(isCompactNav, (compact) => {
   place-items: center;
   padding: 0 4px;
 }
+
 .notification-panel__header,
 .notification-panel__actions,
 .guest-actions {
@@ -1547,11 +1760,13 @@ watch(isCompactNav, (compact) => {
   justify-content: space-between;
   gap: 10px;
 }
+
 .notification-panel__actions {
   flex: 0 0 auto;
   justify-content: flex-end;
   gap: 8px;
 }
+
 .notification-icon-action {
   display: inline-grid;
   place-items: center;
@@ -1565,6 +1780,7 @@ watch(isCompactNav, (compact) => {
   cursor: pointer;
   padding: 0;
 }
+
 .notification-icon-action svg {
   width: 19px;
   height: 19px;
@@ -1572,28 +1788,35 @@ watch(isCompactNav, (compact) => {
   fill: none;
   stroke: currentColor;
 }
+
 .notification-icon-action:hover {
   background: #e8f8f6;
 }
+
 .notification-icon-action--danger {
   color: #dc2626;
 }
+
 .notification-icon-action--danger:hover {
   background: #fee2e2;
 }
+
 .notification-icon-action:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
+
 .notification-panel__header h3,
 .mobile-group h3 {
   margin: 0;
 }
+
 .notification-list {
   display: grid;
   gap: 12px;
   margin-top: 14px;
 }
+
 .notification-item {
   display: grid;
   grid-template-columns: 40px 1fr 32px;
@@ -1603,9 +1826,11 @@ watch(isCompactNav, (compact) => {
   border-radius: 14px;
   padding: 12px;
 }
+
 .notification-item.unread {
   background: #f2fffc;
 }
+
 .notification-thumb {
   display: grid;
   place-items: center;
@@ -1616,32 +1841,39 @@ watch(isCompactNav, (compact) => {
   font-size: 12px;
   font-weight: 900;
 }
+
 .tone-sale {
   background: #f59e0b;
 }
+
 .tone-serial {
   background: #0ea5e9;
 }
+
 .tone-writer {
   background: #8b5cf6;
 }
+
 .notification-copy h4,
 .notification-copy p,
 .notification-copy time {
   margin: 0;
 }
+
 .notification-copy p {
   margin-top: 4px;
   color: #475569;
   font-size: 13px;
   line-height: 1.5;
 }
+
 .notification-copy time {
   display: block;
   margin-top: 6px;
   color: #64748b;
   font-size: 12px;
 }
+
 .notification-open {
   min-height: 34px;
   border: 0;
@@ -1652,10 +1884,12 @@ watch(isCompactNav, (compact) => {
   font-weight: 800;
   padding: 0 10px;
 }
+
 .notification-empty {
   margin: 8px 0 0;
   color: #64748b;
 }
+
 .notification-footer-link {
   display: inline-flex;
   margin-top: 12px;
@@ -1663,12 +1897,14 @@ watch(isCompactNav, (compact) => {
   font-weight: 800;
   text-decoration: none;
 }
+
 .account-panel {
   display: grid;
   gap: 14px;
   width: min(92vw, 300px);
   padding: 16px;
 }
+
 .account-summary-card {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr) auto;
@@ -1677,6 +1913,7 @@ watch(isCompactNav, (compact) => {
   padding-bottom: 10px;
   border-bottom: 1px solid #e5e7eb;
 }
+
 .account-avatar {
   position: relative;
   display: grid;
@@ -1689,10 +1926,12 @@ watch(isCompactNav, (compact) => {
   font-size: 20px;
   font-weight: 900;
 }
+
 .account-avatar-image {
   object-fit: cover;
   border: 1px solid rgba(15, 118, 110, 0.12);
 }
+
 .account-avatar--member {
   border: 3px solid transparent;
   background:
@@ -1704,16 +1943,19 @@ watch(isCompactNav, (compact) => {
     0 10px 26px rgba(20, 184, 166, 0.22),
     0 0 22px rgba(245, 158, 11, 0.18);
 }
+
 .account-summary-copy {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
+
 .account-membership {
   color: #0f766e;
   font-size: 12px;
   font-weight: 700;
 }
+
 .role-badge {
   display: inline-flex;
   justify-self: start;
@@ -1725,23 +1967,28 @@ watch(isCompactNav, (compact) => {
   font-weight: 900;
   padding: 3px 8px;
 }
+
 .role-badge--writer {
   background: #f3e8ff;
   color: #7e22ce;
 }
+
 .role-badge--admin {
   background: #fff7ed;
   color: #c2410c;
 }
+
 .role-badge--superadmin {
   background: #fef2f2;
   color: #b91c1c;
 }
+
 .account-role-hint {
   color: #64748b;
   font-size: 12px;
   font-weight: 700;
 }
+
 .logout-chip {
   min-height: 36px;
   border: 1px solid #ef4444;
@@ -1753,6 +2000,7 @@ watch(isCompactNav, (compact) => {
   font-weight: 800;
   padding: 0 12px;
 }
+
 .wallet-row {
   display: flex;
   align-items: center;
@@ -1761,42 +2009,51 @@ watch(isCompactNav, (compact) => {
   padding-bottom: 12px;
   border-bottom: 1px solid #e5e7eb;
 }
+
 .wallet-balance {
   display: flex;
   align-items: center;
   gap: 8px;
 }
+
 .wallet-label {
   color: #1f2937;
   font-size: 14px;
 }
+
 .wallet-balance strong {
   color: #f59e0b;
   font-size: 15px;
 }
+
 .wallet-link {
   color: #64748b;
   font-size: 14px;
   font-weight: 700;
   text-decoration: none;
 }
+
 .account-shortcuts,
 .account-section {
   display: grid;
   gap: 10px;
 }
+
 .account-shortcuts {
   padding-bottom: 12px;
   border-bottom: 1px solid #e5e7eb;
 }
+
 .account-accordion {
   border-bottom: 1px solid #e5e7eb;
   padding-bottom: 12px;
 }
+
 .account-accordion:last-of-type {
   border-bottom: 0;
   padding-bottom: 0;
 }
+
 .account-accordion summary {
   display: flex;
   align-items: center;
@@ -1808,9 +2065,11 @@ watch(isCompactNav, (compact) => {
   font-size: 16px;
   font-weight: 800;
 }
+
 .account-accordion summary::-webkit-details-marker {
   display: none;
 }
+
 .account-accordion summary svg {
   width: 18px;
   height: 18px;
@@ -1819,12 +2078,15 @@ watch(isCompactNav, (compact) => {
   stroke-width: 2;
   transition: transform 0.18s ease;
 }
+
 .account-accordion[open] summary svg {
   transform: rotate(180deg);
 }
+
 .account-section {
   padding-top: 10px;
 }
+
 .account-link,
 .guest-auth-link,
 .mobile-group a {
@@ -1832,11 +2094,13 @@ watch(isCompactNav, (compact) => {
   font-weight: 500;
   text-decoration: none;
 }
+
 .account-link:hover,
 .wallet-link:hover,
 .guest-auth-link:hover {
   color: #0f766e;
 }
+
 .search-overlay {
   position: fixed;
   inset: 0;
@@ -1858,10 +2122,12 @@ watch(isCompactNav, (compact) => {
   pointer-events: none;
   transition: opacity 0.16s ease;
 }
+
 .search-overlay.open {
   opacity: 1;
   pointer-events: auto;
 }
+
 .search-box {
   display: grid;
   grid-template-columns: 24px 1fr 42px;
@@ -1877,9 +2143,11 @@ watch(isCompactNav, (compact) => {
   transform: translateY(-8px);
   transition: transform 0.16s ease;
 }
+
 .search-overlay.open .search-box {
   transform: translateY(0);
 }
+
 .search-box input {
   width: 100%;
   border: 0;
@@ -1890,10 +2158,12 @@ watch(isCompactNav, (compact) => {
   font-weight: 700;
   min-width: 0;
 }
+
 .search-box input::placeholder {
   color: #64748b;
   font-weight: 600;
 }
+
 .search-results {
   width: min(860px, calc(100vw - 36px));
   max-height: min(66vh, 560px);
@@ -1904,15 +2174,18 @@ watch(isCompactNav, (compact) => {
   box-shadow: 0 20px 54px rgba(15, 23, 42, 0.18);
   padding: 10px;
 }
+
 .search-results:empty {
   display: none;
 }
+
 .search-results p {
   margin: 0;
   padding: 14px;
   color: #64748b;
   font-weight: 800;
 }
+
 .search-results button {
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) auto;
@@ -1928,31 +2201,37 @@ watch(isCompactNav, (compact) => {
   padding: 8px;
   text-align: left;
 }
+
 .search-results button:hover,
 .search-results button:focus-visible {
   background: #ecfdf5;
   outline: 0;
 }
+
 .search-results img {
   width: 44px;
   aspect-ratio: 3 / 4;
   object-fit: cover;
   background: #e2e8f0;
 }
+
 .search-results span {
   display: grid;
   gap: 3px;
   min-width: 0;
 }
+
 .search-results strong,
 .search-results small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 .search-results strong {
   font-size: 15px;
 }
+
 .search-results small,
 .search-results em {
   color: #64748b;
@@ -1960,108 +2239,155 @@ watch(isCompactNav, (compact) => {
   font-style: normal;
   font-weight: 800;
 }
+
 .search-results em {
   color: #0f766e;
 }
+
+/* =========================
+   MOBILE MENU
+========================= */
 .mobile-backdrop {
   position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.18);
+  inset: 58px 0 0 0;
+  z-index: 58;
+  background: rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(2px);
 }
+
 .mobile-panel {
-  position: absolute;
-  top: calc(100% + 10px);
-  left: 12px;
-  width: min(calc(100vw - 24px), 420px);
+  position: fixed;
+  top: 62px;
+  left: 8px;
+  width: min(228px, calc(100vw - 16px));
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 70px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 60;
   display: grid;
-  gap: 16px;
+  gap: 8px;
+  box-sizing: border-box;
+  padding: 8px;
   border: 1px solid rgba(15, 118, 110, 0.12);
-  border-radius: 24px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 24px 54px rgba(15, 23, 42, 0.16);
-  padding: 18px;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.14);
   opacity: 0;
-  transform: translateY(-10px);
+  transform: translateY(-8px) scale(0.98);
+  transform-origin: top left;
   pointer-events: none;
   transition:
     opacity 0.2s ease,
     transform 0.2s ease;
-  z-index: 60;
-  box-sizing: border-box;
 }
+
 .mobile-panel.open {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
   pointer-events: auto;
 }
-.mobile-panel-header,
-.mobile-group {
-  margin-bottom: 0;
-}
+
 .mobile-panel-header {
+  display: grid;
+  grid-template-columns: 28px 1fr 28px;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 0 2px;
+}
+
+.mobile-panel-header .mobile-close,
+.mobile-panel-header-spacer {
+  width: 28px;
+  height: 28px;
+}
+
+.mobile-panel-brand {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: center;
   min-width: 0;
 }
-.mobile-panel-brand {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  min-width: 0;
-  color: #0f172a;
-  font-weight: 900;
-  line-height: 1.1;
-  text-align: right;
-  text-decoration: none;
-}
+
 .mobile-panel-logo {
-  flex: 0 0 48px;
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 24px;
   object-fit: contain;
+  display: block;
+  margin: 0 auto;
 }
-.mobile-panel-brand span {
-  min-width: 0;
-  max-width: 180px;
-  font-size: 17px;
-  overflow-wrap: anywhere;
-}
+
 .mobile-group {
   display: grid;
-  gap: 10px;
+  gap: 8px;
+  margin-bottom: 0;
 }
+
 .mobile-card {
-  padding: 16px;
-  border-radius: 18px;
-  background: #f8fbfb;
+  padding: 10px 8px;
+  border-radius: 14px;
+  background: #f5f7f7;
 }
+
+.mobile-main-card {
+  gap: 8px;
+}
+
 .mobile-group h3 {
-  color: #64748b;
-  font-size: 13px;
+  margin: 0 0 2px;
+  color: #7b8794;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  text-transform: none;
 }
+
 .mobile-group a {
-  padding: 6px 0;
-  color: #1f2937;
-  font-size: 16px;
-  font-weight: 700;
+  display: block;
+  padding: 2px 0;
+  color: #111827;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-decoration: none;
 }
+
 .mobile-cta-group {
-  display: none;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  background: transparent;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
   padding: 0;
+  background: transparent;
 }
-.mobile-pill-link {
+
+.mobile-pill-link,
+.mobile-cta-group .subscription-link,
+.mobile-cta-group .coin-link {
+  display: inline-flex;
   width: 100%;
-  height: 44px;
+  min-height: 34px;
+  height: 34px;
   justify-content: center;
+  align-items: center;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 0 8px;
+}
+
+.mobile-cta-group .coin-link {
+  gap: 6px;
+}
+
+.mobile-cta-group .coin-mark {
+  width: 15px;
+  height: 15px;
+}
+
+.mobile-cta-group .coin-mark svg {
+  width: 9px;
+  height: 9px;
 }
 
 .navbar--compact .top-bar {
@@ -2071,51 +2397,56 @@ watch(isCompactNav, (compact) => {
   min-height: 82px;
   padding: 10px clamp(18px, 3vw, 40px);
 }
+
 .navbar--compact .left-cluster {
   min-width: 0;
   gap: 8px;
 }
+
 .navbar--compact .desktop-public-nav {
   display: none;
 }
+
 .navbar--compact .left-cluster > .subscription-link,
-.navbar--compact .left-cluster > .coin-link {
-  display: none;
-}
+.navbar--compact .left-cluster > .coin-link,
 .navbar--compact .left-cluster > .accessibility-link {
   display: none;
 }
+
 .navbar--compact .menu-toggle {
   display: inline-grid;
 }
+
 .navbar--compact .brand {
   flex-basis: 128px;
   width: 128px;
   min-width: 128px;
   height: 54px;
 }
+
 .navbar--compact .top-actions {
   margin-left: auto;
 }
+
 .navbar--compact .desktop-public-nav {
   position: static;
   transform: none;
 }
+
 .navbar--compact .mobile-cta-group {
   display: grid;
   grid-template-columns: 1fr;
 }
+
 .navbar--compact .mobile-cta-group .subscription-link,
 .navbar--compact .mobile-cta-group .coin-link {
   display: inline-flex;
-}
-.navbar--compact .mobile-cta-group .subscription-link,
-.navbar--compact .mobile-cta-group .coin-link {
   width: 100%;
-  height: 44px;
-  min-height: 44px;
-  padding: 0 14px;
+  min-height: 34px;
+  height: 34px;
+  padding: 0 8px;
 }
+
 .navbar--compact .mobile-cta-group .mobile-pill-link.accessibility-link {
   display: none;
 }
@@ -2123,224 +2454,181 @@ watch(isCompactNav, (compact) => {
 @media (max-width: 780px) {
   .top-bar {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 16px;
-    width: 100%;
-    max-width: 100vw;
-    overflow: visible;
-    min-height: 82px;
-    padding: 10px clamp(18px, 3vw, 40px);
-  }
-  .left-cluster {
-    min-width: 0;
-    gap: 8px;
-  }
-  .top-actions {
-    margin-left: auto;
-  }
-  .desktop-public-nav {
-    position: static;
-    transform: none;
-  }
-  .desktop-public-nav,
-  .navbar--compact .desktop-public-nav {
-    order: 3;
-    position: static;
-    display: flex;
-    flex: 0 0 100%;
-    width: 100%;
-    min-width: 0;
-    transform: none;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  .desktop-public-nav a,
-  .navbar--compact .desktop-public-nav a {
-    flex: 1 1 calc(33.333% - 6px);
-    min-height: 32px;
-    display: inline-flex;
+    flex-wrap: nowrap;
     align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--surface) 86%, transparent);
-    font-size: 12px;
-    line-height: 1.1;
-    text-align: center;
-    white-space: normal;
-  }
-  .left-cluster > .subscription-link,
-  .left-cluster > .coin-link {
-    display: none;
-  }
-  .left-cluster > .accessibility-link {
-    display: none;
-  }
-  .mobile-accessibility-button {
-    display: inline-grid;
-  }
-  .menu-toggle {
-    display: inline-grid;
-  }
-  .brand {
-    flex-basis: 128px;
-    width: 128px;
-    min-width: 128px;
-    height: 54px;
-  }
-  .mobile-cta-group {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-  .mobile-cta-group .subscription-link,
-  .mobile-cta-group .coin-link {
-    display: inline-flex;
-  }
-  .mobile-cta-group .subscription-link,
-  .mobile-cta-group .coin-link {
-    width: 100%;
-    height: 44px;
-    min-height: 44px;
-    padding: 0 14px;
-  }
-  .mobile-cta-group .mobile-pill-link.accessibility-link {
-    display: none;
-  }
-}
-@media (max-width: 780px) {
-  .top-bar {
-    display: flex;
-    flex-wrap: wrap;
     justify-content: space-between;
     gap: 6px;
     width: 100%;
     max-width: 100vw;
-    overflow: visible;
-    min-height: 76px;
-    padding: 10px 8px;
+    overflow: hidden;
+    min-height: 60px;
+    padding: 8px 10px;
   }
+
   .left-cluster {
-    flex: 0 1 auto;
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
     min-width: 0;
     gap: 4px;
   }
-  .subscription-link,
-  .coin-link {
+
+  .desktop-public-nav,
+  .navbar--compact .desktop-public-nav {
     display: none;
   }
+
+  .left-cluster > .subscription-link,
+  .left-cluster > .coin-link,
   .left-cluster > .accessibility-link {
     display: none;
   }
+
   .mobile-accessibility-button {
     display: inline-grid;
   }
+
+  .menu-toggle {
+    display: inline-grid;
+    flex: 0 0 34px;
+  }
+
+  .brand {
+    flex: 0 1 112px;
+    width: 112px;
+    min-width: 88px;
+    height: 46px;
+  }
+
+  .brand-logo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
   .top-actions {
+    display: flex;
+    align-items: center;
     flex: 0 0 auto;
     width: auto;
     gap: 4px;
-    justify-self: auto;
     min-width: 0;
+    margin-left: auto;
   }
+
   .top-actions > .icon-button,
   .top-actions > .icon-dropdown,
   .top-actions > .notification-wrapper {
-    flex: 0 0 34px;
-    width: 34px;
+    flex: 0 0 auto;
+    width: auto;
   }
-  .language-switch {
-    min-height: 32px;
-    padding: 2px;
-  }
-  .language-switch__label {
-    display: none;
-  }
-  .language-switch button {
-    min-width: 30px;
-    height: 26px;
-    font-size: 10px;
-    padding: 0 6px;
-  }
-  .brand {
-    flex: 0 0 108px;
-    width: 108px;
-    min-width: 108px;
-    height: 50px;
-  }
+
   .icon-button,
   .notification-button,
   .avatar-button {
     width: 34px;
     height: 34px;
   }
+
   .icon-button svg,
   .notification-button svg,
   .avatar-button svg {
     width: 17px;
     height: 17px;
   }
-  .mobile-panel {
-    position: fixed;
-    top: 84px;
-    right: 8px;
-    bottom: 8px;
-    left: 8px;
-    width: auto;
-    max-height: calc(100dvh - 92px);
-    overflow-y: auto;
-    border-radius: 18px;
-    padding: 12px;
+
+  .language-switch {
+    min-height: 30px;
+    padding: 2px;
   }
-  .mobile-cta-group {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-  .mobile-cta-group .subscription-link,
-  .mobile-cta-group .coin-link {
-    display: inline-flex;
-  }
-  .mobile-cta-group .subscription-link,
-  .mobile-cta-group .coin-link {
-    width: 100%;
-    height: 44px;
-    min-height: 44px;
-    padding: 0 14px;
-  }
-  .mobile-cta-group .mobile-pill-link.accessibility-link {
+
+  .language-switch__label {
     display: none;
+  }
+
+  .language-switch button {
+    min-width: 26px;
+    height: 24px;
+    font-size: 10px;
+    padding: 0 5px;
+  }
+
+  .language-switch__single-btn {
+    min-width: 38px;
+    height: 24px;
+    font-size: 10px;
+    padding: 0 8px;
+  }
+
+  .mobile-backdrop {
+    inset: 58px 0 0 0;
+  }
+
+  .mobile-panel {
+    top: 62px;
+    left: 8px;
+    width: min(228px, calc(100vw - 16px));
+    max-height: calc(100dvh - 70px);
+    border-radius: 16px;
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .mobile-panel-header {
+    grid-template-columns: 28px 1fr 28px;
+  }
+
+  .mobile-panel-header .mobile-close,
+  .mobile-panel-header-spacer {
+    width: 28px;
+    height: 28px;
+  }
+
+  .mobile-panel-logo {
+    width: 52px;
+    height: 24px;
+  }
+
+  .mobile-card {
+    padding: 10px 8px;
+  }
+
+  .mobile-group a {
+    font-size: 12px;
+  }
+
+  .mobile-pill-link,
+  .mobile-cta-group .subscription-link,
+  .mobile-cta-group .coin-link {
+    min-height: 34px;
+    height: 34px;
+    font-size: 11px;
+    padding: 0 8px;
   }
 }
 
 @media (max-width: 420px) {
   .top-bar {
-    min-height: 70px;
-    padding-inline: max(6px, env(safe-area-inset-left))
-      max(6px, env(safe-area-inset-right));
+    min-height: 56px;
+    padding: 8px 8px;
+    gap: 4px;
+    flex-wrap: nowrap;
+    overflow: hidden;
   }
 
   .desktop-public-nav,
   .navbar--compact .desktop-public-nav {
-    gap: 5px;
-  }
-
-  .desktop-public-nav a,
-  .navbar--compact .desktop-public-nav a {
-    flex-basis: calc(33.333% - 5px);
-    min-height: 30px;
-    font-size: 11px;
-    padding: 4px 2px;
-  }
-
-  .left-cluster {
-    flex: 0 1 auto;
-    gap: 3px;
-  }
-
-  .left-cluster > .accessibility-link {
     display: none;
   }
 
+  .left-cluster {
+    flex: 1 1 auto;
+    gap: 3px;
+    min-width: 0;
+  }
+
   .top-actions {
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     width: auto;
     gap: 3px;
   }
@@ -2348,35 +2636,101 @@ watch(isCompactNav, (compact) => {
   .top-actions > .icon-button,
   .top-actions > .icon-dropdown,
   .top-actions > .notification-wrapper {
-    flex: 0 0 31px;
-    width: 31px;
-  }
-  .language-switch {
-    grid-template-columns: 1fr;
-    gap: 2px;
-    min-height: 31px;
-    padding: 2px;
-  }
-  .language-switch button {
-    min-width: 25px;
-    height: 13px;
-    font-size: 8px;
-    line-height: 1;
-    padding: 0 3px;
+    flex: 0 0 auto;
+    width: auto;
   }
 
   .brand {
-    flex: 0 1 clamp(76px, 24vw, 92px);
-    width: clamp(76px, 24vw, 92px);
-    min-width: 76px;
-    height: 44px;
+    flex: 0 1 96px;
+    width: 96px;
+    min-width: 72px;
+    height: 40px;
   }
 
   .icon-button,
   .notification-button,
   .avatar-button {
-    width: 31px;
-    height: 31px;
+    width: 30px;
+    height: 30px;
+  }
+
+  .icon-button svg,
+  .notification-button svg,
+  .avatar-button svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .language-switch {
+    grid-template-columns: 1fr;
+    gap: 2px;
+    min-height: 28px;
+    padding: 2px;
+  }
+
+  .language-switch button {
+    min-width: 22px;
+    height: 22px;
+    font-size: 8px;
+    line-height: 1;
+    padding: 0 3px;
+  }
+
+  .language-switch__single-btn {
+    min-width: 34px;
+    height: 22px;
+    font-size: 9px;
+    padding: 0 6px;
+  }
+
+  .mobile-backdrop {
+    inset: 54px 0 0 0;
+  }
+
+  .mobile-panel {
+    top: 58px;
+    left: 8px;
+    width: min(214px, calc(100vw - 16px));
+    max-height: calc(100dvh - 66px);
+    padding: 7px;
+    border-radius: 14px;
+  }
+
+  .mobile-panel-header {
+    grid-template-columns: 26px 1fr 26px;
+  }
+
+  .mobile-panel-header .mobile-close,
+  .mobile-panel-header-spacer {
+    width: 26px;
+    height: 26px;
+  }
+
+  .mobile-panel-logo {
+    width: 48px;
+    height: 22px;
+  }
+
+  .mobile-card {
+    padding: 8px 7px;
+  }
+
+  .mobile-group h3 {
+    font-size: 10px;
+  }
+
+  .mobile-group a {
+    font-size: 11px;
+    line-height: 1.3;
+  }
+
+  .mobile-pill-link,
+  .mobile-cta-group .subscription-link,
+  .mobile-cta-group .coin-link {
+    min-height: 32px;
+    height: 32px;
+    font-size: 10px;
+    padding: 0 7px;
   }
 
   .dropdown-panel,
@@ -2394,21 +2748,19 @@ watch(isCompactNav, (compact) => {
 
 @media (max-width: 360px) {
   .top-bar {
-    gap: 6px;
+    gap: 4px;
+    flex-wrap: nowrap;
   }
 
   .left-cluster {
-    gap: 3px;
-  }
-
-  .left-cluster > .accessibility-link {
-    display: none;
+    gap: 2px;
   }
 
   .brand {
-    flex-basis: 74px;
-    width: 74px;
-    min-width: 74px;
+    flex: 0 1 84px;
+    width: 84px;
+    min-width: 68px;
+    height: 36px;
   }
 
   .top-actions > .icon-button,
@@ -2417,16 +2769,20 @@ watch(isCompactNav, (compact) => {
   .icon-button,
   .notification-button,
   .avatar-button {
-    flex-basis: 30px;
-    width: 30px;
-    height: 30px;
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
   }
 
   .icon-button svg,
   .notification-button svg,
   .avatar-button svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
+  }
+
+  .mobile-panel {
+    width: min(204px, calc(100vw - 16px));
   }
 }
 </style>

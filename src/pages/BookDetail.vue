@@ -2,9 +2,8 @@
   <div class="book-detail-page">
     <div class="container">
       <p class="sr-status" aria-live="polite">{{ statusMessage }}</p>
-      <div v-if="loading" class="state-box">
-        กำลังโหลดข้อมูลหนังสือ...
-      </div>
+
+      <div v-if="loading" class="state-box">กำลังโหลดข้อมูลหนังสือ...</div>
 
       <div v-else-if="error" class="state-box error">
         {{ error }}
@@ -20,20 +19,30 @@
             <div class="story-main">
               <div class="story-tags">
                 <span>{{ book.category_name || "นิยาย" }}</span>
-                <span>{{ book.content_type === "serial" ? `${episodes.length || book.episode_count || 0} ตอน` : "แบบเล่ม" }}</span>
+                <span>
+                  {{
+                    book.content_type === "serial"
+                      ? `${episodes.length || book.episode_count || 0} ตอน`
+                      : "แบบเล่ม"
+                  }}
+                </span>
                 <span>{{ accessPresentation.label }}</span>
               </div>
 
               <h1>{{ book.title }}</h1>
+
               <p class="story-author">
                 <button
                   type="button"
                   class="author-link"
                   :disabled="!getWriterPagePath()"
-                  @click="getWriterPagePath() && router.push(getWriterPagePath())"
+                  @click="
+                    getWriterPagePath() && router.push(getWriterPagePath())
+                  "
                 >
                   {{ book.author || "ไม่ระบุผู้เขียน" }}
                 </button>
+
                 <button type="button" @click="toggleWriterFollow">
                   {{ isFollowingWriter ? "ติดตามแล้ว" : "ติดตาม" }}
                 </button>
@@ -44,28 +53,64 @@
               </p>
 
               <div class="story-stats">
-                <span>♡ {{ reviewSummary.review_count || reviews.length || 0 }} คนที่กดหัวใจ</span>
+                <span
+                  >♡
+                  {{ reviewSummary.review_count || reviews.length || 0 }}
+                  คนที่กดหัวใจ</span
+                >
                 <span>👁 {{ displayReadCount }} คนอ่าน</span>
-                <span>☰ {{ episodes.length || book.episode_count || 1 }} จำนวนตอน</span>
+                <span
+                  >☰
+                  {{ episodes.length || book.episode_count || 1 }}
+                  จำนวนตอน</span
+                >
                 <span>💬 {{ reviews.length }} ความคิดเห็น</span>
               </div>
 
               <div class="story-actions">
-                <button class="icon-action" type="button" @click="addToWishlist">♡</button>
-                <button class="outline-action" type="button" @click="addToLibrary">เพิ่มเข้าชั้น</button>
-                <button class="primary-action" type="button" @click="handleReadAction">{{ book.content_type === "serial" ? "อ่านเลย" : "ทดลองอ่าน" }}</button>
-                <button class="outline-action" type="button" @click="handleListenAction">
+                <button
+                  class="icon-action"
+                  type="button"
+                  @click="addToWishlist"
+                >
+                  ♡
+                </button>
+                <button
+                  class="outline-action"
+                  type="button"
+                  @click="addToLibrary"
+                >
+                  เพิ่มเข้าชั้น
+                </button>
+                <button
+                  class="primary-action"
+                  type="button"
+                  @click="handleReadAction"
+                >
+                  {{ canReadImmediately ? "อ่านเลย" : "ทดลองอ่าน" }}
+                </button>
+                <button
+                  class="outline-action"
+                  type="button"
+                  @click="handleListenAction"
+                >
                   อ่านให้ฟัง
                 </button>
+
                 <button
                   v-if="heroDecision === 'purchase'"
                   class="primary-action"
                   type="button"
                   :disabled="purchasingBook"
-                  @click="purchaseBookNow"
+                  @click="purchaseBookNow('read')"
                 >
-                  {{ purchasingBook ? "กำลังซื้อ..." : `ซื้อ ${formatCoinAmount(book.price)} คอยน์` }}
+                  {{
+                    purchasingBook
+                      ? "กำลังซื้อ..."
+                      : `ซื้อ ${formatCoinAmount(book.price)} คอยน์`
+                  }}
                 </button>
+
                 <button
                   v-if="heroDecision === 'subscribe'"
                   class="primary-action"
@@ -96,11 +141,18 @@
 
           <section class="story-section note-section">
             <h2>แนะนำเรื่อง</h2>
-            <p>{{ book.description || "เรื่องนี้ยังไม่มีคำแนะนำจากผู้เขียน" }}</p>
-            <p v-if="previewNotice" class="preview-notice">{{ previewNotice }}</p>
+            <p>
+              {{ book.description || "เรื่องนี้ยังไม่มีคำแนะนำจากผู้เขียน" }}
+            </p>
+            <p v-if="previewNotice" class="preview-notice">
+              {{ previewNotice }}
+            </p>
           </section>
 
-          <section v-if="book.content_type !== 'serial'" class="story-section info-grid">
+          <section
+            v-if="book.content_type !== 'serial'"
+            class="story-section info-grid"
+          >
             <div>
               <h2>ข้อมูลนักเขียน</h2>
               <dl>
@@ -111,7 +163,9 @@
                       type="button"
                       class="author-link inline-author-link"
                       :disabled="!getWriterPagePath()"
-                      @click="getWriterPagePath() && router.push(getWriterPagePath())"
+                      @click="
+                        getWriterPagePath() && router.push(getWriterPagePath())
+                      "
                     >
                       {{ book.author || "ไม่ระบุ" }}
                     </button>
@@ -124,7 +178,9 @@
                       type="button"
                       class="author-link inline-author-link"
                       :disabled="!getWriterPagePath()"
-                      @click="getWriterPagePath() && router.push(getWriterPagePath())"
+                      @click="
+                        getWriterPagePath() && router.push(getWriterPagePath())
+                      "
                     >
                       {{ book.author || "ไม่ระบุ" }}
                     </button>
@@ -132,6 +188,7 @@
                 </div>
               </dl>
             </div>
+
             <div>
               <h2>เผยแพร่</h2>
               <dl>
@@ -141,7 +198,7 @@
                 </div>
                 <div>
                   <dt>รูปแบบ</dt>
-                  <dd>{{ book.content_type === "serial" ? "รายตอน" : "แบบเล่ม" }}</dd>
+                  <dd>แบบเล่ม</dd>
                 </div>
               </dl>
             </div>
@@ -156,7 +213,11 @@
                     <dt>นามปากกา</dt>
                     <dd>
                       <span>{{ book.author || "ไม่ระบุ" }}</span>
-                      <button type="button" class="follow-chip" @click="toggleWriterFollow">
+                      <button
+                        type="button"
+                        class="follow-chip"
+                        @click="toggleWriterFollow"
+                      >
                         {{ isFollowingWriter ? "ติดตามแล้ว" : "ติดตาม" }}
                       </button>
                     </dd>
@@ -165,7 +226,11 @@
                     <dt>นักเขียน</dt>
                     <dd>
                       <span>{{ book.author || "ไม่ระบุ" }}</span>
-                      <button type="button" class="follow-chip" @click="toggleWriterFollow">
+                      <button
+                        type="button"
+                        class="follow-chip"
+                        @click="toggleWriterFollow"
+                      >
                         {{ isFollowingWriter ? "ติดตามแล้ว" : "ติดตาม" }}
                       </button>
                     </dd>
@@ -182,7 +247,11 @@
                   </div>
                   <div>
                     <dt>แก้ไขล่าสุด</dt>
-                    <dd>{{ formatPublishDate(book.updated_at || book.created_at) }}</dd>
+                    <dd>
+                      {{
+                        formatPublishDate(book.updated_at || book.created_at)
+                      }}
+                    </dd>
                   </div>
                 </dl>
               </div>
@@ -190,23 +259,38 @@
 
             <div class="ebook-promo-card">
               <div class="ebook-promo-cover">
-                <img :src="bookCover" :alt="book.title" @error="handleImgError" />
+                <img
+                  :src="bookCover"
+                  :alt="book.title"
+                  @error="handleImgError"
+                />
               </div>
 
               <div class="ebook-promo-copy">
                 <p class="ebook-promo-eyebrow">ซื้อ e-book ได้ที่นี่</p>
                 <h3>{{ book.title }}</h3>
-                <p>{{ book.description || "อ่านแบบอีบุ๊กหรือเก็บเข้าคลังเพื่อกลับมาอ่านต่อเมื่อสะดวก" }}</p>
+                <p>
+                  {{
+                    book.description ||
+                    "อ่านแบบอีบุ๊กหรือเก็บเข้าคลังเพื่อกลับมาอ่านต่อเมื่อสะดวก"
+                  }}
+                </p>
+
                 <div class="ebook-promo-actions">
                   <button
                     v-if="heroDecision === 'purchase'"
                     class="primary-action"
                     type="button"
                     :disabled="purchasingBook"
-                    @click="purchaseBookNow"
+                    @click="purchaseBookNow('read')"
                   >
-                    {{ purchasingBook ? "กำลังซื้อ..." : `ซื้อเลย ${book.price || 0} คอยน์` }}
+                    {{
+                      purchasingBook
+                        ? "กำลังซื้อ..."
+                        : `ซื้อเลย ${book.price || 0} คอยน์`
+                    }}
                   </button>
+
                   <button
                     v-else-if="heroDecision === 'subscribe'"
                     class="primary-action"
@@ -215,15 +299,27 @@
                   >
                     {{ subscriptionActionLabel }}
                   </button>
-                  <button v-else class="primary-action" type="button" @click="handleReadAction">{{ book.content_type === "serial" ? "อ่านเลย" : "ทดลองอ่าน" }}</button>
+
+                  <button
+                    v-else
+                    class="primary-action"
+                    type="button"
+                    @click="handleReadAction"
+                  >
+                    ทดลองอ่าน
+                  </button>
                 </div>
               </div>
             </div>
           </section>
 
-          <section v-if="book.content_type === 'serial'" class="story-section episode-table-section">
+          <section
+            v-if="book.content_type === 'serial'"
+            class="story-section episode-table-section"
+          >
             <div class="section-heading">
               <h2>ตอนทั้งหมด ({{ episodes.length }})</h2>
+
               <div class="episode-table-tools">
                 <button
                   v-if="book.access_type === 'paid'"
@@ -233,41 +329,80 @@
                 >
                   {{ buyingBook ? "กำลังเพิ่ม..." : "ซื้อทุกตอน" }}
                 </button>
-                <button type="button" class="ghost-sort-btn" @click="toggleEpisodeSort">
+
+                <button
+                  type="button"
+                  class="ghost-sort-btn"
+                  @click="toggleEpisodeSort"
+                >
                   {{ episodeSortLabel }}
                 </button>
               </div>
             </div>
 
             <div class="episode-table">
-              <article v-for="episode in displayedEpisodes" :key="episode.id" class="episode-row">
-                <span class="episode-number">#{{ episode.episode_number }}</span>
+              <article
+                v-for="episode in displayedEpisodes"
+                :key="episode.id"
+                class="episode-row"
+              >
+                <span class="episode-number"
+                  >#{{ episode.episode_number }}</span
+                >
+
                 <div class="episode-title-wrap">
-                  <button type="button" class="episode-title" @click="handleEpisodeReadAction(episode)">
+                  <button
+                    type="button"
+                    class="episode-title"
+                    @click="handleEpisodeReadAction(episode)"
+                  >
                     {{ episode.title }}
                   </button>
-                  <span class="episode-access">{{ getEpisodeAccessLabel(episode) }}</span>
+                  <span class="episode-access">{{
+                    getEpisodeAccessLabel(episode)
+                  }}</span>
                 </div>
+
                 <span class="episode-meta episode-meta-stack">
                   <strong>{{ formatEpisodeWords(episode) }}</strong>
                   <small>{{ estimateEpisodePages(episode) }}</small>
                 </span>
+
                 <span class="episode-meta episode-meta-stack">
                   <strong>{{ formatPublishDate(episode.created_at) }}</strong>
                   <small>{{ formatPublishTime(episode.created_at) }}</small>
                 </span>
-                <span class="episode-meta episode-stat">💬 {{ formatCompactCount(episode.comment_count) }}</span>
-                <span class="episode-meta episode-stat">👁 {{ formatCompactCount(episode.read_count || episode.view_count) }}</span>
+
+                <span class="episode-meta episode-stat">
+                  💬 {{ formatCompactCount(episode.comment_count) }}
+                </span>
+
+                <span class="episode-meta episode-stat">
+                  👁
+                  {{
+                    formatCompactCount(episode.read_count || episode.view_count)
+                  }}
+                </span>
+
                 <button
                   v-if="getEpisodePrimaryAction(episode) === 'purchase'"
                   class="episode-buy"
                   type="button"
-                  :aria-label="purchasingEpisodeId === episode.id ? 'กำลังซื้อ' : getEpisodeActionLabel(episode)"
+                  :aria-label="
+                    purchasingEpisodeId === episode.id
+                      ? 'กำลังซื้อ'
+                      : getEpisodeActionLabel(episode)
+                  "
                   :disabled="purchasingEpisodeId === episode.id"
                   @click="purchaseEpisodeNow(episode)"
                 >
-                  {{ purchasingEpisodeId === episode.id ? "กำลังซื้อ..." : getEpisodeActionLabel(episode) }}
+                  {{
+                    purchasingEpisodeId === episode.id
+                      ? "กำลังซื้อ..."
+                      : getEpisodeActionLabel(episode)
+                  }}
                 </button>
+
                 <button
                   v-else-if="getEpisodePrimaryAction(episode) === 'subscribe'"
                   class="episode-buy"
@@ -276,6 +411,7 @@
                 >
                   {{ getEpisodeActionLabel(episode) }}
                 </button>
+
                 <button
                   v-else
                   class="episode-buy"
@@ -286,7 +422,10 @@
                   {{ getEpisodeActionLabel(episode) }}
                 </button>
               </article>
-              <div v-if="!episodes.length" class="empty-content">ยังไม่มีตอนที่เผยแพร่</div>
+
+              <div v-if="!episodes.length" class="empty-content">
+                ยังไม่มีตอนที่เผยแพร่
+              </div>
             </div>
           </section>
 
@@ -294,295 +433,75 @@
             <div class="section-heading">
               <h2>ตัวอย่างเนื้อหา</h2>
             </div>
-            <div class="reader-box" :style="{ fontSize: fontSize + 'px', lineHeight: '1.9' }">
-              <p v-for="(paragraph, index) in previewParagraphs" :key="index" class="preview-paragraph">
+
+            <div
+              class="reader-box"
+              :style="{ fontSize: fontSize + 'px', lineHeight: '1.9' }"
+            >
+              <p
+                v-for="(paragraph, index) in previewParagraphs"
+                :key="index"
+                class="preview-paragraph"
+              >
                 {{ paragraph }}
               </p>
-              <div v-if="!previewParagraphs.length" class="empty-content">ไม่พบเนื้อหาตัวอย่าง</div>
+
+              <div v-if="!previewParagraphs.length" class="empty-content">
+                ไม่พบเนื้อหาตัวอย่าง
+              </div>
             </div>
           </section>
 
           <section class="story-section reviews-section">
             <div class="reviews-head">
               <div>
-                <p class="reviews-eyebrow">ความคิดเห็น ({{ reviews.length }})</p>
+                <p class="reviews-eyebrow">
+                  ความคิดเห็น ({{ reviews.length }})
+                </p>
                 <h3>{{ reviewSummaryText }}</h3>
               </div>
-              <button v-if="!showReviewForm" class="small-btn" type="button" @click="startNewReview">
-                เขียนความคิดเห็น
-              </button>
-            </div>
 
-            <form v-if="showReviewForm" class="review-form" @submit.prevent="submitReview">
-              <div class="sticker-row">
-                <span v-for="item in ['🌸', '💚', '❤️', '✨', '📚', '😊', '🔥', '🌙']" :key="item">{{ item }}</span>
-              </div>
-              <label>
-                <span>คะแนน</span>
-                <select v-model.number="reviewRating">
-                  <option v-for="score in [5, 4, 3, 2, 1]" :key="score" :value="score">{{ score }} ดาว</option>
-                </select>
-              </label>
-              <label>
-                <span>ความคิดเห็น</span>
-                <textarea v-model="reviewComment" rows="4" placeholder="เขียนความคิดเห็นของคุณ" />
-              </label>
-              <div class="review-actions">
-                <button class="btn primary" type="submit" :disabled="reviewSaving">
-                  {{ reviewSaving ? "กำลังบันทึก..." : editingReviewId ? "บันทึกการแก้ไข" : "ส่งความคิดเห็น" }}
-                </button>
-                <button class="btn" type="button" @click="cancelReviewForm">ยกเลิก</button>
-              </div>
-            </form>
-
-            <p v-if="reviewError" class="review-error">{{ reviewError }}</p>
-            <div v-if="reviewsLoading" class="review-state">กำลังโหลดความคิดเห็น...</div>
-            <div v-else-if="reviews.length === 0" class="review-state">
-              ยังไม่มีความคิดเห็น เป็นคนแรกที่คุยกับเรื่องนี้ได้เลย
-            </div>
-
-            <article v-for="review in reviews" :key="review.id" class="review-item">
-              <div class="review-meta">
-                <strong>{{ review.user_name }}</strong>
-                <span>{{ "★".repeat(review.rating) }}{{ "☆".repeat(5 - review.rating) }}</span>
-              </div>
-              <p>{{ review.comment }}</p>
-              <div class="review-footer">
-                <span>{{ formatReviewDate(review.created_at) }}</span>
-                <div v-if="review.can_edit || review.can_delete" class="review-manage">
-                  <button v-if="review.can_edit" type="button" @click="editReview(review)">แก้ไข</button>
-                  <button v-if="review.can_delete" type="button" @click="deleteReview(review.id)">ลบ</button>
-                </div>
-              </div>
-            </article>
-          </section>
-        </main>
-      </template>
-
-      <div v-if="false" class="book-layout">
-        <!-- =========================
-             SIDEBAR: ปก + ข้อมูลหลัก + ปุ่มลัด + TTS ตัวอย่าง
-             ========================= -->
-        <aside class="book-sidebar">
-          <div class="cover-box">
-            <img
-              :src="bookCover"
-              :alt="book.title"
-              class="cover-image"
-              @error="handleImgError"
-            />
-          </div>
-
-          <h1 class="book-title">{{ book.title }}</h1>
-          <p class="book-author">ผู้แต่ง: {{ book.author || "ไม่ระบุ" }}</p>
-
-          <p v-if="book.category_name" class="book-meta">
-            หมวดหมู่: {{ book.category_name }}
-          </p>
-
-          <p v-if="book.description" class="book-description">
-            {{ book.description }}
-          </p>
-
-          <div class="access-card" :class="`access-${bookAccessType}`">
-            <span class="access-badge">{{ bookAccessLabel }}</span>
-            <strong>{{ bookPriceLabel }}</strong>
-            <p>{{ bookAccessHint }}</p>
-          </div>
-
-          <!-- ปุ่มลัด -->
-          <div class="quick-actions">
-            <button class="btn reader-btn" @click="openReaderPage">
-              {{ primaryReaderLabel }}
-            </button>
-
-            <button class="btn primary library-btn" @click="addToLibrary">
-              เพิ่มเข้าชั้นหนังสือ
-            </button>
-
-            <button class="btn wishlist-btn" @click="addToWishlist">
-              เพิ่ม Wishlist
-            </button>
-
-            <button class="btn cart-btn" @click="addWholeBookToCart">
-              {{ bookAccessType === "paid" ? "เพิ่มลงตะกร้า" : "เก็บไว้ในตะกร้า" }}
-            </button>
-
-            <button
-              v-if="bookAccessType === 'paid'"
-              class="btn buy-now-btn"
-              :disabled="purchasingBook"
-              @click="purchaseBookNow"
-            >
-              {{ purchasingBook ? "กำลังซื้อ..." : "ซื้อและอ่านทันที" }}
-            </button>
-
-            <button
-              v-if="bookAccessType === 'paid'"
-              class="btn coin-btn"
-              @click="router.push('/coin-wallet')"
-            >
-              เติมคอยน์
-            </button>
-
-            <button
-              v-if="bookAccessType === 'subscription' && !hasActiveSubscription"
-              class="btn subscribe-btn"
-              @click="router.push('/subscription-plans')"
-            >
-              สมัครรายเดือน
-            </button>
-          </div>
-
-        </aside>
-
-        <!-- =========================
-             CONTENT AREA
-             ========================= -->
-        <main class="book-content">
-          <div class="content-header">
-            <h2>
-              {{ book.content_type === "serial" ? "รายการตอน" : "ตัวอย่างเนื้อหา" }}
-            </h2>
-
-            <div class="top-right-actions">
-              <button class="small-btn" @click="goToWishlist">Wishlist</button>
-              <button class="small-btn" @click="goToCart">ตะกร้า</button>
-            </div>
-          </div>
-
-          <!-- =========================
-               กรณีเป็นนิยายรายตอน / serial
-               ========================= -->
-          <div v-if="book.content_type === 'serial'" class="episode-list">
-            <!-- กล่องซื้อทั้งเรื่อง / สมัครรายเดือน -->
-            <div class="purchase-actions">
-              <button
-                v-if="book.access_type === 'paid'"
-                class="btn primary"
-                :disabled="buyingBook"
-                @click="addBookToCart(book.id)"
-              >
-                {{ buyingBook ? "กำลังเพิ่ม..." : `ซื้ออีบุ๊ก ${book.price || 0} คอยน์` }}
-              </button>
-
-              <router-link
-                v-if="book.access_type === 'subscription'"
-                class="subscribe-link"
-                to="/subscription-plans"
-              >
-                สมัครรายเดือนเพื่ออ่าน
-              </router-link>
-            </div>
-
-            <article
-              v-for="episode in episodes"
-              :key="episode.id"
-              class="episode-item"
-            >
-              <div>
-                <strong>ตอนที่ {{ episode.episode_number }}: {{ episode.title }}</strong>
-                <p>{{ getEpisodeAccessLabel(episode) }}</p>
-              </div>
-
-              <div class="episode-actions">
-                <button class="small-btn" @click="handleEpisodeReadAction(episode)">
-                  {{ isEpisodeFree(episode) ? "อ่านตอนนี้" : "ดูสถานะตอน" }}
-                </button>
-
-                <button
-                  v-if="isEpisodePaid(episode)"
-                  class="small-btn"
-                  :disabled="buyingEpisodeId === episode.id"
-                  @click="addEpisodeToCart(episode)"
-                >
-                  {{
-                    buyingEpisodeId === episode.id
-                      ? "กำลังเพิ่ม..."
-                    : "เพิ่มตอนลงตะกร้า"
-                  }}
-                </button>
-
-                <button
-                  v-if="isEpisodePaid(episode)"
-                  class="small-btn buy-now-small"
-                  :aria-label="purchasingEpisodeId === episode.id ? 'กำลังซื้อ' : getEpisodeActionLabel(episode)"
-                  :disabled="purchasingEpisodeId === episode.id"
-                  @click="purchaseEpisodeNow(episode)"
-                >
-                  {{ purchasingEpisodeId === episode.id ? "กำลังซื้อ..." : getEpisodeActionLabel(episode) }}
-                </button>
-
-                <router-link
-                  v-if="episode.access_type === 'subscription'"
-                  class="subscribe-link small-link"
-                  to="/subscription-plans"
-                >
-                  สมัครรายเดือน
-                </router-link>
-              </div>
-            </article>
-
-            <div v-if="!episodes.length" class="empty-content">
-              ยังไม่มีตอนที่เผยแพร่
-            </div>
-          </div>
-
-          <!-- =========================
-               กรณีเป็น ebook เต็มเล่ม
-               ========================= -->
-          <div
-            v-else
-            class="reader-box"
-            :style="{ fontSize: fontSize + 'px', lineHeight: '1.9' }"
-          >
-            <span
-              v-for="(sentence, index) in sentences"
-              :key="index"
-              class="sentence"
-              :class="{ active: index === currentIndex }"
-              @click="selectSentence(index)"
-            >
-              {{ sentence }}
-            </span>
-
-            <div v-if="!sentences.length" class="empty-content">
-              ไม่พบเนื้อหาสำหรับอ่านออกเสียง
-            </div>
-          </div>
-
-          <p v-if="previewNotice" class="preview-notice">{{ previewNotice }}</p>
-
-          <div v-if="book.content_type !== 'serial'" class="preview-footer">
-            <button
-              class="btn reader-btn preview-reader-btn"
-              @click="openReaderPage"
-            >
-              เปิดอ่านเต็มเล่มในหน้าอ่าน
-            </button>
-          </div>
-
-          <section class="reviews-section">
-            <div class="reviews-head">
-              <div>
-                <p class="reviews-eyebrow">รีวิวจากผู้อ่าน</p>
-                <h3>{{ reviewSummaryText }}</h3>
-              </div>
               <button
                 v-if="!showReviewForm"
                 class="small-btn"
                 type="button"
                 @click="startNewReview"
               >
-                เขียนรีวิว
+                เขียนความคิดเห็น
               </button>
             </div>
 
-            <form v-if="showReviewForm" class="review-form" @submit.prevent="submitReview">
+            <form
+              v-if="showReviewForm"
+              class="review-form"
+              @submit.prevent="submitReview"
+            >
+              <div class="sticker-row">
+                <span
+                  v-for="item in [
+                    '🌸',
+                    '💚',
+                    '❤️',
+                    '✨',
+                    '📚',
+                    '😊',
+                    '🔥',
+                    '🌙',
+                  ]"
+                  :key="item"
+                >
+                  {{ item }}
+                </span>
+              </div>
+
               <label>
                 <span>คะแนน</span>
                 <select v-model.number="reviewRating">
-                  <option v-for="score in [5, 4, 3, 2, 1]" :key="score" :value="score">
+                  <option
+                    v-for="score in [5, 4, 3, 2, 1]"
+                    :key="score"
+                    :value="score"
+                  >
                     {{ score }} ดาว
                   </option>
                 </select>
@@ -593,13 +512,23 @@
                 <textarea
                   v-model="reviewComment"
                   rows="4"
-                  placeholder="เล่าว่าหนังสือเล่มนี้เป็นอย่างไร"
+                  placeholder="เขียนความคิดเห็นของคุณ"
                 />
               </label>
 
               <div class="review-actions">
-                <button class="btn primary" type="submit" :disabled="reviewSaving">
-                  {{ reviewSaving ? "กำลังบันทึก..." : editingReviewId ? "บันทึกการแก้ไข" : "ส่งรีวิว" }}
+                <button
+                  class="btn primary"
+                  type="submit"
+                  :disabled="reviewSaving"
+                >
+                  {{
+                    reviewSaving
+                      ? "กำลังบันทึก..."
+                      : editingReviewId
+                        ? "บันทึกการแก้ไข"
+                        : "ส่งความคิดเห็น"
+                  }}
                 </button>
                 <button class="btn" type="button" @click="cancelReviewForm">
                   ยกเลิก
@@ -609,52 +538,104 @@
 
             <p v-if="reviewError" class="review-error">{{ reviewError }}</p>
 
-            <div v-if="reviewsLoading" class="review-state">กำลังโหลดรีวิว...</div>
+            <div v-if="reviewsLoading" class="review-state">
+              กำลังโหลดความคิดเห็น...
+            </div>
             <div v-else-if="reviews.length === 0" class="review-state">
-              ยังไม่มีรีวิว เป็นคนแรกที่แบ่งปันความคิดเห็นได้เลย
+              ยังไม่มีความคิดเห็น เป็นคนแรกที่คุยกับเรื่องนี้ได้เลย
             </div>
 
-            <article v-for="review in reviews" :key="review.id" class="review-item">
+            <article
+              v-for="review in reviews"
+              :key="review.id"
+              class="review-item"
+            >
               <div class="review-meta">
                 <strong>{{ review.user_name }}</strong>
-                <span>{{ "★".repeat(review.rating) }}{{ "☆".repeat(5 - review.rating) }}</span>
+                <span
+                  >{{ "★".repeat(review.rating)
+                  }}{{ "☆".repeat(5 - review.rating) }}</span
+                >
               </div>
+
               <p>{{ review.comment }}</p>
+
               <div class="review-footer">
                 <span>{{ formatReviewDate(review.created_at) }}</span>
-                <div v-if="review.can_edit || review.can_delete" class="review-manage">
-                  <button v-if="review.can_edit" type="button" @click="editReview(review)">แก้ไข</button>
-                  <button v-if="review.can_delete" type="button" @click="deleteReview(review.id)">ลบ</button>
+
+                <div
+                  v-if="review.can_edit || review.can_delete"
+                  class="review-manage"
+                >
+                  <button
+                    v-if="review.can_edit"
+                    type="button"
+                    @click="editReview(review)"
+                  >
+                    แก้ไข
+                  </button>
+                  <button
+                    v-if="review.can_delete"
+                    type="button"
+                    @click="deleteReview(review.id)"
+                  >
+                    ลบ
+                  </button>
                 </div>
               </div>
             </article>
           </section>
         </main>
-      </div>
+      </template>
 
       <div
         v-if="purchaseDialogMode"
         class="purchase-modal-backdrop"
         role="dialog"
         aria-modal="true"
-        :aria-label="purchaseDialogMode === 'confirm' ? 'ยืนยันการซื้อตอน' : 'ซื้อสำเร็จ'"
+        :aria-label="
+          purchaseDialogMode === 'confirm' ? 'ยืนยันการซื้อตอน' : 'ซื้อสำเร็จ'
+        "
       >
         <section class="purchase-modal">
-          <div v-if="purchaseDialogMode === 'confirm'" class="purchase-modal-icon">
+          <div
+            v-if="purchaseDialogMode === 'confirm'"
+            class="purchase-modal-icon"
+          >
             <span class="coin-icon" aria-hidden="true"></span>
           </div>
-          <div v-else class="purchase-modal-icon purchase-modal-icon--success" aria-hidden="true">✓</div>
+          <div
+            v-else
+            class="purchase-modal-icon purchase-modal-icon--success"
+            aria-hidden="true"
+          >
+            ✓
+          </div>
 
-          <h2>{{ purchaseDialogMode === "confirm" ? "ซื้อตอนนี้" : "ซื้อสำเร็จแล้ว" }}</h2>
-          <p class="purchase-modal-title">{{ pendingPurchaseEpisode?.title || purchasedEpisode?.title }}</p>
-          <p v-if="purchaseDialogMode === 'confirm'" class="purchase-modal-price">
+          <h2>
+            {{
+              purchaseDialogMode === "confirm" ? "ซื้อตอนนี้" : "ซื้อสำเร็จแล้ว"
+            }}
+          </h2>
+
+          <p class="purchase-modal-title">
+            {{ pendingPurchaseEpisode?.title || purchasedEpisode?.title }}
+          </p>
+
+          <p
+            v-if="purchaseDialogMode === 'confirm'"
+            class="purchase-modal-price"
+          >
             ชำระ {{ formatCoinAmount(pendingPurchaseEpisode?.price) }} คอยน์
           </p>
+
           <p v-else class="purchase-modal-price">
             ยอดคงเหลือ {{ formatCoinAmount(purchaseSuccessBalance) }} คอยน์
           </p>
 
-          <p v-if="purchaseDialogError" class="purchase-modal-error">{{ purchaseDialogError }}</p>
+          <p v-if="purchaseDialogError" class="purchase-modal-error">
+            {{ purchaseDialogError }}
+          </p>
 
           <div class="purchase-modal-actions">
             <button
@@ -665,6 +646,7 @@
             >
               เติมคอยน์
             </button>
+
             <button
               v-else-if="purchaseDialogMode === 'confirm'"
               class="purchase-confirm-btn"
@@ -672,8 +654,13 @@
               :disabled="purchasingEpisodeId === pendingPurchaseEpisode?.id"
               @click="confirmEpisodePurchase"
             >
-              {{ purchasingEpisodeId === pendingPurchaseEpisode?.id ? "กำลังซื้อ..." : "ยืนยันซื้อ" }}
+              {{
+                purchasingEpisodeId === pendingPurchaseEpisode?.id
+                  ? "กำลังซื้อ..."
+                  : "ยืนยันซื้อ"
+              }}
             </button>
+
             <button
               v-else
               class="purchase-confirm-btn"
@@ -682,7 +669,12 @@
             >
               อ่านเลย
             </button>
-            <button class="purchase-cancel-btn" type="button" @click="closePurchaseDialog">
+
+            <button
+              class="purchase-cancel-btn"
+              type="button"
+              @click="closePurchaseDialog"
+            >
               ยกเลิก
             </button>
           </div>
@@ -693,12 +685,15 @@
 </template>
 
 <script setup lang="ts">
-// =========================
-// ส่วน import
-// ใช้สำหรับดึง dependency ที่จำเป็นเข้ามา
-// =========================
 import { API_BASE_URL } from "../utils/api";
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
+import {
+  ref,
+  computed,
+  onMounted,
+  onBeforeUnmount,
+  nextTick,
+  watch,
+} from "vue";
 import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
 import { getAuthHeaders, getUser } from "../utils/auth";
@@ -711,10 +706,6 @@ import {
   normalizeBookAccessType,
 } from "../utils/bookAccess";
 
-// =========================
-// Type สำหรับข้อมูลหนังสือ
-// ใช้ช่วยให้ TypeScript รู้ shape ของข้อมูล
-// =========================
 type Book = {
   id: number;
   title: string;
@@ -772,20 +763,12 @@ type BookReview = {
   can_delete?: boolean;
 };
 
-// จำกัดจำนวนประโยคตัวอย่างในหน้า detail
 const PREVIEW_LIMIT = 12;
 
-// =========================
-// route / router
-// ใช้อ่าน id จาก URL และสั่งเปลี่ยนหน้า
-// =========================
 const route = useRoute();
 const router = useRouter();
 const isAuthenticated = computed(() => Boolean(localStorage.getItem("token")));
 
-// =========================
-// state หลักของหน้า
-// =========================
 const book = ref<Book | null>(null);
 const episodes = ref<Episode[]>([]);
 const loading = ref(true);
@@ -796,28 +779,22 @@ const followingId = ref<number | null>(null);
 const isFollowingWriter = ref(false);
 const episodeSortOrder = ref<"asc" | "desc">("asc");
 
-// state ฝั่ง reader preview
 const fontSize = ref(22);
 const rate = ref(1);
 const pitch = ref(1);
 const volume = ref(1);
 
-// state voice
 const voices = ref<SpeechSynthesisVoice[]>([]);
 const selectedVoice = ref("");
 
-// state ประโยคสำหรับ TTS preview
 const sentences = ref<string[]>([]);
 const currentIndex = ref(0);
 
-// state สถานะเสียง
 const isSpeaking = ref(false);
 const isPaused = ref(false);
 
-// state subscription/cart
 const subscriptionInfo = ref<any>(null);
 const buyingBook = ref(false);
-const buyingEpisodeId = ref<number | null>(null);
 const purchasingBook = ref(false);
 const purchasingEpisodeId = ref<number | null>(null);
 const purchaseDialogMode = ref<"" | "confirm" | "success">("");
@@ -827,7 +804,6 @@ const purchaseSuccessBalance = ref<number | null>(null);
 const purchaseDialogError = ref("");
 const purchaseDialogNeedsTopup = ref(false);
 
-// state รีวิว
 const reviews = ref<BookReview[]>([]);
 const reviewsLoading = ref(false);
 const reviewSaving = ref(false);
@@ -850,10 +826,6 @@ const alert = (message?: string) => {
   if (message) notifyBookStatus(String(message));
 };
 
-// =========================
-// computed
-// ใช้คำนวณข้อมูลจาก state
-// =========================
 const selectedVoiceObject = computed(() => {
   return voices.value.find((v) => v.name === selectedVoice.value) || null;
 });
@@ -871,13 +843,11 @@ const bookCover = computed(() => {
 const progressKey = computed(() => {
   return book.value ? `book-preview-progress-${book.value.id}` : "";
 });
+
 const readEpisodesKey = computed(() => {
   return book.value ? `read-voice-read-episodes-${book.value.id}` : "";
 });
 
-// =========================
-// helper functions
-// =========================
 const handleImgError = (event: Event) => {
   const target = event.target as HTMLImageElement;
   if (target.src.endsWith("/no-cover.png")) return;
@@ -885,11 +855,18 @@ const handleImgError = (event: Event) => {
 };
 
 const isEpisodeFree = (episode: Episode) => {
-  return Number(episode.is_free) === 1 || episode.access_type === "free" || Number(episode.price) <= 0;
+  return (
+    Number(episode.is_free) === 1 ||
+    episode.access_type === "free" ||
+    Number(episode.price) <= 0
+  );
 };
 
 const isEpisodePaid = (episode: Episode) => {
-  return episode.access_type === "paid" || (!isEpisodeFree(episode) && episode.access_type !== "subscription");
+  return (
+    episode.access_type === "paid" ||
+    (!isEpisodeFree(episode) && episode.access_type !== "subscription")
+  );
 };
 
 const getStoredReadEpisodeIds = () => {
@@ -923,7 +900,10 @@ const canOpenEpisodeNow = (episode: Episode) => {
 };
 
 const isEpisodeRead = (episode: Episode) => {
-  return Boolean(episode.has_read) || (canOpenEpisodeNow(episode) && hasStoredReadEpisode(episode));
+  return (
+    Boolean(episode.has_read) ||
+    (canOpenEpisodeNow(episode) && hasStoredReadEpisode(episode))
+  );
 };
 
 const markEpisodeRead = (episode: Episode) => {
@@ -1014,9 +994,6 @@ const accessPresentation = computed(() => {
   });
 });
 
-const bookAccessLabel = computed(() => accessPresentation.value.label);
-const bookPriceLabel = computed(() => accessPresentation.value.priceLabel);
-const bookAccessHint = computed(() => accessPresentation.value.hint);
 const subscriptionActionLabel = computed(() => {
   return hasActiveSubscription.value ? "อ่านเลย" : "อ่านด้วยแพ็กเกจ";
 });
@@ -1033,15 +1010,6 @@ const canReadImmediately = computed(() => {
     accessType: bookAccessType.value,
     hasActiveSubscription: hasActiveSubscription.value,
   });
-});
-
-const primaryReaderLabel = computed(() => {
-  if (canReadImmediately.value && bookAccessType.value === "free") return "อ่านฟรีในหน้าอ่าน";
-  if (canReadImmediately.value && bookAccessType.value === "subscription") {
-    return "อ่านด้วยแพ็กเกจในหน้าอ่าน";
-  }
-
-  return "ตรวจสิทธิ์/อ่านในหน้าอ่าน";
 });
 
 const reviewSummaryText = computed(() => {
@@ -1070,13 +1038,19 @@ const displayedEpisodes = computed(() => {
   const list = [...episodes.value];
   list.sort((left, right) => {
     if (episodeSortOrder.value === "asc") {
-      return Number(left.episode_number || 0) - Number(right.episode_number || 0);
+      return (
+        Number(left.episode_number || 0) - Number(right.episode_number || 0)
+      );
     }
 
     return Number(right.episode_number || 0) - Number(left.episode_number || 0);
   });
 
   return list;
+});
+
+const firstEpisode = computed(() => {
+  return displayedEpisodes.value[0] ?? episodes.value[0] ?? null;
 });
 
 const episodeSortLabel = computed(() => {
@@ -1097,20 +1071,12 @@ const formatCoinAmount = (value?: number | null) => {
 };
 
 const getInitial = (value: string) => {
-  return String(value || "R").trim().charAt(0).toUpperCase() || "R";
-};
-
-const formatEpisodeMeta = (episode: Episode) => {
-  const words = Number(episode.word_count || 0);
-  const reads = Number(episode.read_count || episode.view_count || 0);
-  const comments = Number(episode.comment_count || 0);
-  const parts = [];
-
-  if (words) parts.push(`${words.toLocaleString()} คำ`);
-  if (comments) parts.push(`${comments} ความคิดเห็น`);
-  if (reads) parts.push(`${reads.toLocaleString()} อ่าน`);
-
-  return parts.join(" · ") || "พร้อมอ่าน";
+  return (
+    String(value || "R")
+      .trim()
+      .charAt(0)
+      .toUpperCase() || "R"
+  );
 };
 
 const formatCompactCount = (value: number | string | undefined) => {
@@ -1176,8 +1142,8 @@ const normalizeReview = (review: BookReview): BookReview => {
   return {
     ...review,
     rating: Number(review.rating || 0),
-    can_edit: canEditReview(review),
-    can_delete: canDeleteReview(review),
+    can_edit: review.can_edit ?? canEditReview(review),
+    can_delete: review.can_delete ?? canDeleteReview(review),
   };
 };
 
@@ -1261,7 +1227,7 @@ const splitSentences = (text: string): string[] => {
     .filter((s) => s.length > 0)
     .flatMap((s) => {
       if (s.length <= 220) return [s];
-      return s.match(/.{1,180}([,;:]\s*|$)/g)?.map((x) => x.trim()) || [s];
+      return s.match(/.{1,180}([,:]\s*|$)/g)?.map((x) => x.trim()) || [s];
     });
 };
 
@@ -1277,7 +1243,11 @@ const loadProgress = () => {
   if (saved !== null) {
     const parsed = Number(saved);
 
-    if (!Number.isNaN(parsed) && parsed >= 0 && parsed < sentences.value.length) {
+    if (
+      !Number.isNaN(parsed) &&
+      parsed >= 0 &&
+      parsed < sentences.value.length
+    ) {
       currentIndex.value = parsed;
     }
   }
@@ -1292,21 +1262,21 @@ const savePreviewSettings = () => {
 
   if (!isAuthenticated.value) return;
 
-  api.put("/account/preferences", {
-    preferences: {
-      reader: {
-        font_size: fontSize.value,
+  api
+    .put("/account/preferences", {
+      preferences: {
+        reader: {
+          font_size: fontSize.value,
+        },
+        tts: {
+          rate: rate.value,
+          pitch: pitch.value,
+          volume: volume.value,
+          voice: selectedVoice.value,
+        },
       },
-      tts: {
-        rate: rate.value,
-        pitch: pitch.value,
-        volume: volume.value,
-        voice: selectedVoice.value,
-      },
-    },
-  }).catch(() => {
-    // Local preview settings remain available offline.
-  });
+    })
+    .catch(() => {});
 };
 
 const loadPreviewSettings = async () => {
@@ -1328,14 +1298,14 @@ const loadPreviewSettings = async () => {
     const { data } = await api.get("/account/preferences");
     const reader = data?.preferences?.reader || {};
     const tts = data?.preferences?.tts || {};
-    if (Number.isFinite(Number(reader.font_size))) fontSize.value = Number(reader.font_size);
+
+    if (Number.isFinite(Number(reader.font_size)))
+      fontSize.value = Number(reader.font_size);
     if (Number.isFinite(Number(tts.rate))) rate.value = Number(tts.rate);
     if (Number.isFinite(Number(tts.pitch))) pitch.value = Number(tts.pitch);
     if (Number.isFinite(Number(tts.volume))) volume.value = Number(tts.volume);
     if (typeof tts.voice === "string") selectedVoice.value = tts.voice;
-  } catch {
-    // Keep local settings as fallback.
-  }
+  } catch {}
 };
 
 const scrollToCurrent = async () => {
@@ -1350,9 +1320,6 @@ const scrollToCurrent = async () => {
   }
 };
 
-// =========================
-// API load data
-// =========================
 const fetchBook = async () => {
   loading.value = true;
   error.value = "";
@@ -1365,20 +1332,24 @@ const fetchBook = async () => {
     book.value = bookRes.data;
     fetchReviews();
 
-    // ถ้าเป็น serial ให้โหลดเฉพาะรายการตอน
     if (book.value?.content_type === "serial") {
-      const episodeRes = await axios.get(`${API_BASE_URL}/api/books/${id}/episodes`, {
-        headers: getAuthHeaders(),
-      });
+      const episodeRes = await axios.get(
+        `${API_BASE_URL}/api/books/${id}/episodes`,
+        {
+          headers: getAuthHeaders(),
+        },
+      );
       episodes.value = Array.isArray(episodeRes.data) ? episodeRes.data : [];
       sentences.value = [];
       return;
     }
 
-    // ถ้าเป็น ebook ให้โหลด content preview
-    const contentRes = await axios.get(`${API_BASE_URL}/api/books/${id}/content`, {
-      headers: getAuthHeaders(),
-    });
+    const contentRes = await axios.get(
+      `${API_BASE_URL}/api/books/${id}/content`,
+      {
+        headers: getAuthHeaders(),
+      },
+    );
 
     const rawData = contentRes.data;
 
@@ -1387,7 +1358,8 @@ const fetchBook = async () => {
       const hasPreview = rawData.some((p: any) => p.is_preview);
 
       if (hasPreview) {
-        previewNotice.value = "ขณะนี้แสดงเฉพาะตัวอย่างเนื้อหา หากต้องการอ่านเต็มเล่มให้เข้าสู่ระบบหรือซื้อก่อน";
+        previewNotice.value =
+          "ขณะนี้แสดงเฉพาะตัวอย่างเนื้อหา หากต้องการอ่านเต็มเล่มให้เข้าสู่ระบบหรือซื้อก่อน";
       }
 
       const normalized = normalizeContent(fullText);
@@ -1437,8 +1409,15 @@ const loadWriterFollowStatus = async () => {
     const items = Array.isArray(data?.items) ? data.items : [];
     const matched = items.find((item: any) => {
       if (String(item?.target_type) !== "writer") return false;
-      if (followPayload.target_id && Number(item?.target_id) === Number(followPayload.target_id)) return true;
-      return String(item?.target_name || "").trim() === followPayload.target_name;
+      if (
+        followPayload.target_id &&
+        Number(item?.target_id) === Number(followPayload.target_id)
+      ) {
+        return true;
+      }
+      return (
+        String(item?.target_name || "").trim() === followPayload.target_name
+      );
     });
 
     if (matched) {
@@ -1459,7 +1438,8 @@ const fetchReviews = async () => {
 
   try {
     const { data } = await api.get(`/books/${book.value.id}/reviews`);
-    reviews.value = Array.isArray(data?.items) ? data.items : [];
+    const items = Array.isArray(data?.items) ? data.items : [];
+    reviews.value = items.map((item: BookReview) => normalizeReview(item));
     reviewSummary.value = {
       review_count: Number(data?.summary?.review_count || 0),
       average_rating: Number(data?.summary?.average_rating || 0),
@@ -1563,9 +1543,6 @@ const formatReviewDate = (value: string) => {
   }).format(new Date(value));
 };
 
-// =========================
-// TTS functions
-// =========================
 const stopSpeech = () => {
   window.speechSynthesis.cancel();
   isSpeaking.value = false;
@@ -1617,61 +1594,6 @@ const speakFrom = (index: number) => {
   window.speechSynthesis.speak(utter);
 };
 
-const playBook = () => {
-  if (!sentences.value.length) return;
-  speakFrom(currentIndex.value);
-};
-
-const pauseBook = () => {
-  if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-    window.speechSynthesis.pause();
-    isPaused.value = true;
-    isSpeaking.value = false;
-    saveProgress();
-  }
-};
-
-const resumeBook = () => {
-  if (window.speechSynthesis.paused) {
-    window.speechSynthesis.resume();
-    isPaused.value = false;
-    isSpeaking.value = true;
-    scrollToCurrent();
-  } else {
-    playBook();
-  }
-};
-
-const restartBook = () => {
-  currentIndex.value = 0;
-  saveProgress();
-  playBook();
-};
-
-const nextSentence = () => {
-  if (currentIndex.value < sentences.value.length - 1) {
-    speakFrom(currentIndex.value + 1);
-  }
-};
-
-const prevSentence = () => {
-  if (currentIndex.value > 0) {
-    speakFrom(currentIndex.value - 1);
-  }
-};
-
-const replayCurrent = () => {
-  if (!sentences.value.length) return;
-  speakFrom(currentIndex.value);
-};
-
-const selectSentence = (index: number) => {
-  speakFrom(index);
-};
-
-// =========================
-// navigation
-// =========================
 const openReaderPage = () => {
   if (!book.value) return;
   stopSpeech();
@@ -1780,17 +1702,6 @@ const handleListenAction = () => {
   purchaseBookNow("listen");
 };
 
-const goToWishlist = () => {
-  router.push({ name: "WishList" });
-};
-
-const goToCart = () => {
-  router.push({ name: "Cart" });
-};
-
-// =========================
-// actions: library / wishlist / cart
-// =========================
 const addToLibrary = async () => {
   try {
     const user = getUser();
@@ -1816,7 +1727,8 @@ const addToLibrary = async () => {
       router.push({ name: "MyLibrary" });
     }
   } catch (err: any) {
-    const message = err?.response?.data?.message || "เพิ่มเข้าชั้นหนังสือไม่สำเร็จ";
+    const message =
+      err?.response?.data?.message || "เพิ่มเข้าชั้นหนังสือไม่สำเร็จ";
     alert(message);
 
     if (
@@ -1884,44 +1796,6 @@ const toggleWriterFollow = async () => {
   }
 };
 
-const addWholeBookToCart = async () => {
-  if (!book.value) return;
-
-  if (bookAccessType.value === "free") {
-    openReaderPage();
-    return;
-  }
-
-  if (bookAccessType.value === "subscription" && !hasActiveSubscription.value) {
-    router.push("/subscription-plans");
-    return;
-  }
-
-  const token = localStorage.getItem("token");
-  if (!token) {
-    alert("กรุณาเข้าสู่ระบบก่อน");
-    router.push({ name: "Login" });
-    return;
-  }
-
-  try {
-    await axios.post(
-      `${API_BASE_URL}/api/cart`,
-      { book_id: book.value.id },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
-
-    alert("เพิ่มลงตะกร้าแล้ว");
-  } catch (err: any) {
-    alert(err?.response?.data?.message || "เพิ่มลงตะกร้าไม่สำเร็จ");
-    console.error("addWholeBookToCart error:", err);
-  }
-};
-
 const addBookToCart = async (bookId: number) => {
   try {
     if (bookAccessType.value === "free") {
@@ -1936,18 +1810,6 @@ const addBookToCart = async (bookId: number) => {
     alert(error?.response?.data?.message || "เพิ่มอีบุ๊กลงตะกร้าไม่สำเร็จ");
   } finally {
     buyingBook.value = false;
-  }
-};
-
-const addEpisodeToCart = async (episode: Episode) => {
-  try {
-    buyingEpisodeId.value = episode.id;
-    await api.post("/cart", { episode_id: episode.id, quantity: 1 });
-    alert("เพิ่มตอนลงตะกร้าแล้ว");
-  } catch (error: any) {
-    alert(error?.response?.data?.message || "เพิ่มตอนลงตะกร้าไม่สำเร็จ");
-  } finally {
-    buyingEpisodeId.value = null;
   }
 };
 
@@ -1987,7 +1849,10 @@ const purchaseBookNow = async (target: "read" | "listen" = "read") => {
       payment_method: "coin",
     });
 
-    const goLibrary = window.confirm("ซื้อสำเร็จ หนังสือถูกเพิ่มเข้าคลังแล้ว ต้องการไปที่คลังหนังสือเลยไหม?");
+    const goLibrary = window.confirm(
+      "ซื้อสำเร็จ หนังสือถูกเพิ่มเข้าคลังแล้ว ต้องการไปที่คลังหนังสือเลยไหม?",
+    );
+
     if (goLibrary) {
       router.push({ name: "MyLibrary" });
       return;
@@ -2061,7 +1926,9 @@ const purchaseEpisodeNow = async (episode: Episode, confirmed = false) => {
       purchaseDialogError.value =
         error?.response?.data?.message || "คอยน์ไม่พอ กรุณาเติมคอยน์ก่อน";
       purchaseDialogNeedsTopup.value = true;
-      purchaseSuccessBalance.value = Number(error?.response?.data?.balance || 0);
+      purchaseSuccessBalance.value = Number(
+        error?.response?.data?.balance || 0,
+      );
       return;
     }
 
@@ -2078,9 +1945,6 @@ const confirmEpisodePurchase = () => {
   purchaseEpisodeNow(pendingPurchaseEpisode.value, true);
 };
 
-// =========================
-// watchers
-// =========================
 watch([fontSize, rate, pitch, volume, selectedVoice], () => {
   savePreviewSettings();
 });
@@ -2093,9 +1957,6 @@ watch(reviewError, (message) => {
   if (message) announceAccessibilityMessage(message);
 });
 
-// =========================
-// lifecycle
-// =========================
 onMounted(async () => {
   await loadPreviewSettings();
   await fetchBook();
@@ -2123,17 +1984,20 @@ onBeforeUnmount(() => {
 }
 
 .book-detail-page {
+  background: #f4f5f5;
+  color: #202324;
   min-height: 100vh;
-  background: #f7f8fc;
-  padding: var(--page-block, 24px) var(--page-gutter, 24px);
+  padding: 0 0 72px;
 }
 
 .container {
-  max-width: 1400px;
+  max-width: none;
   margin: 0 auto;
 }
 
 .state-box {
+  width: min(100% - 32px, 960px);
+  margin: 24px auto 0;
   background: var(--surface);
   border-radius: 16px;
   padding: 24px;
@@ -2144,789 +2008,14 @@ onBeforeUnmount(() => {
   color: #b00020;
 }
 
-.book-layout {
-  display: grid;
-  grid-template-columns: 360px 1fr;
-  gap: 24px;
-}
-
-.book-sidebar,
-.book-content {
-  background: var(--surface);
-  border-radius: 20px;
-  padding: 24px;
-  box-shadow: var(--shadow);
-}
-
-.cover-box {
-  width: 100%;
-  height: 420px;
-  border-radius: 16px;
-  overflow: hidden;
-  background: #ececf3;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 20px;
-}
-
-.cover-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.book-title {
-  font-size: 28px;
-  margin-bottom: 8px;
-  color: #222;
-}
-
-.book-author {
-  color: #555;
-  margin-bottom: 8px;
-}
-
-.book-meta {
-  color: #667085;
-  margin-bottom: 12px;
-  font-weight: 600;
-}
-
-.book-description {
-  margin: 0 0 20px;
-  color: #475467;
-  line-height: 1.6;
-  display: -webkit-box;
-  line-clamp: 3;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.quick-actions {
-  display: grid;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.access-card {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-soft);
-  margin: 0 0 18px;
-  padding: 14px;
-}
-
-.access-card strong {
-  color: var(--text-strong);
-  display: block;
-  font-size: 24px;
-  margin-top: 8px;
-}
-
-.access-card p {
-  color: #667085;
-  line-height: 1.5;
-  margin: 8px 0 0;
-}
-
-.access-badge {
-  border-radius: 8px;
-  display: inline-flex;
-  font-size: 13px;
-  font-weight: 900;
-  padding: 6px 10px;
-}
-
-.access-free .access-badge {
-  background: #ecfdf5;
-  color: #047857;
-}
-
-.access-paid .access-badge {
-  background: #fff7ed;
-  color: #c2410c;
-}
-
-.access-subscription .access-badge {
-  background: #eef2ff;
-  color: #3730a3;
-}
-
-.tts-panel h3 {
-  margin-bottom: 8px;
-}
-
-.tts-note {
-  margin: 0 0 16px;
-  color: #667085;
-  line-height: 1.5;
-  font-size: 14px;
-}
-
-.control-group {
-  margin-bottom: 16px;
-}
-
-.control-group label {
-  display: block;
-  margin-bottom: 6px;
-  font-weight: 600;
-  color: #333;
-}
-
-.input,
-select,
-input[type="range"] {
-  width: 100%;
-}
-
-.button-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.btn {
-  border: none;
-  padding: 10px 14px;
-  border-radius: 12px;
-  cursor: pointer;
-  background: #eceef7;
-  font-weight: 600;
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.btn:hover {
-  transform: translateY(-1px);
-}
-
-.btn.primary {
-  background: #6c63ff;
-  color: white;
-}
-
-.btn.danger {
-  background: #ff5b6e;
-  color: white;
-}
-
-.reader-btn {
-  width: 100%;
-  background: #222b45;
-  color: white;
-}
-
-.preview-reader-btn {
-  max-width: 320px;
-}
-
-.library-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-}
-
-.wishlist-btn {
-  width: 100%;
-  background: #fff1f4;
-  color: #c23b61;
-}
-
-.cart-btn {
-  width: 100%;
-  background: #eef6ff;
-  color: #2f63d8;
-}
-
-.buy-now-btn {
-  width: 100%;
-  background: #111827;
-  color: #ffffff;
-}
-
-.buy-now-small {
-  background: #111827;
-  color: #ffffff;
-}
-
-.coin-btn {
-  width: 100%;
-  background: #ecfdf5;
-  color: #047857;
-}
-
-.subscribe-btn {
-  width: 100%;
-  background: #eef2ff;
-  color: #3730a3;
-}
-
-.status-box {
-  margin-top: 12px;
-  background: #f6f7fb;
-  border-radius: 14px;
-  padding: 14px;
-  color: #444;
-}
-
-.content-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.book-content h2 {
-  margin: 0;
-}
-
-.top-right-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.small-btn {
-  border: none;
-  border-radius: 10px;
-  padding: 10px 12px;
-  background: #edf1f7;
-  color: #1f2430;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.reader-box {
-  background: #fcfcff;
-  border: 1px solid #ececf3;
-  border-radius: 16px;
-  padding: 24px;
-  min-height: 500px;
-  max-height: 75vh;
-  overflow-y: auto;
-  color: #222;
-}
-
-.episode-list {
-  display: grid;
-  gap: 12px;
-}
-
-.episode-item {
-  align-items: center;
-  background: #fcfcff;
-  border: 1px solid #ececf3;
-  border-radius: 8px;
-  display: flex;
-  gap: 16px;
-  justify-content: space-between;
-  min-width: 0;
-  padding: 16px;
-}
-
-.episode-item > div:first-child {
-  min-width: 0;
-}
-
-.episode-item p {
-  color: #667085;
-  margin: 6px 0 0;
-}
-
-.episode-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-  max-width: 100%;
-  min-width: 0;
-}
-
-.purchase-actions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-}
-
-.subscribe-link {
-  display: inline-flex;
-  align-items: center;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: #eef6ff;
-  color: #2f63d8;
-  text-decoration: none;
-  font-weight: 700;
-}
-
-.small-link {
-  padding: 8px 10px;
-  border-radius: 10px;
-}
-
-.preview-notice {
-  background: #fff8e6;
-  border: 1px solid #ffe3a3;
-  border-radius: 8px;
-  color: #7a4d00;
-  font-weight: 700;
-  margin: 16px 0 0;
-  padding: 12px 14px;
-}
-
-.sentence {
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  margin-right: 4px;
-}
-
-.sentence:hover {
-  background: #eef1ff;
-}
-
-.sentence.active {
-  background: #fff1a8;
-}
-
-.empty-content {
-  margin-top: 20px;
-  color: #777;
-}
-
-.preview-footer {
-  margin-top: 20px;
-  display: flex;
-  justify-content: center;
-}
-
-.reviews-section {
-  border-top: 1px solid #e5e7eb;
-  margin-top: 28px;
-  padding-top: 22px;
-}
-
-.reviews-head {
-  align-items: center;
-  display: flex;
-  gap: 14px;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.reviews-eyebrow {
-  color: #008e68;
-  font-size: 13px;
-  font-weight: 900;
-  margin: 0 0 4px;
-}
-
-.reviews-head h3 {
-  color: var(--text-strong);
-  font-size: 18px;
-  margin: 0;
-}
-
-.review-form {
-  border: 1px solid var(--border);
-  display: grid;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding: 14px;
-}
-
-.review-form label {
-  display: grid;
-  gap: 6px;
-  font-weight: 800;
-}
-
-.review-form select,
-.review-form textarea {
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font: inherit;
-  padding: 10px 12px;
-}
-
-.review-actions,
-.review-manage {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.review-error {
-  color: #b91c1c;
-  font-weight: 800;
-}
-
-.review-state {
-  color: #6b7280;
-  padding: 14px 0;
-}
-
-.review-item {
-  border-bottom: 1px solid var(--border);
-  padding: 16px 0;
-}
-
-.review-meta,
-.review-footer {
-  align-items: center;
-  display: flex;
-  gap: 10px;
-  justify-content: space-between;
-}
-
-.review-meta strong {
-  color: var(--text-strong);
-}
-
-.review-meta span {
-  color: #f59e0b;
-  letter-spacing: 1px;
-}
-
-.review-item p {
-  color: #374151;
-  line-height: 1.8;
-  margin: 10px 0;
-}
-
-.review-footer {
-  color: #6b7280;
-  font-size: 13px;
-}
-
-.review-manage button {
-  border: 0;
-  background: transparent;
-  color: #008e68;
-  cursor: pointer;
-  font-weight: 800;
-  padding: 4px 0;
-}
-
-@media (max-width: 960px) {
-  .book-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .cover-box {
-    height: 320px;
-  }
-
-  .content-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .preview-footer {
-    justify-content: stretch;
-  }
-
-  .preview-reader-btn {
-    max-width: none;
-    width: 100%;
-  }
-
-  .episode-item {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .episode-actions {
-    justify-content: flex-start;
-    width: 100%;
-  }
-}
-/* Reference-style layout override */
-.book-detail-page {
-  background: var(--bg);
-  padding: 0 0 72px;
-}
-
-.container {
-  max-width: none;
-}
-
-.book-layout {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0;
-}
-
-.book-sidebar,
-.book-content {
-  width: min(100% - 32px, 720px);
-  margin-inline: auto;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  padding: 0;
-}
-
-.book-sidebar {
-  display: grid;
-  grid-template-columns: 190px minmax(0, 1fr);
-  column-gap: 24px;
-  align-items: start;
-  padding: 28px 0 34px;
-}
-
-.cover-box {
-  grid-row: span 8;
-  width: 190px;
-  height: 260px;
-  margin: 0;
-  border-radius: 0;
-  background: #f3f4f6;
-  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.12);
-}
-
-.cover-image {
-  object-fit: cover;
-}
-
-.book-title {
-  margin: 0 0 8px;
-  color: var(--text-strong);
-  font-size: 21px;
-  font-weight: 900;
-  line-height: 1.35;
-}
-
-.book-author,
-.book-meta {
-  margin: 0 0 6px;
-  color: #008e68;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.book-description {
-  margin: 8px 0 10px;
-  color: #374151;
-  font-size: 13px;
-  line-height: 1.7;
-  line-clamp: 4;
-  -webkit-line-clamp: 4;
-}
-
-.access-card {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 6px 10px;
-  align-items: center;
-  width: fit-content;
-  min-width: 210px;
-  margin: 4px 0 12px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  padding: 0;
-}
-
-.access-card strong {
-  margin: 0;
-  color: #00a96b;
-  font-size: 16px;
-}
-
-.access-card p {
-  grid-column: 1 / -1;
-  margin: 0;
-  color: #6b7280;
-  font-size: 12px;
-}
-
-.access-badge {
-  border: 1px solid #00a96b;
-  border-radius: 999px;
-  background: var(--surface) !important;
-  color: #009b72 !important;
-  font-size: 12px;
-  padding: 5px 12px;
-}
-
-.quick-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 0 0 16px;
-}
-
-.btn,
-.small-btn,
-.subscribe-link {
-  border-radius: 999px;
-  min-height: 34px;
-  padding: 0 16px;
-  font-size: 13px;
-}
-
-.btn:hover,
-.small-btn:hover,
-.subscribe-link:hover {
-  box-shadow: 0 8px 16px rgba(0, 169, 107, 0.16);
-}
-
-.reader-btn,
-.btn.primary,
-.library-btn {
-  width: auto;
-  background: #00b36b;
-  color: #ffffff;
-}
-
-.wishlist-btn,
-.cart-btn,
-.buy-now-btn,
-.coin-btn,
-.subscribe-btn {
-  width: auto;
-  border: 1px solid #00a96b;
-  background: var(--surface);
-  color: #008e68;
-}
-
-.tts-panel {
-  grid-column: 1 / -1;
-  margin-top: 20px;
-  border-top: 1px solid var(--border);
-  padding-top: 18px;
-}
-
-.tts-panel h3 {
-  color: var(--text-strong);
-  font-size: 17px;
-}
-
-.content-header {
-  position: relative;
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
-  margin-bottom: 26px;
-  background: #e50914;
-  color: #ffffff;
-  padding: 12px max(16px, calc((100vw - 720px) / 2));
-}
-
-.content-header h2 {
-  font-size: 15px;
-  font-weight: 900;
-}
-
-.top-right-actions {
-  display: none;
-}
-
-.reader-box,
-.episode-list {
-  background: var(--surface);
-  border: 0;
-  border-radius: 0;
-  padding: 0;
-  min-height: auto;
-  max-height: none;
-  overflow: visible;
-}
-
-.sentence {
-  display: inline;
-  border-radius: 3px;
-  color: #374151;
-  font-size: 15px;
-  line-height: 2;
-}
-
-.sentence.active {
-  background: #fff3b0;
-}
-
-.episode-list {
-  gap: 12px;
-}
-
-.episode-item {
-  border: 1px solid var(--border);
-  border-radius: 0;
-  background: var(--surface);
-  padding: 14px 16px;
-}
-
-.episode-item strong {
-  color: var(--text-strong);
-  font-size: 14px;
-}
-
-.episode-item p {
-  font-size: 12px;
-}
-
-.preview-notice {
-  border-radius: 0;
-}
-
-.preview-footer {
-  justify-content: flex-start;
-  border-top: 1px solid #e5e7eb;
-  margin-top: 28px;
-  padding-top: 18px;
-}
-
-@media (max-width: 760px) {
-  .book-sidebar {
-    grid-template-columns: 1fr;
-  }
-
-  .cover-box {
-    grid-row: auto;
-    justify-self: center;
-    margin-bottom: 18px;
-  }
-
-  .book-title,
-  .book-author,
-  .book-meta,
-  .book-description {
-    text-align: center;
-  }
-
-  .access-card,
-  .quick-actions {
-    justify-content: center;
-    margin-inline: auto;
-  }
-}
-
-/* ReadAWrite-inspired story detail layout */
-.book-detail-page {
-  background: #f4f5f5;
-  color: #202324;
-  padding: 0 0 72px;
-}
-
-.container {
-  max-width: none;
-}
-
 .story-hero {
   background:
     linear-gradient(90deg, rgba(9, 15, 14, 0.96), rgba(14, 22, 20, 0.92)),
-    radial-gradient(circle at 20% 20%, rgba(85, 198, 189, 0.22), transparent 30%);
+    radial-gradient(
+      circle at 20% 20%,
+      rgba(85, 198, 189, 0.22),
+      transparent 30%
+    );
   color: #ffffff;
 }
 
@@ -3160,30 +2249,37 @@ input[type="range"] {
   margin-bottom: 18px;
 }
 
-.serial-prelude-card dl {
+.serial-prelude-card dl,
+.info-grid dl {
   display: grid;
   gap: 14px;
   margin: 0;
 }
 
-.serial-prelude-card dl div {
+.serial-prelude-card dl div,
+.info-grid dl div {
   display: grid;
   grid-template-columns: 120px 1fr;
   gap: 12px;
 }
 
-.serial-prelude-card dt {
+.serial-prelude-card dt,
+.info-grid dt {
   color: #5c686c;
   font-weight: 900;
+}
+
+.serial-prelude-card dd,
+.info-grid dd {
+  margin: 0;
+  color: #202324;
+  font-weight: 800;
 }
 
 .serial-prelude-card dd {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 0;
-  color: #202324;
-  font-weight: 800;
 }
 
 .follow-chip {
@@ -3248,29 +2344,6 @@ input[type="range"] {
   margin-top: 18px;
 }
 
-.info-grid dl {
-  display: grid;
-  gap: 14px;
-  margin: 0;
-}
-
-.info-grid dl div {
-  display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 12px;
-}
-
-.info-grid dt {
-  color: #5c686c;
-  font-weight: 900;
-}
-
-.info-grid dd {
-  margin: 0;
-  color: #202324;
-  font-weight: 800;
-}
-
 .inline-author-link {
   min-height: auto;
   border: 0;
@@ -3323,7 +2396,14 @@ input[type="range"] {
 
 .episode-row {
   display: grid;
-  grid-template-columns: 56px minmax(0, 1.7fr) minmax(86px, 0.65fr) minmax(98px, 0.75fr) minmax(54px, 0.45fr) minmax(54px, 0.45fr) minmax(92px, auto);
+  grid-template-columns:
+    56px
+    minmax(0, 1.7fr)
+    minmax(86px, 0.65fr)
+    minmax(98px, 0.75fr)
+    minmax(54px, 0.45fr)
+    minmax(54px, 0.45fr)
+    minmax(92px, auto);
   gap: 12px;
   align-items: center;
   min-height: 72px;
@@ -3405,6 +2485,165 @@ input[type="range"] {
   white-space: nowrap;
 }
 
+.episode-buy--read {
+  background: #9aa3a6;
+  color: #ffffff;
+}
+
+.reader-box {
+  background: #fbfbfb;
+  border: 1px solid #ececf3;
+  border-radius: 16px;
+  padding: 24px;
+  min-height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+.preview-paragraph {
+  margin: 0 0 1.15em;
+  color: #374151;
+  font-size: 15px;
+  line-height: 1.95;
+}
+
+.preview-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.preview-notice {
+  background: #fff8e6;
+  border: 1px solid #ffe3a3;
+  border-radius: 8px;
+  color: #7a4d00;
+  font-weight: 700;
+  margin: 16px 0 0;
+  padding: 12px 14px;
+}
+
+.empty-content {
+  margin-top: 20px;
+  color: #777;
+}
+
+.reviews-section {
+  border-top: 0;
+}
+
+.reviews-head {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.reviews-eyebrow {
+  color: #008e68;
+  font-size: 13px;
+  font-weight: 900;
+  margin: 0 0 4px;
+}
+
+.reviews-head h3 {
+  color: var(--text-strong);
+  font-size: 18px;
+  margin: 0;
+}
+
+.review-form {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbfbfb;
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px;
+}
+
+.review-form label {
+  display: grid;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.review-form select,
+.review-form textarea {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font: inherit;
+  padding: 10px 12px;
+}
+
+.review-actions,
+.review-manage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.review-error {
+  color: #b91c1c;
+  font-weight: 800;
+}
+
+.review-state {
+  color: #6b7280;
+  padding: 14px 0;
+}
+
+.review-item {
+  border: 1px solid #e8ecec;
+  border-radius: 8px;
+  margin-top: 12px;
+  padding: 16px;
+}
+
+.review-meta,
+.review-footer {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.review-meta strong {
+  color: var(--text-strong);
+}
+
+.review-meta span {
+  color: #f59e0b;
+  letter-spacing: 1px;
+}
+
+.review-item p {
+  color: #374151;
+  line-height: 1.8;
+  margin: 10px 0;
+}
+
+.review-footer {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.review-manage button {
+  border: 0;
+  background: transparent;
+  color: #008e68;
+  cursor: pointer;
+  font-weight: 800;
+  padding: 4px 0;
+}
+
+.sticker-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 26px;
+}
+
 .coin-icon {
   position: relative;
   display: inline-grid;
@@ -3415,7 +2654,12 @@ input[type="range"] {
   border-radius: 999px;
   background:
     radial-gradient(circle at 34% 28%, #fff7b2 0 12%, transparent 13%),
-    radial-gradient(circle at 50% 50%, #ffd957 0 44%, #f6b51f 45% 68%, #c77700 69% 100%);
+    radial-gradient(
+      circle at 50% 50%,
+      #ffd957 0 44%,
+      #f6b51f 45% 68%,
+      #c77700 69% 100%
+    );
   border: 2px solid #ffe886;
   box-shadow:
     inset 0 2px 0 rgba(255, 255, 255, 0.7),
@@ -3430,12 +2674,6 @@ input[type="range"] {
   border-radius: 999px;
   border: 2px solid rgba(130, 76, 0, 0.5);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
-}
-
-.episode-loading-text {
-  font-size: 16px;
-  line-height: 1;
-  letter-spacing: 0;
 }
 
 .purchase-modal-backdrop {
@@ -3542,53 +2780,6 @@ input[type="range"] {
 .purchase-cancel-btn {
   background: #eef2f3;
   color: #475569;
-}
-
-.episode-buy--read {
-  background: #9aa3a6;
-  color: #ffffff;
-}
-
-.ebook-preview-section .reader-box {
-  min-height: auto;
-  max-height: none;
-  overflow: visible;
-  background: #fbfbfb;
-}
-
-.preview-paragraph {
-  margin: 0 0 1.15em;
-  color: #374151;
-  font-size: 15px;
-  line-height: 1.95;
-}
-
-.preview-paragraph:last-child {
-  margin-bottom: 0;
-}
-
-.sticker-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 10px;
-  font-size: 26px;
-}
-
-.reviews-section {
-  border-top: 0;
-}
-
-.review-form {
-  border-radius: 8px;
-  background: #fbfbfb;
-}
-
-.review-item {
-  border: 1px solid #e8ecec;
-  border-radius: 8px;
-  margin-top: 12px;
-  padding: 16px;
 }
 
 @media (max-width: 900px) {
@@ -3725,15 +2916,6 @@ input[type="range"] {
     line-height: 1.25;
     text-align: center;
   }
-
-  .episode-actions .small-btn,
-  .episode-actions .buy-btn {
-    max-width: 100%;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
 }
 
 @media (max-width: 380px) {
@@ -3758,11 +2940,3 @@ input[type="range"] {
   }
 }
 </style>
-
-
-
-
-
-
-
-

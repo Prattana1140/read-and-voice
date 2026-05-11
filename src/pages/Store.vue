@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import api, { API_BASE_URL, resolveAssetUrl } from "../utils/api";
+import api, { resolveAssetUrl } from "../utils/api";
 import { announceAccessibilityMessage } from "../utils/accessibility";
 import { filterBooks, uniqueBookCategories } from "../utils/bookSearch";
 
@@ -68,7 +68,9 @@ function getBookPrice(book: Book) {
 
 function formatBookPrice(book: Book) {
   const price = getBookPrice(book);
-  if (!Number.isFinite(price) || price <= 0 || book.access_type === "free") return "ฟรี";
+  if (!Number.isFinite(price) || price <= 0 || book.access_type === "free") {
+    return "ฟรี";
+  }
   return `${price.toLocaleString("th-TH", { maximumFractionDigits: 0 })}`;
 }
 
@@ -92,21 +94,6 @@ function handleImgError(event: Event) {
   target.src = "/no-cover.png";
 }
 
-async function addToWishlist(book: Book) {
-  if (!localStorage.getItem("token")) {
-    notifyStoreStatus("กรุณาเข้าสู่ระบบก่อนเพิ่มรายการที่อยากอ่าน");
-    router.push({ name: "Login" });
-    return;
-  }
-
-  try {
-    const { data } = await api.post("/wishlist", { book_id: book.id });
-    notifyStoreStatus(data?.message || "เพิ่มเข้ารายการที่อยากอ่านสำเร็จ");
-  } catch (error: any) {
-    notifyStoreStatus(error?.response?.data?.message || "เพิ่มเข้ารายการที่อยากอ่านไม่สำเร็จ");
-  }
-}
-
 async function addToCart(book: Book) {
   if (!localStorage.getItem("token")) {
     notifyStoreStatus("กรุณาเข้าสู่ระบบก่อน");
@@ -118,7 +105,9 @@ async function addToCart(book: Book) {
     await api.post("/cart", { book_id: book.id });
     notifyStoreStatus("เพิ่มลงตะกร้าแล้ว");
   } catch (error: any) {
-    notifyStoreStatus(error?.response?.data?.message || "เพิ่มลงตะกร้าไม่สำเร็จ");
+    notifyStoreStatus(
+      error?.response?.data?.message || "เพิ่มลงตะกร้าไม่สำเร็จ",
+    );
   }
 }
 
@@ -127,7 +116,11 @@ async function loadBooks() {
 
   try {
     const { data } = await api.get("/books");
-    books.value = Array.isArray(data) ? data : Array.isArray(data?.books) ? data.books : [];
+    books.value = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.books)
+        ? data.books
+        : [];
   } catch (error) {
     console.error("load store books error:", error);
     notifyStoreStatus("โหลดหนังสือไม่สำเร็จ");
@@ -169,12 +162,15 @@ onMounted(loadBooks);
       <div>
         <h1>ร้านหนังสือ</h1>
         <p>
-          เลือกหนังสือที่ชอบ เพิ่มเข้าชั้นหนังสือ รายการที่อยากอ่าน หรือตะกร้าได้ทันที
+          เลือกหนังสือที่ชอบ เพิ่มเข้าชั้นหนังสือ รายการที่อยากอ่าน
+          หรือตะกร้าได้ทันที
         </p>
       </div>
 
       <div class="header-actions">
-        <button class="top-btn" type="button" @click="goToWishlist">Wishlist</button>
+        <button class="top-btn" type="button" @click="goToWishlist">
+          Wishlist
+        </button>
         <button class="top-btn" type="button" @click="goToCart">ตะกร้า</button>
         <button class="top-btn primary" type="button" @click="goToMyLibrary">
           ชั้นหนังสือของฉัน
@@ -205,13 +201,21 @@ onMounted(loadBooks);
         </select>
         <select v-model="categoryFilter" aria-label="กรองตามหมวดหมู่">
           <option value="all">ทุกหมวดหมู่</option>
-          <option v-for="category in categoryOptions" :key="category" :value="category">
+          <option
+            v-for="category in categoryOptions"
+            :key="category"
+            :value="category"
+          >
             {{ category }}
           </option>
         </select>
       </div>
 
-      <div v-if="search.trim()" class="suggestion-row" aria-label="หนังสือที่เกี่ยวข้อง">
+      <div
+        v-if="search.trim()"
+        class="suggestion-row"
+        aria-label="หนังสือที่เกี่ยวข้อง"
+      >
         <button
           v-for="book in suggestedBooks"
           :key="book.id"
@@ -241,7 +245,11 @@ onMounted(loadBooks);
           @keydown.enter.prevent="goToBook(book.id)"
           @keydown.space.prevent="goToBook(book.id)"
         >
-          <img :src="getBookCover(book)" :alt="book.title" @error="handleImgError" />
+          <img
+            :src="getBookCover(book)"
+            :alt="book.title"
+            @error="handleImgError"
+          />
           <div class="meta-row">
             <span>{{ getTypeLabel(book) }}</span>
             <span>{{ getAccessLabel(book) }}</span>
@@ -250,6 +258,7 @@ onMounted(loadBooks);
           <p>{{ book.author || "ไม่ระบุผู้เขียน" }}</p>
           <small v-if="book.category_name">{{ book.category_name }}</small>
         </div>
+
         <div class="book-card-footer">
           <div class="rating-box" aria-label="คะแนนและจำนวนรีวิว">
             <span class="heart-row" aria-hidden="true">
@@ -281,6 +290,7 @@ onMounted(loadBooks);
   max-width: var(--content-width);
   min-height: 100%;
   padding: var(--page-block, 28px) var(--page-gutter, 20px) 44px;
+  overflow-x: hidden;
 }
 
 .store-header {
@@ -312,6 +322,10 @@ onMounted(loadBooks);
   gap: 10px;
 }
 
+.header-actions {
+  width: auto;
+}
+
 .top-btn {
   background: var(--surface-soft);
   border: 1px solid var(--border);
@@ -319,9 +333,6 @@ onMounted(loadBooks);
   color: var(--text-strong);
   cursor: pointer;
   font-weight: 800;
-}
-
-.top-btn {
   padding: 12px 16px;
 }
 
@@ -400,6 +411,7 @@ onMounted(loadBooks);
   display: grid;
   gap: 16px;
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  width: 100%;
 }
 
 .book-card {
@@ -417,6 +429,7 @@ onMounted(loadBooks);
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
+  min-width: 0;
   padding: 0;
 }
 
@@ -536,6 +549,10 @@ onMounted(loadBooks);
 }
 
 @media (max-width: 768px) {
+  .store-page {
+    padding: 20px 10px 36px;
+  }
+
   .store-header {
     flex-direction: column;
   }
@@ -544,25 +561,45 @@ onMounted(loadBooks);
     font-size: 30px;
   }
 
-  .header-actions,
-  .top-btn,
+  .header-actions {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .top-btn {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+
   .search-box,
   .filter-row select {
     width: 100%;
   }
 
   .book-grid {
-    gap: 12px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .book-card {
     padding: 0;
   }
 
+  .meta-row {
+    margin: 5px 4px 4px;
+  }
+
+  .meta-row span {
+    font-size: 8px;
+    padding: 3px 4px;
+  }
+
   .book-card h2 {
     display: block;
-    font-size: 12px;
+    font-size: 10px;
+    line-height: 1.3;
+    margin: 0 4px 4px;
     min-height: 0;
     line-clamp: unset;
     -webkit-line-clamp: unset;
@@ -571,51 +608,82 @@ onMounted(loadBooks);
   .book-card p,
   .book-card small {
     display: block;
+    font-size: 8px;
+    line-height: 1.25;
+    margin-inline: 4px;
     min-height: 0;
     line-clamp: unset;
     -webkit-line-clamp: unset;
+  }
+
+  .book-card-footer {
+    gap: 4px;
+    padding: 5px 4px;
+  }
+
+  .heart-row {
+    font-size: 8px;
+  }
+
+  .rating-box small {
+    font-size: 7px;
+  }
+
+  .price-pill {
+    min-width: 34px;
+    min-height: 20px;
+    font-size: 8px;
+    padding: 0 4px;
   }
 }
 
 @media (max-width: 420px) {
+  .store-page {
+    padding: 16px 8px 28px;
+  }
+
   .book-grid {
-    gap: 12px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .meta-row {
-    margin: 6px 5px 5px;
+    margin: 4px 3px 3px;
   }
 
-  .meta-row span,
-  .book-card p,
-  .book-card small,
-  .price-pill {
-    font-size: 10px;
+  .meta-row span {
+    font-size: 7px;
+    padding: 2px 3px;
   }
 
   .book-card h2 {
-    font-size: 12px;
-    margin-inline: 5px;
+    font-size: 9px;
+    margin-inline: 3px;
   }
 
   .book-card p,
   .book-card small {
-    margin-inline: 5px;
+    font-size: 7px;
+    margin-inline: 3px;
   }
 
   .book-card-footer {
-    padding: 6px 5px;
+    padding: 4px 3px;
   }
 
   .heart-row {
-    font-size: 11px;
+    font-size: 7px;
+  }
+
+  .rating-box small {
+    font-size: 6px;
   }
 
   .price-pill {
-    min-width: 46px;
-    min-height: 24px;
-    padding: 0 6px;
+    min-width: 30px;
+    min-height: 18px;
+    font-size: 7px;
+    padding: 0 3px;
   }
 }
 </style>

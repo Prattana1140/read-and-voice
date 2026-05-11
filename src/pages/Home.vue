@@ -10,10 +10,7 @@
       <button type="button" @click="goToShelf('Recommended')">แนะนำ</button>
     </section>
 
-    <section
-      class="hero-strip"
-      aria-label="แบนเนอร์แนะนำ"
-    >
+    <section class="hero-strip" aria-label="แบนเนอร์แนะนำ">
       <button
         v-if="bannerPages > 1"
         type="button"
@@ -103,7 +100,11 @@
         ยังไม่มีหนังสือแสดงผล
       </div>
 
-      <section v-if="categoryLinks.length" class="category-overview" aria-label="หมวดหมู่หนังสือ">
+      <section
+        v-if="categoryLinks.length"
+        class="category-overview"
+        aria-label="หมวดหมู่หนังสือ"
+      >
         <div class="section-head section-head--stacked">
           <div>
             <span class="section-kicker">เลือกอ่านตามหมวด</span>
@@ -132,7 +133,9 @@
       >
         <div class="section-head section-head--stacked">
           <div>
-            <span v-if="section.kicker" class="section-kicker">{{ section.kicker }}</span>
+            <span v-if="section.kicker" class="section-kicker">{{
+              section.kicker
+            }}</span>
             <h2>{{ section.title }}</h2>
             <p v-if="section.description">{{ section.description }}</p>
           </div>
@@ -152,11 +155,16 @@
               @error="handleImgError"
             />
             <div class="book-info">
-              <span class="content-badge" :class="`content-badge--${getContentKind(book)}`">
+              <span
+                class="content-badge"
+                :class="`content-badge--${getContentKind(book)}`"
+              >
                 {{ getContentLabel(book) }}
               </span>
               <p>{{ book.title }}</p>
-              <small v-if="book.category_name" class="book-category">{{ book.category_name }}</small>
+              <small v-if="book.category_name" class="book-category">{{
+                book.category_name
+              }}</small>
               <small>{{ getSellerName(book) }}</small>
               <div class="book-card-footer">
                 <div class="rating-box" :aria-label="getReviewLabel(book)">
@@ -177,7 +185,11 @@
                   :disabled="addingFreeBookId === book.id"
                   @click.stop="openSupportDialog(book)"
                 >
-                  {{ addingFreeBookId === book.id ? "กำลังเพิ่ม..." : formatBookPrice(book) }}
+                  {{
+                    addingFreeBookId === book.id
+                      ? "กำลังเพิ่ม..."
+                      : formatBookPrice(book)
+                  }}
                 </button>
               </div>
             </div>
@@ -205,10 +217,10 @@
         </button>
         <template v-if="supportDialogMode === 'select'">
           <h2 id="support-modal-title">ให้กำลังใจนักเขียน</h2>
-          <p>
-            คุณสามารถให้กำลังใจนักเขียนได้ โดยให้ทิปเพิ่มจากราคาปกติ
-          </p>
-          <strong class="support-book-title">{{ supportDialogBook.title }}</strong>
+          <p>คุณสามารถให้กำลังใจนักเขียนได้ โดยให้ทิปเพิ่มจากราคาปกติ</p>
+          <strong class="support-book-title">{{
+            supportDialogBook.title
+          }}</strong>
 
           <div class="support-options">
             <button
@@ -219,7 +231,9 @@
               @click="selectedSupportAmount = amount"
             >
               {{ amount }} บาท
-              <small v-if="amount === supportAmountOptions[0]">(ราคาปกติ)</small>
+              <small v-if="amount === supportAmountOptions[0]"
+                >(ราคาปกติ)</small
+              >
             </button>
             <button
               type="button"
@@ -236,7 +250,11 @@
           </p>
 
           <div class="support-actions">
-            <button class="support-cancel" type="button" @click="closeSupportDialog">
+            <button
+              class="support-cancel"
+              type="button"
+              @click="closeSupportDialog"
+            >
               ยกเลิก
             </button>
             <button
@@ -254,13 +272,23 @@
           <h2 id="support-modal-title" class="support-added-title">
             เพิ่มหนังสือลงตะกร้าแล้ว
           </h2>
-          <strong class="support-book-title">{{ supportDialogBook.title }}</strong>
+          <strong class="support-book-title">{{
+            supportDialogBook.title
+          }}</strong>
 
           <div class="support-next-actions">
-            <button class="support-outline-wide" type="button" @click="continueShopping">
+            <button
+              class="support-outline-wide"
+              type="button"
+              @click="continueShopping"
+            >
               เลือกซื้อหนังสือเล่มอื่นต่อ
             </button>
-            <button class="support-solid-wide" type="button" @click="goToCheckout">
+            <button
+              class="support-solid-wide"
+              type="button"
+              @click="goToCheckout"
+            >
               ชำระเงิน
             </button>
           </div>
@@ -268,7 +296,8 @@
           <div class="support-divider"></div>
 
           <button class="support-coin-pay" type="button" @click="goToCheckout">
-            ชำระเงินด้วย <span class="support-coin-dot" aria-hidden="true"></span>
+            ชำระเงินด้วย
+            <span class="support-coin-dot" aria-hidden="true"></span>
             Read coin
           </button>
         </template>
@@ -350,14 +379,6 @@ const addingToCart = ref(false);
 const addingFreeBookId = ref<number | null>(null);
 let carouselTimer: ReturnType<typeof window.setInterval> | undefined;
 
-const bannerLabels = [
-  "อ่านและฟัง",
-  "ขายดี",
-  "ออกใหม่",
-  "โปรโมชัน",
-  "อ่านฟรี",
-  "แนะนำ",
-];
 const bannerShiftPercent = 100 / 3;
 const visibleBannerCount = 3;
 const fallbackCampaigns = [
@@ -417,13 +438,17 @@ const bannerItems = computed(() => {
       const campaign = fallbackCampaigns[index % fallbackCampaigns.length];
       const covers = [book, books[index + 1], books[index + 2]]
         .filter(Boolean)
-        .map((item) => item.cover_url || item.cover_image_url || item.cover_image || "")
+        .map(
+          (item) =>
+            item.cover_url || item.cover_image_url || item.cover_image || "",
+        )
         .filter(Boolean);
 
       return {
         id: `book-${book.id}`,
         kind: "fallback" as const,
-        image_url: book.cover_url || book.cover_image_url || book.cover_image || "",
+        image_url:
+          book.cover_url || book.cover_image_url || book.cover_image || "",
         title: book.title,
         link_url: `/book/${book.id}`,
         is_active: true,
@@ -438,6 +463,7 @@ const bannerItems = computed(() => {
     .filter((banner) => banner.image_url)
     .slice(0, 12);
 });
+
 const bannerPages = computed(() =>
   Math.max(1, bannerItems.value.length - visibleBannerCount + 1),
 );
@@ -469,7 +495,9 @@ const supportAmountOptions = computed(() => {
 });
 
 const getBookCover = (book: Book) => {
-  return resolveAssetUrl(book.cover_url || book.cover_image_url || book.cover_image);
+  return resolveAssetUrl(
+    book.cover_url || book.cover_image_url || book.cover_image,
+  );
 };
 
 const getSellerName = (book: Book) => {
@@ -497,7 +525,8 @@ const getReviewLabel = (book: Book) => {
 
 const formatBookPrice = (book: Book) => {
   const price = Number(book.coin_price ?? book.price ?? 0);
-  if (!Number.isFinite(price) || price <= 0 || book.access_type === "free") return "ฟรี";
+  if (!Number.isFinite(price) || price <= 0 || book.access_type === "free")
+    return "ฟรี";
   return `฿ ${price.toLocaleString("th-TH", { maximumFractionDigits: 0 })}`;
 };
 
@@ -537,10 +566,11 @@ const addFreeBookToLibrary = async (book: Book) => {
 
   const user = getUser();
   if (!user && !isAuthenticated()) {
-    router.push({ name: "Login", query: { redirect: router.currentRoute.value.fullPath } });
-    return;
     window.alert("กรุณาเข้าสู่ระบบก่อนเพิ่มหนังสือเข้าคลัง");
-    router.push({ name: "Login", query: { redirect: router.currentRoute.value.fullPath } });
+    router.push({
+      name: "Login",
+      query: { redirect: router.currentRoute.value.fullPath },
+    });
     return;
   }
 
@@ -548,13 +578,17 @@ const addFreeBookToLibrary = async (book: Book) => {
 
   try {
     await api.post("/library", { book_id: book.id });
-    const goLibrary = window.confirm(`เพิ่ม "${book.title}" เข้าคลังหนังสือแล้ว ต้องการไปที่คลังเลยไหม?`);
+    const goLibrary = window.confirm(
+      `เพิ่ม "${book.title}" เข้าคลังหนังสือแล้ว ต้องการไปที่คลังเลยไหม?`,
+    );
 
     if (goLibrary) {
       router.push({ name: "MyLibrary" });
     }
   } catch (error: any) {
-    window.alert(error?.response?.data?.message || "เพิ่มหนังสือเข้าคลังไม่สำเร็จ");
+    window.alert(
+      error?.response?.data?.message || "เพิ่มหนังสือเข้าคลังไม่สำเร็จ",
+    );
   } finally {
     addingFreeBookId.value = null;
   }
@@ -696,15 +730,16 @@ async function fetchPageContent() {
 }
 
 async function loadHomeContent() {
-  const [, recommendedBooks, ebookBooks, serialBooks, ...sectionBooks] = await Promise.all([
-    fetchPageContent().catch(() => undefined),
-    fetchShelfBooks("/recommended").catch(() => []),
-    fetchShelfBooks("/ebooks").catch(() => []),
-    fetchShelfBooks("/serials").catch(() => []),
-    ...sectionDefinitions.map((section) =>
-      fetchShelfBooks(section.endpoint).catch(() => []),
-    ),
-  ]);
+  const [, recommendedBooks, ebookBooks, serialBooks, ...sectionBooks] =
+    await Promise.all([
+      fetchPageContent().catch(() => undefined),
+      fetchShelfBooks("/recommended").catch(() => []),
+      fetchShelfBooks("/ebooks").catch(() => []),
+      fetchShelfBooks("/serials").catch(() => []),
+      ...sectionDefinitions.map((section) =>
+        fetchShelfBooks(section.endpoint).catch(() => []),
+      ),
+    ]);
 
   const normalizedEbooks = ebookBooks.map((book) => ({
     ...book,
@@ -741,7 +776,8 @@ async function loadHomeContent() {
         ...book,
         content_type:
           book.content_type ||
-          catalogBooks.find((candidate) => candidate.id === book.id)?.content_type ||
+          catalogBooks.find((candidate) => candidate.id === book.id)
+            ?.content_type ||
           "ebook",
       }))
       .slice(0, section.limit),
@@ -765,6 +801,7 @@ async function loadHomeContent() {
       books: normalizedSerials.slice(0, 10),
     },
   );
+
   activeBannerIndex.value = 0;
 }
 
@@ -784,7 +821,10 @@ onUnmounted(() => {
 });
 
 watch(bannerPages, () => {
-  activeBannerIndex.value = Math.min(activeBannerIndex.value, bannerPages.value - 1);
+  activeBannerIndex.value = Math.min(
+    activeBannerIndex.value,
+    bannerPages.value - 1,
+  );
   startCarousel();
 });
 </script>
@@ -879,10 +919,7 @@ watch(bannerPages, () => {
   padding: 0;
 }
 
-.promo-banner::before {
-  content: none;
-}
-
+.promo-banner::before,
 .promo-banner::after {
   content: none;
 }
@@ -918,8 +955,16 @@ watch(bannerPages, () => {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 18% 22%, rgba(255, 255, 255, 0.34), transparent 18%),
-    radial-gradient(circle at 88% 18%, rgba(255, 255, 255, 0.26), transparent 20%),
+    radial-gradient(
+      circle at 18% 22%,
+      rgba(255, 255, 255, 0.34),
+      transparent 18%
+    ),
+    radial-gradient(
+      circle at 88% 18%,
+      rgba(255, 255, 255, 0.26),
+      transparent 20%
+    ),
     linear-gradient(135deg, rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.04));
 }
 
@@ -1052,76 +1097,6 @@ watch(bannerPages, () => {
   color: #e01b4f;
 }
 
-.promo-banner.tone-2 {
-  background: #eef7f4;
-}
-
-.promo-banner.tone-3 {
-  background: #eef7f4;
-}
-
-.promo-banner.tone-4 {
-  background: #eef7f4;
-}
-
-.promo-banner.tone-5 {
-  background: #eef7f4;
-}
-
-.promo-banner.tone-6 {
-  background: #eef7f4;
-}
-
-.promo-copy {
-  position: relative;
-  z-index: 1;
-  max-width: 100%;
-  min-width: 0;
-}
-
-.promo-copy span {
-  display: inline-flex;
-  margin-bottom: 6px;
-  border-radius: 999px;
-  background: rgba(0, 111, 88, 0.72);
-  color: #ffffff;
-  font-size: 10px;
-  font-weight: 900;
-  padding: 3px 8px;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.38);
-}
-
-.promo-copy h1 {
-  display: -webkit-box;
-  margin: 0;
-  overflow: hidden;
-  color: #ffffff;
-  font-size: 17px;
-  font-weight: 900;
-  line-height: 1.28;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  text-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.72),
-    0 5px 14px rgba(0, 0, 0, 0.42);
-}
-
-.promo-copy p {
-  display: -webkit-box;
-  margin: 6px 0 0;
-  overflow: hidden;
-  color: rgba(255, 255, 255, 0.88);
-  font-size: 11px;
-  font-weight: 800;
-  line-clamp: 1;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-  text-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.68),
-    0 4px 12px rgba(0, 0, 0, 0.38);
-}
-
 .hero-arrow {
   position: absolute;
   top: 50%;
@@ -1184,63 +1159,15 @@ watch(bannerPages, () => {
   background: var(--primary);
 }
 
+.hero-dots button:hover {
+  background: color-mix(in srgb, var(--primary) 82%, white);
+  transform: translateY(-1px);
+}
+
 .storefront {
   width: min(100% - calc(var(--page-gutter, 14px) * 2), 1280px);
   margin: 0 auto;
   padding-top: 22px;
-}
-
-.quick-actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 22px;
-}
-
-.quick-card {
-  min-height: 46px;
-  border: 0;
-  border-radius: 8px;
-  color: #ffffff;
-  cursor: pointer;
-  font-size: 15px;
-  font-weight: 900;
-  padding: 8px 12px;
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
-  transition:
-    transform 0.2s ease,
-    filter 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.quick-card.read {
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--secondary) 92%, white),
-    var(--secondary)
-  );
-}
-
-.quick-card.library {
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--primary) 92%, white),
-    var(--primary-strong)
-  );
-}
-
-.quick-card.coin {
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--primary-strong) 72%, #1f7a8c),
-    #1f7a8c
-  );
-}
-
-.quick-card:hover {
-  filter: brightness(1.04);
-  transform: translateY(-1px);
-  box-shadow: 0 16px 28px rgba(15, 23, 42, 0.12);
 }
 
 .shelf-section {
@@ -1286,203 +1213,6 @@ watch(bannerPages, () => {
   color: var(--primary-strong);
   font-size: 12px;
   font-weight: 800;
-}
-
-.hero-dots button:hover {
-  background: color-mix(in srgb, var(--primary) 82%, white);
-  transform: translateY(-1px);
-}
-
-.hero {
-  display: grid;
-  grid-template-columns: minmax(280px, 0.86fr) minmax(0, 1.14fr);
-  align-items: stretch;
-  gap: clamp(14px, 2vw, 26px);
-  width: 100%;
-  margin: 0;
-  padding: clamp(18px, 2.4vw, 34px) clamp(12px, 3vw, 48px) 0;
-}
-
-.hero-copy,
-.hero-stage {
-  min-height: clamp(320px, 42vh, 500px);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-
-.hero-copy {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: clamp(26px, 5vw, 72px);
-}
-
-.hero-stage {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(170px, 1fr));
-  gap: 12px;
-  overflow: hidden;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  padding: 12px;
-}
-
-.eyebrow {
-  margin: 0 0 10px;
-  color: var(--primary-strong);
-  font-weight: 900;
-  letter-spacing: 0;
-}
-
-.hero-copy h1 {
-  margin: 0 0 14px;
-  color: var(--text-strong);
-  font-size: clamp(28px, 3.4vw, 56px);
-  line-height: 1.2;
-  font-weight: 900;
-  letter-spacing: 0;
-  overflow-wrap: anywhere;
-}
-
-.hero-copy p {
-  margin: 0 0 24px;
-  max-width: 680px;
-  color: var(--text);
-  font-size: clamp(16px, 1.2vw, 20px);
-  line-height: 1.7;
-}
-
-.banner-actions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.banner-btn,
-.action {
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 900;
-}
-
-.banner-btn {
-  min-height: 48px;
-  padding: 14px 18px;
-  font-size: 15px;
-}
-
-.banner-btn.primary {
-  background: var(--primary);
-  color: var(--on-primary);
-}
-
-.banner-btn.secondary {
-  border: 1px solid var(--border);
-  background: var(--surface-soft);
-  color: var(--text-strong);
-}
-
-.feature-card {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  min-height: 100%;
-  overflow: hidden;
-  border-radius: 8px;
-  background: var(--surface-soft);
-  cursor: pointer;
-  border: 1px solid var(--border);
-}
-
-.feature-card img {
-  width: 100%;
-  height: 100%;
-  min-height: 210px;
-  object-fit: cover;
-  background: var(--surface-soft);
-}
-
-.feature-card div {
-  padding: 16px;
-}
-
-.feature-card span {
-  display: inline-flex;
-  margin-bottom: 8px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--primary-soft) 92%, white);
-  color: var(--primary-strong);
-  font-size: 12px;
-  font-weight: 900;
-  padding: 5px 8px;
-}
-
-.feature-card h2,
-.feature-card p {
-  margin: 0;
-}
-
-.feature-card h2 {
-  color: var(--text-strong);
-  font-size: clamp(18px, 1.6vw, 26px);
-  line-height: 1.25;
-}
-
-.feature-card p {
-  margin-top: 6px;
-  color: var(--text-muted);
-  font-weight: 700;
-}
-
-.feature-empty {
-  display: grid;
-  grid-column: 1 / -1;
-  min-height: 100%;
-  place-content: center;
-  color: var(--text-strong);
-  text-align: center;
-  padding: 24px;
-}
-
-.action-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: clamp(12px, 1.6vw, 22px);
-  width: 100%;
-  margin: clamp(14px, 2vw, 24px) 0;
-  padding: 0 clamp(12px, 3vw, 48px);
-}
-
-.action {
-  display: grid;
-  min-height: clamp(76px, 9vw, 112px);
-  place-items: center;
-  padding: 12px;
-  color: white;
-  font-size: clamp(18px, 2vw, 28px);
-  text-align: center;
-  box-shadow: var(--shadow);
-}
-
-.action.read {
-  background: var(--secondary);
-  color: var(--on-primary);
-}
-
-.action.library {
-  background: var(--primary);
-}
-
-.section {
-  width: 100%;
-  margin: 0;
-  max-width: 1280px;
-  margin-inline: auto;
-  padding: clamp(28px, 4vw, 54px) var(--page-gutter, 20px) 0;
 }
 
 .section-head {
@@ -1616,7 +1346,6 @@ watch(bannerPages, () => {
   font-size: 14px;
   font-weight: 900;
   line-height: 1.45;
-  line-clamp: 2;
   overflow-wrap: anywhere;
   word-break: break-word;
   -webkit-box-orient: vertical;
@@ -1630,7 +1359,6 @@ watch(bannerPages, () => {
   color: var(--text-muted);
   font-size: 12px;
   line-height: 1.4;
-  line-clamp: 1;
   overflow-wrap: anywhere;
   word-break: break-word;
   -webkit-box-orient: vertical;
@@ -1772,7 +1500,6 @@ watch(bannerPages, () => {
   color: #0f766e;
   font-size: 13px;
   line-height: 1.35;
-  line-clamp: 2;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -1913,69 +1640,24 @@ watch(bannerPages, () => {
   width: 15px;
   height: 15px;
   border-radius: 999px;
-  background: radial-gradient(circle at 35% 32%, #fff8c7 0%, #ffd44d 42%, #f59e0b 100%);
+  background: radial-gradient(
+    circle at 35% 32%,
+    #fff8c7 0%,
+    #ffd44d 42%,
+    #f59e0b 100%
+  );
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.55);
 }
 
-.compact-section {
-  padding-top: 6px;
-}
-
-.book-row {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(260px, 1fr);
-  gap: 14px;
-  margin-top: 18px;
-  overflow-x: auto;
-  padding-bottom: 6px;
-  scrollbar-width: thin;
-}
-
-.row-card {
-  display: grid;
-  grid-template-columns: 82px 1fr;
-  gap: 12px;
-  align-items: center;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  cursor: pointer;
-  padding: 10px;
-}
-
-.row-card img {
-  width: 82px;
-  aspect-ratio: 3 / 4;
-  border-radius: 8px;
-  object-fit: cover;
-  background: var(--surface-soft);
-}
-
-.row-card h3 {
-  margin: 0 0 6px;
-  color: var(--text-strong);
-  font-size: 16px;
-  line-height: 1.35;
-}
-
-.row-card p {
-  margin: 0;
-  color: var(--text-muted);
-}
-
 @media (max-width: 900px) {
-  .hero {
-    grid-template-columns: 1fr;
+  .section-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
   }
 
-  .action-row {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-stage {
-    min-height: 300px;
+  .section-head h2 {
+    font-size: 22px;
   }
 }
 
@@ -2009,31 +1691,34 @@ watch(bannerPages, () => {
   }
 
   .book-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
     margin-top: 8px;
   }
 
   .book-info {
     grid-template-rows: auto auto auto auto auto;
-    gap: 5px;
-    padding: 8px 7px;
+    gap: 4px;
+    padding: 6px 5px;
+  }
+
+  .content-badge {
+    font-size: 8px;
+    padding: 3px 5px;
   }
 
   .book-info p {
     display: block;
     min-height: 0;
-    font-size: 12px;
-    line-height: 1.4;
-    line-clamp: unset;
+    font-size: 9px;
+    line-height: 1.3;
     -webkit-line-clamp: unset;
   }
 
   .book-info small {
     display: block;
     min-height: 0;
-    font-size: 10px;
-    line-clamp: unset;
+    font-size: 8px;
     -webkit-line-clamp: unset;
   }
 
@@ -2042,75 +1727,19 @@ watch(bannerPages, () => {
   }
 
   .heart-row {
-    font-size: 11px;
+    font-size: 8px;
   }
 
   .rating-box small {
     min-height: 0;
-    font-size: 9px;
+    font-size: 7px;
   }
 
   .price-pill {
-    min-width: 46px;
-    min-height: 24px;
-    font-size: 10px;
-    padding: 0 6px;
-  }
-
-  .category-bar,
-  .action-row,
-  .section {
-    padding-left: 10px;
-    padding-right: 10px;
-  }
-
-  .hero-strip {
-    padding-top: 4px;
-  }
-
-  .promo-banner {
-    padding: 0;
-  }
-
-  .hero-arrow {
-    width: 32px;
-    height: 32px;
-    font-size: 22px;
-  }
-
-  .promo-copy h1 {
-    font-size: 24px;
-  }
-
-  .promo-copy p {
-    font-size: 14px;
-  }
-
-  .hero-copy {
-    min-height: 290px;
-    padding: 22px;
-  }
-
-  .hero-stage {
-    grid-template-columns: minmax(240px, 1fr);
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(240px, 82vw);
-    overflow-x: auto;
-  }
-
-  .banner-actions,
-  .banner-btn {
-    width: 100%;
-  }
-
-  .section-head {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .section-head h2 {
-    font-size: 22px;
+    min-width: 34px;
+    min-height: 20px;
+    font-size: 8px;
+    padding: 0 4px;
   }
 }
 
@@ -2140,38 +1769,44 @@ watch(bannerPages, () => {
   }
 
   .book-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
   }
 
   .book-info {
     grid-template-rows: auto auto auto auto auto;
-    gap: 5px;
-    padding: 8px 7px;
+    gap: 3px;
+    padding: 5px 4px;
+  }
+
+  .content-badge {
+    font-size: 7px;
+    padding: 2px 4px;
   }
 
   .book-info p {
     min-height: 0;
-    font-size: 12px;
+    font-size: 8px;
+    line-height: 1.25;
   }
 
   .book-info small {
-    font-size: 10px;
+    font-size: 7px;
   }
 
   .heart-row {
-    font-size: 11px;
+    font-size: 7px;
   }
 
   .rating-box small {
-    font-size: 9px;
+    font-size: 6px;
   }
 
   .price-pill {
-    min-width: 48px;
-    min-height: 24px;
-    font-size: 10px;
-    padding-inline: 6px;
+    min-width: 30px;
+    min-height: 18px;
+    font-size: 7px;
+    padding-inline: 3px;
   }
 
   .hero-track {
@@ -2183,43 +1818,6 @@ watch(bannerPages, () => {
     flex-basis: calc(100% - 8px);
     min-height: 104px;
     padding: 0;
-  }
-
-  .promo-banner::after {
-    content: none;
-  }
-
-  .promo-copy h1 {
-    font-size: 19px;
-  }
-
-  .promo-copy p {
-    font-size: 12px;
-  }
-
-  .quick-actions {
-    grid-template-columns: 1fr;
-  }
-
-  .hero {
-    padding-inline: var(--page-gutter, 12px);
-  }
-
-  .hero-copy {
-    min-height: auto;
-  }
-
-  .action {
-    min-height: 70px;
-    font-size: 17px;
-  }
-
-  .row-card {
-    grid-template-columns: 72px minmax(0, 1fr);
-  }
-
-  .row-card img {
-    width: 72px;
   }
 }
 </style>
