@@ -19,17 +19,14 @@ type SerialBook = {
   read_count?: number;
   view_count?: number;
   review_count?: number;
+  favorite_count?: number;
+  like_count?: number;
   average_rating?: number;
 };
 
 type ShelfResponse = {
   books: SerialBook[];
   count?: number;
-};
-
-type SerialSection = {
-  title: string;
-  books: SerialBook[];
 };
 
 const route = useRoute();
@@ -41,6 +38,9 @@ const errorMessage = ref("");
 const search = ref(String(route.query.q || ""));
 const accessFilter = ref("all");
 const categoryFilter = ref("all");
+const activeTab = ref(String(route.query.tab || "hot"));
+const currentPage = ref(1);
+const pageSize = 8;
 
 const filteredBooks = computed(() => {
   return filterBooks(books.value, search.value, {
@@ -52,32 +52,43 @@ const filteredBooks = computed(() => {
 
 const categoryOptions = computed(() => uniqueBookCategories(books.value));
 
-const heroBooks = computed(() => filteredBooks.value.slice(0, 5));
+const tabItems = [
+  { key: "love", label: "นิยายรัก" },
+  { key: "hot", label: "ใหม่มาแรง" },
+  { key: "popular", label: "เรื่องฮิต" },
+  { key: "sold", label: "ขายดี" },
+  { key: "new", label: "มาใหม่" },
+  { key: "updated", label: "อัปเดต" },
+  { key: "ending", label: "จบล่าสุด" },
+  { key: "favorite", label: "ท็อปชาร์ต" },
+];
 
-const continueBooks = computed(() => {
-  return [...filteredBooks.value]
-    .sort((a, b) => {
-      const readDiff = getReadCount(b) - getReadCount(a);
-      if (readDiff !== 0) return readDiff;
-      return getEpisodeCount(b) - getEpisodeCount(a);
-    })
-    .slice(0, 6);
-});
+const sortedBooks = computed(() => {
+  const list = [...filteredBooks.value];
 
-const categorySections = computed<SerialSection[]>(() => {
-  const groups = new Map<string, SerialBook[]>();
-
-  for (const book of filteredBooks.value) {
-    const category = book.category_name || "นิยายรายตอน";
-    if (!groups.has(category)) groups.set(category, []);
-    groups.get(category)?.push(book);
+  if (activeTab.value === "new" || activeTab.value === "updated") {
+    return list.reverse();
   }
 
-  return [...groups.entries()].map(([title, items]) => ({
-    title,
-    books: items.slice(0, 8),
-  }));
+  if (activeTab.value === "sold" || activeTab.value === "favorite") {
+    return list.sort((a, b) => getLikeCount(b) - getLikeCount(a));
+  }
+
+  return list.sort((a, b) => getReadCount(b) - getReadCount(a));
 });
+
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(sortedBooks.value.length / pageSize)),
+);
+
+const pagedBooks = computed(() => {
+  const start = (currentPage.value - 1) * pageSize;
+  return sortedBooks.value.slice(start, start + pageSize);
+});
+
+const activeTabLabel = computed(
+  () => tabItems.find((item) => item.key === activeTab.value)?.label || "นิยายรัก",
+);
 
 function getBookCover(book: SerialBook) {
   return resolveAssetUrl(book.cover_url || book.cover_image);
@@ -91,11 +102,16 @@ function getReadCount(book: SerialBook) {
   return Number(book.read_count || book.view_count || 0);
 }
 
+function getLikeCount(book: SerialBook) {
+  return Number(book.favorite_count || book.like_count || book.review_count || 0);
+}
+
 function getPrice(book: SerialBook) {
   return Number(book.coin_price ?? book.price ?? 0);
 }
 
 function formatCompactCount(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "0";
   if (value >= 1000000) return `${(value / 1000000).toFixed(value >= 10000000 ? 0 : 1)}M`;
   if (value >= 1000) return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}K`;
   return value.toLocaleString("th-TH");
@@ -104,12 +120,10 @@ function formatCompactCount(value: number) {
 function getAccessLabel(book: SerialBook) {
   if (book.access_type === "subscription") return "แพ็กเกจ";
   const price = getPrice(book);
-  if (book.access_type === "paid" || price > 0) return `${Math.ceil(price).toLocaleString("th-TH")} คอยน์`;
+  if (book.access_type === "paid" || price > 0) {
+    return `${Math.ceil(price).toLocaleString("th-TH")} คอยน์`;
+  }
   return "ฟรี";
-}
-
-function getBookMeta(book: SerialBook) {
-  return `${getEpisodeCount(book)} ตอน • ${formatCompactCount(getReadCount(book))} อ่าน • ${Number(book.review_count || 0).toLocaleString("th-TH")} รีวิว`;
 }
 
 function handleImgError(event: Event) {
@@ -122,8 +136,13 @@ function goToBook(id: number) {
   router.push({ name: "BookDetail", params: { id } });
 }
 
-function goToCoinWallet() {
-  router.push({ name: "CoinWallet" });
+function selectTab(tab: string) {
+  activeTab.value = tab;
+  currentPage.value = 1;
+}
+
+function setPage(nextPage: number) {
+  currentPage.value = Math.min(totalPages.value, Math.max(1, nextPage));
 }
 
 async function loadSerialBooks() {
@@ -134,7 +153,8 @@ async function loadSerialBooks() {
     const { data } = await api.get<ShelfResponse>("/serials");
     books.value = Array.isArray(data?.books) ? data.books : [];
   } catch (error: any) {
-    errorMessage.value = error?.response?.data?.message || "โหลดรายการรายตอนไม่สำเร็จ";
+    errorMessage.value =
+      error?.response?.data?.message || "โหลดรายการรายตอนไม่สำเร็จ";
     books.value = [];
   } finally {
     loading.value = false;
@@ -148,58 +168,47 @@ watch(
   },
 );
 
+watch([search, accessFilter, categoryFilter, activeTab], () => {
+  currentPage.value = 1;
+});
+
 onMounted(loadSerialBooks);
 </script>
 
 <template>
   <main class="serial-page">
-    <section v-if="heroBooks.length" class="hero-strip" aria-label="นิยายรายตอนแนะนำ">
+    <header class="serial-title">
+      <h1>นิยายรัก</h1>
+    </header>
+
+    <section class="serial-tabs" aria-label="หมวดนิยายรายตอน">
       <button
-        v-for="(book, index) in heroBooks"
-        :key="book.id"
-        class="hero-tile"
-        :class="{ wide: index > 0 && index < heroBooks.length - 1 }"
+        v-for="tab in tabItems"
+        :key="tab.key"
         type="button"
-        @click="goToBook(book.id)"
+        :class="{ active: activeTab === tab.key }"
+        @click="selectTab(tab.key)"
       >
-        <img :src="getBookCover(book)" :alt="book.title" @error="handleImgError" />
-        <span>{{ book.title }}</span>
+        {{ tab.label }}
       </button>
     </section>
 
-    <div class="coin-row">
-      <button class="coin-btn" type="button" @click="goToCoinWallet">
-        <span aria-hidden="true">M</span>
-        เติมคอยน์
-      </button>
-    </div>
-
-    <section class="filter-panel" aria-label="ค้นหาและกรองนิยายรายตอน">
-      <div>
-        <h1>รายตอน</h1>
-        <p>{{ filteredBooks.length.toLocaleString("th-TH") }} เรื่องจากข้อมูลจริงในระบบ</p>
-      </div>
-
-      <input
-        v-model="search"
-        type="search"
-        placeholder="ค้นหาชื่อเรื่อง ผู้เขียน หรือหมวดหมู่"
-        aria-label="ค้นหานิยายรายตอน"
-      />
-
-      <select v-model="accessFilter" aria-label="กรองตามสิทธิ์อ่าน">
-        <option value="all">ทุกสิทธิ์อ่าน</option>
-        <option value="free">ฟรี</option>
-        <option value="paid">ใช้คอยน์</option>
-        <option value="subscription">แพ็กเกจ</option>
-      </select>
-
-      <select v-model="categoryFilter" aria-label="กรองตามหมวดหมู่">
-        <option value="all">ทุกหมวดหมู่</option>
+    <section class="serial-filter-bar" aria-label="ตัวกรองนิยายรายตอน">
+      <select v-model="categoryFilter">
+        <option value="all">หมวดรอง</option>
         <option v-for="category in categoryOptions" :key="category" :value="category">
           {{ category }}
         </option>
       </select>
+      <button type="button" @click="accessFilter = accessFilter === 'free' ? 'all' : 'free'">
+        {{ accessFilter === "free" ? "ฟรีเท่านั้น" : "แท็ก" }}
+      </button>
+      <button
+        type="button"
+        @click="search = ''; accessFilter = 'all'; categoryFilter = 'all'"
+      >
+        จบแล้ว
+      </button>
     </section>
 
     <div v-if="loading" class="state-box">กำลังโหลดรายการรายตอน...</div>
@@ -209,84 +218,46 @@ onMounted(loadSerialBooks);
     </div>
 
     <template v-else>
-      <section class="continue-section">
-        <div class="section-head">
-          <h2>อ่านต่อ</h2>
-          <button type="button" @click="categoryFilter = 'all'">ดูทั้งหมด</button>
+      <section class="serial-list-head">
+        <h2>{{ activeTabLabel }}</h2>
+        <div class="pager">
+          <button type="button" :disabled="currentPage <= 1" @click="setPage(currentPage - 1)">
+            ‹
+          </button>
+          <span>หน้าที่ {{ currentPage }}</span>
+          <button type="button" :disabled="currentPage >= totalPages" @click="setPage(currentPage + 1)">
+            ›
+          </button>
         </div>
+      </section>
 
-        <div class="continue-rail" aria-label="รายการอ่านต่อ">
-          <article
-            v-for="book in continueBooks"
-            :key="book.id"
-            class="continue-card"
-            role="button"
-            tabindex="0"
-            @click="goToBook(book.id)"
-            @keydown.enter.prevent="goToBook(book.id)"
-            @keydown.space.prevent="goToBook(book.id)"
-          >
-            <img :src="getBookCover(book)" :alt="book.title" @error="handleImgError" />
-            <div>
-              <h3>{{ book.title }}</h3>
-              <p>{{ getEpisodeCount(book) }} ตอนล่าสุด • {{ getAccessLabel(book) }}</p>
+      <section class="serial-list" aria-label="รายการนิยายรายตอน">
+        <article
+          v-for="book in pagedBooks"
+          :key="book.id"
+          class="serial-list-card"
+          role="button"
+          tabindex="0"
+          @click="goToBook(book.id)"
+          @keydown.enter.prevent="goToBook(book.id)"
+          @keydown.space.prevent="goToBook(book.id)"
+        >
+          <img :src="getBookCover(book)" :alt="book.title" @error="handleImgError" />
+          <div class="serial-card-copy">
+            <h3>{{ book.title }}</h3>
+            <p>{{ book.author || "ไม่ระบุผู้เขียน" }}</p>
+            <div class="serial-meta">
+              <span>☷ {{ getEpisodeCount(book) }}</span>
+              <span>◉ {{ formatCompactCount(getReadCount(book)) }}</span>
+              <span>♥ {{ formatCompactCount(getLikeCount(book)) }}</span>
             </div>
-          </article>
-        </div>
-      </section>
-
-      <section class="serial-group">
-        <div class="section-head">
-          <h2>Love Novel</h2>
-          <button type="button" @click="categoryFilter = 'all'">ดูทั้งหมด</button>
-        </div>
-
-        <div class="book-row" aria-label="นิยายรายตอนทั้งหมด">
-          <article
-            v-for="book in filteredBooks.slice(0, 8)"
-            :key="book.id"
-            class="book-card"
-            role="button"
-            tabindex="0"
-            @click="goToBook(book.id)"
-            @keydown.enter.prevent="goToBook(book.id)"
-            @keydown.space.prevent="goToBook(book.id)"
-          >
-            <img :src="getBookCover(book)" :alt="book.title" @error="handleImgError" />
-            <h3>{{ book.title }}</h3>
-            <p>{{ book.author || "ไม่ระบุผู้เขียน" }}</p>
-            <small>{{ getBookMeta(book) }}</small>
-          </article>
-        </div>
-      </section>
-
-      <section
-        v-for="section in categorySections"
-        :key="section.title"
-        class="serial-group"
-      >
-        <div class="section-head">
-          <h2>{{ section.title }}</h2>
-          <button type="button" @click="categoryFilter = section.title">ดูทั้งหมด</button>
-        </div>
-
-        <div class="book-row" :aria-label="section.title">
-          <article
-            v-for="book in section.books"
-            :key="book.id"
-            class="book-card"
-            role="button"
-            tabindex="0"
-            @click="goToBook(book.id)"
-            @keydown.enter.prevent="goToBook(book.id)"
-            @keydown.space.prevent="goToBook(book.id)"
-          >
-            <img :src="getBookCover(book)" :alt="book.title" @error="handleImgError" />
-            <h3>{{ book.title }}</h3>
-            <p>{{ book.author || "ไม่ระบุผู้เขียน" }}</p>
-            <small>{{ getBookMeta(book) }}</small>
-          </article>
-        </div>
+            <div class="tag-row">
+              <span>{{ book.category_name || "โรแมนติก" }}</span>
+              <span>{{ getAccessLabel(book) }}</span>
+              <span v-if="book.access_type === 'free'">ฟรี</span>
+            </div>
+          </div>
+        </article>
       </section>
     </template>
   </main>
@@ -294,139 +265,204 @@ onMounted(loadSerialBooks);
 
 <style scoped>
 .serial-page {
+  width: min(100% - 28px, 1000px);
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 30px 0 64px;
   background: var(--bg);
   color: var(--text-strong);
-  min-height: 100%;
-  padding: 14px 0 56px;
 }
 
-.hero-strip {
-  display: grid;
-  grid-template-columns: minmax(150px, 190px) repeat(3, minmax(260px, 1fr)) minmax(150px, 190px);
-  gap: 10px;
+.serial-title {
+  text-align: center;
+  padding: 0 0 48px;
+}
+
+.serial-title h1 {
+  margin: 0;
+  color: #000000;
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.serial-tabs {
+  display: flex;
+  gap: 28px;
+  border-bottom: 1px solid #e5e7eb;
   overflow-x: auto;
-  padding: 0 12px 10px;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 
-.hero-tile {
+.serial-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.serial-tabs button {
   position: relative;
-  display: block;
-  min-width: 150px;
-  height: 230px;
-  overflow: hidden;
+  flex: 0 0 auto;
+  min-height: 42px;
   border: 0;
-  border-radius: 8px;
-  background: var(--surface-soft);
+  background: transparent;
+  color: #000000;
   cursor: pointer;
+  font-size: 19px;
+  font-weight: 900;
   padding: 0;
 }
 
-.hero-tile.wide {
-  min-width: 360px;
+.serial-tabs button.active {
+  color: #00bfae;
 }
 
-.hero-tile img {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-}
-
-.hero-tile.wide img {
-  object-fit: cover;
-}
-
-.hero-tile span {
+.serial-tabs button.active::after {
+  content: "";
   position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: 10px;
-  color: #ffffff;
-  display: -webkit-box;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: #00d3bf;
+}
+
+.serial-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 0 54px;
+}
+
+.serial-filter-bar select,
+.serial-filter-bar button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: #eeeeee;
+  color: #111827;
+  cursor: pointer;
+  font: inherit;
+  padding: 0 14px;
+}
+
+.serial-list-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 8px;
+}
+
+.serial-list-head h2 {
+  margin: 0;
+  color: #000000;
+  font-size: 30px;
   font-weight: 900;
-  line-height: 1.3;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #8b8f96;
+  font-weight: 800;
+}
+
+.pager button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #b7bcc4;
+  border-radius: 3px;
+  background: #ffffff;
+  color: #00a99d;
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.pager button:disabled {
+  color: #aeb4bd;
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.serial-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 58px;
+  row-gap: 30px;
+  padding-top: 20px;
+}
+
+.serial-list-card {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.serial-list-card img {
+  width: 140px;
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  background: var(--surface-soft);
+  object-fit: cover;
+}
+
+.serial-card-copy {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.serial-card-copy h3 {
+  display: -webkit-box;
+  margin: 0;
   overflow: hidden;
-  text-align: left;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
+  color: #000000;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.45;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 
-.coin-row {
-  display: flex;
-  justify-content: center;
-  border-bottom: 1px solid var(--border);
-  padding: 8px 12px;
-}
-
-.coin-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 0;
-  border-radius: 999px;
-  background: #ff8a00;
-  color: #ffffff;
-  cursor: pointer;
-  font-weight: 900;
-  min-height: 36px;
-  padding: 0 18px;
-}
-
-.coin-btn span {
-  display: inline-grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #ffd36a;
-  color: #b45309;
-  font-size: 11px;
-}
-
-.filter-panel,
-.continue-section,
-.serial-group {
-  width: min(100% - 28px, 900px);
-  margin: 0 auto;
-}
-
-.filter-panel {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 260px) minmax(130px, 160px) minmax(130px, 180px);
-  gap: 10px;
-  align-items: end;
-  padding: 22px 0 10px;
-}
-
-.filter-panel h1,
-.filter-panel p,
-.section-head h2 {
+.serial-card-copy p {
   margin: 0;
-}
-
-.filter-panel h1 {
-  font-size: 30px;
-}
-
-.filter-panel p {
-  color: var(--text-muted);
+  color: #8b8f96;
+  font-size: 14px;
   font-weight: 800;
 }
 
-.filter-panel input,
-.filter-panel select {
-  min-height: 38px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--surface);
-  color: var(--text-strong);
-  padding: 0 12px;
+.serial-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #8b8f96;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.tag-row span {
+  border: 1px solid #e0e2e6;
+  border-radius: 999px;
+  color: #8b8f96;
+  font-size: 13px;
+  line-height: 1;
+  padding: 8px 14px;
 }
 
 .state-box {
-  width: min(100% - 28px, 900px);
   margin: 20px auto;
   border: 1px solid var(--border);
   background: var(--surface);
@@ -441,197 +477,46 @@ onMounted(loadSerialBooks);
   color: #be123c;
 }
 
-.continue-section {
-  padding: 12px 0 30px;
-}
-
-.section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-.section-head h2 {
-  font-size: 28px;
-}
-
-.section-head button {
-  border: 0;
-  background: transparent;
-  color: #00a99d;
-  cursor: pointer;
-  font-weight: 900;
-}
-
-.continue-rail,
-.book-row {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 185px;
-  gap: 12px;
-  overflow-x: auto;
-  padding-bottom: 6px;
-  scrollbar-width: thin;
-}
-
-.continue-card {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr);
-  gap: 9px;
-  align-items: center;
-  min-height: 58px;
-  border: 0;
-  border-radius: 8px;
-  background: var(--surface-soft);
-  cursor: pointer;
-  padding: 6px;
-}
-
-.continue-card img {
-  width: 52px;
-  aspect-ratio: 1 / 1;
-  border-radius: 5px;
-  object-fit: cover;
-}
-
-.continue-card h3,
-.continue-card p,
-.book-card h3,
-.book-card p,
-.book-card small {
-  margin: 0;
-  min-width: 0;
-}
-
-.continue-card h3 {
-  display: -webkit-box;
-  color: var(--text-strong);
-  font-size: 13px;
-  line-height: 1.35;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-}
-
-.continue-card p {
-  display: -webkit-box;
-  color: #ff4f87;
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.35;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-}
-
-.serial-group {
-  padding: 12px 0 22px;
-}
-
-.serial-group .section-head h2 {
-  font-size: 22px;
-}
-
-.book-row {
-  grid-auto-columns: 135px;
-}
-
-.book-card {
-  cursor: pointer;
-  min-width: 0;
-}
-
-.book-card img {
-  width: 100%;
-  aspect-ratio: 1 / 1.18;
-  display: block;
-  border-radius: 6px;
-  background: var(--surface-soft);
-  object-fit: cover;
-}
-
-.book-card h3 {
-  display: -webkit-box;
-  color: var(--text-strong);
-  font-size: 13px;
-  line-height: 1.38;
-  margin-top: 8px;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.book-card p {
-  display: -webkit-box;
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1.4;
-  margin-top: 6px;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-}
-
-.book-card small {
-  display: -webkit-box;
-  color: #7a7f87;
-  font-size: 11px;
-  line-height: 1.35;
-  margin-top: 4px;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-}
-
-@media (max-width: 920px) {
-  .hero-strip {
-    grid-template-columns: unset;
-    grid-auto-flow: column;
-    grid-auto-columns: 78vw;
+@media (max-width: 860px) {
+  .serial-title {
+    padding-bottom: 28px;
   }
 
-  .hero-tile,
-  .hero-tile.wide {
-    min-width: 78vw;
-    height: 210px;
+  .serial-tabs {
+    gap: 20px;
   }
 
-  .filter-panel {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .filter-panel > div,
-  .filter-panel input {
-    grid-column: 1 / -1;
-  }
-}
-
-@media (max-width: 560px) {
-  .serial-page {
-    padding-top: 8px;
-  }
-
-  .hero-tile,
-  .hero-tile.wide {
-    height: 168px;
-  }
-
-  .filter-panel {
+  .serial-list {
     grid-template-columns: 1fr;
+    row-gap: 22px;
+  }
+}
+
+@media (max-width: 520px) {
+  .serial-page {
+    width: min(100% - 20px, 1000px);
+    padding-top: 22px;
   }
 
-  .filter-panel h1 {
-    font-size: 26px;
+  .serial-tabs button {
+    font-size: 16px;
   }
 
-  .continue-rail {
-    grid-auto-columns: 170px;
+  .serial-filter-bar {
+    padding-bottom: 34px;
   }
 
-  .book-row {
-    grid-auto-columns: 118px;
+  .serial-list-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .serial-list-card {
+    grid-template-columns: 112px minmax(0, 1fr);
+  }
+
+  .serial-list-card img {
+    width: 112px;
   }
 }
 </style>

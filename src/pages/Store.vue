@@ -147,9 +147,12 @@ function goToCart() {
 }
 
 watch(
-  () => route.query.q,
-  (keyword) => {
-    search.value = String(keyword || "");
+  () => route.query,
+  (query) => {
+    search.value = String(query.q || "");
+    contentFilter.value = String(query.type || "all");
+    accessFilter.value = String(query.access || "all");
+    categoryFilter.value = String(query.category || "all");
   },
 );
 

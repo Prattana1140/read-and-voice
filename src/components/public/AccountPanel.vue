@@ -39,9 +39,9 @@ const isLoggedIn = computed(() => !!localStorage.getItem("token"));
       <router-link to="/cart">ตะกร้าสินค้า</router-link>
       <router-link v-if="!isLoggedIn" to="/login">เข้าสู่ระบบ</router-link>
       <router-link v-if="!isLoggedIn" to="/register">สมัครสมาชิก</router-link>
-      <a v-if="isLoggedIn" href="#">จัดการบัญชี</a>
-      <a v-if="isLoggedIn" href="#">ข้อมูลของฉัน</a>
-      <a href="#">บริการช่วยเหลือ</a>
+      <router-link v-if="isLoggedIn" to="/profile">จัดการบัญชี</router-link>
+      <router-link v-if="isLoggedIn" to="/account/notifications">ข้อมูลของฉัน</router-link>
+      <router-link to="/support">บริการช่วยเหลือ</router-link>
     </div>
   </div>
 </template>

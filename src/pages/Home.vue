@@ -1,34 +1,34 @@
-<template>
+﻿<template>
   <div class="page">
-    <section class="category-bar" aria-label="หมวดหนังสือ">
-      <button type="button" class="active" @click="goToStore">ทั้งหมด</button>
-      <button type="button" @click="goToShelf('BestSellers')">ขายดี</button>
-      <button type="button" @click="goToShelf('NewReleases')">ออกใหม่</button>
-      <button type="button" @click="goToShelf('Promotions')">โปรโมชัน</button>
-      <button type="button" @click="goToShelf('FreeBooks')">อ่านฟรี</button>
-      <button type="button" @click="goToShelf('HallOfFame')">ขึ้นหิ้ง</button>
-      <button type="button" @click="goToShelf('Recommended')">แนะนำ</button>
+    <section class="category-bar" aria-label="เธซเธกเธงเธ”เธซเธเธฑเธเธชเธทเธญ">
+      <button type="button" class="active" @click="goToStore">เธ—เธฑเนเธเธซเธกเธ”</button>
+      <button type="button" @click="goToShelf('BestSellers')">เธเธฒเธขเธ”เธต</button>
+      <button type="button" @click="goToShelf('NewReleases')">เธญเธญเธเนเธซเธกเน</button>
+      <button type="button" @click="goToShelf('Promotions')">เนเธเธฃเนเธกเธเธฑเธ</button>
+      <button type="button" @click="goToShelf('FreeBooks')">เธญเนเธฒเธเธเธฃเธต</button>
+      <button type="button" @click="goToShelf('HallOfFame')">เธเธถเนเธเธซเธดเนเธ</button>
+      <button type="button" @click="goToShelf('Recommended')">เนเธเธฐเธเธณ</button>
     </section>
 
-    <section class="hero-strip" aria-label="แบนเนอร์แนะนำ">
+    <section class="hero-strip" aria-label="เนเธเธเน€เธเธญเธฃเนเนเธเธฐเธเธณ">
       <button
         v-if="bannerPages > 1"
         type="button"
         class="hero-arrow hero-arrow-left"
-        aria-label="แบนเนอร์ก่อนหน้า"
+        aria-label="เนเธเธเน€เธเธญเธฃเนเธเนเธญเธเธซเธเนเธฒ"
         @click="goToPrevBanner"
       >
-        ‹
+        โ€น
       </button>
 
       <button
         v-if="bannerPages > 1"
         type="button"
         class="hero-arrow hero-arrow-right"
-        aria-label="แบนเนอร์ถัดไป"
+        aria-label="เนเธเธเน€เธเธญเธฃเนเธ–เธฑเธ”เนเธ"
         @click="goToNextBanner"
       >
-        ›
+        โ€บ
       </button>
 
       <div
@@ -77,19 +77,19 @@
         >
           <div class="promo-copy">
             <span>Read and Voice</span>
-            <h1>อ่านและฟังอีบุ๊กได้ทุกที่</h1>
-            <p>เลือกหนังสือเล่มแรกเพื่อเริ่มต้นการอ่านของคุณ</p>
+            <h1>เธญเนเธฒเธเนเธฅเธฐเธเธฑเธเธญเธตเธเธธเนเธเนเธ”เนเธ—เธธเธเธ—เธตเน</h1>
+            <p>เน€เธฅเธทเธญเธเธซเธเธฑเธเธชเธทเธญเน€เธฅเนเธกเนเธฃเธเน€เธเธทเนเธญเน€เธฃเธดเนเธกเธ•เนเธเธเธฒเธฃเธญเนเธฒเธเธเธญเธเธเธธเธ“</p>
           </div>
         </article>
       </div>
 
-      <div v-if="bannerPages > 1" class="hero-dots" aria-label="เลือกแบนเนอร์">
+      <div v-if="bannerPages > 1" class="hero-dots" aria-label="เน€เธฅเธทเธญเธเนเธเธเน€เธเธญเธฃเน">
         <button
           v-for="index in bannerPages"
           :key="index"
           type="button"
           :class="{ active: index - 1 === activeBannerIndex }"
-          :aria-label="`แบนเนอร์ชุดที่ ${index}`"
+          :aria-label="`เนเธเธเน€เธเธญเธฃเนเธเธธเธ”เธ—เธตเน ${index}`"
           @click="setActiveBanner(index - 1)"
         ></button>
       </div>
@@ -97,20 +97,20 @@
 
     <main class="storefront">
       <div v-if="homeSections.length === 0" class="empty-box">
-        ยังไม่มีหนังสือแสดงผล
+        เธขเธฑเธเนเธกเนเธกเธตเธซเธเธฑเธเธชเธทเธญเนเธชเธ”เธเธเธฅ
       </div>
 
       <section
         v-if="categoryLinks.length"
         class="category-overview"
-        aria-label="หมวดหมู่หนังสือ"
+        aria-label="เธซเธกเธงเธ”เธซเธกเธนเนเธซเธเธฑเธเธชเธทเธญ"
       >
         <div class="section-head section-head--stacked">
           <div>
-            <span class="section-kicker">เลือกอ่านตามหมวด</span>
-            <h2>หมวดหมู่หนังสือ</h2>
+            <span class="section-kicker">เน€เธฅเธทเธญเธเธญเนเธฒเธเธ•เธฒเธกเธซเธกเธงเธ”</span>
+            <h2>เธซเธกเธงเธ”เธซเธกเธนเนเธซเธเธฑเธเธชเธทเธญ</h2>
           </div>
-          <router-link to="/store">ดูทั้งหมด</router-link>
+          <router-link to="/store">เธ”เธนเธ—เธฑเนเธเธซเธกเธ”</router-link>
         </div>
         <div class="category-chip-grid">
           <router-link
@@ -120,18 +120,18 @@
             :to="{ name: 'Store', query: { category: category.name } }"
           >
             <strong>{{ category.name }}</strong>
-            <span>{{ category.count }} เรื่อง</span>
+            <span>{{ category.count }} เน€เธฃเธทเนเธญเธ</span>
           </router-link>
         </div>
       </section>
 
       <section
-        v-for="section in homeSections"
+        v-for="(section, sectionIndex) in homeSections"
         :key="section.title"
         class="shelf-section"
         :class="`shelf-section--${section.kind || 'mixed'}`"
       >
-        <div class="section-head section-head--stacked">
+        <div class="section-head">
           <div>
             <span v-if="section.kicker" class="section-kicker">{{
               section.kicker
@@ -139,10 +139,29 @@
             <h2>{{ section.title }}</h2>
             <p v-if="section.description">{{ section.description }}</p>
           </div>
-          <router-link :to="section.to">ดูทั้งหมด</router-link>
+          <router-link :to="getSectionAllLink(section)">เธ”เธนเธ—เธฑเนเธเธซเธกเธ”</router-link>
         </div>
 
-        <div class="book-grid">
+        <div class="shelf-rail-wrap">
+          <button
+            v-if="section.books.length > 4"
+            class="shelf-arrow shelf-arrow--left"
+            type="button"
+            aria-label="เน€เธฅเธทเนเธญเธเนเธเธ—เธฒเธเธเนเธฒเธข"
+            @click="scrollShelf(sectionIndex, -1)"
+          >
+            โ€น
+          </button>
+          <button
+            v-if="section.books.length > 4"
+            class="shelf-arrow shelf-arrow--right"
+            type="button"
+            aria-label="เน€เธฅเธทเนเธญเธเนเธเธ—เธฒเธเธเธงเธฒ"
+            @click="scrollShelf(sectionIndex, 1)"
+          >
+            โ€บ
+          </button>
+          <div class="book-grid book-rail" :data-shelf-index="sectionIndex">
           <article
             v-for="book in section.books"
             :key="`${section.title}-${book.id}`"
@@ -174,7 +193,7 @@
                       :key="index"
                       :class="{ active: index <= getFilledHearts(book) }"
                     >
-                      ♥
+                      โฅ
                     </span>
                   </span>
                   <small>{{ formatRatingCount(book) }}</small>
@@ -187,13 +206,14 @@
                 >
                   {{
                     addingFreeBookId === book.id
-                      ? "กำลังเพิ่ม..."
+                      ? "เธเธณเธฅเธฑเธเน€เธเธดเนเธก..."
                       : formatBookPrice(book)
                   }}
                 </button>
               </div>
             </div>
           </article>
+          </div>
         </div>
       </section>
     </main>
@@ -210,14 +230,14 @@
         <button
           class="support-close"
           type="button"
-          aria-label="ปิด"
+          aria-label="เธเธดเธ”"
           @click="closeSupportDialog"
         >
-          ×
+          ร—
         </button>
         <template v-if="supportDialogMode === 'select'">
-          <h2 id="support-modal-title">ให้กำลังใจนักเขียน</h2>
-          <p>คุณสามารถให้กำลังใจนักเขียนได้ โดยให้ทิปเพิ่มจากราคาปกติ</p>
+          <h2 id="support-modal-title">เนเธซเนเธเธณเธฅเธฑเธเนเธเธเธฑเธเน€เธเธตเธขเธ</h2>
+          <p>เธเธธเธ“เธชเธฒเธกเธฒเธฃเธ–เนเธซเนเธเธณเธฅเธฑเธเนเธเธเธฑเธเน€เธเธตเธขเธเนเธ”เน เนเธ”เธขเนเธซเนเธ—เธดเธเน€เธเธดเนเธกเธเธฒเธเธฃเธฒเธเธฒเธเธเธ•เธด</p>
           <strong class="support-book-title">{{
             supportDialogBook.title
           }}</strong>
@@ -230,9 +250,9 @@
               :class="{ active: selectedSupportAmount === amount }"
               @click="selectedSupportAmount = amount"
             >
-              {{ amount }} บาท
+              {{ amount }} เธเธฒเธ—
               <small v-if="amount === supportAmountOptions[0]"
-                >(ราคาปกติ)</small
+                >(เธฃเธฒเธเธฒเธเธเธ•เธด)</small
               >
             </button>
             <button
@@ -241,7 +261,7 @@
               :class="{ active: selectedSupportAmount === customSupportAmount }"
               @click="selectCustomSupportAmount"
             >
-              กำหนดเอง
+              เธเธณเธซเธเธ”เน€เธญเธ
             </button>
           </div>
 
@@ -255,7 +275,7 @@
               type="button"
               @click="closeSupportDialog"
             >
-              ยกเลิก
+              เธขเธเน€เธฅเธดเธ
             </button>
             <button
               class="support-confirm"
@@ -263,14 +283,14 @@
               :disabled="addingToCart"
               @click="confirmSupport"
             >
-              {{ addingToCart ? "กำลังเพิ่ม..." : "ยืนยัน" }}
+              {{ addingToCart ? "เธเธณเธฅเธฑเธเน€เธเธดเนเธก..." : "เธขเธทเธเธขเธฑเธ" }}
             </button>
           </div>
         </template>
 
         <template v-else>
           <h2 id="support-modal-title" class="support-added-title">
-            เพิ่มหนังสือลงตะกร้าแล้ว
+            เน€เธเธดเนเธกเธซเธเธฑเธเธชเธทเธญเธฅเธเธ•เธฐเธเธฃเนเธฒเนเธฅเนเธง
           </h2>
           <strong class="support-book-title">{{
             supportDialogBook.title
@@ -282,21 +302,21 @@
               type="button"
               @click="continueShopping"
             >
-              เลือกซื้อหนังสือเล่มอื่นต่อ
+              เน€เธฅเธทเธญเธเธเธทเนเธญเธซเธเธฑเธเธชเธทเธญเน€เธฅเนเธกเธญเธทเนเธเธ•เนเธญ
             </button>
             <button
               class="support-solid-wide"
               type="button"
               @click="goToCheckout"
             >
-              ชำระเงิน
+              เธเธณเธฃเธฐเน€เธเธดเธ
             </button>
           </div>
 
           <div class="support-divider"></div>
 
           <button class="support-coin-pay" type="button" @click="goToCheckout">
-            ชำระเงินด้วย
+            เธเธณเธฃเธฐเน€เธเธดเธเธ”เนเธงเธข
             <span class="support-coin-dot" aria-hidden="true"></span>
             Read coin
           </button>
@@ -327,6 +347,11 @@ type Book = {
   coin_price?: number | string;
   review_count?: number | string;
   average_rating?: number | string;
+  episode_count?: number | string;
+  read_count?: number | string;
+  view_count?: number | string;
+  favorite_count?: number | string;
+  like_count?: number | string;
 };
 
 type HomeSection = {
@@ -384,44 +409,44 @@ const visibleBannerCount = 3;
 const fallbackCampaigns = [
   {
     label: "MAY MY DAY",
-    headline: "อ่านให้ตาค้าง",
-    subtitle: "รวมเรื่องน่าอ่านที่หยิบแล้ววางไม่ลง",
-    badge: "ลดสูงสุด 45%",
+    headline: "เธญเนเธฒเธเนเธซเนเธ•เธฒเธเนเธฒเธ",
+    subtitle: "เธฃเธงเธกเน€เธฃเธทเนเธญเธเธเนเธฒเธญเนเธฒเธเธ—เธตเนเธซเธขเธดเธเนเธฅเนเธงเธงเธฒเธเนเธกเนเธฅเธ",
+    badge: "เธฅเธ”เธชเธนเธเธชเธธเธ” 45%",
     theme: "theme-blue",
   },
   {
     label: "Final Call",
-    headline: "รับซื้อตอนนี้",
-    subtitle: "โปรโมชันก่อนหมดสิทธิ์สำหรับนักอ่านตัวจริง",
-    badge: "ถึง 7 พ.ค.",
+    headline: "เธฃเธฑเธเธเธทเนเธญเธ•เธญเธเธเธตเน",
+    subtitle: "เนเธเธฃเนเธกเธเธฑเธเธเนเธญเธเธซเธกเธ”เธชเธดเธ—เธเธดเนเธชเธณเธซเธฃเธฑเธเธเธฑเธเธญเนเธฒเธเธ•เธฑเธงเธเธฃเธดเธ",
+    badge: "เธ–เธถเธ 7 เธ.เธ.",
     theme: "theme-coral",
   },
   {
     label: "New Release",
-    headline: "บังเอิญเกิดใหม่",
-    subtitle: "นิยายมาใหม่พร้อมให้ตามอ่านต่อเนื่อง",
-    badge: "มาแรง",
+    headline: "เธเธฑเธเน€เธญเธดเธเน€เธเธดเธ”เนเธซเธกเน",
+    subtitle: "เธเธดเธขเธฒเธขเธกเธฒเนเธซเธกเนเธเธฃเนเธญเธกเนเธซเนเธ•เธฒเธกเธญเนเธฒเธเธ•เนเธญเน€เธเธทเนเธญเธ",
+    badge: "เธกเธฒเนเธฃเธ",
     theme: "theme-warm",
   },
   {
     label: "Recommended",
-    headline: "เล่มเด็ดประจำวัน",
-    subtitle: "คัดจากชั้นหนังสือยอดนิยมของนักอ่าน",
-    badge: "แนะนำ",
+    headline: "เน€เธฅเนเธกเน€เธ”เนเธ”เธเธฃเธฐเธเธณเธงเธฑเธ",
+    subtitle: "เธเธฑเธ”เธเธฒเธเธเธฑเนเธเธซเธเธฑเธเธชเธทเธญเธขเธญเธ”เธเธดเธขเธกเธเธญเธเธเธฑเธเธญเนเธฒเธ",
+    badge: "เนเธเธฐเธเธณ",
     theme: "theme-green",
   },
 ];
 
 const sectionDefinitions = [
   {
-    title: "ออกใหม่",
+    title: "เธญเธญเธเนเธซเธกเน",
     to: "/new-releases",
     endpoint: "/new-releases",
     limit: 5,
   },
-  { title: "ขายดี", to: "/best-sellers", endpoint: "/best-sellers", limit: 5 },
-  { title: "อ่านฟรี", to: "/free-books", endpoint: "/free-books", limit: 5 },
-  { title: "แนะนำ", to: "/recommended", endpoint: "/recommended", limit: 5 },
+  { title: "เธเธฒเธขเธ”เธต", to: "/best-sellers", endpoint: "/best-sellers", limit: 5 },
+  { title: "เธญเนเธฒเธเธเธฃเธต", to: "/free-books", endpoint: "/free-books", limit: 5 },
+  { title: "เนเธเธฐเธเธณ", to: "/recommended", endpoint: "/recommended", limit: 5 },
 ] as const;
 
 const bannerItems = computed(() => {
@@ -520,14 +545,14 @@ const formatRatingCount = (book: Book) => {
 };
 
 const getReviewLabel = (book: Book) => {
-  return `รีวิว ${Math.round(getReviewPercent(book))} เปอร์เซ็นต์, ${formatRatingCount(book)}`;
+  return `เธฃเธตเธงเธดเธง ${Math.round(getReviewPercent(book))} เน€เธเธญเธฃเนเน€เธเนเธเธ•เน, ${formatRatingCount(book)}`;
 };
 
 const formatBookPrice = (book: Book) => {
   const price = Number(book.coin_price ?? book.price ?? 0);
   if (!Number.isFinite(price) || price <= 0 || book.access_type === "free")
-    return "ฟรี";
-  return `฿ ${price.toLocaleString("th-TH", { maximumFractionDigits: 0 })}`;
+    return "เธเธฃเธต";
+  return `เธฟ ${price.toLocaleString("th-TH", { maximumFractionDigits: 0 })}`;
 };
 
 const getContentKind = (book: Book) => {
@@ -535,7 +560,47 @@ const getContentKind = (book: Book) => {
 };
 
 const getContentLabel = (book: Book) => {
-  return getContentKind(book) === "serial" ? "รายตอน" : "อีบุ๊ก";
+  return getContentKind(book) === "serial" ? "เธฃเธฒเธขเธ•เธญเธ" : "เธญเธตเธเธธเนเธ";
+};
+
+const getSectionAllLink = (section: HomeSection) => {
+  if (section.kind === "serial") return { name: "Serials" };
+  if (section.kind === "ebook") return { name: "Store", query: { type: "ebook" } };
+  return section.to;
+};
+
+const scrollShelf = (index: number, direction: -1 | 1) => {
+  const rail = document.querySelector<HTMLElement>(
+    `[data-shelf-index="${index}"]`,
+  );
+  if (!rail) return;
+
+  rail.scrollBy({
+    left: direction * Math.max(rail.clientWidth * 0.82, 320),
+    behavior: "smooth",
+  });
+};
+
+const formatCompactCount = (value: number) => {
+  if (!Number.isFinite(value) || value <= 0) return "0";
+  if (value >= 1000000) return `${(value / 1000000).toFixed(value >= 10000000 ? 0 : 1)}M`;
+  if (value >= 1000) return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}K`;
+  return value.toLocaleString("th-TH");
+};
+
+const getEpisodeCount = (book: Book) => {
+  const count = Number(book.episode_count ?? (getContentKind(book) === "serial" ? 1 : 0));
+  return Number.isFinite(count) ? count : 0;
+};
+
+const getViewCount = (book: Book) => {
+  const count = Number(book.read_count ?? book.view_count ?? 0);
+  return Number.isFinite(count) ? count : 0;
+};
+
+const getLikeCount = (book: Book) => {
+  const count = Number(book.favorite_count ?? book.like_count ?? book.review_count ?? 0);
+  return Number.isFinite(count) ? count : 0;
 };
 
 const isFreeBook = (book: Book) => {
@@ -566,7 +631,7 @@ const addFreeBookToLibrary = async (book: Book) => {
 
   const user = getUser();
   if (!user && !isAuthenticated()) {
-    window.alert("กรุณาเข้าสู่ระบบก่อนเพิ่มหนังสือเข้าคลัง");
+    window.alert("เธเธฃเธธเธ“เธฒเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเธเนเธญเธเน€เธเธดเนเธกเธซเธเธฑเธเธชเธทเธญเน€เธเนเธฒเธเธฅเธฑเธ");
     router.push({
       name: "Login",
       query: { redirect: router.currentRoute.value.fullPath },
@@ -579,7 +644,7 @@ const addFreeBookToLibrary = async (book: Book) => {
   try {
     await api.post("/library", { book_id: book.id });
     const goLibrary = window.confirm(
-      `เพิ่ม "${book.title}" เข้าคลังหนังสือแล้ว ต้องการไปที่คลังเลยไหม?`,
+      `เน€เธเธดเนเธก "${book.title}" เน€เธเนเธฒเธเธฅเธฑเธเธซเธเธฑเธเธชเธทเธญเนเธฅเนเธง เธ•เนเธญเธเธเธฒเธฃเนเธเธ—เธตเนเธเธฅเธฑเธเน€เธฅเธขเนเธซเธก?`,
     );
 
     if (goLibrary) {
@@ -587,7 +652,7 @@ const addFreeBookToLibrary = async (book: Book) => {
     }
   } catch (error: any) {
     window.alert(
-      error?.response?.data?.message || "เพิ่มหนังสือเข้าคลังไม่สำเร็จ",
+      error?.response?.data?.message || "เน€เธเธดเนเธกเธซเธเธฑเธเธชเธทเธญเน€เธเนเธฒเธเธฅเธฑเธเนเธกเนเธชเธณเน€เธฃเนเธ",
     );
   } finally {
     addingFreeBookId.value = null;
@@ -603,7 +668,7 @@ const closeSupportDialog = () => {
 };
 
 const selectCustomSupportAmount = () => {
-  const value = window.prompt("ระบุจำนวนเงินที่ต้องการให้กำลังใจ", "99");
+  const value = window.prompt("เธฃเธฐเธเธธเธเธณเธเธงเธเน€เธเธดเธเธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเนเธซเนเธเธณเธฅเธฑเธเนเธ", "99");
   const amount = Number(value);
   if (!Number.isFinite(amount) || amount <= 0) return;
   customSupportAmount.value = Math.round(amount);
@@ -630,7 +695,7 @@ const confirmSupport = async () => {
     }
 
     supportDialogMessage.value =
-      error?.response?.data?.message || "เพิ่มหนังสือลงตะกร้าไม่สำเร็จ";
+      error?.response?.data?.message || "เน€เธเธดเนเธกเธซเธเธฑเธเธชเธทเธญเธฅเธเธ•เธฐเธเธฃเนเธฒเนเธกเนเธชเธณเน€เธฃเนเธ";
   } finally {
     addingToCart.value = false;
   }
@@ -769,8 +834,8 @@ async function loadHomeContent() {
     title: section.title,
     to: section.to,
     kind: "mixed",
-    kicker: "คัดจากคลัง",
-    description: "รายการเด่นที่ผู้อ่านเลือกดูบ่อย",
+    kicker: "เธเธฑเธ”เธเธฒเธเธเธฅเธฑเธ",
+    description: "เธฃเธฒเธขเธเธฒเธฃเน€เธ”เนเธเธ—เธตเนเธเธนเนเธญเนเธฒเธเน€เธฅเธทเธญเธเธ”เธนเธเนเธญเธข",
     books: (sectionBooks[index].length ? sectionBooks[index] : catalogBooks)
       .map((book) => ({
         ...book,
@@ -785,19 +850,19 @@ async function loadHomeContent() {
 
   homeSectionItems.value.unshift(
     {
-      title: "อีบุ๊กเป็นเล่ม",
+      title: "เธญเธตเธเธธเนเธเน€เธเนเธเน€เธฅเนเธก",
       to: "/store",
       kind: "ebook",
-      kicker: "อ่านจบเป็นเล่ม",
-      description: "เลือกซื้อหรือเพิ่มเข้าคลังสำหรับอ่านและฟังแบบเป็นเล่ม",
+      kicker: "เธญเนเธฒเธเธเธเน€เธเนเธเน€เธฅเนเธก",
+      description: "เน€เธฅเธทเธญเธเธเธทเนเธญเธซเธฃเธทเธญเน€เธเธดเนเธกเน€เธเนเธฒเธเธฅเธฑเธเธชเธณเธซเธฃเธฑเธเธญเนเธฒเธเนเธฅเธฐเธเธฑเธเนเธเธเน€เธเนเธเน€เธฅเนเธก",
       books: normalizedEbooks.slice(0, 10),
     },
     {
-      title: "รายตอนกำลังอัปเดต",
+      title: "เธฃเธฒเธขเธ•เธญเธเธเธณเธฅเธฑเธเธญเธฑเธเน€เธ”เธ•",
       to: "/serials",
       kind: "serial",
-      kicker: "ติดตามต่อเนื่อง",
-      description: "เรื่องแบบตอนต่อ ตอนใหม่อ่านต่อได้ง่าย ไม่ปนกับอีบุ๊ก",
+      kicker: "เธ•เธดเธ”เธ•เธฒเธกเธ•เนเธญเน€เธเธทเนเธญเธ",
+      description: "เน€เธฃเธทเนเธญเธเนเธเธเธ•เธญเธเธ•เนเธญ เธ•เธญเธเนเธซเธกเนเธญเนเธฒเธเธ•เนเธญเนเธ”เนเธเนเธฒเธข เนเธกเนเธเธเธเธฑเธเธญเธตเธเธธเนเธ",
       books: normalizedSerials.slice(0, 10),
     },
   );
@@ -811,7 +876,7 @@ onMounted(async () => {
     startCarousel();
     document.addEventListener("visibilitychange", handleVisibilityChange);
   } catch (error) {
-    console.error("โหลดข้อมูลหนังสือไม่สำเร็จ:", error);
+    console.error("เนเธซเธฅเธ”เธเนเธญเธกเธนเธฅเธซเธเธฑเธเธชเธทเธญเนเธกเนเธชเธณเน€เธฃเนเธ:", error);
   }
 });
 
@@ -1165,7 +1230,7 @@ watch(bannerPages, () => {
 }
 
 .storefront {
-  width: min(100% - calc(var(--page-gutter, 14px) * 2), 1280px);
+  width: min(100% - calc(var(--page-gutter, 14px) * 3.2), 1280px);
   margin: 0 auto;
   padding-top: 22px;
 }
@@ -1271,12 +1336,58 @@ watch(bannerPages, () => {
   color: var(--text-muted);
 }
 
+.shelf-rail-wrap {
+  position: relative;
+  margin-top: 10px;
+}
+
 .book-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 18px;
-  margin-top: 10px;
+  grid-auto-flow: column;
+  grid-auto-columns: clamp(270px, 24vw, 340px);
+  grid-template-columns: none;
+  gap: 20px;
   align-items: stretch;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  padding: 0 56px 10px 6px;
+  scroll-behavior: smooth;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.book-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.shelf-arrow {
+  position: absolute;
+  top: 44%;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.36);
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 34px;
+  line-height: 1;
+  transform: translateY(-50%);
+}
+
+.shelf-arrow:hover {
+  background: rgba(15, 23, 42, 0.54);
+}
+
+.shelf-arrow--left {
+  left: 8px;
+}
+
+.shelf-arrow--right {
+  right: 8px;
 }
 
 .book-card {
@@ -1284,8 +1395,9 @@ watch(bannerPages, () => {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  border-radius: 2px;
+  border-radius: 8px;
   cursor: pointer;
+  scroll-snap-align: start;
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease;
@@ -1299,7 +1411,7 @@ watch(bannerPages, () => {
 .book-card img {
   display: block;
   width: 100%;
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 4 / 5;
   flex: 0 0 auto;
   height: auto;
   object-fit: cover;
@@ -1308,12 +1420,12 @@ watch(bannerPages, () => {
 
 .book-info {
   display: grid;
-  grid-template-rows: auto minmax(42px, auto) auto auto auto;
+  grid-template-rows: minmax(38px, auto) auto auto;
   align-content: start;
   gap: 5px;
   flex: 1 1 auto;
   min-width: 0;
-  padding: 10px 9px;
+  padding: 10px 12px 8px;
 }
 
 .content-badge {
@@ -1339,7 +1451,7 @@ watch(bannerPages, () => {
 
 .book-info p {
   display: -webkit-box;
-  min-height: 42px;
+  min-height: 38px;
   margin: 0;
   overflow: hidden;
   color: var(--text-strong);
@@ -1363,6 +1475,16 @@ watch(bannerPages, () => {
   word-break: break-word;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
+}
+
+.book-meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #8b8f96;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
 }
 
 .book-card-footer {
@@ -1429,7 +1551,7 @@ watch(bannerPages, () => {
 
 @media (max-width: 1180px) {
   .book-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-columns: clamp(210px, 30vw, 250px);
   }
 }
 
@@ -1662,8 +1784,33 @@ watch(bannerPages, () => {
 }
 
 @media (max-width: 640px) {
+  .storefront {
+    width: min(100% - 24px, 1280px);
+    padding-top: 14px;
+  }
+
+  .shelf-section,
+  .category-overview {
+    padding-block: 10px 6px;
+  }
+
   .category-chip-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .category-chip {
+    min-height: 62px;
+    padding: 9px 10px;
+  }
+
+  .category-chip strong {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .category-chip span {
+    font-size: 10px;
   }
 
   .category-bar {
@@ -1691,15 +1838,20 @@ watch(bannerPages, () => {
   }
 
   .book-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
+    grid-auto-columns: clamp(150px, 46vw, 190px);
+    gap: 10px;
     margin-top: 8px;
+    padding: 0 28px 8px 2px;
+  }
+
+  .book-card img {
+    aspect-ratio: 5 / 6;
   }
 
   .book-info {
-    grid-template-rows: auto auto auto auto auto;
+    grid-template-rows: minmax(38px, auto) auto auto;
     gap: 4px;
-    padding: 6px 5px;
+    padding: 8px 10px 7px;
   }
 
   .content-badge {
@@ -1708,18 +1860,18 @@ watch(bannerPages, () => {
   }
 
   .book-info p {
-    display: block;
+    display: -webkit-box;
     min-height: 0;
-    font-size: 9px;
+    font-size: 11px;
     line-height: 1.3;
-    -webkit-line-clamp: unset;
+    -webkit-line-clamp: 2;
   }
 
   .book-info small {
-    display: block;
+    display: -webkit-box;
     min-height: 0;
-    font-size: 8px;
-    -webkit-line-clamp: unset;
+    font-size: 9px;
+    -webkit-line-clamp: 1;
   }
 
   .book-card-footer {
@@ -1727,7 +1879,7 @@ watch(bannerPages, () => {
   }
 
   .heart-row {
-    font-size: 8px;
+    font-size: 9px;
   }
 
   .rating-box small {
@@ -1745,16 +1897,16 @@ watch(bannerPages, () => {
 
 @media (max-width: 420px) {
   .storefront {
-    width: min(100% - 20px, 1280px);
+    width: min(100% - 18px, 1280px);
   }
 
   .category-chip {
-    min-height: 68px;
-    padding: 10px;
+    min-height: 56px;
+    padding: 8px;
   }
 
   .category-chip strong {
-    font-size: 13px;
+    font-size: 11px;
   }
 
   .category-bar {
@@ -1769,14 +1921,15 @@ watch(bannerPages, () => {
   }
 
   .book-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 6px;
+    grid-auto-columns: clamp(136px, 44vw, 166px);
+    gap: 8px;
+    padding-right: 22px;
   }
 
   .book-info {
-    grid-template-rows: auto auto auto auto auto;
+    grid-template-rows: minmax(36px, auto) auto auto;
     gap: 3px;
-    padding: 5px 4px;
+    padding: 7px 9px 6px;
   }
 
   .content-badge {
@@ -1786,12 +1939,12 @@ watch(bannerPages, () => {
 
   .book-info p {
     min-height: 0;
-    font-size: 8px;
+    font-size: 10px;
     line-height: 1.25;
   }
 
   .book-info small {
-    font-size: 7px;
+    font-size: 8px;
   }
 
   .heart-row {

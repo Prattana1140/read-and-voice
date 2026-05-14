@@ -96,6 +96,12 @@ const quickLinks = computed<QuickLink[]>(() => [
     to: "/admin/page-content",
     tone: "default",
   },
+  {
+    title: "System Data Center",
+    text: "Review login logs, social accounts, reading activity, devices, benefits, and reserved tables.",
+    to: "/admin/system-data",
+    tone: "accent",
+  },
 ]);
 
 async function loadSummary() {

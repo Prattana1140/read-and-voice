@@ -15,6 +15,7 @@ import Register from "../pages/Register.vue";
 import AccountLogin from "../pages/AccountLogin.vue";
 import OAuthCallback from "../pages/OAuthCallback.vue";
 import AccessibleHome from "../pages/AccessibleHome.vue";
+import LineLogin from "../pages/LineLogin.vue";
 
 import MyLibrary from "../pages/MyLibrary.vue";
 import WishList from "../pages/Wishlist.vue";
@@ -49,6 +50,11 @@ const routes: RouteRecordRaw[] = [
     path: "/store",
     name: "Store",
     component: Store,
+  },
+  {
+    path: "/search",
+    name: "Search",
+    component: () => import("../pages/SearchPage.vue"),
   },
   {
     path: "/ebooks",
@@ -111,6 +117,61 @@ const routes: RouteRecordRaw[] = [
     component: () => import("../pages/DataPrivacy.vue"),
   },
   {
+    path: "/support",
+    name: "Support",
+    component: () => import("../pages/HelpSupport.vue"),
+  },
+  {
+    path: "/contact",
+    name: "Contact",
+    component: () => import("../pages/HelpSupport.vue"),
+  },
+  {
+    path: "/report",
+    name: "ReportIssue",
+    component: () => import("../pages/HelpSupport.vue"),
+  },
+  {
+    path: "/categories",
+    name: "CategoryIndex",
+    component: () => import("../pages/DiscoveryPage.vue"),
+  },
+  {
+    path: "/categories/:name",
+    name: "CategoryDetail",
+    component: () => import("../pages/DiscoveryPage.vue"),
+  },
+  {
+    path: "/tags",
+    name: "TagIndex",
+    component: () => import("../pages/DiscoveryPage.vue"),
+  },
+  {
+    path: "/tags/:name",
+    name: "TagDetail",
+    component: () => import("../pages/DiscoveryPage.vue"),
+  },
+  {
+    path: "/publishers",
+    name: "PublisherIndex",
+    component: () => import("../pages/DiscoveryPage.vue"),
+  },
+  {
+    path: "/publishers/:name",
+    name: "PublisherDetail",
+    component: () => import("../pages/DiscoveryPage.vue"),
+  },
+  {
+    path: "/authors",
+    name: "AuthorIndex",
+    component: () => import("../pages/DiscoveryPage.vue"),
+  },
+  {
+    path: "/authors/:name",
+    name: "AuthorDetail",
+    component: () => import("../pages/DiscoveryPage.vue"),
+  },
+  {
     path: "/subscription-plans",
     name: "SubscriptionPlans",
     component: SubscriptionPlans,
@@ -139,7 +200,9 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: "/login/line",
-    redirect: "/login",
+    name: "LineLogin",
+    component: LineLogin,
+    meta: { guestOnly: true },
   },
   {
     path: "/login/facebook",
@@ -349,6 +412,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, allowedRoles: adminRoles },
   },
   {
+    path: "/admin/system-data",
+    name: "AdminSystemData",
+    component: () => import("../pages/admin/SystemData.vue"),
+    meta: { requiresAuth: true, allowedRoles: adminRoles },
+  },
+  {
     path: "/admin/page-content",
     name: "AdminPageContent",
     component: () => import("../pages/admin/PageContentManager.vue"),
@@ -405,7 +474,8 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: "/:pathMatch(.*)*",
-    redirect: "/",
+    name: "NotFound",
+    component: () => import("../pages/NotFound.vue"),
   },
 ];
 

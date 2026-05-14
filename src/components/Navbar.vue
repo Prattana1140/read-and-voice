@@ -93,12 +93,9 @@ const notificationError = ref("");
 
 const allRoles: UserRole[] = ["guest", "user", "writer", "admin", "superadmin"];
 const compactNavBreakpoint = 780;
-const compactNavHysteresis = 260;
-const compactNavRestoreBreakpoint = 1560;
 
 let navResizeObserver: ResizeObserver | null = null;
 let compactMeasureFrame = 0;
-let compactExpandWidth = 0;
 
 const notificationCount = computed(
   () =>
@@ -363,6 +360,11 @@ const accountGroups = computed<NavGroup[]>(() => {
         roles: ["admin", "superadmin"],
       },
       {
+        label: "System Data",
+        to: "/admin/system-data",
+        roles: ["admin", "superadmin"],
+      },
+      {
         label: t("account.uploadBook"),
         to: "/admin/upload-book",
         roles: ["admin"],
@@ -475,37 +477,7 @@ const scheduleCompactNavMeasure = () => {
     const viewportWidth =
       document.documentElement.clientWidth || window.innerWidth;
 
-    if (viewportWidth <= compactNavBreakpoint) {
-      isCompactNav.value = true;
-      return;
-    }
-
-    if (isCompactNav.value) {
-      const restoreWidth = Math.max(
-        compactExpandWidth || 0,
-        compactNavRestoreBreakpoint,
-      );
-
-      if (viewportWidth < restoreWidth) {
-        return;
-      }
-
-      isCompactNav.value = false;
-      window.requestAnimationFrame(() => {
-        const shouldCompact = hasNavbarOverflow();
-        isCompactNav.value = shouldCompact;
-        compactExpandWidth = shouldCompact
-          ? viewportWidth + compactNavHysteresis
-          : 0;
-      });
-      return;
-    }
-
-    const shouldCompact = hasNavbarOverflow();
-    isCompactNav.value = shouldCompact;
-    compactExpandWidth = shouldCompact
-      ? viewportWidth + compactNavHysteresis
-      : 0;
+    isCompactNav.value = viewportWidth <= compactNavBreakpoint;
   });
 };
 
@@ -581,7 +553,7 @@ const submitSearch = () => {
   closeMenu();
   closeSearch();
   router.push(
-    keyword ? { name: "Store", query: { q: keyword } } : { name: "Store" },
+    keyword ? { name: "Search", query: { q: keyword } } : { name: "Search" },
   );
 };
 
@@ -1398,7 +1370,7 @@ watch(isCompactNav, (compact) => {
   align-items: center;
   flex: 0 1 auto;
   min-width: max-content;
-  gap: clamp(8px, 1vw, 14px);
+  gap: 8px;
 }
 
 .brand,
@@ -1458,10 +1430,9 @@ watch(isCompactNav, (compact) => {
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  width: 184px;
-  height: 40px;
+  min-height: 34px;
   border-radius: 999px;
-  font-size: 14px;
+  font-size: clamp(13px, 0.72vw, 14px);
   font-weight: 900;
   line-height: 1.15;
   text-align: center;
@@ -1469,15 +1440,17 @@ watch(isCompactNav, (compact) => {
 }
 
 .subscription-link {
-  padding: 0 14px;
+  width: auto;
+  min-width: 164px;
+  padding: 0 16px;
   background: linear-gradient(135deg, #15b8c7, #0ea5a8);
   color: #fff;
 }
 
 .coin-link {
-  gap: 8px;
+  gap: 7px;
   width: auto;
-  min-width: 122px;
+  min-width: 118px;
   padding: 0 14px;
   background: linear-gradient(180deg, #ff9d10 0%, #f28a00 100%);
   color: #fff;
@@ -1487,8 +1460,9 @@ watch(isCompactNav, (compact) => {
 }
 
 .accessibility-link {
-  width: 200px;
-  padding: 0 14px;
+  width: auto;
+  min-width: 186px;
+  padding: 0 16px;
   border: 1px solid rgba(15, 118, 110, 0.16);
   background: rgba(255, 255, 255, 0.82);
   color: #0f766e;
@@ -1498,8 +1472,8 @@ watch(isCompactNav, (compact) => {
 .coin-mark {
   display: inline-grid;
   place-items: center;
-  width: 21px;
-  height: 21px;
+  width: 17px;
+  height: 17px;
   border-radius: 999px;
   background: radial-gradient(
     circle at 35% 35%,
@@ -1513,8 +1487,8 @@ watch(isCompactNav, (compact) => {
 }
 
 .coin-mark svg {
-  width: 14px;
-  height: 14px;
+  width: 11px;
+  height: 11px;
   filter: drop-shadow(0 1px 0 rgba(181, 118, 0, 0.18));
 }
 
@@ -2364,6 +2338,8 @@ watch(isCompactNav, (compact) => {
 .mobile-pill-link,
 .mobile-cta-group .subscription-link,
 .mobile-cta-group .coin-link {
+  grid-column: auto;
+  grid-row: auto;
   display: inline-flex;
   width: 100%;
   min-height: 34px;

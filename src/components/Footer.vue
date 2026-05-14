@@ -27,9 +27,6 @@ const canWriteBooks = computed(() => currentRole.value === "writer");
 const memberLink = computed(() => (isLoggedIn.value ? "/my-library" : "/login"));
 const recentLink = computed(() => (isLoggedIn.value ? "/profile" : "/login"));
 const walletLink = computed(() => (isLoggedIn.value ? "/coin-wallet" : "/login"));
-const notificationSettingsLink = computed(() =>
-  isLoggedIn.value ? "/notification-settings" : "/login",
-);
 </script>
 
 <template>
@@ -61,12 +58,12 @@ const notificationSettingsLink = computed(() =>
       <section class="footer-column footer-about">
         <div class="footer-about-links">
           <h3>{{ t("footer.about") }}</h3>
-          <router-link to="/data-privacy">{{ t("footer.contact") }}</router-link>
+          <router-link to="/contact">{{ t("footer.contact") }}</router-link>
           <router-link to="/terms">{{ t("footer.terms") }}</router-link>
           <router-link to="/privacy-policy">{{ t("footer.privacy") }}</router-link>
           <router-link to="/data-privacy">{{ t("footer.dataPrivacy") }}</router-link>
           <router-link :to="walletLink">{{ t("nav.topUp") }}</router-link>
-          <router-link :to="notificationSettingsLink">{{ t("footer.report") }}</router-link>
+          <router-link to="/report">{{ t("footer.report") }}</router-link>
         </div>
 
         <div class="footer-logo-wrap">
