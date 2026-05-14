@@ -219,15 +219,15 @@ const accountGroups = computed<NavGroup[]>(() => {
   const role = currentRole.value;
 
   const adminAccountGroup: NavGroup = {
-    title: "บัญชี",
+    title: t("admin.account"),
     items: [
       {
-        label: "โปรไฟล์ของฉัน",
+        label: t("account.profile"),
         to: "/profile",
         roles: ["admin", "superadmin"],
       },
       {
-        label: "แจ้งเตือน",
+        label: t("account.notifications"),
         to: "/account/notifications",
         roles: ["admin", "superadmin"],
       },
@@ -340,22 +340,22 @@ const accountGroups = computed<NavGroup[]>(() => {
         roles: ["admin", "superadmin"],
       },
       {
-        label: "อนุมัติชำระเงิน",
+        label: t("admin.paymentApprovals"),
         to: "/admin/payments",
         roles: ["admin", "superadmin"],
       },
       {
-        label: "อนุมัติเติมเหรียญ",
+        label: t("admin.coinTopups"),
         to: "/admin/coin-topups",
         roles: ["admin", "superadmin"],
       },
       {
-        label: "อนุมัติคำสั่งซื้อ",
+        label: t("admin.orderPayments"),
         to: "/admin/order-payments",
         roles: ["admin", "superadmin"],
       },
       {
-        label: "อนุมัติสมาชิก",
+        label: t("admin.subscriptionPayments"),
         to: "/admin/subscription-payments",
         roles: ["admin", "superadmin"],
       },
@@ -401,11 +401,11 @@ const accountGroups = computed<NavGroup[]>(() => {
   };
 
   const adminUtilityGroup: NavGroup = {
-    title: "ทางลัด",
+    title: t("admin.shortcuts"),
     items: [
-      { label: "ดูหน้าเว็บ", to: "/", roles: ["admin", "superadmin"] },
+      { label: t("admin.viewWebsite"), to: "/", roles: ["admin", "superadmin"] },
       {
-        label: "ตั้งค่าระบบ",
+        label: t("account.settingsSystem"),
         to: "/superadmin/settings",
         roles: ["superadmin"],
       },
@@ -476,8 +476,22 @@ const scheduleCompactNavMeasure = () => {
     compactMeasureFrame = 0;
     const viewportWidth =
       document.documentElement.clientWidth || window.innerWidth;
+    const navbar = navbarRef.value;
 
-    isCompactNav.value = viewportWidth <= compactNavBreakpoint;
+    if (viewportWidth <= compactNavBreakpoint) {
+      isCompactNav.value = true;
+      return;
+    }
+
+    if (isCompactNav.value && navbar) {
+      navbar.classList.remove("navbar--compact");
+      const shouldStayCompact = hasNavbarOverflow();
+      navbar.classList.add("navbar--compact");
+      isCompactNav.value = shouldStayCompact;
+      return;
+    }
+
+    isCompactNav.value = hasNavbarOverflow();
   });
 };
 
@@ -898,7 +912,7 @@ watch(isCompactNav, (compact) => {
             v-if="locale === 'th'"
             type="button"
             class="language-switch__single-btn"
-            aria-label="Switch language to English"
+            :aria-label="t('language.switchToEn')"
             @click="selectLanguage('en')"
           >
             EN
@@ -908,10 +922,10 @@ watch(isCompactNav, (compact) => {
             v-else
             type="button"
             class="language-switch__single-btn"
-            aria-label="เปลี่ยนภาษาเป็นไทย"
+            :aria-label="t('language.switchToTh')"
             @click="selectLanguage('th')"
           >
-            ไทย
+            {{ t("language.th") }}
           </button>
         </div>
 
@@ -2369,14 +2383,15 @@ watch(isCompactNav, (compact) => {
 .navbar--compact .top-bar {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
-  min-height: 82px;
-  padding: 10px clamp(18px, 3vw, 40px);
+  gap: 12px;
+  min-height: 68px;
+  padding: 8px clamp(14px, 2.6vw, 34px);
 }
 
 .navbar--compact .left-cluster {
+  flex: 1 1 auto;
   min-width: 0;
-  gap: 8px;
+  gap: 10px;
 }
 
 .navbar--compact .desktop-public-nav {
@@ -2393,14 +2408,45 @@ watch(isCompactNav, (compact) => {
   display: inline-grid;
 }
 
+.navbar--compact .mobile-accessibility-button {
+  display: inline-grid;
+}
+
+.navbar--compact .menu-toggle,
+.navbar--compact .mobile-accessibility-button,
+.navbar--compact .top-actions .icon-button,
+.navbar--compact .notification-button,
+.navbar--compact .avatar-button {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: 0 6px 16px rgba(15, 118, 110, 0.08);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.navbar--compact .menu-toggle svg,
+.navbar--compact .mobile-accessibility-button svg,
+.navbar--compact .top-actions .icon-button svg,
+.navbar--compact .notification-button svg,
+.navbar--compact .avatar-button svg {
+  width: 18px;
+  height: 18px;
+}
+
 .navbar--compact .brand {
-  flex-basis: 128px;
-  width: 128px;
-  min-width: 128px;
-  height: 54px;
+  flex: 0 1 116px;
+  width: 116px;
+  min-width: 96px;
+  height: 48px;
 }
 
 .navbar--compact .top-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 6px;
   margin-left: auto;
 }
 
@@ -2428,7 +2474,8 @@ watch(isCompactNav, (compact) => {
 }
 
 @media (max-width: 780px) {
-  .top-bar {
+  .top-bar,
+  .navbar--compact .top-bar {
     display: flex;
     flex-wrap: nowrap;
     align-items: center;
@@ -2441,7 +2488,8 @@ watch(isCompactNav, (compact) => {
     padding: 8px 10px;
   }
 
-  .left-cluster {
+  .left-cluster,
+  .navbar--compact .left-cluster {
     display: flex;
     align-items: center;
     flex: 1 1 auto;
@@ -2464,12 +2512,14 @@ watch(isCompactNav, (compact) => {
     display: inline-grid;
   }
 
-  .menu-toggle {
+  .menu-toggle,
+  .navbar--compact .menu-toggle {
     display: inline-grid;
     flex: 0 0 34px;
   }
 
-  .brand {
+  .brand,
+  .navbar--compact .brand {
     flex: 0 1 112px;
     width: 112px;
     min-width: 88px;
@@ -2482,7 +2532,8 @@ watch(isCompactNav, (compact) => {
     object-fit: contain;
   }
 
-  .top-actions {
+  .top-actions,
+  .navbar--compact .top-actions {
     display: flex;
     align-items: center;
     flex: 0 0 auto;
@@ -2501,14 +2552,25 @@ watch(isCompactNav, (compact) => {
 
   .icon-button,
   .notification-button,
-  .avatar-button {
+  .avatar-button,
+  .navbar--compact .menu-toggle,
+  .navbar--compact .mobile-accessibility-button,
+  .navbar--compact .top-actions .icon-button,
+  .navbar--compact .notification-button,
+  .navbar--compact .avatar-button {
+    flex: 0 0 34px;
     width: 34px;
     height: 34px;
   }
 
   .icon-button svg,
   .notification-button svg,
-  .avatar-button svg {
+  .avatar-button svg,
+  .navbar--compact .menu-toggle svg,
+  .navbar--compact .mobile-accessibility-button svg,
+  .navbar--compact .top-actions .icon-button svg,
+  .navbar--compact .notification-button svg,
+  .navbar--compact .avatar-button svg {
     width: 17px;
     height: 17px;
   }
@@ -2584,7 +2646,8 @@ watch(isCompactNav, (compact) => {
 }
 
 @media (max-width: 420px) {
-  .top-bar {
+  .top-bar,
+  .navbar--compact .top-bar {
     min-height: 56px;
     padding: 8px 8px;
     gap: 4px;
@@ -2597,13 +2660,15 @@ watch(isCompactNav, (compact) => {
     display: none;
   }
 
-  .left-cluster {
+  .left-cluster,
+  .navbar--compact .left-cluster {
     flex: 1 1 auto;
     gap: 3px;
     min-width: 0;
   }
 
-  .top-actions {
+  .top-actions,
+  .navbar--compact .top-actions {
     flex: 0 0 auto;
     width: auto;
     gap: 3px;
@@ -2616,7 +2681,8 @@ watch(isCompactNav, (compact) => {
     width: auto;
   }
 
-  .brand {
+  .brand,
+  .navbar--compact .brand {
     flex: 0 1 96px;
     width: 96px;
     min-width: 72px;
@@ -2625,14 +2691,25 @@ watch(isCompactNav, (compact) => {
 
   .icon-button,
   .notification-button,
-  .avatar-button {
+  .avatar-button,
+  .navbar--compact .menu-toggle,
+  .navbar--compact .mobile-accessibility-button,
+  .navbar--compact .top-actions .icon-button,
+  .navbar--compact .notification-button,
+  .navbar--compact .avatar-button {
+    flex: 0 0 30px;
     width: 30px;
     height: 30px;
   }
 
   .icon-button svg,
   .notification-button svg,
-  .avatar-button svg {
+  .avatar-button svg,
+  .navbar--compact .menu-toggle svg,
+  .navbar--compact .mobile-accessibility-button svg,
+  .navbar--compact .top-actions .icon-button svg,
+  .navbar--compact .notification-button svg,
+  .navbar--compact .avatar-button svg {
     width: 15px;
     height: 15px;
   }
@@ -2723,16 +2800,19 @@ watch(isCompactNav, (compact) => {
 }
 
 @media (max-width: 360px) {
-  .top-bar {
+  .top-bar,
+  .navbar--compact .top-bar {
     gap: 4px;
     flex-wrap: nowrap;
   }
 
-  .left-cluster {
+  .left-cluster,
+  .navbar--compact .left-cluster {
     gap: 2px;
   }
 
-  .brand {
+  .brand,
+  .navbar--compact .brand {
     flex: 0 1 84px;
     width: 84px;
     min-width: 68px;
@@ -2744,7 +2824,12 @@ watch(isCompactNav, (compact) => {
   .top-actions > .notification-wrapper,
   .icon-button,
   .notification-button,
-  .avatar-button {
+  .avatar-button,
+  .navbar--compact .menu-toggle,
+  .navbar--compact .mobile-accessibility-button,
+  .navbar--compact .top-actions .icon-button,
+  .navbar--compact .notification-button,
+  .navbar--compact .avatar-button {
     flex: 0 0 auto;
     width: 28px;
     height: 28px;
@@ -2752,7 +2837,12 @@ watch(isCompactNav, (compact) => {
 
   .icon-button svg,
   .notification-button svg,
-  .avatar-button svg {
+  .avatar-button svg,
+  .navbar--compact .menu-toggle svg,
+  .navbar--compact .mobile-accessibility-button svg,
+  .navbar--compact .top-actions .icon-button svg,
+  .navbar--compact .notification-button svg,
+  .navbar--compact .avatar-button svg {
     width: 14px;
     height: 14px;
   }

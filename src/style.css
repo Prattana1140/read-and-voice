@@ -185,6 +185,32 @@ a {
   overflow-wrap: anywhere;
 }
 
+.view-all-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--primary-strong);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 2px 0;
+  transition:
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.view-all-action:hover,
+.view-all-action:focus-visible {
+  color: var(--primary);
+  transform: translateY(-1px);
+}
+
 h1,
 h2,
 h3,

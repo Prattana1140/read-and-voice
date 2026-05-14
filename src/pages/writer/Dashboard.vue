@@ -107,7 +107,7 @@ onMounted(fetchBooks);
       <article class="panel">
         <div class="panel-head">
           <h2>หนังสือของฉัน</h2>
-          <button type="button" class="link-btn" @click="router.push('/writer/books')">
+          <button type="button" class="link-btn view-all-action" @click="router.push('/writer/books')">
             ดูทั้งหมด
           </button>
         </div>
@@ -222,6 +222,15 @@ small,
 .side-panel button {
   background: #f2fffc;
   color: #0b5f59;
+}
+
+.panel-head .view-all-action {
+  min-height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--primary-strong);
+  font-size: 13px;
+  padding: 2px 0;
 }
 
 .stats-grid {

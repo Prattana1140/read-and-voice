@@ -16,7 +16,7 @@ export type SearchableBook = {
 export type BookFilters = {
   contentType?: string;
   accessType?: string;
-  category?: string;
+  category?: string | string[];
 };
 
 const normalizeText = (value: unknown) => {
@@ -57,12 +57,18 @@ export const filterBooks = (
   const contentType = filters.contentType || "all";
   const accessType = filters.accessType || "all";
   const category = filters.category || "all";
+  const categorySet = Array.isArray(category) ? new Set(category) : null;
 
   return books
     .filter((book) => {
       if (contentType !== "all" && book.content_type !== contentType) return false;
       if (accessType !== "all" && book.access_type !== accessType) return false;
-      if (category !== "all" && book.category_name !== category) return false;
+      if (categorySet && !categorySet.has(String(book.category_name || ""))) {
+        return false;
+      }
+      if (!categorySet && category !== "all" && book.category_name !== category) {
+        return false;
+      }
 
       if (parts.length === 0) return true;
       const blob = getSearchBlob(book);

@@ -10,6 +10,7 @@ const router = useRouter();
 const loading = ref(true);
 const saving = ref(false);
 const error = ref("");
+const categories = ref<{ id: number; name: string; parent_id?: number | null; sort_order?: number | null }[]>([]);
 
 const form = ref({
   title: "",
@@ -33,7 +34,7 @@ const fetchBook = async () => {
       title: book.title || "",
       author: book.author || "",
       description: book.description || "",
-      category_id: book.category_id || "",
+      category_id: book.category_id ? String(book.category_id) : "",
       cover_image: book.cover_image || "",
       is_published: Number(book.is_published ?? 1),
     };
@@ -42,6 +43,38 @@ const fetchBook = async () => {
     error.value = "โหลดข้อมูลหนังสือไม่สำเร็จ";
   } finally {
     loading.value = false;
+  }
+};
+
+const fetchCategories = async () => {
+  try {
+    const res = await axios.get(`${API_BASE_URL}/api/categories`);
+    const items = Array.isArray(res.data)
+      ? res.data
+      : Array.isArray(res.data?.categories)
+        ? res.data.categories
+        : [];
+
+    categories.value = items
+      .map((item: any) => ({
+        id: Number(item.id),
+        name: String(item.name || "").trim(),
+        parent_id: item.parent_id == null ? null : Number(item.parent_id),
+        sort_order: item.sort_order == null ? null : Number(item.sort_order),
+      }))
+      .filter((item: any) => Number.isFinite(item.id) && item.name)
+      .sort((a: any, b: any) => {
+        const orderA = a.sort_order ?? Number.MAX_SAFE_INTEGER;
+        const orderB = b.sort_order ?? Number.MAX_SAFE_INTEGER;
+        if (orderA !== orderB) return orderA - orderB;
+        if ((a.parent_id || 0) !== (b.parent_id || 0)) {
+          return Number(a.parent_id || 0) - Number(b.parent_id || 0);
+        }
+        return a.name.localeCompare(b.name, "th");
+      });
+  } catch (err) {
+    console.error("fetchCategories error:", err);
+    categories.value = [];
   }
 };
 
@@ -67,6 +100,7 @@ const saveBook = async () => {
 };
 
 onMounted(() => {
+  fetchCategories();
   fetchBook();
 });
 </script>
@@ -101,8 +135,13 @@ onMounted(() => {
         </div>
 
         <div class="form-group">
-          <label>หมวดหมู่ (category_id)</label>
-          <input v-model="form.category_id" type="text" />
+          <label>หมวดหมู่</label>
+          <select v-model="form.category_id">
+            <option value="">ไม่ระบุหมวดหมู่</option>
+            <option v-for="category in categories" :key="category.id" :value="String(category.id)">
+              {{ category.parent_id ? "- " : "" }}{{ category.name }}
+            </option>
+          </select>
         </div>
 
         <div class="form-group">

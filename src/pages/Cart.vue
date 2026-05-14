@@ -1,7 +1,8 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import api from "../utils/api";
+import { useI18n } from "../utils/i18n";
 
 type CartItem = {
   id: number;
@@ -16,6 +17,7 @@ type CartItem = {
 };
 
 const router = useRouter();
+const { t } = useI18n();
 const cart = ref<CartItem[]>([]);
 const balance = ref(0);
 const loading = ref(true);
@@ -48,7 +50,7 @@ async function loadCart() {
       router.push({ name: "Login" });
       return;
     }
-    errorMessage.value = error?.response?.data?.message || "เนเธซเธฅเธ”เธ•เธฐเธเธฃเนเธฒเนเธกเนเธชเธณเน€เธฃเนเธ";
+    errorMessage.value = error?.response?.data?.message || t("cart.loadFailed");
   } finally {
     loading.value = false;
   }
@@ -59,7 +61,7 @@ async function removeItem(id: number) {
     await api.delete(`/cart/${id}`);
     cart.value = cart.value.filter((item) => item.id !== id);
   } catch (error: any) {
-    errorMessage.value = error?.response?.data?.message || "เธฅเธเธฃเธฒเธขเธเธฒเธฃเนเธกเนเธชเธณเน€เธฃเนเธ";
+    errorMessage.value = error?.response?.data?.message || t("cart.removeFailed");
   }
 }
 
@@ -67,7 +69,7 @@ async function checkout() {
   if (!cart.value.length) return;
 
   if (!hasEnoughCoins.value) {
-    const message = `เหรียญไม่พอ กรุณาเติมอีก ${coinShortage.value} เหรียญก่อนชำระเงิน`;
+    const message = `${t("cart.notEnoughAlert")} ${coinShortage.value} ${t("cart.notEnoughAlertSuffix")}`;
     errorMessage.value = message;
     window.alert(message);
     return;
@@ -81,7 +83,7 @@ async function checkout() {
       payment_method: "coin",
     });
 
-    window.alert("ซื้อสำเร็จ หนังสือถูกเพิ่มเข้าคลังหนังสือแล้ว");
+    window.alert(t("cart.success"));
     cart.value = [];
     await loadCart();
     router.push({ name: "MyLibrary" });
@@ -89,19 +91,19 @@ async function checkout() {
     if (error?.response?.status === 402) {
       const currentBalance = Number(error?.response?.data?.balance ?? balance.value);
       balance.value = currentBalance;
-      const message = error?.response?.data?.message || "เหรียญไม่พอ กรุณาเติมเหรียญก่อนซื้อ";
+      const message = error?.response?.data?.message || t("cart.notEnoughGeneric");
       errorMessage.value = message;
       window.alert(message);
       return;
     }
-    errorMessage.value = error?.response?.data?.message || "ซื้อไม่สำเร็จ";
+    errorMessage.value = error?.response?.data?.message || t("cart.checkoutFailed");
     window.alert(errorMessage.value);
   } finally {
     checkingOut.value = false;
   }
 }
 function itemKind(item: CartItem) {
-  return item.episode_id ? "เธฃเธฒเธขเธ•เธญเธ" : "เธญเธตเธเธธเนเธ";
+  return item.episode_id ? t("cart.episode") : t("cart.ebook");
 }
 
 function goTopup() {
@@ -116,25 +118,23 @@ onMounted(loadCart);
     <section class="header-card">
       <div>
         <p class="eyebrow">Checkout</p>
-        <h1>เธ•เธฐเธเธฃเนเธฒเธเธญเธเธเธฑเธ</h1>
-        <p>เธเธทเนเธญเธญเธตเธเธธเนเธเนเธฅเธฐเธฃเธฒเธขเธ•เธญเธเธ”เนเธงเธขเธเธญเธขเธเนเนเธเธเธฃเธฐเน€เธเนเธฒ เธ–เนเธฒเธขเธญเธ”เธเธญเธขเธเนเธเธญ เธฃเธฐเธเธเธเธฐเธเธทเนเธญเนเธซเนเธ—เธฑเธเธ—เธต</p>
+        <h1>{{ t("cart.title") }}</h1>
+        <p>{{ t("cart.subtitle") }}</p>
       </div>
 
       <div class="wallet-pill">
-        <span>เธขเธญเธ”เธเธญเธขเธเน</span>
+        <span>{{ t("cart.wallet") }}</span>
         <strong>{{ balance }}</strong>
       </div>
     </section>
 
     <p v-if="errorMessage" class="alert error">{{ errorMessage }}</p>
-    <p class="alert info">
-      เธซเธฒเธเธเธญเธขเธเนเธกเธฒเธเธเธงเนเธฒเธซเธฃเธทเธญเน€เธ—เนเธฒเธเธฑเธเธขเธญเธ”เธฃเธงเธก เธเธธเธ“เธชเธฒเธกเธฒเธฃเธ–เธเธ”เธเธทเนเธญเนเธ”เนเธ—เธฑเธเธ—เธต เธ–เนเธฒเธเธญเธขเธเนเนเธกเนเธเธญเนเธซเนเน€เธ•เธดเธกเธเธญเธขเธเนเธเนเธญเธ
-    </p>
+    <p class="alert info">{{ t("cart.info") }}</p>
 
-    <section v-if="loading" class="state-card">เธเธณเธฅเธฑเธเนเธซเธฅเธ”เธ•เธฐเธเธฃเนเธฒ...</section>
+    <section v-if="loading" class="state-card">{{ t("cart.loading") }}</section>
     <section v-else-if="cart.length === 0" class="state-card empty">
-      เธขเธฑเธเนเธกเนเธกเธตเธชเธดเธเธเนเธฒเนเธเธ•เธฐเธเธฃเนเธฒ
-      <button type="button" @click="router.push('/store')">เนเธเน€เธฅเธทเธญเธเธซเธเธฑเธเธชเธทเธญ</button>
+      {{ t("cart.empty") }}
+      <button type="button" @click="router.push('/store')">{{ t("cart.browse") }}</button>
     </section>
 
     <section v-else class="cart-layout">
@@ -144,28 +144,28 @@ onMounted(loadCart);
             <span>{{ itemKind(item) }}</span>
             <h2>{{ item.title }}</h2>
             <p v-if="item.book_title && item.episode_id">
-              {{ item.book_title }} เธ•เธญเธเธ—เธตเน {{ item.episode_number || "-" }}
+              {{ item.book_title }} {{ t("cart.episodeNumber") }} {{ item.episode_number || "-" }}
             </p>
             <p>{{ item.access_type || "paid" }}</p>
           </div>
 
           <div class="item-side">
-            <strong>{{ Number(item.price || 0) * Number(item.quantity || 1) }} เธเธญเธขเธเน</strong>
-            <small>เธเธณเธเธงเธ {{ item.quantity || 1 }}</small>
-            <button type="button" @click="removeItem(item.id)">เธฅเธ</button>
+            <strong>{{ Number(item.price || 0) * Number(item.quantity || 1) }} {{ t("cart.coins") }}</strong>
+            <small>{{ t("cart.quantity") }} {{ item.quantity || 1 }}</small>
+            <button type="button" @click="removeItem(item.id)">{{ t("common.delete") }}</button>
           </div>
         </article>
       </div>
 
       <aside class="summary-card">
-        <h2>เธชเธฃเธธเธเธฃเธฒเธขเธเธฒเธฃ</h2>
-        <p>เธเธณเธเธงเธเธชเธดเธเธเนเธฒ: {{ cart.length }}</p>
-        <p class="total">เธฃเธงเธก {{ total }} เธเธญเธขเธเน</p>
+        <h2>{{ t("cart.summary") }}</h2>
+        <p>{{ t("cart.itemCount") }}: {{ cart.length }}</p>
+        <p class="total">{{ t("cart.total") }} {{ total }} {{ t("cart.coins") }}</p>
         <p :class="hasEnoughCoins ? 'enough' : 'not-enough'">
           {{
             hasEnoughCoins
-              ? "เธเธญเธขเธเนเน€เธเธตเธขเธเธเธญเธชเธณเธซเธฃเธฑเธเธเธณเธฃเธฐเน€เธเธดเธ"
-              : `เธเธญเธขเธเนเนเธกเนเธเธญ เธ•เนเธญเธเน€เธ•เธดเธกเธญเธตเธ ${coinShortage} เธเธญเธขเธเน`
+              ? t("cart.enough")
+              : `${t("cart.notEnoughPrefix")} ${coinShortage} ${t("cart.coins")}`
           }}
         </p>
 
@@ -176,13 +176,13 @@ onMounted(loadCart);
           :disabled="checkingOut"
           @click="checkout"
         >
-          {{ checkingOut ? "เธเธณเธฅเธฑเธเธเธทเนเธญ..." : "เธเธณเธฃเธฐเธ”เนเธงเธขเธเธญเธขเธเน" }}
+          {{ checkingOut ? t("cart.checkingOut") : t("cart.checkout") }}
         </button>
         <button v-else class="topup-btn urgent" type="button" @click="checkout">
-          ชำระด้วยคอยน์
+          {{ t("cart.checkout") }}
         </button>
         <button v-if="hasEnoughCoins" class="topup-btn" type="button" @click="goTopup">
-          เน€เธ•เธดเธกเธเธญเธขเธเนเน€เธเธดเนเธก
+          {{ t("cart.topupMore") }}
         </button>
       </aside>
     </section>
@@ -406,4 +406,3 @@ button {
   }
 }
 </style>
-

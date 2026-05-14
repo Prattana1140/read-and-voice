@@ -41,7 +41,14 @@ const statements = [
   CREATE TABLE IF NOT EXISTS categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    parent_id INT NULL,
+    display_tone VARCHAR(40) NULL,
+    display_art VARCHAR(40) NULL,
+    show_on_home TINYINT(1) NOT NULL DEFAULT 1,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_categories_parent_id (parent_id),
+    INDEX idx_categories_home_sort (show_on_home, sort_order)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `,
   `

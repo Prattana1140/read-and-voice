@@ -7,6 +7,7 @@ import {
   updateAccessibilitySettings,
 } from "../utils/accessibility";
 import api from "../utils/api";
+import { useI18n } from "../utils/i18n";
 
 type WidgetPosition = {
   x: number;
@@ -14,7 +15,8 @@ type WidgetPosition = {
 };
 
 const POSITION_STORAGE_KEY = "read-voice-accessibility-widget-position";
-const LAUNCHER_SIZE = 54;
+const LAUNCHER_WIDTH = 64;
+const LAUNCHER_HEIGHT = 64;
 const EDGE_PADDING = 12;
 const PANEL_WIDTH = 360;
 const PANEL_GAP = 10;
@@ -27,6 +29,7 @@ const viewportSize = ref({ width: 0, height: 0 });
 const isDragging = ref(false);
 const movedDuringPointer = ref(false);
 const widgetRef = ref<HTMLElement | null>(null);
+const { t } = useI18n();
 
 let dragStartX = 0;
 let dragStartY = 0;
@@ -44,13 +47,13 @@ const widgetStyle = computed(() => {
 const panelAlignsLeft = computed(() => {
   if (viewportSize.value.width <= 640) return false;
 
-  return position.value.x + LAUNCHER_SIZE - PANEL_WIDTH < EDGE_PADDING;
+  return position.value.x + LAUNCHER_WIDTH - PANEL_WIDTH < EDGE_PADDING;
 });
 
 const panelOpensUp = computed(() => {
   if (viewportSize.value.width <= 640) return false;
 
-  const spaceBelow = viewportSize.value.height - position.value.y - LAUNCHER_SIZE - PANEL_GAP - EDGE_PADDING;
+  const spaceBelow = viewportSize.value.height - position.value.y - LAUNCHER_HEIGHT - PANEL_GAP - EDGE_PADDING;
   const spaceAbove = position.value.y - PANEL_GAP - EDGE_PADDING;
 
   return spaceBelow < MIN_PANEL_SPACE && spaceAbove > spaceBelow;
@@ -70,8 +73,8 @@ const updateViewportSize = () => {
 const clampPosition = (next: WidgetPosition): WidgetPosition => {
   if (typeof window === "undefined") return next;
 
-  const maxX = Math.max(EDGE_PADDING, window.innerWidth - LAUNCHER_SIZE - EDGE_PADDING);
-  const maxY = Math.max(EDGE_PADDING, window.innerHeight - LAUNCHER_SIZE - EDGE_PADDING);
+  const maxX = Math.max(EDGE_PADDING, window.innerWidth - LAUNCHER_WIDTH - EDGE_PADDING);
+  const maxY = Math.max(EDGE_PADDING, window.innerHeight - LAUNCHER_HEIGHT - EDGE_PADDING);
 
   return {
     x: Math.min(Math.max(next.x, EDGE_PADDING), maxX),
@@ -101,7 +104,7 @@ const savePosition = () => {
 
 const loadPosition = async () => {
   const fallback = {
-    x: Math.max(EDGE_PADDING, window.innerWidth - LAUNCHER_SIZE - 24),
+    x: Math.max(EDGE_PADDING, window.innerWidth - LAUNCHER_WIDTH - 24),
     y: Math.max(EDGE_PADDING, 118),
   };
 
@@ -221,12 +224,12 @@ const handleDocumentPointerDown = (event: PointerEvent) => {
 
 const increaseFont = () => {
   updateAccessibilitySettings({ fontScale: Math.min(1.5, accessibilityState.fontScale + 0.06) });
-  announceAccessibilityMessage(`ขยายตัวอักษรเป็น ${fontPercent.value}`);
+  announceAccessibilityMessage(`${t("a11y.fontIncreased")} ${fontPercent.value}`);
 };
 
 const decreaseFont = () => {
   updateAccessibilitySettings({ fontScale: Math.max(1, accessibilityState.fontScale - 0.06) });
-  announceAccessibilityMessage(`ลดขนาดตัวอักษรเป็น ${fontPercent.value}`);
+  announceAccessibilityMessage(`${t("a11y.fontDecreased")} ${fontPercent.value}`);
 };
 
 const increaseSpacing = () => {
@@ -234,7 +237,7 @@ const increaseSpacing = () => {
     lineSpacing: Math.min(2.4, accessibilityState.lineSpacing + 0.1),
     letterSpacing: Math.min(0.08, accessibilityState.letterSpacing + 0.01),
   });
-  announceAccessibilityMessage("เพิ่มระยะห่างการอ่านแล้ว");
+  announceAccessibilityMessage(t("a11y.spacingIncreased"));
 };
 
 const decreaseSpacing = () => {
@@ -242,17 +245,17 @@ const decreaseSpacing = () => {
     lineSpacing: Math.max(1.5, accessibilityState.lineSpacing - 0.1),
     letterSpacing: Math.max(0, accessibilityState.letterSpacing - 0.01),
   });
-  announceAccessibilityMessage("ลดระยะห่างการอ่านแล้ว");
+  announceAccessibilityMessage(t("a11y.spacingDecreased"));
 };
 
 const toggleContrast = () => {
   updateAccessibilitySettings({ highContrast: !accessibilityState.highContrast });
-  announceAccessibilityMessage(accessibilityState.highContrast ? "เปิดคอนทราสต์สูงแล้ว" : "ปิดคอนทราสต์สูงแล้ว");
+  announceAccessibilityMessage(accessibilityState.highContrast ? t("a11y.contrastOn") : t("a11y.contrastOff"));
 };
 
 const toggleUiSpeech = () => {
   updateAccessibilitySettings({ speakUi: !accessibilityState.speakUi });
-  announceAccessibilityMessage(accessibilityState.speakUi ? "เปิดการอ่านออกเสียงเมนูแล้ว" : "ปิดการอ่านออกเสียงเมนูแล้ว");
+  announceAccessibilityMessage(accessibilityState.speakUi ? t("a11y.speechOn") : t("a11y.speechOff"));
 };
 
 onMounted(async () => {
@@ -291,46 +294,47 @@ onBeforeUnmount(() => {
       class="a11y-launcher"
       type="button"
       :aria-expanded="isOpen"
-      aria-label="ตัวช่วยการเข้าถึง"
-      title="ลากเพื่อย้ายตำแหน่ง กดเพื่อเปิดตัวช่วยการเข้าถึง"
+      :aria-label="t('a11y.launcherLabel')"
+      :title="t('a11y.launcherTitle')"
       @click="togglePanel"
       @pointerdown="startDrag"
     >
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M12 4.3a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4Zm-7 5.1 5.1 1.4v3.4l-2.2 5.4 2 .8 2.1-5 2.1 5 2-.8-2.2-5.4v-3.4L19 9.4l-.6-2.1-4.8 1.3h-3.2L5.6 7.3 5 9.4Z" />
       </svg>
+      <span class="a11y-launcher__text">{{ t("a11y.launcherText") }}</span>
       <span v-if="accessibilityState.enabled" class="a11y-status" aria-hidden="true"></span>
     </button>
 
-    <section v-if="isOpen" class="a11y-panel" aria-label="ตัวช่วยการเข้าถึง">
+    <section v-if="isOpen" class="a11y-panel" :aria-label="t('a11y.launcherLabel')">
       <div class="a11y-panel__head">
         <div>
-          <strong>โหมดช่วยการเข้าถึง</strong>
-          <small>ปรับทั้งเว็บให้ใช้งานง่ายขึ้นทันที</small>
+          <strong>{{ t("a11y.panelTitle") }}</strong>
+          <small>{{ t("a11y.panelSubtitle") }}</small>
         </div>
         <div class="a11y-panel__actions">
           <button class="a11y-pill" type="button" @click="toggleModeFromPanel">
-            {{ accessibilityState.enabled ? "ปิดโหมด" : "เปิดโหมด" }}
+            {{ accessibilityState.enabled ? t("a11y.disableMode") : t("a11y.enableMode") }}
           </button>
-          <button class="a11y-close" type="button" aria-label="ย่อเป็นไอคอน" @click="isOpen = false">
-            ย่อ
+          <button class="a11y-close" type="button" :aria-label="t('a11y.minimize')" @click="isOpen = false">
+            {{ t("a11y.minimizeShort") }}
           </button>
         </div>
       </div>
 
       <div class="a11y-grid">
         <button class="a11y-card" type="button" :aria-pressed="accessibilityState.highContrast" @click="toggleContrast">
-          <strong>คอนทราสต์สูง</strong>
-          <span>{{ accessibilityState.highContrast ? "เปิดอยู่" : "ปิดอยู่" }}</span>
+          <strong>{{ t("a11y.highContrast") }}</strong>
+          <span>{{ accessibilityState.highContrast ? t("a11y.on") : t("a11y.off") }}</span>
         </button>
         <button class="a11y-card" type="button" :aria-pressed="accessibilityState.speakUi" @click="toggleUiSpeech">
-          <strong>อ่านเมนูออกเสียง</strong>
-          <span>{{ accessibilityState.speakUi ? "เปิดอยู่" : "ปิดอยู่" }}</span>
+          <strong>{{ t("a11y.speakMenu") }}</strong>
+          <span>{{ accessibilityState.speakUi ? t("a11y.on") : t("a11y.off") }}</span>
         </button>
       </div>
 
       <div class="a11y-control">
-        <span>ขนาดตัวอักษร</span>
+        <span>{{ t("a11y.fontSize") }}</span>
         <div class="a11y-inline">
           <button type="button" @click="decreaseFont">A-</button>
           <strong>{{ fontPercent }}</strong>
@@ -339,15 +343,15 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="a11y-control">
-        <span>ระยะห่างการอ่าน</span>
+        <span>{{ t("a11y.readingSpacing") }}</span>
         <div class="a11y-inline">
-          <button type="button" @click="decreaseSpacing">ลด</button>
-          <button type="button" @click="increaseSpacing">เพิ่ม</button>
+          <button type="button" @click="decreaseSpacing">{{ t("a11y.decrease") }}</button>
+          <button type="button" @click="increaseSpacing">{{ t("a11y.increase") }}</button>
         </div>
       </div>
 
       <p class="a11y-note">
-        ใช้ปุ่ม <kbd>Alt</kbd> + <kbd>A</kbd> เพื่อเปิดหรือปิดโหมดนี้ และ <kbd>Alt</kbd> + <kbd>M</kbd> เพื่อข้ามไปยังเนื้อหาหลัก
+        {{ t("a11y.shortcutPrefix") }} <kbd>Alt</kbd> + <kbd>A</kbd> {{ t("a11y.shortcutMiddle") }} <kbd>Alt</kbd> + <kbd>M</kbd> {{ t("a11y.shortcutSuffix") }}
       </p>
     </section>
   </div>
@@ -356,8 +360,8 @@ onBeforeUnmount(() => {
 <style scoped>
 .a11y-widget {
   position: fixed;
-  width: 54px;
-  height: 54px;
+  width: 64px;
+  height: 64px;
   z-index: 90;
   pointer-events: none;
 }
@@ -383,15 +387,23 @@ onBeforeUnmount(() => {
 
 .a11y-launcher {
   position: relative;
-  width: 54px;
-  height: 54px;
-  min-height: 54px;
-  display: inline-grid;
+  display: grid;
   place-items: center;
-  border-radius: 999px;
-  background: #e6fbf7;
-  color: #0f766e;
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.22);
+  width: 64px;
+  height: 64px;
+  min-height: 64px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.76);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.9) 0 12%, transparent 13%),
+    linear-gradient(145deg, #effffb 0%, #65dfd1 48%, #087f78 100%);
+  color: #075f5a;
+  box-shadow:
+    0 18px 40px rgba(15, 23, 42, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    inset 0 -10px 18px rgba(3, 105, 99, 0.18);
+  padding: 0;
   touch-action: none;
   pointer-events: auto;
   transition:
@@ -400,33 +412,61 @@ onBeforeUnmount(() => {
     transform 0.18s ease;
 }
 
+.a11y-launcher::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow:
+    inset 0 0 0 1px rgba(15, 118, 110, 0.12),
+    0 8px 18px rgba(5, 95, 90, 0.12);
+}
+
 .a11y-launcher:hover,
 .a11y-launcher:focus-visible {
-  background: #ccf7ee;
-  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.28);
-  transform: translateY(-1px);
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.98) 0 12%, transparent 13%),
+    linear-gradient(145deg, #ffffff 0%, #7ce9dd 48%, #0d9488 100%);
+  box-shadow:
+    0 22px 46px rgba(15, 23, 42, 0.27),
+    0 0 0 5px rgba(20, 184, 166, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transform: translateY(-2px);
 }
 
 .a11y-widget.dragging .a11y-launcher {
   cursor: grabbing;
-  transform: scale(1.04);
+  transform: scale(1.02);
 }
 
 .a11y-launcher svg {
-  width: 27px;
-  height: 27px;
+  position: relative;
+  z-index: 1;
+  width: 30px;
+  height: 30px;
   fill: currentColor;
+}
+
+.a11y-launcher__text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .a11y-status {
   position: absolute;
-  right: 6px;
-  top: 6px;
-  width: 11px;
-  height: 11px;
+  right: 7px;
+  top: 8px;
+  width: 10px;
+  height: 10px;
   border: 2px solid #ffffff;
   border-radius: 999px;
   background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
 }
 
 .a11y-panel {
@@ -440,10 +480,12 @@ onBeforeUnmount(() => {
   gap: 14px;
   border: 1px solid rgba(15, 118, 110, 0.14);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 24px 50px rgba(15, 23, 42, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(248, 253, 252, 0.99));
+  box-shadow: 0 26px 56px rgba(15, 23, 42, 0.2);
   padding: 18px;
   pointer-events: auto;
+  backdrop-filter: blur(14px);
 }
 
 .a11y-widget.panel-only .a11y-panel {

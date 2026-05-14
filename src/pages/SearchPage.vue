@@ -9,10 +9,18 @@ type Book = SearchableBook & {
   review_count?: number | string;
 };
 
+type CategoryItem = {
+  id: number | string;
+  name: string;
+  parent_id?: number | null;
+  sort_order?: number | null;
+};
+
 const route = useRoute();
 const router = useRouter();
 
 const books = ref<Book[]>([]);
+const categoryItems = ref<CategoryItem[]>([]);
 const loading = ref(false);
 const errorMessage = ref("");
 const query = ref(String(route.query.q || ""));
@@ -20,12 +28,37 @@ const contentType = ref(String(route.query.type || "all"));
 const accessType = ref(String(route.query.access || "all"));
 const category = ref(String(route.query.category || "all"));
 
-const categories = computed(() => uniqueBookCategories(books.value));
+const categories = computed(() => {
+  if (categoryItems.value.length) return categoryItems.value;
+
+  return uniqueBookCategories(books.value).map((name, index) => ({
+    id: `book-${index}-${name}`,
+    name,
+    parent_id: null,
+  }));
+});
+
+function getCategoryChildren(parentName: string) {
+  const parent = categoryItems.value.find((item) => item.name === parentName);
+  if (!parent || typeof parent.id !== "number") return [];
+
+  return categoryItems.value.filter((item) => item.parent_id === parent.id);
+}
+
+const effectiveCategory = computed(() => {
+  if (category.value === "all") return "all";
+
+  const children = getCategoryChildren(category.value);
+  if (!children.length) return category.value;
+
+  return [category.value, ...children.map((item) => item.name)];
+});
+
 const results = computed(() =>
   filterBooks(books.value, query.value, {
     contentType: contentType.value,
     accessType: accessType.value,
-    category: category.value,
+    category: effectiveCategory.value,
   }) as Book[],
 );
 
@@ -64,16 +97,44 @@ function onImgError(event: Event) {
   if (!image.src.endsWith("/no-cover.png")) image.src = "/no-cover.png";
 }
 
-async function loadBooks() {
+function normalizeCategories(data: unknown): CategoryItem[] {
+  const items = Array.isArray(data) ? data : Array.isArray((data as any)?.categories) ? (data as any).categories : [];
+
+  return items
+    .map((item: any, index: number) => ({
+      id: Number.isFinite(Number(item?.id)) ? Number(item.id) : `category-${index}`,
+      name: String(item?.name || "").trim(),
+      parent_id: item?.parent_id == null ? null : Number(item.parent_id),
+      sort_order: item?.sort_order == null ? null : Number(item.sort_order),
+    }))
+    .filter((item) => item.name)
+    .sort((a, b) => {
+      const orderA = a.sort_order ?? Number.MAX_SAFE_INTEGER;
+      const orderB = b.sort_order ?? Number.MAX_SAFE_INTEGER;
+      if (orderA !== orderB) return orderA - orderB;
+      if ((a.parent_id || 0) !== (b.parent_id || 0)) return Number(a.parent_id || 0) - Number(b.parent_id || 0);
+      return a.name.localeCompare(b.name, "th");
+    });
+}
+
+async function loadSearchData() {
   try {
     loading.value = true;
     errorMessage.value = "";
-    const { data } = await api.get("/books");
-    books.value = Array.isArray(data)
-      ? data
-      : Array.isArray(data?.books)
-        ? data.books
+    const [booksResponse, categoriesResponse] = await Promise.all([
+      api.get("/books"),
+      api.get("/categories").catch((error) => {
+        console.warn("load search categories error:", error);
+        return { data: [] };
+      }),
+    ]);
+    const bookData = booksResponse.data;
+    books.value = Array.isArray(bookData)
+      ? bookData
+      : Array.isArray(bookData?.books)
+        ? bookData.books
         : [];
+    categoryItems.value = normalizeCategories(categoriesResponse.data);
   } catch (error: any) {
     errorMessage.value =
       error?.response?.data?.message || "โหลดผลการค้นหาไม่สำเร็จ";
@@ -92,7 +153,7 @@ watch(
   },
 );
 
-onMounted(loadBooks);
+onMounted(loadSearchData);
 </script>
 
 <template>
@@ -129,8 +190,8 @@ onMounted(loadBooks);
       </select>
       <select v-model="category" @change="syncRouteQuery">
         <option value="all">ทุกหมวดหมู่</option>
-        <option v-for="item in categories" :key="item" :value="item">
-          {{ item }}
+        <option v-for="item in categories" :key="item.id" :value="item.name">
+          {{ item.parent_id ? "- " : "" }}{{ item.name }}
         </option>
       </select>
     </section>

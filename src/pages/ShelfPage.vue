@@ -72,7 +72,7 @@
         >
           <div class="free-section-head">
             <h3>{{ section.title }}</h3>
-            <router-link to="/free-books">ดูทั้งหมด</router-link>
+            <router-link class="view-all-action" to="/free-books">ดูทั้งหมด</router-link>
           </div>
 
           <div class="book-grid">
@@ -116,7 +116,7 @@
               <h3>{{ section.title }}</h3>
               <span>เหลืออีก {{ section.daysLeft }} วัน</span>
             </div>
-            <router-link to="/promotions">ดูทั้งหมด</router-link>
+            <router-link class="view-all-action" to="/promotions">ดูทั้งหมด</router-link>
           </div>
 
           <div class="promo-layout">
@@ -830,6 +830,11 @@ watch(
   font-size: 13px;
   font-weight: 900;
   text-decoration: none;
+}
+
+.promo-section-head .view-all-action,
+.free-section-head .view-all-action {
+  color: var(--primary-strong);
 }
 
 .promo-layout {

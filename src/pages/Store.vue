@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import api, { resolveAssetUrl } from "../utils/api";
 import { announceAccessibilityMessage } from "../utils/accessibility";
 import { filterBooks, uniqueBookCategories } from "../utils/bookSearch";
+import { useI18n } from "../utils/i18n";
 
 type Book = {
   id: number;
@@ -21,10 +22,19 @@ type Book = {
   review_count?: number | string;
 };
 
+type Category = {
+  id: number | string;
+  name: string;
+  parent_id?: number | null;
+  sort_order?: number | null;
+};
+
 const router = useRouter();
 const route = useRoute();
+const { locale, t } = useI18n();
 
 const books = ref<Book[]>([]);
+const categoryItems = ref<Category[]>([]);
 const loading = ref(true);
 const search = ref(String(route.query.q || ""));
 const contentFilter = ref(String(route.query.type || "all"));
@@ -32,15 +42,188 @@ const accessFilter = ref(String(route.query.access || "all"));
 const categoryFilter = ref(String(route.query.category || "all"));
 const statusMessage = ref("");
 
+const copy = {
+  th: {
+    title: "ร้านหนังสือ",
+    subtitle: "เลือกหนังสือที่ชอบ เพิ่มเข้าชั้นหนังสือ รายการที่อยากอ่าน หรือตะกร้าได้ทันที",
+    cart: "ตะกร้า",
+    library: "ชั้นหนังสือของฉัน",
+    searchPanel: "ค้นหาและกรองหนังสือ",
+    searchPlaceholder: "ค้นหาชื่อหนังสือ ผู้เขียน หรือหมวดหมู่",
+    searchLabel: "ค้นหาหนังสือ",
+    contentFilter: "กรองตามรูปแบบหนังสือ",
+    allTypes: "ทุกรูปแบบ",
+    ebook: "อีบุ๊ก",
+    serial: "รายตอน",
+    accessFilter: "กรองตามสิทธิ์อ่าน",
+    allAccess: "ทุกสิทธิ์อ่าน",
+    freeRead: "อ่านฟรี",
+    paid: "ใช้เหรียญ",
+    subscription: "แพ็กเกจ",
+    categoryFilter: "กรองตามหมวดหมู่",
+    allCategories: "ทุกหมวดหมู่",
+    allInCategory: "ทั้งหมดในหมวดนี้",
+    subcategoriesOf: "หมวดย่อยของ",
+    suggestions: "หนังสือที่เกี่ยวข้อง",
+    loading: "กำลังโหลดหนังสือ...",
+    empty: "ไม่พบหนังสือที่ตรงกับการค้นหา",
+    list: "รายการหนังสือ",
+    openDetails: "เปิดรายละเอียดหนังสือ",
+    unknownAuthor: "ไม่ระบุผู้เขียน",
+    rating: "คะแนนและจำนวนรีวิว",
+    package: "แพ็กเกจ",
+    coins: "เหรียญ",
+    free: "ฟรี",
+    loginFirst: "กรุณาเข้าสู่ระบบก่อน",
+    addedCart: "เพิ่มลงตะกร้าแล้ว",
+    addCartFailed: "เพิ่มลงตะกร้าไม่สำเร็จ",
+    loadFailed: "โหลดหนังสือไม่สำเร็จ",
+    openBook: "เปิดรายละเอียดหนังสือ",
+  },
+  en: {
+    title: "Book store",
+    subtitle: "Choose books you like and add them to your library, wishlist, or cart instantly.",
+    cart: "Cart",
+    library: "My library",
+    searchPanel: "Search and filter books",
+    searchPlaceholder: "Search by book title, author, or category",
+    searchLabel: "Search books",
+    contentFilter: "Filter by book format",
+    allTypes: "All formats",
+    ebook: "Ebook",
+    serial: "Serial",
+    accessFilter: "Filter by access",
+    allAccess: "All access types",
+    freeRead: "Free read",
+    paid: "Coins",
+    subscription: "Package",
+    categoryFilter: "Filter by category",
+    allCategories: "All categories",
+    allInCategory: "All in this category",
+    subcategoriesOf: "Subcategories of",
+    suggestions: "Related books",
+    loading: "Loading books...",
+    empty: "No books match your search",
+    list: "Book list",
+    openDetails: "Open book details",
+    unknownAuthor: "Unknown author",
+    rating: "Rating and review count",
+    package: "Package",
+    coins: "coins",
+    free: "Free",
+    loginFirst: "Please log in first",
+    addedCart: "Added to cart",
+    addCartFailed: "Could not add to cart",
+    loadFailed: "Could not load books",
+    openBook: "Open book details",
+  },
+};
+
+const text = () => copy[locale.value];
+const numberLocale = computed(() => (locale.value === "th" ? "th-TH" : "en-US"));
+
+const mainBookCategories = computed<Category[]>(() => {
+  const parentCategories = categoryItems.value.filter((category) => !category.parent_id);
+  if (parentCategories.length) return parentCategories;
+
+  return uniqueBookCategories(books.value).map((name, index) => ({
+    id: `book-${index}-${name}`,
+    name,
+    parent_id: null,
+  }));
+});
+
+const mainCategoryNames = computed(() => mainBookCategories.value.map((category) => category.name));
+
+function getCategoryByName(name: string) {
+  return categoryItems.value.find((category) => category.name === name) || null;
+}
+
+function getCategoryChildren(parentName: string) {
+  const parent = getCategoryByName(parentName);
+  if (!parent || typeof parent.id !== "number") return [];
+
+  return categoryItems.value.filter((category) => category.parent_id === parent.id);
+}
+
+const selectedMainCategory = computed(() => {
+  if (categoryFilter.value === "all") return "all";
+  if (mainCategoryNames.value.includes(categoryFilter.value)) return categoryFilter.value;
+
+  const current = getCategoryByName(categoryFilter.value);
+  const parent = current?.parent_id
+    ? categoryItems.value.find((category) => category.id === current.parent_id)
+    : null;
+
+  return parent?.name || categoryFilter.value;
+});
+
+const displayedMainBookCategories = computed<Category[]>(() => {
+  const categories = [...mainBookCategories.value];
+
+  if (
+    categoryFilter.value !== "all" &&
+    selectedMainCategory.value !== "all" &&
+    !categories.some((category) => category.name === selectedMainCategory.value)
+  ) {
+    categories.unshift({
+      id: `selected-${selectedMainCategory.value}`,
+      name: selectedMainCategory.value,
+      parent_id: null,
+      sort_order: -1,
+    });
+  }
+
+  return categories;
+});
+
+const categorySelectOptions = computed<Category[]>(() => {
+  const seen = new Set<string>();
+  const options: Category[] = [];
+
+  for (const category of displayedMainBookCategories.value) {
+    if (!seen.has(category.name)) {
+      seen.add(category.name);
+      options.push(category);
+    }
+
+    for (const child of getCategoryChildren(category.name)) {
+      if (!seen.has(child.name)) {
+        seen.add(child.name);
+        options.push(child);
+      }
+    }
+  }
+
+  for (const category of categoryItems.value) {
+    if (!seen.has(category.name)) {
+      seen.add(category.name);
+      options.push(category);
+    }
+  }
+
+  return options;
+});
+
+const effectiveCategoryFilter = computed(() => {
+  if (categoryFilter.value === "all") return "all";
+
+  const children = getCategoryChildren(categoryFilter.value);
+  if (children.length) {
+    return [categoryFilter.value, ...children.map((subcategory) => subcategory.name)];
+  }
+
+  return categoryFilter.value;
+});
+
 const filteredBooks = computed(() => {
   return filterBooks(books.value, search.value, {
     contentType: contentFilter.value,
     accessType: accessFilter.value,
-    category: categoryFilter.value,
+    category: effectiveCategoryFilter.value,
   }) as Book[];
 });
 
-const categoryOptions = computed(() => uniqueBookCategories(books.value));
 const suggestedBooks = computed(() => filteredBooks.value.slice(0, 8));
 
 function notifyStoreStatus(message: string) {
@@ -48,18 +231,28 @@ function notifyStoreStatus(message: string) {
   announceAccessibilityMessage(message);
 }
 
+function setCategoryFilter(category: string) {
+  categoryFilter.value = category;
+  router.replace({
+    query: {
+      ...route.query,
+      category: category === "all" ? undefined : category,
+    },
+  });
+}
+
 function getBookCover(book: Book) {
   return resolveAssetUrl(book.cover_url || book.cover_image);
 }
 
 function getAccessLabel(book: Book) {
-  if (book.access_type === "subscription") return "แพ็กเกจ";
+  if (book.access_type === "subscription") return text().package;
   const price = Number(book.coin_price ?? book.price ?? 0);
-  return price > 0 ? `${price} เหรียญ` : "อ่านฟรี";
+  return price > 0 ? `${price.toLocaleString(numberLocale.value)} ${text().coins}` : text().freeRead;
 }
 
 function getTypeLabel(book: Book) {
-  return book.content_type === "serial" ? "รายตอน" : "อีบุ๊ก";
+  return book.content_type === "serial" ? text().serial : text().ebook;
 }
 
 function getBookPrice(book: Book) {
@@ -68,18 +261,13 @@ function getBookPrice(book: Book) {
 
 function formatBookPrice(book: Book) {
   const price = getBookPrice(book);
-  if (!Number.isFinite(price) || price <= 0 || book.access_type === "free") {
-    return "ฟรี";
-  }
-  return `${price.toLocaleString("th-TH", { maximumFractionDigits: 0 })}`;
+  if (!Number.isFinite(price) || price <= 0 || book.access_type === "free") return text().free;
+  return `${price.toLocaleString(numberLocale.value, { maximumFractionDigits: 0 })}`;
 }
 
 function getFilledHearts(book: Book) {
   const average = Number(book.average_rating || 0);
-  if (Number.isFinite(average) && average > 0) {
-    return Math.max(1, Math.min(5, Math.round(average)));
-  }
-
+  if (Number.isFinite(average) && average > 0) return Math.max(1, Math.min(5, Math.round(average)));
   return 0;
 }
 
@@ -96,41 +284,66 @@ function handleImgError(event: Event) {
 
 async function addToCart(book: Book) {
   if (!localStorage.getItem("token")) {
-    notifyStoreStatus("กรุณาเข้าสู่ระบบก่อน");
+    notifyStoreStatus(text().loginFirst);
     router.push({ name: "Login" });
     return;
   }
 
   try {
     await api.post("/cart", { book_id: book.id });
-    notifyStoreStatus("เพิ่มลงตะกร้าแล้ว");
+    notifyStoreStatus(text().addedCart);
   } catch (error: any) {
-    notifyStoreStatus(
-      error?.response?.data?.message || "เพิ่มลงตะกร้าไม่สำเร็จ",
-    );
+    notifyStoreStatus(error?.response?.data?.message || text().addCartFailed);
   }
 }
 
-async function loadBooks() {
+function normalizeCategories(data: unknown): Category[] {
+  const items = Array.isArray(data) ? data : Array.isArray((data as any)?.categories) ? (data as any).categories : [];
+
+  return items
+    .map((item: any, index: number) => ({
+      id: Number.isFinite(Number(item?.id)) ? Number(item.id) : `category-${index}`,
+      name: String(item?.name || "").trim(),
+      parent_id: item?.parent_id == null ? null : Number(item.parent_id),
+      sort_order: item?.sort_order == null ? null : Number(item.sort_order),
+    }))
+    .filter((category) => category.name)
+    .sort((a, b) => {
+      const orderA = a.sort_order ?? Number.MAX_SAFE_INTEGER;
+      const orderB = b.sort_order ?? Number.MAX_SAFE_INTEGER;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.name.localeCompare(b.name, "th");
+    });
+}
+
+async function loadStoreData() {
   loading.value = true;
 
   try {
-    const { data } = await api.get("/books");
-    books.value = Array.isArray(data)
-      ? data
-      : Array.isArray(data?.books)
-        ? data.books
+    const [booksResponse, categoriesResponse] = await Promise.all([
+      api.get("/books"),
+      api.get("/categories").catch((error) => {
+        console.warn("load store categories error:", error);
+        return { data: [] };
+      }),
+    ]);
+    const bookData = booksResponse.data;
+    books.value = Array.isArray(bookData)
+      ? bookData
+      : Array.isArray(bookData?.books)
+        ? bookData.books
         : [];
+    categoryItems.value = normalizeCategories(categoriesResponse.data);
   } catch (error) {
     console.error("load store books error:", error);
-    notifyStoreStatus("โหลดหนังสือไม่สำเร็จ");
+    notifyStoreStatus(text().loadFailed);
   } finally {
     loading.value = false;
   }
 }
 
 function goToBook(id: number) {
-  notifyStoreStatus("เปิดรายละเอียดหนังสือ");
+  notifyStoreStatus(text().openBook);
   router.push({ name: "BookDetail", params: { id } });
 }
 
@@ -156,75 +369,71 @@ watch(
   },
 );
 
-onMounted(loadBooks);
+onMounted(loadStoreData);
 </script>
 
 <template>
   <main class="store-page">
     <header class="store-header">
       <div>
-        <h1>ร้านหนังสือ</h1>
-        <p>
-          เลือกหนังสือที่ชอบ เพิ่มเข้าชั้นหนังสือ รายการที่อยากอ่าน
-          หรือตะกร้าได้ทันที
-        </p>
+        <h1>{{ text().title }}</h1>
+        <p>{{ text().subtitle }}</p>
       </div>
 
       <div class="header-actions">
         <button class="top-btn" type="button" @click="goToWishlist">
           Wishlist
         </button>
-        <button class="top-btn" type="button" @click="goToCart">ตะกร้า</button>
+        <button class="top-btn" type="button" @click="goToCart">{{ text().cart }}</button>
         <button class="top-btn primary" type="button" @click="goToMyLibrary">
-          ชั้นหนังสือของฉัน
+          {{ text().library }}
         </button>
       </div>
     </header>
 
-    <section class="search-panel" aria-label="ค้นหาและกรองหนังสือ">
+    <section class="search-panel" :aria-label="text().searchPanel">
       <input
         v-model="search"
         type="search"
-        placeholder="ค้นหาชื่อหนังสือ ผู้เขียน หรือหมวดหมู่"
+        :placeholder="text().searchPlaceholder"
         class="search-box"
-        aria-label="ค้นหาหนังสือ"
+        :aria-label="text().searchLabel"
       />
 
       <div class="filter-row">
-        <select v-model="contentFilter" aria-label="กรองตามรูปแบบหนังสือ">
-          <option value="all">ทุกรูปแบบ</option>
-          <option value="ebook">อีบุ๊ก</option>
-          <option value="serial">รายตอน</option>
+        <select v-model="contentFilter" :aria-label="text().contentFilter">
+          <option value="all">{{ text().allTypes }}</option>
+          <option value="ebook">{{ text().ebook }}</option>
+          <option value="serial">{{ text().serial }}</option>
         </select>
-        <select v-model="accessFilter" aria-label="กรองตามสิทธิ์อ่าน">
-          <option value="all">ทุกสิทธิ์อ่าน</option>
-          <option value="free">อ่านฟรี</option>
-          <option value="paid">ใช้เหรียญ</option>
-          <option value="subscription">แพ็กเกจ</option>
+        <select v-model="accessFilter" :aria-label="text().accessFilter">
+          <option value="all">{{ text().allAccess }}</option>
+          <option value="free">{{ text().freeRead }}</option>
+          <option value="paid">{{ text().paid }}</option>
+          <option value="subscription">{{ text().subscription }}</option>
         </select>
-        <select v-model="categoryFilter" aria-label="กรองตามหมวดหมู่">
-          <option value="all">ทุกหมวดหมู่</option>
+      </div>
+
+      <div class="category-filter" :aria-label="text().categoryFilter">
+        <select
+          class="category-select"
+          :value="categoryFilter"
+          :aria-label="text().categoryFilter"
+          @change="setCategoryFilter(($event.target as HTMLSelectElement).value)"
+        >
+          <option value="all">{{ text().allCategories }}</option>
           <option
-            v-for="category in categoryOptions"
-            :key="category"
-            :value="category"
+            v-for="category in categorySelectOptions"
+            :key="category.id"
+            :value="category.name"
           >
-            {{ category }}
+            {{ category.parent_id ? `- ${category.name}` : category.name }}
           </option>
         </select>
       </div>
 
-      <div
-        v-if="search.trim()"
-        class="suggestion-row"
-        aria-label="หนังสือที่เกี่ยวข้อง"
-      >
-        <button
-          v-for="book in suggestedBooks"
-          :key="book.id"
-          type="button"
-          @click="goToBook(book.id)"
-        >
+      <div v-if="search.trim()" class="suggestion-row" :aria-label="text().suggestions">
+        <button v-for="book in suggestedBooks" :key="book.id" type="button" @click="goToBook(book.id)">
           {{ book.title }}
         </button>
       </div>
@@ -232,44 +441,36 @@ onMounted(loadBooks);
 
     <p class="sr-status" aria-live="polite">{{ statusMessage }}</p>
 
-    <section v-if="loading" class="empty-state">กำลังโหลดหนังสือ...</section>
+    <section v-if="loading" class="empty-state">{{ text().loading }}</section>
     <section v-else-if="filteredBooks.length === 0" class="empty-state">
-      ไม่พบหนังสือที่ตรงกับการค้นหา
+      {{ text().empty }}
     </section>
 
-    <section v-else class="book-grid" aria-label="รายการหนังสือ">
+    <section v-else class="book-grid" :aria-label="text().list">
       <article v-for="book in filteredBooks" :key="book.id" class="book-card">
         <div
           class="book-clickable"
           tabindex="0"
           role="button"
-          :aria-label="`เปิดรายละเอียดหนังสือ ${book.title}`"
+          :aria-label="`${text().openDetails} ${book.title}`"
           @click="goToBook(book.id)"
           @keydown.enter.prevent="goToBook(book.id)"
           @keydown.space.prevent="goToBook(book.id)"
         >
-          <img
-            :src="getBookCover(book)"
-            :alt="book.title"
-            @error="handleImgError"
-          />
+          <img :src="getBookCover(book)" :alt="book.title" @error="handleImgError" />
           <div class="meta-row">
             <span>{{ getTypeLabel(book) }}</span>
             <span>{{ getAccessLabel(book) }}</span>
           </div>
           <h2>{{ book.title }}</h2>
-          <p>{{ book.author || "ไม่ระบุผู้เขียน" }}</p>
+          <p>{{ book.author || text().unknownAuthor }}</p>
           <small v-if="book.category_name">{{ book.category_name }}</small>
         </div>
 
         <div class="book-card-footer">
-          <div class="rating-box" aria-label="คะแนนและจำนวนรีวิว">
+          <div class="rating-box" :aria-label="text().rating">
             <span class="heart-row" aria-hidden="true">
-              <span
-                v-for="index in 5"
-                :key="index"
-                :class="{ active: index <= getFilledHearts(book) }"
-              >
+              <span v-for="index in 5" :key="index" :class="{ active: index <= getFilledHearts(book) }">
                 ♥
               </span>
             </span>
@@ -285,7 +486,6 @@ onMounted(loadBooks);
     </section>
   </main>
 </template>
-
 <style scoped>
 .store-page {
   background: var(--bg);
@@ -376,6 +576,30 @@ onMounted(loadBooks);
   font-weight: 800;
   min-height: 42px;
   padding: 0 12px;
+}
+
+.category-filter {
+  display: grid;
+  gap: 10px;
+}
+
+.category-select {
+  width: min(100%, 240px);
+  min-height: 40px;
+  border: 1px solid color-mix(in srgb, var(--primary) 34%, var(--border));
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-strong);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+  outline: none;
+  padding: 0 38px 0 14px;
+}
+
+.category-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
 }
 
 .suggestion-row button {
