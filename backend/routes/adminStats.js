@@ -4,6 +4,7 @@ const { verifyToken } = require("../middleware/auth");
 const { requireAdmin } = require("../middleware/admin");
 
 const router = express.Router();
+const supportedSocialProvider = "line";
 
 router.get("/summary", verifyToken, requireAdmin, async (_req, res) => {
   try {
@@ -118,22 +119,32 @@ router.get("/system-data/:section", verifyToken, requireAdmin, async (req, res) 
            sc.updated_at
          FROM social_connections sc
          LEFT JOIN users u ON u.id = sc.user_id
+         WHERE sc.provider = ?
          ORDER BY sc.updated_at DESC, sc.connected_at DESC, sc.id DESC
          LIMIT ?`,
-        [limit],
+        [supportedSocialProvider, limit],
       );
 
       const [providers] = await db.query(
         `SELECT provider, COUNT(*) AS total
          FROM social_connections
+         WHERE provider = ?
          GROUP BY provider
          ORDER BY total DESC, provider ASC`,
+        [supportedSocialProvider],
+      );
+
+      const [[summary]] = await db.query(
+        `SELECT COUNT(*) AS total
+         FROM social_connections
+         WHERE provider = ?`,
+        [supportedSocialProvider],
       );
 
       return res.json({
         section,
         summary: {
-          total: await getTableCount("social_connections"),
+          total: Number(summary?.total || 0),
           providers,
         },
         items,

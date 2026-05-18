@@ -36,7 +36,7 @@ type UserRole = "user" | "writer" | "admin" | "superadmin";
 
 const memberRoles: UserRole[] = ["user", "writer", "admin", "superadmin"];
 const writerRoles: UserRole[] = ["writer"];
-const uploaderRoles: UserRole[] = ["user", "writer", "admin", "superadmin"];
+const uploaderRoles: UserRole[] = ["writer", "admin", "superadmin"];
 const adminRoles: UserRole[] = ["admin", "superadmin"];
 const superAdminRoles: UserRole[] = ["superadmin"];
 

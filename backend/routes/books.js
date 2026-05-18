@@ -727,7 +727,7 @@ router.get("/", async (_req, res) => {
 router.post(
   "/upload",
   verifyToken,
-  allowRoles("user", "writer", "admin", "superadmin"),
+  allowRoles("writer", "admin", "superadmin"),
   uploadBookFiles,
   async (req, res) => {
     const connection = await db.getConnection();
@@ -855,7 +855,7 @@ router.post(
 router.post(
   "/serial",
   verifyToken,
-  allowRoles("user", "writer", "admin", "superadmin"),
+  allowRoles("writer", "admin", "superadmin"),
   uploadBookFiles,
   async (req, res) => {
     try {
@@ -942,7 +942,7 @@ router.post(
 router.post(
   "/manual",
   verifyToken,
-  allowRoles("user", "writer", "admin", "superadmin"),
+  allowRoles("writer", "admin", "superadmin"),
   uploadBookFiles,
   async (req, res) => {
     try {
@@ -1195,7 +1195,7 @@ router.get("/:id", optionalVerifyToken, async (req, res) => {
 router.post(
   "/",
   verifyToken,
-  allowRoles("user", "writer", "admin", "superadmin"),
+  allowRoles("writer", "admin", "superadmin"),
   async (req, res) => {
     try {
       const result = await createBookFromPayload(req.body, req.user);
@@ -1403,7 +1403,7 @@ router.get("/:id/episodes", optionalVerifyToken, async (req, res) => {
 router.post(
   "/:id/episodes",
   verifyToken,
-  allowRoles("user", "writer", "admin", "superadmin"),
+  allowRoles("writer", "admin", "superadmin"),
   async (req, res) => {
     try {
       const {

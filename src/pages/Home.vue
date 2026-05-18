@@ -150,17 +150,12 @@
               :class="[`category-chip--${category.tone}`, `category-chip--art-${category.art}`]"
               :to="{ name: 'Store', query: { category: category.name } }"
             >
-              <span
-                class="category-art"
-                :class="`category-art--${category.art}`"
+              <img
+                class="category-art-image"
+                :src="getCustomCategoryArtImage(category.art)"
+                alt=""
                 aria-hidden="true"
-              >
-                <span class="category-art__spark category-art__spark--one"></span>
-                <span class="category-art__spark category-art__spark--two"></span>
-                <span class="category-art__head"></span>
-                <span class="category-art__body"></span>
-                <span class="category-art__book"></span>
-              </span>
+              />
               <strong>{{ category.name }}</strong>
             </router-link>
           </div>
@@ -445,6 +440,88 @@ let carouselTimer: ReturnType<typeof window.setInterval> | undefined;
 const bannerShiftPercent = 100 / 3;
 const visibleBannerCount = 3;
 const categoryPageSize = 8;
+const customCategoryArtImages: Record<string, string> = {
+  "travel-book": "/category-art/travel-book.png",
+  "manga-reader": "/category-art/manga-reader.png",
+  "mystery-book": "/category-art/mystery-book.png",
+  "adventure-book": "/category-art/adventure-book.png",
+  "teen-reader": "/category-art/teen-reader.png",
+  "drama-mask": "/category-art/drama-mask.png",
+  "chinese-girl": "/category-art/chinese-girl.png",
+  "classic-writer": "/category-art/classic-writer.png",
+  "romance-books": "/category-art/romance-books.png",
+  "fantasy-wizard": "/category-art/fantasy-wizard.png",
+  "category-art-set": "/category-art/category-art-set.png",
+  "business-growth": "/category-art/business-growth.png",
+  "finance-book": "/category-art/finance-book.png",
+  "health-yoga": "/category-art/health-yoga.png",
+  "wisdom-monk": "/category-art/wisdom-monk.png",
+  "kids-rainbow": "/category-art/kids-rainbow.png",
+  "audio-reader": "/category-art/audio-reader.png",
+  "space-science": "/category-art/space-science.png",
+  "horror-book": "/category-art/horror-book.png",
+  "education-owl": "/category-art/education-owl.png",
+  "education-graduate": "/category-art/education-graduate.png",
+  "romance-family": "/category-art/romance-family.png",
+  "poetry-writer": "/category-art/poetry-writer.png",
+  "craft-book": "/category-art/craft-book.png",
+  "law-book": "/category-art/law-book.png",
+  "study-book": "/category-art/study-book.png",
+  "wellness-garden": "/category-art/wellness-garden.png",
+  "technology-circuit": "/category-art/technology-circuit.png",
+  "math-formula": "/category-art/math-formula.png",
+  "language-chat": "/category-art/language-chat.png",
+  "marketing-megaphone": "/category-art/marketing-megaphone.png",
+  "food-cafe": "/category-art/food-cafe.png",
+  "beauty-flower": "/category-art/beauty-flower.png",
+  "exercise-runner": "/category-art/exercise-runner.png",
+  "geography-globe": "/category-art/geography-globe.png",
+  "philosophy-lotus": "/category-art/philosophy-lotus.png",
+};
+const defaultCategoryArtImage = customCategoryArtImages["travel-book"];
+const legacyCategoryArtMap: Record<string, string> = {
+  story: "romance-family",
+  romance: "romance-books",
+  fantasy: "fantasy-wizard",
+  mystery: "mystery-book",
+  adventure: "adventure-book",
+  teen: "teen-reader",
+  drama: "drama-mask",
+  chinese: "chinese-girl",
+  foreign: "travel-book",
+  manga: "manga-reader",
+  comic: "manga-reader",
+  classic: "classic-writer",
+  knowledge: "education-owl",
+  documentary: "classic-writer",
+  history: "law-book",
+  geography: "geography-globe",
+  science: "space-science",
+  technology: "technology-circuit",
+  math: "education-graduate",
+  language: "language-chat",
+  computer: "technology-circuit",
+  exam: "study-book",
+  life: "business-growth",
+  psychology: "health-yoga",
+  inspiration: "business-growth",
+  time: "business-growth",
+  business: "finance-book",
+  finance: "finance-book",
+  marketing: "marketing-megaphone",
+  accounting: "finance-book",
+  wellness: "health-yoga",
+  food: "food-cafe",
+  exercise: "exercise-runner",
+  beauty: "beauty-flower",
+  travel: "travel-book",
+  hobby: "craft-book",
+  wisdom: "wisdom-monk",
+  philosophy: "philosophy-lotus",
+  kids: "kids-rainbow",
+  picturebook: "kids-rainbow",
+  audio: "audio-reader",
+};
 
 const fallbackCampaigns = computed(() => [
   {
@@ -610,6 +687,12 @@ const getCategoryArt = (name: string) => {
   if (/พัฒนาตนเอง|ทักษะชีวิต/.test(keyword)) return "life";
   if (/ความรู้/.test(keyword)) return "knowledge";
   return "story";
+};
+
+const getCustomCategoryArtImage = (art?: string | null) => {
+  if (!art) return defaultCategoryArtImage;
+  const imageKey = customCategoryArtImages[art] ? art : legacyCategoryArtMap[art];
+  return imageKey ? customCategoryArtImages[imageKey] || defaultCategoryArtImage : defaultCategoryArtImage;
 };
 
 const visibleCategoryItems = computed<HomeCategoryButton[]>(() => adminCategoryItems.value);
@@ -1484,6 +1567,20 @@ watch(locale, () => {
   height: 118px;
   transform: scale(0.88);
   transform-origin: right bottom;
+}
+
+.category-art-image {
+  position: absolute;
+  right: 20px;
+  bottom: 14px;
+  z-index: 1;
+  width: 82px;
+  height: 82px;
+  background: transparent;
+  object-fit: contain;
+  object-position: center;
+  pointer-events: none;
+  filter: drop-shadow(0 15px 18px rgba(15, 23, 42, 0.16));
 }
 
 .category-art::before {
@@ -2639,6 +2736,13 @@ watch(locale, () => {
     height: 106px;
     transform: scale(0.72);
     transform-origin: right bottom;
+  }
+
+  .category-art-image {
+    right: 12px;
+    bottom: 12px;
+    width: 68px;
+    height: 68px;
   }
 
   .category-bar {

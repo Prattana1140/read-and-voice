@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import api from "../../utils/api";
+import { useI18n, type Locale } from "../../utils/i18n";
 
 type SectionKey =
   | "login-events"
@@ -16,38 +17,263 @@ type Section = {
   description: string;
 };
 
-const sections: Section[] = [
-  {
-    key: "login-events",
-    title: "Login events",
-    description: "Recent sign-in attempts, providers, IP addresses, and failure notes.",
+type SystemCopy = {
+  pageEyebrow: string;
+  pageTitle: string;
+  pageDescription: string;
+  navLabel: string;
+  refresh: string;
+  loading: string;
+  loadError: string;
+  sections: Record<SectionKey, Omit<Section, "key">>;
+  summaryLabels: Record<string, string>;
+  table: Record<string, string>;
+  status: Record<string, string>;
+};
+
+const copy: Record<Locale, SystemCopy> = {
+  th: {
+    pageEyebrow: "รายงานแอดมิน",
+    pageTitle: "ศูนย์ข้อมูลระบบ",
+    pageDescription:
+      "รวมข้อมูลจากหลังบ้านที่มีอยู่แล้ว แต่ยังไม่มีหน้าจอสำหรับตรวจสอบอย่างชัดเจน",
+    navLabel: "หมวดข้อมูลระบบ",
+    refresh: "รีเฟรช",
+    loading: "กำลังโหลดข้อมูล...",
+    loadError: "โหลดข้อมูลระบบไม่สำเร็จ",
+    sections: {
+      "login-events": {
+        title: "เหตุการณ์เข้าสู่ระบบ",
+        description: "รายการเข้าสู่ระบบล่าสุด ผู้ให้บริการ IP และข้อความข้อผิดพลาด",
+      },
+      "social-connections": {
+        title: "บัญชีโซเชียลที่เชื่อมต่อ",
+        description: "บัญชี LINE ที่เชื่อมไว้ และข้อมูลตัวตนจากผู้ให้บริการ",
+      },
+      "reading-activity": {
+        title: "กิจกรรมการอ่าน",
+        description: "ยอดเข้าชมหนังสือ ตอน และความคืบหน้าการอ่านล่าสุด",
+      },
+      "user-assets": {
+        title: "ข้อมูลผู้ใช้",
+        description: "อุปกรณ์ การแจ้งเตือน และบุ๊กมาร์กที่บันทึกไว้ของผู้ใช้",
+      },
+      benefits: {
+        title: "สิทธิประโยชน์",
+        description: "โค้ดของขวัญ สิทธิประโยชน์ของผู้ใช้ และข้อมูลยืนยันอายุ",
+      },
+      "empty-data": {
+        title: "ตารางว่าง/สำรอง",
+        description: "ตารางที่เตรียมไว้สำหรับฟีเจอร์ในอนาคต หรือยังไม่มีข้อมูล",
+      },
+    },
+    summaryLabels: {
+      age_verifications: "การยืนยันอายุ",
+      book_views: "ยอดเข้าชมหนังสือ",
+      bookmarks: "บุ๊กมาร์ก",
+      empty_tables: "ตารางว่าง",
+      episode_views: "ยอดเข้าชมตอน",
+      total: "ทั้งหมด",
+      failure_count: "ไม่สำเร็จ",
+      gift_codes: "โค้ดของขวัญ",
+      reading_progress: "ความคืบหน้าการอ่าน",
+      success_count: "สำเร็จ",
+      total_tables: "ตารางทั้งหมด",
+      user_benefits: "สิทธิประโยชน์ผู้ใช้",
+      user_devices: "อุปกรณ์ผู้ใช้",
+      user_notifications: "การแจ้งเตือนผู้ใช้",
+    },
+    table: {
+      ageVerifications: "การยืนยันอายุ",
+      book: "หนังสือ",
+      bookmarks: "บุ๊กมาร์ก",
+      code: "โค้ด",
+      connected: "เชื่อมต่อเมื่อ",
+      created: "สร้างเมื่อ",
+      description: "คำอธิบาย",
+      device: "อุปกรณ์",
+      devices: "อุปกรณ์",
+      displayName: "ชื่อที่แสดง",
+      document: "เอกสาร",
+      episode: "ตอน",
+      expires: "หมดอายุ",
+      giftCodes: "โค้ดของขวัญ",
+      ip: "IP",
+      lastRead: "อ่านล่าสุด",
+      lastUsed: "ใช้ล่าสุด",
+      lastViewed: "เข้าชมล่าสุด",
+      message: "ข้อความ",
+      mode: "โหมด",
+      note: "หมายเหตุ",
+      notifications: "การแจ้งเตือน",
+      page: "หน้า",
+      platform: "แพลตฟอร์ม",
+      progress: "ความคืบหน้า",
+      provider: "ผู้ให้บริการ",
+      providerEmail: "อีเมลผู้ให้บริการ",
+      read: "อ่านแล้ว",
+      readers: "ผู้อ่าน",
+      redeemed: "ใช้เมื่อ",
+      recentProgress: "ความคืบหน้าการอ่านล่าสุด",
+      rows: "แถว",
+      status: "สถานะ",
+      table: "ตาราง",
+      time: "เวลา",
+      title: "ชื่อ",
+      topBooks: "หนังสือยอดเข้าชมสูงสุด",
+      topEpisodes: "ตอนยอดเข้าชมสูงสุด",
+      type: "ประเภท",
+      updated: "อัปเดต",
+      user: "ผู้ใช้",
+      userBenefits: "สิทธิประโยชน์ผู้ใช้",
+      views: "ยอดเข้าชม",
+    },
+    status: {
+      active: "ใช้งานอยู่",
+      approved: "อนุมัติแล้ว",
+      available: "พร้อมใช้งาน",
+      banned: "ถูกระงับ",
+      cancelled: "ยกเลิกแล้ว",
+      draft: "ฉบับร่าง",
+      empty: "ว่าง",
+      failed: "ไม่สำเร็จ",
+      hasData: "มีข้อมูล",
+      inactive: "ไม่ใช้งาน",
+      not_submitted: "ยังไม่ส่ง",
+      paid: "ชำระแล้ว",
+      pending: "รอดำเนินการ",
+      read: "อ่านแล้ว",
+      rejected: "ปฏิเสธแล้ว",
+      success: "สำเร็จ",
+      unread: "ยังไม่อ่าน",
+    },
   },
-  {
-    key: "social-connections",
-    title: "Social connections",
-    description: "Linked LINE/Facebook accounts and provider identity data.",
+  en: {
+    pageEyebrow: "Admin reports",
+    pageTitle: "System Data Center",
+    pageDescription:
+      "A single place for data that existed in the backend but did not have a clear frontend surface yet.",
+    navLabel: "System data sections",
+    refresh: "Refresh",
+    loading: "Loading data...",
+    loadError: "Unable to load system data",
+    sections: {
+      "login-events": {
+        title: "Login events",
+        description: "Recent sign-in attempts, providers, IP addresses, and failure notes.",
+      },
+      "social-connections": {
+        title: "Social connections",
+        description: "Linked LINE accounts and provider identity data.",
+      },
+      "reading-activity": {
+        title: "Reading activity",
+        description: "Book views, episode views, and last reading progress.",
+      },
+      "user-assets": {
+        title: "User assets",
+        description: "Devices, notifications, and bookmarks stored for users.",
+      },
+      benefits: {
+        title: "Benefits",
+        description: "Gift codes, user benefits, and age verification records.",
+      },
+      "empty-data": {
+        title: "Empty/reserved tables",
+        description: "Tables that exist for future features or currently have no data.",
+      },
+    },
+    summaryLabels: {
+      age_verifications: "Age verifications",
+      book_views: "Book views",
+      bookmarks: "Bookmarks",
+      empty_tables: "Empty tables",
+      episode_views: "Episode views",
+      total: "Total",
+      failure_count: "Failure count",
+      gift_codes: "Gift codes",
+      reading_progress: "Reading progress",
+      success_count: "Success count",
+      total_tables: "Total tables",
+      user_benefits: "User benefits",
+      user_devices: "User devices",
+      user_notifications: "User notifications",
+    },
+    table: {
+      ageVerifications: "Age verifications",
+      book: "Book",
+      bookmarks: "Bookmarks",
+      code: "Code",
+      connected: "Connected",
+      created: "Created",
+      description: "Description",
+      device: "Device",
+      devices: "Devices",
+      displayName: "Display name",
+      document: "Document",
+      episode: "Episode",
+      expires: "Expires",
+      giftCodes: "Gift codes",
+      ip: "IP",
+      lastRead: "Last read",
+      lastUsed: "Last used",
+      lastViewed: "Last viewed",
+      message: "Message",
+      mode: "Mode",
+      note: "Note",
+      notifications: "Notifications",
+      page: "Page",
+      platform: "Platform",
+      progress: "Progress",
+      provider: "Provider",
+      providerEmail: "Provider email",
+      read: "Read",
+      readers: "Readers",
+      redeemed: "Redeemed",
+      recentProgress: "Recent reading progress",
+      rows: "Rows",
+      status: "Status",
+      table: "Table",
+      time: "Time",
+      title: "Title",
+      topBooks: "Top books by views",
+      topEpisodes: "Top episodes by views",
+      type: "Type",
+      updated: "Updated",
+      user: "User",
+      userBenefits: "User benefits",
+      views: "Views",
+    },
+    status: {
+      active: "active",
+      approved: "approved",
+      available: "available",
+      banned: "banned",
+      cancelled: "cancelled",
+      draft: "draft",
+      empty: "empty",
+      failed: "failed",
+      hasData: "has data",
+      inactive: "inactive",
+      not_submitted: "not submitted",
+      paid: "paid",
+      pending: "pending",
+      read: "read",
+      rejected: "rejected",
+      success: "success",
+      unread: "unread",
+    },
   },
-  {
-    key: "reading-activity",
-    title: "Reading activity",
-    description: "Book views, episode views, and last reading progress.",
-  },
-  {
-    key: "user-assets",
-    title: "User assets",
-    description: "Devices, notifications, and bookmarks stored for users.",
-  },
-  {
-    key: "benefits",
-    title: "Benefits",
-    description: "Gift codes, user benefits, and age verification records.",
-  },
-  {
-    key: "empty-data",
-    title: "Empty/reserved tables",
-    description: "Tables that exist for future features or currently have no data.",
-  },
-];
+};
+
+const { locale } = useI18n();
+const pageCopy = computed(() => copy[locale.value]);
+const sections = computed<Section[]>(() =>
+  (Object.keys(pageCopy.value.sections) as SectionKey[]).map((key) => ({
+    key,
+    ...pageCopy.value.sections[key],
+  })),
+);
 
 const activeSection = ref<SectionKey>("login-events");
 const loading = ref(false);
@@ -55,7 +281,9 @@ const errorMessage = ref("");
 const payload = ref<any>({ summary: {}, items: [] });
 
 const currentSection = computed(
-  () => sections.find((section) => section.key === activeSection.value) || sections[0],
+  () =>
+    sections.value.find((section) => section.key === activeSection.value) ||
+    sections.value[0],
 );
 
 const summaryCards = computed(() => {
@@ -63,7 +291,7 @@ const summaryCards = computed(() => {
 
   if (Array.isArray(summary.providers)) {
     return [
-      { label: "Total", value: summary.total || 0 },
+      { label: summaryLabel("total"), value: summary.total || 0 },
       ...summary.providers.map((item: any) => ({
         label: item.provider || "unknown",
         value: item.total || 0,
@@ -74,10 +302,32 @@ const summaryCards = computed(() => {
   return Object.entries(summary)
     .filter(([, value]) => typeof value !== "object")
     .map(([key, value]) => ({
-      label: key.replace(/_/g, " "),
+      label: summaryLabel(key),
       value: value ?? 0,
     }));
 });
+
+function summaryLabel(key: string) {
+  const mapped = pageCopy.value.summaryLabels[key];
+  if (mapped) return mapped;
+  return key.replace(/_/g, " ");
+}
+
+function tableText(key: keyof SystemCopy["table"]) {
+  return pageCopy.value.table[key];
+}
+
+function statusText(key: keyof SystemCopy["status"]) {
+  return pageCopy.value.status[key];
+}
+
+function formatStatus(value: unknown) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (!normalized) return "-";
+  return pageCopy.value.status[normalized] || normalized.replace(/_/g, " ");
+}
 
 function text(value: unknown) {
   if (value === null || value === undefined || value === "") return "-";
@@ -88,7 +338,7 @@ function formatDate(value: unknown) {
   if (!value) return "-";
   const date = new Date(String(value));
   if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleString("th-TH", {
+  return date.toLocaleString(locale.value === "th" ? "th-TH" : "en-US", {
     dateStyle: "medium",
     timeStyle: "short",
   });
@@ -112,7 +362,7 @@ async function loadSection(section = activeSection.value) {
     payload.value = data || { summary: {}, items: [] };
   } catch (error: any) {
     errorMessage.value =
-      error?.response?.data?.message || "Unable to load system data";
+      error?.response?.data?.message || pageCopy.value.loadError;
     payload.value = { summary: {}, items: [] };
   } finally {
     loading.value = false;
@@ -126,15 +376,13 @@ onMounted(() => loadSection());
   <main class="system-page">
     <section class="page-head">
       <div>
-        <p class="eyebrow">Admin reports</p>
-        <h1>System Data Center</h1>
-        <p>
-          A single place for data that existed in the backend but did not have a clear frontend surface yet.
-        </p>
+        <p class="eyebrow">{{ pageCopy.pageEyebrow }}</p>
+        <h1>{{ pageCopy.pageTitle }}</h1>
+        <p>{{ pageCopy.pageDescription }}</p>
       </div>
     </section>
 
-    <nav class="tabbar" aria-label="System data sections">
+    <nav class="tabbar" :aria-label="pageCopy.navLabel">
       <button
         v-for="section in sections"
         :key="section.key"
@@ -151,10 +399,10 @@ onMounted(() => loadSection());
         <h2>{{ currentSection.title }}</h2>
         <p>{{ currentSection.description }}</p>
       </div>
-      <button type="button" @click="loadSection()">Refresh</button>
+      <button type="button" @click="loadSection()">{{ pageCopy.refresh }}</button>
     </section>
 
-    <div v-if="loading" class="state-box">Loading data...</div>
+    <div v-if="loading" class="state-box">{{ pageCopy.loading }}</div>
     <div v-else-if="errorMessage" class="state-box error">{{ errorMessage }}</div>
 
     <template v-else>
@@ -169,12 +417,12 @@ onMounted(() => loadSection());
         <table>
           <thead>
             <tr>
-              <th>Time</th>
-              <th>User</th>
-              <th>Provider</th>
-              <th>Status</th>
-              <th>IP</th>
-              <th>Message</th>
+              <th>{{ tableText("time") }}</th>
+              <th>{{ tableText("user") }}</th>
+              <th>{{ tableText("provider") }}</th>
+              <th>{{ tableText("status") }}</th>
+              <th>{{ tableText("ip") }}</th>
+              <th>{{ tableText("message") }}</th>
             </tr>
           </thead>
           <tbody>
@@ -182,7 +430,7 @@ onMounted(() => loadSection());
               <td>{{ formatDate(item.created_at) }}</td>
               <td>{{ text(item.name || item.email || item.user_id) }}</td>
               <td>{{ text(item.provider) }}</td>
-              <td><span class="pill" :class="statusClass(item.success)">{{ Number(item.success) === 1 ? "success" : "failed" }}</span></td>
+              <td><span class="pill" :class="statusClass(item.success)">{{ Number(item.success) === 1 ? statusText("success") : statusText("failed") }}</span></td>
               <td>{{ text(item.ip_address) }}</td>
               <td>{{ text(item.message) }}</td>
             </tr>
@@ -194,12 +442,12 @@ onMounted(() => loadSection());
         <table>
           <thead>
             <tr>
-              <th>User</th>
-              <th>Provider</th>
-              <th>Display name</th>
-              <th>Provider email</th>
-              <th>Connected</th>
-              <th>Updated</th>
+              <th>{{ tableText("user") }}</th>
+              <th>{{ tableText("provider") }}</th>
+              <th>{{ tableText("displayName") }}</th>
+              <th>{{ tableText("providerEmail") }}</th>
+              <th>{{ tableText("connected") }}</th>
+              <th>{{ tableText("updated") }}</th>
             </tr>
           </thead>
           <tbody>
@@ -217,9 +465,9 @@ onMounted(() => loadSection());
 
       <section v-else-if="activeSection === 'reading-activity'" class="stack">
         <article class="table-card">
-          <h3>Top books by views</h3>
+          <h3>{{ tableText("topBooks") }}</h3>
           <table>
-            <thead><tr><th>Book</th><th>Views</th><th>Readers</th><th>Last viewed</th></tr></thead>
+            <thead><tr><th>{{ tableText("book") }}</th><th>{{ tableText("views") }}</th><th>{{ tableText("readers") }}</th><th>{{ tableText("lastViewed") }}</th></tr></thead>
             <tbody>
               <tr v-for="item in payload.items.top_books" :key="item.id">
                 <td>{{ text(item.title || item.id) }}</td>
@@ -232,9 +480,9 @@ onMounted(() => loadSection());
         </article>
 
         <article class="table-card">
-          <h3>Top episodes by views</h3>
+          <h3>{{ tableText("topEpisodes") }}</h3>
           <table>
-            <thead><tr><th>Episode</th><th>Book</th><th>Views</th><th>Readers</th><th>Last viewed</th></tr></thead>
+            <thead><tr><th>{{ tableText("episode") }}</th><th>{{ tableText("book") }}</th><th>{{ tableText("views") }}</th><th>{{ tableText("readers") }}</th><th>{{ tableText("lastViewed") }}</th></tr></thead>
             <tbody>
               <tr v-for="item in payload.items.top_episodes" :key="item.id">
                 <td>{{ text(item.title || item.id) }}</td>
@@ -248,9 +496,9 @@ onMounted(() => loadSection());
         </article>
 
         <article class="table-card">
-          <h3>Recent reading progress</h3>
+          <h3>{{ tableText("recentProgress") }}</h3>
           <table>
-            <thead><tr><th>User</th><th>Book</th><th>Mode</th><th>Page</th><th>Progress</th><th>Last read</th></tr></thead>
+            <thead><tr><th>{{ tableText("user") }}</th><th>{{ tableText("book") }}</th><th>{{ tableText("mode") }}</th><th>{{ tableText("page") }}</th><th>{{ tableText("progress") }}</th><th>{{ tableText("lastRead") }}</th></tr></thead>
             <tbody>
               <tr v-for="item in payload.items.progress" :key="item.id">
                 <td>{{ text(item.name || item.email || item.user_id) }}</td>
@@ -267,9 +515,9 @@ onMounted(() => loadSection());
 
       <section v-else-if="activeSection === 'user-assets'" class="stack">
         <article class="table-card">
-          <h3>Devices</h3>
+          <h3>{{ tableText("devices") }}</h3>
           <table>
-            <thead><tr><th>User</th><th>Device</th><th>Platform</th><th>Last used</th><th>Created</th></tr></thead>
+            <thead><tr><th>{{ tableText("user") }}</th><th>{{ tableText("device") }}</th><th>{{ tableText("platform") }}</th><th>{{ tableText("lastUsed") }}</th><th>{{ tableText("created") }}</th></tr></thead>
             <tbody>
               <tr v-for="item in payload.items.devices" :key="item.id">
                 <td>{{ text(item.name || item.email || item.user_id) }}</td>
@@ -283,15 +531,15 @@ onMounted(() => loadSection());
         </article>
 
         <article class="table-card">
-          <h3>Notifications</h3>
+          <h3>{{ tableText("notifications") }}</h3>
           <table>
-            <thead><tr><th>User</th><th>Type</th><th>Title</th><th>Read</th><th>Created</th></tr></thead>
+            <thead><tr><th>{{ tableText("user") }}</th><th>{{ tableText("type") }}</th><th>{{ tableText("title") }}</th><th>{{ tableText("read") }}</th><th>{{ tableText("created") }}</th></tr></thead>
             <tbody>
               <tr v-for="item in payload.items.notifications" :key="item.id">
                 <td>{{ text(item.name || item.email || item.user_id) }}</td>
                 <td>{{ text(item.type) }}</td>
                 <td>{{ text(item.title) }}</td>
-                <td><span class="pill" :class="statusClass(item.is_read)">{{ Number(item.is_read) === 1 ? "read" : "unread" }}</span></td>
+                <td><span class="pill" :class="statusClass(item.is_read)">{{ Number(item.is_read) === 1 ? statusText("read") : statusText("unread") }}</span></td>
                 <td>{{ formatDate(item.created_at) }}</td>
               </tr>
             </tbody>
@@ -299,9 +547,9 @@ onMounted(() => loadSection());
         </article>
 
         <article class="table-card">
-          <h3>Bookmarks</h3>
+          <h3>{{ tableText("bookmarks") }}</h3>
           <table>
-            <thead><tr><th>User</th><th>Book</th><th>Page</th><th>Note</th><th>Created</th></tr></thead>
+            <thead><tr><th>{{ tableText("user") }}</th><th>{{ tableText("book") }}</th><th>{{ tableText("page") }}</th><th>{{ tableText("note") }}</th><th>{{ tableText("created") }}</th></tr></thead>
             <tbody>
               <tr v-for="item in payload.items.bookmarks" :key="item.id">
                 <td>{{ text(item.name || item.email || item.user_id) }}</td>
@@ -317,14 +565,14 @@ onMounted(() => loadSection());
 
       <section v-else-if="activeSection === 'benefits'" class="stack">
         <article class="table-card">
-          <h3>User benefits</h3>
+          <h3>{{ tableText("userBenefits") }}</h3>
           <table>
-            <thead><tr><th>User</th><th>Title</th><th>Status</th><th>Expires</th><th>Created</th></tr></thead>
+            <thead><tr><th>{{ tableText("user") }}</th><th>{{ tableText("title") }}</th><th>{{ tableText("status") }}</th><th>{{ tableText("expires") }}</th><th>{{ tableText("created") }}</th></tr></thead>
             <tbody>
               <tr v-for="item in payload.items.benefits" :key="item.id">
                 <td>{{ text(item.name || item.email || item.user_id) }}</td>
                 <td>{{ text(item.title) }}</td>
-                <td><span class="pill" :class="statusClass(item.status)">{{ text(item.status) }}</span></td>
+                <td><span class="pill" :class="statusClass(item.status)">{{ formatStatus(item.status) }}</span></td>
                 <td>{{ formatDate(item.expires_at) }}</td>
                 <td>{{ formatDate(item.created_at) }}</td>
               </tr>
@@ -333,14 +581,14 @@ onMounted(() => loadSection());
         </article>
 
         <article class="table-card">
-          <h3>Gift codes</h3>
+          <h3>{{ tableText("giftCodes") }}</h3>
           <table>
-            <thead><tr><th>User</th><th>Code</th><th>Status</th><th>Description</th><th>Redeemed</th></tr></thead>
+            <thead><tr><th>{{ tableText("user") }}</th><th>{{ tableText("code") }}</th><th>{{ tableText("status") }}</th><th>{{ tableText("description") }}</th><th>{{ tableText("redeemed") }}</th></tr></thead>
             <tbody>
               <tr v-for="item in payload.items.gift_codes" :key="item.id">
                 <td>{{ text(item.name || item.email || item.user_id) }}</td>
                 <td>{{ text(item.code) }}</td>
-                <td><span class="pill" :class="statusClass(item.status)">{{ text(item.status) }}</span></td>
+                <td><span class="pill" :class="statusClass(item.status)">{{ formatStatus(item.status) }}</span></td>
                 <td>{{ text(item.description) }}</td>
                 <td>{{ formatDate(item.redeemed_at) }}</td>
               </tr>
@@ -349,13 +597,13 @@ onMounted(() => loadSection());
         </article>
 
         <article class="table-card">
-          <h3>Age verifications</h3>
+          <h3>{{ tableText("ageVerifications") }}</h3>
           <table>
-            <thead><tr><th>User</th><th>Status</th><th>Document</th><th>Note</th><th>Updated</th></tr></thead>
+            <thead><tr><th>{{ tableText("user") }}</th><th>{{ tableText("status") }}</th><th>{{ tableText("document") }}</th><th>{{ tableText("note") }}</th><th>{{ tableText("updated") }}</th></tr></thead>
             <tbody>
               <tr v-for="item in payload.items.age_verifications" :key="item.id">
                 <td>{{ text(item.name || item.email || item.user_id) }}</td>
-                <td><span class="pill" :class="statusClass(item.status)">{{ text(item.status) }}</span></td>
+                <td><span class="pill" :class="statusClass(item.status)">{{ formatStatus(item.status) }}</span></td>
                 <td>{{ text(item.document_type) }}</td>
                 <td>{{ text(item.note) }}</td>
                 <td>{{ formatDate(item.updated_at) }}</td>
@@ -369,9 +617,9 @@ onMounted(() => loadSection());
         <table>
           <thead>
             <tr>
-              <th>Table</th>
-              <th>Rows</th>
-              <th>Status</th>
+              <th>{{ tableText("table") }}</th>
+              <th>{{ tableText("rows") }}</th>
+              <th>{{ tableText("status") }}</th>
             </tr>
           </thead>
           <tbody>
@@ -380,7 +628,7 @@ onMounted(() => loadSection());
               <td>{{ item.total }}</td>
               <td>
                 <span class="pill" :class="item.total > 0 ? 'ok' : 'warn'">
-                  {{ item.total > 0 ? "has data" : "empty" }}
+                  {{ item.total > 0 ? statusText("hasData") : statusText("empty") }}
                 </span>
               </td>
             </tr>

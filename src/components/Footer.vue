@@ -22,7 +22,12 @@ const currentRole = computed<UserRole | null>(() => {
 const canManageCategories = computed(
   () => currentRole.value === "admin" || currentRole.value === "superadmin",
 );
-const canUploadBooks = computed(() => Boolean(currentRole.value));
+const canUploadBooks = computed(
+  () =>
+    currentRole.value === "writer" ||
+    currentRole.value === "admin" ||
+    currentRole.value === "superadmin",
+);
 const canWriteBooks = computed(() => currentRole.value === "writer");
 const memberLink = computed(() => (isLoggedIn.value ? "/my-library" : "/login"));
 const recentLink = computed(() => (isLoggedIn.value ? "/profile" : "/login"));

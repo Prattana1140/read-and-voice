@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import api, { resolveAssetUrl } from "../utils/api";
 import { getUser, saveAuth } from "../utils/auth";
+import { useI18n } from "../utils/i18n";
 
 type ProfileForm = {
   username: string;
@@ -54,6 +55,7 @@ type BuffetItem = {
 };
 
 const router = useRouter();
+const { t } = useI18n();
 const loading = ref(false);
 const saving = ref(false);
 const message = ref("");
@@ -104,7 +106,16 @@ const accountCards = [
 
 const currentUser = computed(() => getUser());
 const displayName = computed(() => form.name || currentUser.value?.name || "Read and Voice User");
-const roleLabel = computed(() => profileMeta.value?.role || currentUser.value?.role || "user");
+const roleLabel = computed(() => {
+  const role = String(profileMeta.value?.role || currentUser.value?.role || "user")
+    .trim()
+    .toLowerCase();
+
+  if (role === "superadmin") return t("account.role.superadmin");
+  if (role === "admin") return t("account.role.admin");
+  if (role === "writer") return t("account.role.writer");
+  return t("account.role.user");
+});
 const memberSince = computed(() => {
   const raw = profileMeta.value?.created_at;
   if (!raw) return "ยังไม่มีข้อมูล";
@@ -411,7 +422,6 @@ onUnmounted(resetAvatarSelection);
         </div>
       </div>
       <div class="hero-copy">
-        <p class="eyebrow">Read and Voice Account</p>
         <h1>{{ displayName }}</h1>
         <span>{{ form.email || "กำลังโหลดอีเมล..." }}</span>
         <div class="hero-meta">

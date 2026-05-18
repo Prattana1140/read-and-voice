@@ -539,15 +539,10 @@ async function seedUserExperience(connection, usersByEmail, books, planMap) {
       `INSERT INTO social_connections
        (user_id, provider, provider_user_id, display_name, email, connected_at, updated_at)
        VALUES
-       (?, 'line', ?, ?, ?, DATE_SUB(NOW(), INTERVAL 30 DAY), NOW()),
-       (?, 'facebook', ?, ?, ?, DATE_SUB(NOW(), INTERVAL 18 DAY), NOW())`,
+       (?, 'line', ?, ?, ?, DATE_SUB(NOW(), INTERVAL 30 DAY), NOW())`,
       [
         user.id,
         `line-${sampleUser.key}`,
-        sampleUser.name,
-        sampleUser.email,
-        user.id,
-        `facebook-${sampleUser.key}`,
         sampleUser.name,
         sampleUser.email,
       ],

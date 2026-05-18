@@ -154,6 +154,19 @@ const roleHint = computed(() => {
   return "";
 });
 
+const localizedPlanNames: Record<string, string> = {
+  "annual unlimited": "account.plan.annualUnlimited",
+  "monthly plus": "account.plan.monthlyPlus",
+  "quarterly premium": "account.plan.quarterlyPremium",
+  "starter reader": "account.plan.starterReader",
+};
+
+function formatMembershipPlanName(value: string) {
+  const normalized = value.trim().toLowerCase();
+  const key = localizedPlanNames[normalized];
+  return key ? t(key) : value;
+}
+
 const userDisplayName = computed(
   () => user.value?.name?.trim() || "Read and Voice",
 );
@@ -310,7 +323,7 @@ const accountGroups = computed<NavGroup[]>(() => {
       {
         label: t("account.uploadBook"),
         to: "/writer/upload",
-        roles: ["user", "writer"],
+        roles: ["writer"],
       },
       { label: t("account.writerDashboard"), to: "/writer", roles: ["writer"] },
     ],
@@ -332,6 +345,11 @@ const accountGroups = computed<NavGroup[]>(() => {
       {
         label: t("account.bookManagement"),
         to: "/admin/books",
+        roles: ["admin", "superadmin"],
+      },
+      {
+        label: t("admin.categories"),
+        to: "/admin/categories",
         roles: ["admin", "superadmin"],
       },
       {
@@ -360,7 +378,7 @@ const accountGroups = computed<NavGroup[]>(() => {
         roles: ["admin", "superadmin"],
       },
       {
-        label: "System Data",
+        label: locale.value === "th" ? "ข้อมูลระบบ" : "System Data",
         to: "/admin/system-data",
         roles: ["admin", "superadmin"],
       },
@@ -715,7 +733,9 @@ const loadMembershipLabel = async () => {
       return;
     }
 
-    const planName = activeItem.title?.trim() || t("account.specialMember");
+    const planName = activeItem.title?.trim()
+      ? formatMembershipPlanName(activeItem.title)
+      : t("account.specialMember");
     const expiry = activeItem.end_at
       ? `${t("account.untilDate")} ${formatLocaleDate(activeItem.end_at)}`
       : t("account.noExpiry");
@@ -909,23 +929,23 @@ watch(isCompactNav, (compact) => {
           <span class="language-switch__label">{{ t("language.label") }}</span>
 
           <button
-            v-if="locale === 'th'"
             type="button"
-            class="language-switch__single-btn"
-            :aria-label="t('language.switchToEn')"
-            @click="selectLanguage('en')"
-          >
-            EN
-          </button>
-
-          <button
-            v-else
-            type="button"
-            class="language-switch__single-btn"
+            :class="{ active: locale === 'th' }"
+            :aria-pressed="locale === 'th'"
             :aria-label="t('language.switchToTh')"
             @click="selectLanguage('th')"
           >
-            {{ t("language.th") }}
+            ไทย
+          </button>
+
+          <button
+            type="button"
+            :class="{ active: locale === 'en' }"
+            :aria-pressed="locale === 'en'"
+            :aria-label="t('language.switchToEn')"
+            @click="selectLanguage('en')"
+          >
+            English
           </button>
         </div>
 

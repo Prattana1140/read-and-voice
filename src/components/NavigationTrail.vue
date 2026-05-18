@@ -58,6 +58,7 @@ const localizedRouteLabels: Record<"th" | "en", Record<string, string>> = {
     UploadBook: "เพิ่มหนังสือ",
     AdminCategories: "จัดการหมวดหมู่",
     AdminMembers: "จัดการสมาชิก",
+    AdminSystemData: "ข้อมูลระบบ",
     SuperAdminRoles: "จัดการสิทธิ์ผู้ใช้",
     SuperAdminUsers: "จัดการผู้ใช้",
     SuperAdminSettings: "ตั้งค่าระบบ",
@@ -105,6 +106,7 @@ const localizedRouteLabels: Record<"th" | "en", Record<string, string>> = {
     UploadBook: "Add book",
     AdminCategories: "Manage categories",
     AdminMembers: "Manage members",
+    AdminSystemData: "System Data",
     SuperAdminRoles: "Manage user roles",
     SuperAdminUsers: "Manage users",
     SuperAdminSettings: "System settings",
@@ -138,6 +140,7 @@ const parentRoutes: Record<string, { fullPath: string; routeName: string }> = {
   UploadBook: { fullPath: "/admin", routeName: "AdminDashboard" },
   AdminCategories: { fullPath: "/admin", routeName: "AdminDashboard" },
   AdminMembers: { fullPath: "/admin", routeName: "AdminDashboard" },
+  AdminSystemData: { fullPath: "/admin", routeName: "AdminDashboard" },
   SuperAdminRoles: { fullPath: "/superadmin/users", routeName: "SuperAdminUsers" },
   SuperAdminSettings: { fullPath: "/superadmin/users", routeName: "SuperAdminUsers" },
 };
@@ -197,6 +200,25 @@ const visibleTrail = computed(() => {
 
 const shouldShowTrail = computed(() => route.path !== "/" && visibleTrail.value.length > 1);
 
+const dashboardBackTarget = computed<TrailItem | null>(() => {
+  if (route.path === "/admin") return null;
+  if (route.path.startsWith("/admin")) {
+    return { fullPath: "/admin", label: locale.value === "th" ? "กลับ Dashboard" : "Back to Dashboard" };
+  }
+
+  if (route.path === "/superadmin") return null;
+  if (route.path.startsWith("/superadmin")) {
+    return { fullPath: "/superadmin", label: locale.value === "th" ? "กลับ Dashboard" : "Back to Dashboard" };
+  }
+
+  if (route.path === "/writer") return null;
+  if (route.path.startsWith("/writer")) {
+    return { fullPath: "/writer", label: locale.value === "th" ? "กลับ Dashboard" : "Back to Dashboard" };
+  }
+
+  return null;
+});
+
 function goTo(item: TrailItem) {
   if (item.fullPath !== route.fullPath) {
     router.push(item.fullPath);
@@ -206,26 +228,37 @@ function goTo(item: TrailItem) {
 
 <template>
   <nav v-if="shouldShowTrail" class="navigation-trail" :aria-label="t('a11y.skipNav')">
-    <ol class="navigation-trail__list">
-      <li
-        v-for="(item, index) in visibleTrail"
-        :key="`${item.fullPath}-${index}`"
-        class="navigation-trail__item"
+    <div class="navigation-trail__inner">
+      <button
+        v-if="dashboardBackTarget"
+        type="button"
+        class="navigation-trail__dashboard"
+        @click="goTo(dashboardBackTarget)"
       >
-        <button
-          class="navigation-trail__link"
-          :class="{ 'navigation-trail__link--current': index === visibleTrail.length - 1 }"
-          type="button"
-          :disabled="index === visibleTrail.length - 1"
-          @click="goTo(item)"
+        ← {{ dashboardBackTarget.label }}
+      </button>
+
+      <ol class="navigation-trail__list">
+        <li
+          v-for="(item, index) in visibleTrail"
+          :key="`${item.fullPath}-${index}`"
+          class="navigation-trail__item"
         >
-          {{ item.label }}
-        </button>
-        <span v-if="index < visibleTrail.length - 1" class="navigation-trail__separator" aria-hidden="true">
-          &gt;
-        </span>
-      </li>
-    </ol>
+          <button
+            class="navigation-trail__link"
+            :class="{ 'navigation-trail__link--current': index === visibleTrail.length - 1 }"
+            type="button"
+            :disabled="index === visibleTrail.length - 1"
+            @click="goTo(item)"
+          >
+            {{ item.label }}
+          </button>
+          <span v-if="index < visibleTrail.length - 1" class="navigation-trail__separator" aria-hidden="true">
+            &gt;
+          </span>
+        </li>
+      </ol>
+    </div>
   </nav>
 </template>
 
@@ -236,16 +269,46 @@ function goTo(item: TrailItem) {
   background: var(--surface);
 }
 
-.navigation-trail__list {
+.navigation-trail__inner {
   width: min(100% - calc(var(--page-gutter, 16px) * 2), var(--content-width));
   min-height: 36px;
   margin: 0 auto;
   padding: 6px 0;
   display: flex;
   align-items: center;
+  gap: 10px;
+}
+
+.navigation-trail__list {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
   gap: 5px;
   overflow-x: auto;
   list-style: none;
+}
+
+.navigation-trail__dashboard {
+  flex: 0 0 auto;
+  min-height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--text-strong);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 900;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
+.navigation-trail__dashboard:hover,
+.navigation-trail__dashboard:focus-visible {
+  background: color-mix(in srgb, var(--primary-soft) 70%, var(--surface-soft) 30%);
+  color: var(--primary-strong);
 }
 
 .navigation-trail__item {
@@ -288,8 +351,14 @@ function goTo(item: TrailItem) {
 }
 
 @media (max-width: 640px) {
-  .navigation-trail__list {
+  .navigation-trail__inner {
     width: calc(100% - calc(var(--page-gutter, 12px) * 2));
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .navigation-trail__list {
+    width: 100%;
   }
 
   .navigation-trail__link {

@@ -15,6 +15,21 @@ const isLoggedIn = computed(() => {
   return !!localStorage.getItem("token");
 });
 
+const currentRole = computed(() => {
+  const raw = localStorage.getItem("user");
+  if (!raw) return "";
+
+  try {
+    return String(JSON.parse(raw)?.role || "").trim().toLowerCase();
+  } catch {
+    return "";
+  }
+});
+
+const canUploadBooks = computed(() =>
+  ["writer", "admin", "superadmin"].includes(currentRole.value),
+);
+
 const goToLogin = () => {
   router.push("/login");
 };
@@ -59,7 +74,7 @@ const logout = () => {
 
       <button class="icon-btn" @click="props.onToggleSearch">ค้นหา</button>
       <button class="icon-btn" @click="props.onToggleAccount">บัญชี</button>
-      <router-link class="icon-btn link-btn" to="/writer/upload">
+      <router-link v-if="canUploadBooks" class="icon-btn link-btn" to="/writer/upload">
         อัปโหลด
       </router-link>
     </div>
