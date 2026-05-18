@@ -31,7 +31,7 @@ type Category = {
 
 const router = useRouter();
 const route = useRoute();
-const { locale, t } = useI18n();
+const { locale } = useI18n();
 
 const books = ref<Book[]>([]);
 const categoryItems = ref<Category[]>([]);
@@ -298,17 +298,17 @@ async function addToCart(book: Book) {
 }
 
 function normalizeCategories(data: unknown): Category[] {
-  const items = Array.isArray(data) ? data : Array.isArray((data as any)?.categories) ? (data as any).categories : [];
+  const items = (Array.isArray(data) ? data : Array.isArray((data as any)?.categories) ? (data as any).categories : []) as any[];
 
   return items
-    .map((item: any, index: number) => ({
+    .map<Category>((item: any, index: number) => ({
       id: Number.isFinite(Number(item?.id)) ? Number(item.id) : `category-${index}`,
       name: String(item?.name || "").trim(),
       parent_id: item?.parent_id == null ? null : Number(item.parent_id),
       sort_order: item?.sort_order == null ? null : Number(item.sort_order),
     }))
-    .filter((category) => category.name)
-    .sort((a, b) => {
+    .filter((category: Category) => category.name)
+    .sort((a: Category, b: Category) => {
       const orderA = a.sort_order ?? Number.MAX_SAFE_INTEGER;
       const orderB = b.sort_order ?? Number.MAX_SAFE_INTEGER;
       if (orderA !== orderB) return orderA - orderB;

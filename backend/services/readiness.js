@@ -101,11 +101,13 @@ function getProductionReadiness() {
   const emailReady = !isPlaceholder(readEnv("RESEND_API_KEY")) && !isPlaceholder(readEnv("EMAIL_FROM"));
   checks.push({
     name: "email_delivery",
-    ok: emailReady,
+    ok: emailReady || !production,
     configured: emailReady,
     message: emailReady
       ? "Resend email delivery is configured"
-      : "Set RESEND_API_KEY and EMAIL_FROM for real password reset email",
+      : production
+        ? "Set RESEND_API_KEY and EMAIL_FROM for real password reset email"
+        : "Resend email delivery is not configured; password reset email is disabled in development",
   });
 
   const gatewayReady =

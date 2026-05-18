@@ -110,7 +110,10 @@ const getElementSpeechLabel = (target: HTMLElement) => {
   if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
     const labelText = target.labels?.[0]?.textContent?.trim();
     if (labelText) return labelText;
-    if (target.placeholder?.trim()) return target.placeholder.trim();
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+      const placeholder = target.placeholder.trim();
+      if (placeholder) return placeholder;
+    }
   }
 
   const title = target.getAttribute("title")?.trim();

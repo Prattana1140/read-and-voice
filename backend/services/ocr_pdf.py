@@ -21,11 +21,16 @@ def main():
         return
 
     try:
+        tess_cmd = os.environ.get("TESSERACT_COMMAND")
+        if tess_cmd:
+            pytesseract.pytesseract.tesseract_cmd = tess_cmd
+
+        ocr_lang = os.environ.get("OCR_LANG", "tha+eng")
         images = convert_from_path(pdf_path, dpi=220)
         pages = []
 
         for img in images:
-            text = pytesseract.image_to_string(img, lang="tha+eng")
+            text = pytesseract.image_to_string(img, lang=ocr_lang)
             pages.append((text or "").strip())
 
         full_text = "\n\n".join([p for p in pages if p.strip()])

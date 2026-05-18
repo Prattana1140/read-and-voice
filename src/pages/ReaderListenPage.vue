@@ -346,6 +346,34 @@ function toggleAudio() {
   resume();
 }
 
+function handleVoiceReaderCommand(event: Event) {
+  const command = (event as CustomEvent<string>).detail;
+
+  if (command === "play") {
+    resume();
+    return;
+  }
+
+  if (command === "pause") {
+    pause();
+    return;
+  }
+
+  if (command === "stop") {
+    stopSpeech();
+    return;
+  }
+
+  if (command === "next") {
+    nextSentence();
+    return;
+  }
+
+  if (command === "previous") {
+    previousSentence();
+  }
+}
+
 function previousSentence() {
   if (currentIndex.value > 0) speakFrom(currentIndex.value - 1);
 }
@@ -418,6 +446,7 @@ onMounted(async () => {
   window.speechSynthesis.onvoiceschanged = loadVoices;
   await Promise.all([loadBookTitle(), loadEpisodes()]);
   await fetchContent();
+  window.addEventListener("read-voice:reader-command", handleVoiceReaderCommand as EventListener);
 });
 
 onBeforeUnmount(() => {
@@ -425,6 +454,7 @@ onBeforeUnmount(() => {
   saveVoiceSettings();
   stopSpeech();
   window.speechSynthesis.onvoiceschanged = null;
+  window.removeEventListener("read-voice:reader-command", handleVoiceReaderCommand as EventListener);
 });
 </script>
 

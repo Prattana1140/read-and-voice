@@ -189,8 +189,8 @@
           <p>ทำตารางหรือ API สำหรับเลือกภาพ banner ของหน้าแรกและหน้าโปรโมชั่น</p>
         </article>
         <article>
-          <strong>3. แยกหน้ารายตอน</strong>
-          <p>ตอนนี้รายตอนยังใช้ข้อมูลร่วมกับอีบุ๊ก ควรเพิ่มโมเดลตอน/ซีรีส์จริง</p>
+          <strong>3. เติมรายการรายตอน</strong>
+          <p>หน้า /serials และ API รายตอนพร้อมใช้งานแล้ว ควรเพิ่ม serial ให้ครบพอสำหรับแท็บและหมวดหมู่</p>
         </article>
       </div>
     </section>
@@ -209,6 +209,7 @@ type Book = {
   author?: string;
   price?: number | string | null;
   total_pages?: number | string | null;
+  content_type?: string | null;
   created_at?: string | null;
 };
 
@@ -241,7 +242,13 @@ type HomeBanner = {
   is_active?: boolean;
 };
 
+type ShelfResponse = {
+  books?: Book[];
+  count?: number;
+};
+
 const books = ref<Book[]>([]);
+const serialBooks = ref<Book[]>([]);
 const pageContent = ref<PageContent | null>(null);
 const subscriptionHeroUrl = ref("");
 const subscriptionHeroFile = ref<File | null>(null);
@@ -267,6 +274,10 @@ const freeBooks = computed(() =>
 const longBooks = computed(() =>
   books.value.filter((book) => Number(book.total_pages || 0) >= 50),
 );
+const serialReadyCount = computed(() => {
+  if (serialBooks.value.length > 0) return serialBooks.value.length;
+  return books.value.filter((book) => book.content_type === "serial").length;
+});
 const recentBooks = computed(() => {
   return [...books.value].sort((a, b) => {
     return (
@@ -336,15 +347,15 @@ const menuPages = computed<MenuPage[]>(() => [
   buildPage({
     title: "รายตอน",
     path: "/serials",
-    target: 1,
-    current: 0,
+    target: 6,
+    current: serialReadyCount.value,
     tasks: [
-      "ต้องเพิ่มระบบหนังสือแบบรายตอนหรือซีรีส์",
-      "กำหนดราคา/สิทธิ์อ่านรายตอน",
-      "ตอนนี้เส้นทางหน้าเว็บยังชี้กลับไปหน้าอีบุ๊ก จึงควรทำต่อเป็นหน้าแยก",
+      "มีหนังสือแบบรายตอนอย่างน้อย 6 เรื่อง",
+      "ตรวจราคา/สิทธิ์อ่านรายตอน และจำนวนตอนที่เผยแพร่",
+      "หน้า /serials แยกจากอีบุ๊กแล้ว ควรเติมรายการ serial ให้พอสำหรับจัดหมวดและแท็บ",
     ],
     manageTo: "/admin/upload-book",
-    manageLabel: "เริ่มเพิ่มข้อมูล",
+    manageLabel: "เพิ่มรายตอน",
   }),
   buildPage({
     title: "ขายดี",
@@ -480,6 +491,15 @@ const fetchBooks = async () => {
   }
 };
 
+const fetchSerialBooks = async () => {
+  try {
+    const { data } = await api.get<ShelfResponse>("/serials");
+    serialBooks.value = Array.isArray(data?.books) ? data.books : [];
+  } catch {
+    serialBooks.value = [];
+  }
+};
+
 const fetchPageContent = async () => {
   try {
     const { data } = await api.get("/page-content");
@@ -610,6 +630,7 @@ const clearSubscriptionHero = async () => {
 
 onMounted(() => {
   fetchBooks();
+  fetchSerialBooks();
   fetchPageContent();
 });
 

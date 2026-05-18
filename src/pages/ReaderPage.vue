@@ -626,6 +626,35 @@ function handleReaderKeydown(event: KeyboardEvent) {
   }
 }
 
+function handleVoiceReaderCommand(event: Event) {
+  const command = (event as CustomEvent<string>).detail;
+
+  if (command === "play") {
+    if (isSpeaking.value && !isPaused.value) return;
+    toggleSpeechPlayback();
+    return;
+  }
+
+  if (command === "pause") {
+    if (isSpeaking.value && !isPaused.value) toggleSpeechPlayback();
+    return;
+  }
+
+  if (command === "stop") {
+    stopSpeech();
+    return;
+  }
+
+  if (command === "next") {
+    moveReadingFocus(1);
+    return;
+  }
+
+  if (command === "previous") {
+    moveReadingFocus(-1);
+  }
+}
+
 watch(
   [selectedVoice, rate, pitch, volume, fontSize, lineHeight, colorMode, readingMode],
   saveReaderSettings,
@@ -646,6 +675,7 @@ onMounted(async () => {
   loadVoices();
   window.speechSynthesis.onvoiceschanged = loadVoices;
   window.addEventListener("keydown", handleReaderKeydown);
+  window.addEventListener("read-voice:reader-command", handleVoiceReaderCommand as EventListener);
   await Promise.all([loadBookTitle(), loadEpisodes()]);
   await fetchContent();
   await loadEpisodeComments();
@@ -657,6 +687,7 @@ onBeforeUnmount(() => {
   stopSpeech();
   window.speechSynthesis.onvoiceschanged = null;
   window.removeEventListener("keydown", handleReaderKeydown);
+  window.removeEventListener("read-voice:reader-command", handleVoiceReaderCommand as EventListener);
 });
 </script>
 

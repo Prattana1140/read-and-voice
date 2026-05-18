@@ -33,13 +33,28 @@ const toneOptions = [
   { value: "", label: "ไม่เลือกธีม (อัตโนมัติ)" },
   { value: "story", label: "ม่วงละมุน" },
   { value: "romance", label: "ชมพูหวาน" },
+  { value: "fantasy", label: "แฟนตาซีม่วงสด" },
   { value: "mystery", label: "ฟ้าอมเขียว" },
   { value: "adventure", label: "เขียวธรรมชาติ" },
   { value: "teen", label: "ฟ้าสดใส" },
+  { value: "drama", label: "ชมพูดราม่า" },
   { value: "chinese", label: "แดงทอง" },
   { value: "manga", label: "ส้มสด" },
+  { value: "classic", label: "วรรณกรรมคลาสสิก" },
+  { value: "knowledge", label: "ความรู้ฟ้าใส" },
+  { value: "science", label: "วิทยาศาสตร์" },
+  { value: "technology", label: "เทคโนโลยี" },
+  { value: "study", label: "การศึกษา" },
   { value: "history", label: "น้ำตาลคลาสสิก" },
+  { value: "language", label: "ภาษา" },
+  { value: "business", label: "ธุรกิจ" },
+  { value: "finance", label: "การเงิน" },
+  { value: "marketing", label: "การตลาด" },
+  { value: "wellness", label: "สุขภาพ" },
+  { value: "food", label: "อาหาร" },
+  { value: "beauty", label: "ความงาม" },
   { value: "travel", label: "ฟ้าทะเล" },
+  { value: "wisdom", label: "ธรรมะ" },
   { value: "kids", label: "สีรุ้งอุ่น" },
   { value: "audio", label: "น้ำเงิน" },
 ];
@@ -924,7 +939,7 @@ onMounted(loadCategories);
             @drop="endHomeDrag"
           >
             <button
-              v-for="(item, index) in homeLayoutItems"
+              v-for="item in homeLayoutItems"
               :key="item.id"
               :class="[
                 'category-chip',

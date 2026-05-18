@@ -138,6 +138,48 @@ function polishThaiOcrText(text) {
     .replace(/\s{2,}/g, " ");
 }
 
+function applyThaiOcrCorrections(text) {
+  return polishThaiOcrText(text)
+    .replace(/ทำนำสำนักพิมพ์/g, "คำนำสำนักพิมพ์")
+    .replace(/ทำนำ/g, "คำนำ")
+    .replace(/ลูกไหม้/g, "ลุกไหม้")
+    .replace(/มูมห้อง/g, "มุมห้อง")
+    .replace(/หดตู่/g, "หดหู่")
+    .replace(/มิใช(?!่)/g, "มิใช่")
+    .replace(/มิใช่+/g, "มิใช่")
+    .replace(/คำหยาบคา/g, "คำหยาบคาย")
+    .replace(/คำหยาบคายย+/g, "คำหยาบคาย")
+    .replace(/รำร้อง/g, "ร่ำร้อง")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function isLikelyGarbledHeader(line, nextLine, pageNumber) {
+  const value = String(line || "").trim();
+  const next = String(nextLine || "").trim();
+  if (pageNumber <= 1 || !value || !next) return false;
+  if (value.length > 36 || next.length < 25) return false;
+  if (/[0-9A-Za-z"“”'‘’.,!?]/.test(value)) return false;
+
+  const thaiCount = countMatches(value, THAI_CHAR_PATTERN);
+  if (thaiCount < Math.max(4, Math.floor(value.length * 0.7))) return false;
+
+  return true;
+}
+
+function cleanThaiOcrPage(text, pageNumber = 1) {
+  const lines = cleanOcrText(text)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const pageLines = isLikelyGarbledHeader(lines[0], lines[1], pageNumber)
+    ? lines.slice(1)
+    : lines;
+
+  return applyThaiOcrCorrections(pageLines.join("\n"));
+}
+
 function cleanOcrText(text) {
   const lines = normalizeText(text)
     .split("\n")
@@ -146,7 +188,7 @@ function cleanOcrText(text) {
     .filter(hasUsefulLetters)
     .filter((line) => !isLikelyOcrNoise(line));
 
-  return polishThaiOcrText(lines.join("\n"));
+  return applyThaiOcrCorrections(lines.join("\n"));
 }
 
 function sanitizeBookText(text) {
@@ -427,6 +469,8 @@ async function parseBookFile(filePath, mimeType, originalName) {
 
 module.exports = {
   parseBookFile,
+  applyThaiOcrCorrections,
+  cleanThaiOcrPage,
   cleanOcrText,
   extractTextFromJsonValue,
   normalizeText,

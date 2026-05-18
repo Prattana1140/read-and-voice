@@ -13,16 +13,23 @@ const OCR_PSM = process.env.OCR_PSM || "3";
 const OCR_PAGE_TIMEOUT_MS = Number(process.env.OCR_PAGE_TIMEOUT_MS || 120000);
 const OCR_CONCURRENCY = Math.max(1, Math.min(6, Number(process.env.OCR_CONCURRENCY || 3)));
 const OCR_RENDER_SCALE = Math.max(1.2, Math.min(2.8, Number(process.env.OCR_RENDER_SCALE || 2)));
+const OCR_RENDER_DPI = Number(process.env.OCR_RENDER_DPI || 0);
 const ENABLE_OCR = /^(1|true|yes)$/i.test(process.env.ENABLE_OCR || process.env.ENABLE_PDF_OCR || "");
 const TESSERACT_JS_LANG_PATH = process.env.TESSERACT_JS_LANG_PATH || path.join(__dirname, "..");
 const TESSERACT_JS_CACHE_PATH =
   process.env.TESSERACT_JS_CACHE_PATH || path.join(__dirname, "..", "uploads", "ocr-cache");
+const DEFAULT_PYTHON_COMMAND =
+  process.env.OCR_PYTHON_COMMAND || (process.platform === "win32" ? "" : "python3");
 
 function normalizeOcrText(text) {
   return String(text || "")
     .replace(/\r\n/g, "\n")
     .replace(/\u0000/g, "")
     .trim();
+}
+
+function hasPythonOCRCommand() {
+  return Boolean(DEFAULT_PYTHON_COMMAND);
 }
 
 function assertOcrEnabled() {
@@ -183,7 +190,9 @@ async function renderPdfToPngPagesWithPdfJs(filePath, tempDir) {
 async function renderPdfToPngPagesWithGhostscript(filePath, tempDir) {
   const pageCount = await getPdfPageCount(filePath);
   const imagePaths = [];
-  const dpi = Math.max(120, Math.min(260, Math.round(OCR_RENDER_SCALE * 110)));
+  const dpi = OCR_RENDER_DPI > 0
+    ? Math.max(120, Math.min(420, Math.round(OCR_RENDER_DPI)))
+    : Math.max(120, Math.min(260, Math.round(OCR_RENDER_SCALE * 110)));
 
   for (let pageNo = 1; pageNo <= pageCount; pageNo += 1) {
     const imagePath = path.join(tempDir, `page.${pageNo}.png`);
@@ -215,6 +224,15 @@ async function renderPdfToPngPagesWithGhostscript(filePath, tempDir) {
 async function renderPdfToPngPages(filePath) {
   const tempDir = path.join(__dirname, "..", "uploads", "ocr-temp");
   fs.mkdirSync(tempDir, { recursive: true });
+
+  if (process.platform === "win32") {
+    try {
+      return await renderPdfToPngPagesWithGhostscript(filePath, tempDir);
+    } catch (ghostscriptError) {
+      console.warn("Ghostscript page rendering failed, trying PDF.js:", ghostscriptError.message);
+      return renderPdfToPngPagesWithPdfJs(filePath, tempDir);
+    }
+  }
 
   try {
     return await renderPdfToPngPagesWithPdfJs(filePath, tempDir);
@@ -260,6 +278,14 @@ async function runTesseractCliOCR(filePath) {
       console.warn("Tesseract CLI OCR failed, trying Tesseract.js:", sequentialError.message);
       return runTesseractJsOnImages(imagePaths);
     }
+  } finally {
+    for (const imagePath of imagePaths) {
+      try {
+        fs.unlinkSync(imagePath);
+      } catch (_) {
+        // Best effort cleanup for OCR render artifacts.
+      }
+    }
   }
 }
 
@@ -297,11 +323,14 @@ async function runImageOCR(filePath) {
 }
 
 async function runPythonOCR(filePath) {
+  if (!DEFAULT_PYTHON_COMMAND) {
+    throw new Error("Python OCR is not configured. Set OCR_PYTHON_COMMAND to enable it.");
+  }
+
   const scriptPath = path.join(__dirname, "ocr_pdf.py");
-  const pythonCommand = process.env.OCR_PYTHON_COMMAND || "python";
 
   const { stdout, stderr } = await execFileAsync(
-    pythonCommand,
+    DEFAULT_PYTHON_COMMAND,
     [scriptPath, filePath],
     {
       timeout: 30 * 60 * 1000,
@@ -343,13 +372,14 @@ function runPdfOCR(filePath) {
     );
   }
 
-  return runPythonOCR(filePath).catch(async (pythonError) => {
-    console.warn("Python OCR failed:", pythonError.message);
+  const runFallbackOCR = async (previousError) => {
+    if (previousError) {
+      console.warn("Python OCR failed:", previousError.message);
+    }
 
     if (!DEFAULT_TESSERACT_COMMAND) {
-      throw new Error(
-        `OCR ทำงานไม่สำเร็จ: ${pythonError.message}. ยังไม่ได้ตั้งค่า TESSERACT_COMMAND`,
-      );
+      const details = previousError ? `: ${previousError.message}` : "";
+      throw new Error(`OCR ทำงานไม่สำเร็จ${details}. ยังไม่ได้ตั้งค่า TESSERACT_COMMAND`);
     }
 
     try {
@@ -357,10 +387,16 @@ function runPdfOCR(filePath) {
     } catch (tesseractError) {
       console.error("Tesseract CLI OCR failed:", tesseractError);
       throw new Error(
-        `OCR ทำงานไม่สำเร็จ: ${tesseractError.message || pythonError.message}`,
+        `OCR ทำงานไม่สำเร็จ: ${tesseractError.message || previousError?.message || "unknown error"}`,
       );
     }
-  });
+  };
+
+  if (!hasPythonOCRCommand()) {
+    return runFallbackOCR();
+  }
+
+  return runPythonOCR(filePath).catch(runFallbackOCR);
 }
 
 module.exports = {

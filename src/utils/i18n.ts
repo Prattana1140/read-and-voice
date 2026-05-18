@@ -8,11 +8,6 @@ const SITE_NAME = "Read and Voice";
 type Messages = Record<string, string>;
 
 const th: Messages = {
-  "a11y.open": "เปิดหรือปิดตัวช่วยการเข้าถึง",
-  "a11y.skipLabel": "ลิงก์ข้ามเนื้อหา",
-  "a11y.skipMain": "ข้ามไปยังเนื้อหาหลัก",
-  "a11y.skipNav": "ข้ามไปยังเมนูนำทาง",
-  "a11y.skippedMain": "ข้ามไปยังเนื้อหาหลักแล้ว",
   "account.adminDashboard": "แดชบอร์ดแอดมิน",
   "account.adminTools": "ผู้ดูแลระบบ",
   "account.approvals": "อนุมัติผลงาน",

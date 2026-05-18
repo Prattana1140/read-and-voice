@@ -4,6 +4,55 @@ const { verifyToken } = require("../middleware/auth");
 
 const router = express.Router();
 
+router.get("/", verifyToken, async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT
+         rp.book_id,
+         rp.current_page,
+         rp.last_position,
+         rp.progress_percent,
+         rp.last_read_at,
+         b.id,
+         b.title,
+         b.author,
+         b.cover_image,
+         b.content_type,
+         b.access_type,
+         b.price,
+         c.name AS category_name,
+         (
+           SELECT COUNT(*)
+           FROM book_episodes e
+           WHERE e.book_id = b.id AND e.is_published = 1
+         ) AS episode_count,
+         (
+           SELECT COUNT(*)
+           FROM book_views v
+           WHERE v.book_id = b.id
+         ) AS read_count,
+         (
+           SELECT COUNT(*)
+           FROM book_reviews r
+           WHERE r.book_id = b.id
+         ) AS review_count
+       FROM reading_progress rp
+       INNER JOIN books b ON b.id = rp.book_id
+       LEFT JOIN categories c ON c.id = b.category_id
+       WHERE rp.user_id = ?
+         AND b.is_published = 1
+       ORDER BY rp.last_read_at DESC, rp.id DESC
+       LIMIT 100`,
+      [req.user.id],
+    );
+
+    return res.json({ books: rows, count: rows.length });
+  } catch (error) {
+    console.error("GET /progress error:", error);
+    return res.status(500).json({ message: "โหลดรายการอ่านต่อไม่สำเร็จ" });
+  }
+});
+
 router.post("/", verifyToken, async (req, res) => {
   const connection = await db.getConnection();
 

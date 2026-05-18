@@ -2,7 +2,6 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import logoNavUrl from "../assets/Logo-nav.png";
-import logoUrl from "../assets/Logo-transparent.png";
 import api, { resolveAssetUrl } from "../utils/api";
 import {
   AUTH_CHANGED_EVENT,
