@@ -56,7 +56,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 app.get("/uploads/book-covers/:filename", async (req, res, next) => {
   const filename = path.basename(req.params.filename || "");
-  if (!filename || filename !== req.params.filename || !filename.endsWith(".svg")) {
+  if (!filename || filename !== req.params.filename) {
     return next();
   }
 
@@ -90,9 +90,30 @@ app.get("/uploads/book-covers/:filename", async (req, res, next) => {
       force: true,
     });
 
-    if (path.basename(generatedPath) !== filename) return next();
-    res.set("Cache-Control", "public, max-age=31536000, immutable");
-    return res.sendFile(coverPath);
+    await db.query(
+      `UPDATE books
+       SET cover_image = ?,
+           cover_image_url = ?,
+           updated_at = NOW()
+       WHERE id = ?`,
+      [generatedPath, generatedPath, book.id],
+    );
+
+    const generatedCoverPath = path.join(
+      __dirname,
+      "uploads",
+      "book-covers",
+      path.basename(generatedPath),
+    );
+
+    if (!require("fs").existsSync(generatedCoverPath)) return next();
+
+    res.set("Cache-Control", "public, max-age=3600");
+    if (path.basename(generatedPath) !== filename) {
+      return res.redirect(302, `/${generatedPath}`);
+    }
+
+    return res.sendFile(generatedCoverPath);
   } catch (error) {
     return next(error);
   }
