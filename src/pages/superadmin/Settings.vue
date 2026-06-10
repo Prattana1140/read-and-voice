@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import api, { API_BASE_URL } from "../../utils/api";
 import { getUser, logout } from "../../utils/auth";
@@ -10,121 +10,144 @@ type ChecklistKey =
   | "pageContentReviewed"
   | "catalogReviewed";
 
-type ChecklistItem = {
-  key: ChecklistKey;
-  title: string;
-  text: string;
+type ReadinessCheck = {
+  name: string;
+  ok: boolean;
+  configured?: boolean;
+  message: string;
 };
 
-type SettingsLink = {
-  title: string;
-  text: string;
-  to: string;
+type SystemSettings = {
+  registration_enabled: boolean;
+  writer_applications_enabled: boolean;
+  manual_payment_enabled: boolean;
+  support_form_enabled: boolean;
+  admin_password_reset_enabled: boolean;
+  maintenance_notice: string;
+  support_email: string;
+  updated_note: string;
 };
 
 const router = useRouter();
 const currentUser = computed(() => getUser());
 
-const storageKey = "rav-superadmin-settings-checklist";
-const savedChecklist = (() => {
-  try {
-    return JSON.parse(localStorage.getItem(storageKey) || "{}");
-  } catch {
-    return {};
-  }
-})();
+const loading = ref(true);
+const saving = ref(false);
+const statusMessage = ref("");
+const errorMessage = ref("");
+const readiness = ref<ReadinessCheck[]>([]);
 
-const checklistState = reactive<Record<ChecklistKey, boolean>>({
-  rolesReviewed: Boolean(savedChecklist.rolesReviewed),
-  approvalsChecked: Boolean(savedChecklist.approvalsChecked),
-  pageContentReviewed: Boolean(savedChecklist.pageContentReviewed),
-  catalogReviewed: Boolean(savedChecklist.catalogReviewed),
+const checklist = reactive<Record<ChecklistKey, boolean>>({
+  rolesReviewed: false,
+  approvalsChecked: false,
+  pageContentReviewed: false,
+  catalogReviewed: false,
 });
 
-const checklistItems = computed<ChecklistItem[]>(() => [
+const settings = reactive<SystemSettings>({
+  registration_enabled: true,
+  writer_applications_enabled: true,
+  manual_payment_enabled: true,
+  support_form_enabled: true,
+  admin_password_reset_enabled: true,
+  maintenance_notice: "",
+  support_email: "",
+  updated_note: "",
+});
+
+const checklistItems = [
   {
-    key: "rolesReviewed",
+    key: "rolesReviewed" as const,
     title: "ตรวจ role และผู้ดูแลระบบ",
-    text: "ทบทวนสิทธิ์ของ admin และ superadmin ว่ายังตรงกับหน้าที่ปัจจุบัน",
+    text: "ทบทวนสิทธิ์ admin/superadmin ก่อนเปิดใช้งานจริง",
   },
   {
-    key: "approvalsChecked",
+    key: "approvalsChecked" as const,
     title: "เคลียร์คิวอนุมัติหนังสือ",
-    text: "เช็กหนังสือที่รออนุมัติหรือ placement ที่ยังไม่ได้จัดการ",
+    text: "ตรวจหนังสือและ placement ที่รออนุมัติ",
   },
   {
-    key: "pageContentReviewed",
+    key: "pageContentReviewed" as const,
     title: "ทบทวนเนื้อหาหน้าสาธารณะ",
-    text: "เช็ก hero banner และข้อความสำคัญว่าทันกับโปรโมชันปัจจุบัน",
+    text: "ตรวจ hero, banner และข้อความหน้าเว็บหลัก",
   },
   {
-    key: "catalogReviewed",
+    key: "catalogReviewed" as const,
     title: "สำรวจ catalog และหมวดหมู่",
-    text: "ดูว่าหมวดหมู่และข้อมูลหนังสือยังจัดระเบียบได้ดีสำหรับหน้าร้าน",
+    text: "เช็กหมวดหมู่ หนังสือจริง และ content ตั้งต้น",
   },
-]);
+];
 
-const governanceLinks = computed<SettingsLink[]>(() => [
-  {
-    title: "บทบาทและสิทธิ์",
-    text: "จัดการ role ของผู้ใช้ รวมถึงสิทธิ์ admin และ superadmin",
-    to: "/superadmin/roles",
-  },
-  {
-    title: "ผู้ใช้ทั้งหมด",
-    text: "ตรวจสถานะบัญชี อนุมัติ admin และติดตามผู้ใช้ที่ต้องดูแล",
-    to: "/superadmin/users",
-  },
-  {
-    title: "สมาชิกและสถานะ",
-    text: "ดูแลผู้ใช้ในมุม admin เช่นระงับบัญชีหรือคืนสถานะ",
-    to: "/admin/members",
-  },
-]);
+const readinessPassed = computed(() => readiness.value.filter((item) => item.ok).length);
+const readinessFailed = computed(() => readiness.value.filter((item) => !item.ok));
 
-const contentLinks = computed<SettingsLink[]>(() => [
-  {
-    title: "อนุมัติหนังสือ",
-    text: "จัดคิว approval และ placement สำหรับหน้า shelf",
-    to: "/admin/approvals",
-  },
-  {
-    title: "จัดการหน้าเว็บ",
-    text: "แก้แบนเนอร์แพ็กเกจสมาชิกและเนื้อหาหน้าสาธารณะ",
-    to: "/admin/page-content",
-  },
-  {
-    title: "หมวดหมู่หนังสือ",
-    text: "จัดระเบียบ category ให้ตรงกับเนื้อหาและการค้นหา",
-    to: "/admin/categories",
-  },
-  {
-    title: "แดชบอร์ดแอดมิน",
-    text: "ดูภาพรวมฝั่งปฏิบัติการของร้านและ catalog",
-    to: "/admin",
-  },
-]);
+const quickLinks = [
+  { title: "จัดการ role", text: "สิทธิ์และสถานะผู้ใช้", to: "/superadmin/roles" },
+  { title: "ผู้ใช้ทั้งหมด", text: "บัญชีและผู้ดูแลระบบ", to: "/superadmin/users" },
+  { title: "อนุมัติหนังสือ", text: "คิวงานจากนักเขียน", to: "/admin/approvals" },
+  { title: "Support Tickets", text: "คำร้องจากหน้า support", to: "/admin/support-tickets" },
+  { title: "Password Resets", text: "รีเซ็ตรหัสผ่านแบบ admin-assisted", to: "/admin/password-resets" },
+  { title: "Manual Payments", text: "อนุมัติเติม coin", to: "/admin/payments" },
+];
 
-function persistChecklist() {
-  localStorage.setItem(storageKey, JSON.stringify(checklistState));
-  api.put("/admin/settings/checklist", { checklist: checklistState }).catch(() => undefined);
+function applySettings(payload: Partial<SystemSettings>) {
+  Object.assign(settings, {
+    ...settings,
+    ...payload,
+  });
 }
 
-function toggleChecklist(key: ChecklistKey) {
-  checklistState[key] = !checklistState[key];
-  persistChecklist();
-}
+async function loadAll() {
+  loading.value = true;
+  errorMessage.value = "";
 
-async function loadChecklist() {
   try {
-    const { data } = await api.get("/admin/settings/checklist");
-    const remote = data?.checklist || {};
-    checklistItems.value.forEach((item) => {
-      checklistState[item.key] = Boolean(remote[item.key]);
-    });
-    localStorage.setItem(storageKey, JSON.stringify(checklistState));
-  } catch {
-    persistChecklist();
+    const [checklistRes, systemRes, readinessRes] = await Promise.all([
+      api.get("/admin/settings/checklist"),
+      api.get("/admin/settings/system"),
+      api.get("/admin/settings/readiness"),
+    ]);
+
+    Object.assign(checklist, checklistRes.data?.checklist || {});
+    applySettings(systemRes.data?.settings || {});
+    readiness.value = Array.isArray(readinessRes.data?.checks) ? readinessRes.data.checks : [];
+  } catch (err: any) {
+    errorMessage.value = err?.response?.data?.message || "โหลดการตั้งค่าระบบไม่สำเร็จ";
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function saveChecklist() {
+  await api.put("/admin/settings/checklist", { checklist });
+}
+
+async function toggleChecklist(key: ChecklistKey) {
+  checklist[key] = !checklist[key];
+  statusMessage.value = "";
+  errorMessage.value = "";
+
+  try {
+    await saveChecklist();
+    statusMessage.value = "บันทึก checklist แล้ว";
+  } catch (err: any) {
+    errorMessage.value = err?.response?.data?.message || "บันทึก checklist ไม่สำเร็จ";
+  }
+}
+
+async function saveSystemSettings() {
+  saving.value = true;
+  statusMessage.value = "";
+  errorMessage.value = "";
+
+  try {
+    const { data } = await api.put("/admin/settings/system", { settings });
+    applySettings(data?.settings || {});
+    statusMessage.value = data?.message || "บันทึกการตั้งค่าระบบแล้ว";
+  } catch (err: any) {
+    errorMessage.value = err?.response?.data?.message || "บันทึกการตั้งค่าระบบไม่สำเร็จ";
+  } finally {
+    saving.value = false;
   }
 }
 
@@ -137,97 +160,149 @@ function signOut() {
   router.push("/login");
 }
 
-onMounted(loadChecklist);
+onMounted(loadAll);
 </script>
 
 <template>
   <main class="settings-page">
-    <section class="hero-card">
+    <section class="page-head">
       <div>
-        <p class="eyebrow">ตั้งค่าระบบ</p>
-        <h1>ศูนย์ควบคุมงานกำกับดูแลระบบ</h1>
-        <p class="hero-text">
-          หน้านี้รวมทางลัดและรายการตรวจเช็กสำหรับงาน superadmin ที่ต้องตามต่อเป็นประจำ
-          เพื่อให้การดูแลสิทธิ์ เนื้อหา และการปฏิบัติการไม่ตกหล่น
-        </p>
+        <p class="eyebrow">Superadmin Settings</p>
+        <h1>ตั้งค่าระบบ</h1>
+        <p>จัดการ launch checklist, operational settings และ readiness ก่อนเปิดให้ผู้ใช้จริง</p>
       </div>
-
-      <div class="session-card">
-        <strong>{{ currentUser?.name || "ผู้ดูแลสูงสุด" }}</strong>
+      <div class="session-box">
+        <strong>{{ currentUser?.name || "Superadmin" }}</strong>
         <span>{{ currentUser?.email || "ไม่พบอีเมลใน session" }}</span>
-        <small>ที่อยู่ระบบ: {{ API_BASE_URL }}</small>
-        <div class="session-actions">
-          <button type="button" class="ghost-btn" @click="openRoute('/superadmin')">
-            กลับแดชบอร์ด
-          </button>
-          <button type="button" class="primary-btn" @click="signOut">ออกจากระบบ</button>
-        </div>
+        <small>{{ API_BASE_URL }}</small>
+        <button type="button" class="ghost-btn" @click="signOut">ออกจากระบบ</button>
       </div>
     </section>
 
-    <section class="layout-grid">
-      <article class="panel">
-        <div class="panel-head">
-          <h2>รายการตรวจงานระบบ</h2>
-          <span>บันทึกในเครื่องนี้</span>
-        </div>
+    <p v-if="statusMessage" class="notice success">{{ statusMessage }}</p>
+    <p v-if="errorMessage" class="notice error">{{ errorMessage }}</p>
+    <section v-if="loading" class="panel">กำลังโหลดการตั้งค่า...</section>
 
-        <div class="checklist">
-          <button
-            v-for="item in checklistItems"
-            :key="item.key"
-            type="button"
-            class="check-item"
-            :class="{ done: checklistState[item.key] }"
-            @click="toggleChecklist(item.key)"
-          >
-            <div class="check-badge">{{ checklistState[item.key] ? "เสร็จแล้ว" : "ต้องทำ" }}</div>
-            <strong>{{ item.title }}</strong>
-            <span>{{ item.text }}</span>
-          </button>
-        </div>
-      </article>
+    <template v-else>
+      <section class="summary-grid">
+        <article>
+          <strong>{{ readinessPassed }}/{{ readiness.length }}</strong>
+          <span>readiness ผ่าน</span>
+        </article>
+        <article>
+          <strong>{{ readinessFailed.length }}</strong>
+          <span>ต้องแก้ก่อน deploy</span>
+        </article>
+        <article>
+          <strong>{{ settings.manual_payment_enabled ? "เปิด" : "ปิด" }}</strong>
+          <span>manual payment</span>
+        </article>
+        <article>
+          <strong>{{ settings.admin_password_reset_enabled ? "เปิด" : "ปิด" }}</strong>
+          <span>admin password reset</span>
+        </article>
+      </section>
 
-      <article class="panel">
-        <div class="panel-head">
-          <h2>การกำกับดูแล</h2>
-          <span>สิทธิ์และผู้ใช้</span>
-        </div>
+      <section class="layout-grid">
+        <article class="panel">
+          <div class="panel-head">
+            <h2>System Settings</h2>
+            <button type="button" :disabled="saving" @click="saveSystemSettings">
+              {{ saving ? "กำลังบันทึก..." : "บันทึก" }}
+            </button>
+          </div>
 
-        <div class="link-grid">
-          <button
-            v-for="link in governanceLinks"
-            :key="link.to"
-            type="button"
-            class="nav-card"
-            @click="openRoute(link.to)"
-          >
-            <strong>{{ link.title }}</strong>
-            <span>{{ link.text }}</span>
-          </button>
-        </div>
-      </article>
-    </section>
+          <div class="toggle-list">
+            <label>
+              <input v-model="settings.registration_enabled" type="checkbox" />
+              <span>เปิดสมัครสมาชิก</span>
+            </label>
+            <label>
+              <input v-model="settings.writer_applications_enabled" type="checkbox" />
+              <span>เปิดงานนักเขียน/อัปโหลด</span>
+            </label>
+            <label>
+              <input v-model="settings.manual_payment_enabled" type="checkbox" />
+              <span>เปิดเติม coin แบบ manual approval</span>
+            </label>
+            <label>
+              <input v-model="settings.support_form_enabled" type="checkbox" />
+              <span>เปิดฟอร์ม support</span>
+            </label>
+            <label>
+              <input v-model="settings.admin_password_reset_enabled" type="checkbox" />
+              <span>เปิดรีเซ็ตรหัสผ่านโดยแอดมิน</span>
+            </label>
+          </div>
 
-    <section class="panel">
-      <div class="panel-head">
-        <h2>เนื้อหาและการขาย</h2>
-        <span>ดูแลแค็ตตาล็อก</span>
-      </div>
+          <label class="field">
+            <span>อีเมล support</span>
+            <input v-model="settings.support_email" type="email" placeholder="support@example.com" />
+          </label>
+          <label class="field">
+            <span>ประกาศ maintenance</span>
+            <textarea v-model="settings.maintenance_notice" rows="4" />
+          </label>
+          <label class="field">
+            <span>หมายเหตุภายใน</span>
+            <textarea v-model="settings.updated_note" rows="4" />
+          </label>
+        </article>
 
-      <div class="link-grid wide">
-        <button
-          v-for="link in contentLinks"
-          :key="link.to"
-          type="button"
-          class="nav-card"
-          @click="openRoute(link.to)"
-        >
-          <strong>{{ link.title }}</strong>
-          <span>{{ link.text }}</span>
-        </button>
-      </div>
-    </section>
+        <article class="panel">
+          <div class="panel-head">
+            <h2>Launch Checklist</h2>
+            <span>{{ checklistItems.filter((item) => checklist[item.key]).length }}/{{ checklistItems.length }}</span>
+          </div>
+
+          <div class="checklist">
+            <button
+              v-for="item in checklistItems"
+              :key="item.key"
+              type="button"
+              class="check-item"
+              :class="{ done: checklist[item.key] }"
+              @click="toggleChecklist(item.key)"
+            >
+              <strong>{{ item.title }}</strong>
+              <span>{{ item.text }}</span>
+            </button>
+          </div>
+        </article>
+      </section>
+
+      <section class="layout-grid">
+        <article class="panel">
+          <div class="panel-head">
+            <h2>Production Readiness</h2>
+            <button type="button" class="ghost-btn" @click="loadAll">รีเฟรช</button>
+          </div>
+
+          <div class="readiness-list">
+            <div v-for="item in readiness" :key="item.name" class="readiness-row" :class="{ failed: !item.ok }">
+              <strong>{{ item.ok ? "ผ่าน" : "ต้องแก้" }}</strong>
+              <div>
+                <span>{{ item.name }}</span>
+                <small>{{ item.message }}</small>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <h2>ทางลัดดูแลระบบ</h2>
+          </div>
+
+          <div class="link-grid">
+            <button v-for="link in quickLinks" :key="link.to" type="button" @click="openRoute(link.to)">
+              <strong>{{ link.title }}</strong>
+              <span>{{ link.text }}</span>
+            </button>
+          </div>
+        </article>
+      </section>
+    </template>
   </main>
 </template>
 
@@ -238,100 +313,66 @@ onMounted(loadChecklist);
   padding: var(--page-block, 32px) var(--page-gutter, 20px) 56px;
 }
 
-.hero-card,
+.page-head,
 .panel,
-.session-card,
-.check-item,
-.nav-card {
+.summary-grid article {
   border: 1px solid var(--border);
-  border-radius: 24px;
+  border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow);
 }
 
-.hero-card {
+.page-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 18px;
+  gap: 16px;
   align-items: stretch;
-}
-
-.hero-card,
-.panel {
   padding: 24px;
 }
 
 .eyebrow,
-.hero-card h1,
-.hero-text,
-.panel h2,
-.panel-head span,
-.session-card strong,
-.session-card span,
-.session-card small,
-.check-item strong,
-.check-item span,
-.nav-card strong,
-.nav-card span {
+h1,
+h2,
+p {
   margin: 0;
 }
 
 .eyebrow {
   color: var(--primary-strong);
-  font-size: 12px;
   font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
-.hero-card h1,
-.panel h2,
-.check-item strong,
-.nav-card strong,
-.session-card strong {
+h1,
+h2,
+strong {
   color: var(--text-strong);
 }
 
-.hero-card h1 {
-  font-size: clamp(30px, 5vw, 44px);
-}
-
-.hero-text,
-.check-item span,
-.nav-card span,
-.session-card span,
-.session-card small {
+.page-head p:last-child,
+span,
+small {
   color: var(--text-muted);
-  line-height: 1.75;
 }
 
-.session-card {
+.session-box {
   display: grid;
-  gap: 8px;
-  padding: 18px;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  padding: 16px;
 }
 
-.session-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.primary-btn,
-.ghost-btn {
-  min-height: 44px;
-  border-radius: 14px;
-  font: inherit;
-  font-weight: 900;
-  padding: 0 16px;
-  cursor: pointer;
-}
-
-.primary-btn {
+button {
+  min-height: 40px;
   border: 0;
+  border-radius: 8px;
   background: var(--primary);
   color: var(--on-primary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+  padding: 0 14px;
 }
 
 .ghost-btn {
@@ -340,11 +381,53 @@ onMounted(loadChecklist);
   color: var(--text-strong);
 }
 
+button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.notice {
+  margin: 16px 0 0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-weight: 800;
+}
+
+.notice.success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.notice.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.summary-grid article {
+  padding: 18px;
+}
+
+.summary-grid strong {
+  display: block;
+  font-size: 26px;
+}
+
 .layout-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
   margin-top: 16px;
+}
+
+.panel {
+  padding: 22px;
 }
 
 .panel-head {
@@ -352,82 +435,108 @@ onMounted(loadChecklist);
   justify-content: space-between;
   gap: 12px;
   align-items: center;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
-.panel-head span {
-  border-radius: 999px;
-  background: var(--surface-soft);
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 800;
-  padding: 6px 10px;
-}
-
+.toggle-list,
 .checklist,
+.readiness-list,
 .link-grid {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
-.link-grid.wide {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.toggle-list label,
+.check-item,
+.readiness-row,
+.link-grid button {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.toggle-list label {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  font-weight: 800;
+}
+
+.toggle-list input {
+  width: 18px;
+  height: 18px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  color: var(--text-strong);
+  font-weight: 800;
+}
+
+input[type="email"],
+textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-strong);
+  font: inherit;
+  padding: 12px;
+}
+
+textarea {
+  resize: vertical;
 }
 
 .check-item,
-.nav-card {
+.link-grid button {
   display: grid;
-  gap: 6px;
-  background: var(--surface-soft);
-  padding: 16px;
+  gap: 4px;
+  color: var(--text-strong);
+  padding: 14px;
   text-align: left;
-  font: inherit;
-  cursor: pointer;
 }
 
 .check-item.done {
+  border-color: #86efac;
   background: #f0fdf4;
-  border-color: #bbf7d0;
 }
 
-.check-badge {
+.readiness-row {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+}
+
+.readiness-row > strong {
   width: fit-content;
   border-radius: 999px;
-  background: #111827;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  padding: 6px 10px;
-  text-transform: uppercase;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 12px;
+  padding: 5px 9px;
 }
 
-.check-item.done .check-badge {
-  background: #15803d;
+.readiness-row.failed > strong {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
-@media (max-width: 980px) {
-  .hero-card,
-  .layout-grid,
-  .link-grid.wide {
+.readiness-row div {
+  display: grid;
+  gap: 4px;
+}
+
+@media (max-width: 900px) {
+  .page-head,
+  .summary-grid,
+  .layout-grid {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 760px) {
-  .settings-page {
-    padding-inline: var(--page-gutter, 16px);
-  }
-
-  .hero-card,
-  .panel {
-    border-radius: 18px;
-    padding: 18px;
-  }
-
-  .session-actions,
-  .session-actions button {
-    width: 100%;
   }
 }
 </style>

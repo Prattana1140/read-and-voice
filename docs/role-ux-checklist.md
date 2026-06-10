@@ -1,6 +1,6 @@
 # Role UX Checklist
 
-Use this checklist for a full demo pass before presenting Read and Voice.
+Use this checklist for a full role-by-role smoke test before presenting or launching Read and Voice.
 
 ## Smoke Test Result
 
@@ -13,6 +13,8 @@ Latest API smoke test passed for:
 - Superadmin: user management
 
 ## Demo Accounts
+
+These accounts are for local/demo smoke testing only. For production smoke testing, use real test accounts created in the production database.
 
 All demo accounts use password `123456`.
 
@@ -50,7 +52,7 @@ Expected flow:
 4. Open `/cart`.
 5. Open `/orders/history`.
 6. Open a readable book and test `/reader/:id`.
-7. Open `/coin-wallet` and confirm demo payment notice is visible.
+7. Open `/coin-wallet` and confirm the manual payment instructions are visible.
 
 Pass criteria:
 
@@ -58,7 +60,7 @@ Pass criteria:
 - Library has books.
 - Wishlist has items.
 - Cart empty state or item state is clear.
-- Checkout and coin top-up clearly say demo/mock behavior.
+- Checkout spends coins, and coin top-up creates a pending manual approval request.
 - Reader page loads content and read/listen controls.
 
 ## Writer Flow
@@ -115,12 +117,13 @@ Pass criteria:
 
 - User and role lists load.
 - Role/status actions are visible.
-- Settings page is clearly treated as a placeholder if not connected to backend.
+- Settings page loads the operational checklist and links to admin/superadmin flows.
 
-## Known Demo Boundaries
+## Known Launch Boundaries
 
 - ThaiID is removed from scope.
 - LINE login appears only when backend credentials are configured.
-- Payment, subscription, and coin top-up are demo/mock flows.
-- Forgot password uses a preview reset link, not real email delivery.
-- Production readiness still requires real payment, email delivery, secrets, HTTPS, backups, and monitoring.
+- Coin top-up is manual approval first, not an automated gateway.
+- Forgot password is admin-assisted by default for the free launch path; automatic email delivery can be added with Resend or a webhook.
+- Mock payments and demo user seeds must remain disabled in production.
+- Production readiness still requires secrets, HTTPS, backups, and monitoring.

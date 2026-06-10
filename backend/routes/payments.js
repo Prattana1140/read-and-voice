@@ -21,7 +21,8 @@ function isProduction() {
 }
 
 function isMockPaymentEnabled() {
-  return !isProduction() || /^(1|true|yes)$/i.test(process.env.ENABLE_MOCK_PAYMENTS || "");
+  if (isProduction()) return false;
+  return !/^(0|false|no)$/i.test(process.env.ENABLE_MOCK_PAYMENTS || "");
 }
 
 function hasMatchingSecret(req, headerName, configuredSecret) {

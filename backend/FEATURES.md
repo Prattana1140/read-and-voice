@@ -132,8 +132,8 @@
 - `POST /api/orders/purchase`
 - `GET /api/orders/history`
 - `GET /api/payments/status/:orderId`
-- `POST /api/payments/mock/create`
-- `POST /api/payments/mock/webhook`
+- `POST /api/payments/mock/create` - development only; disabled when `NODE_ENV=production`
+- `POST /api/payments/mock/webhook` - development only; disabled when `NODE_ENV=production`
 - `POST /api/library`
 - `GET /api/library/me`
 - `DELETE /api/library/:bookId`

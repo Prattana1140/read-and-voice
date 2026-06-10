@@ -9,6 +9,31 @@ type ReaderResponse = {
   lock_reason?: string;
   title?: string;
   content?: string;
+  structured?: StructuredReaderPayload | null;
+};
+
+type StructuredSentence = {
+  id?: number;
+  sentence_uuid?: string;
+  display_text?: string;
+  tts_text?: string;
+  plain_text?: string;
+};
+
+type StructuredBlock = {
+  id?: number;
+  block_order?: number;
+  block_type?: string;
+  display_text?: string;
+  tts_text?: string;
+  sentences?: StructuredSentence[];
+};
+
+type StructuredReaderPayload = {
+  version?: string;
+  blocks?: StructuredBlock[];
+  sentences?: StructuredSentence[];
+  plain_text?: string;
 };
 
 type Episode = {
@@ -53,6 +78,7 @@ const title = ref("อ่าน e-book");
 const bookTitle = ref("");
 const bookCover = ref("");
 const content = ref("");
+const structuredBlocks = ref<StructuredBlock[]>([]);
 
 const episodes = ref<Episode[]>([]);
 const comments = ref<EpisodeComment[]>([]);
@@ -106,6 +132,12 @@ const nextEpisode = computed(() => {
   return index >= 0 && index < episodes.value.length - 1 ? episodes.value[index + 1] : null;
 });
 const paragraphs = computed(() => {
+  if (structuredBlocks.value.length) {
+    return structuredBlocks.value
+      .map((block) => String(block.display_text || block.tts_text || "").trim())
+      .filter(Boolean);
+  }
+
   const source = content.value || sentences.value.join(" ");
   return source
     .replace(/<PARA>/g, "\n\n")
@@ -143,6 +175,20 @@ function splitSentences(text: string) {
       if (item.length <= 220) return [item];
       return item.match(/.{1,180}([,;:]\s*|$)/g)?.map((chunk) => chunk.trim()).filter(Boolean) || [item];
     });
+}
+
+function normalizeStructuredSentences(payload?: StructuredReaderPayload | null) {
+  if (!payload) return [];
+
+  const directSentences = Array.isArray(payload.sentences) ? payload.sentences : [];
+  const blockSentences = Array.isArray(payload.blocks)
+    ? payload.blocks.flatMap((block) => Array.isArray(block.sentences) ? block.sentences : [])
+    : [];
+  const source = directSentences.length ? directSentences : blockSentences;
+
+  return source
+    .map((sentence) => String(sentence.tts_text || sentence.display_text || sentence.plain_text || "").trim())
+    .filter(Boolean);
 }
 
 function loadVoices() {
@@ -327,6 +373,7 @@ async function fetchContent() {
   error.value = "";
   lockReason.value = "";
   content.value = "";
+  structuredBlocks.value = [];
   sentences.value = [];
   currentIndex.value = 0;
   isTocOpen.value = false;
@@ -348,8 +395,12 @@ async function fetchContent() {
       return;
     }
 
-    content.value = data.content || "";
-    sentences.value = splitSentences(content.value);
+    structuredBlocks.value = Array.isArray(data.structured?.blocks) ? data.structured.blocks : [];
+    content.value = data.structured?.plain_text || data.content || "";
+    sentences.value = normalizeStructuredSentences(data.structured);
+    if (!sentences.value.length) {
+      sentences.value = splitSentences(content.value);
+    }
     await loadProgress();
     await scrollToCurrent();
   } catch (err: any) {

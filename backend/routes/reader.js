@@ -122,6 +122,66 @@ async function getBookFullText(bookId, fullText) {
   );
 }
 
+async function getStructuredBookContent(bookId) {
+  const [unitRows] = await db.query(
+    `SELECT id, unit_type, unit_number, title, sentence_count
+     FROM book_units
+     WHERE book_id = ?
+       AND lifecycle_status IN ('draft', 'published')
+     ORDER BY unit_number ASC, id ASC`,
+    [bookId],
+  );
+
+  if (unitRows.length === 0) {
+    return null;
+  }
+
+  const unitIds = unitRows.map((unit) => unit.id);
+  const placeholders = unitIds.map(() => "?").join(",");
+  const [blockRows] = await db.query(
+    `SELECT id, book_unit_id, block_order, block_type, display_text, tts_text, speaker_name
+     FROM book_unit_blocks
+     WHERE book_unit_id IN (${placeholders})
+     ORDER BY book_unit_id ASC, block_order ASC`,
+    unitIds,
+  );
+  const [sentenceRows] = await db.query(
+    `SELECT id, book_unit_id, block_id, sentence_uuid, sentence_order, sentence_in_block,
+            display_text, tts_text, plain_text, duration_ms_estimate
+     FROM book_unit_sentences
+     WHERE book_unit_id IN (${placeholders})
+     ORDER BY book_unit_id ASC, sentence_order ASC`,
+    unitIds,
+  );
+
+  const units = unitRows.map((unit) => {
+    const blocks = blockRows
+      .filter((block) => Number(block.book_unit_id) === Number(unit.id))
+      .map((block) => ({
+        ...block,
+        sentences: sentenceRows.filter((sentence) => Number(sentence.block_id) === Number(block.id)),
+      }));
+
+    return {
+      ...unit,
+      blocks,
+      sentences: sentenceRows.filter((sentence) => Number(sentence.book_unit_id) === Number(unit.id)),
+    };
+  });
+
+  const blocks = units.flatMap((unit) => unit.blocks);
+  const sentences = units.flatMap((unit) => unit.sentences);
+
+  return {
+    version: "unit-block-sentence",
+    active_unit_id: units[0]?.id || null,
+    units,
+    blocks,
+    sentences,
+    plain_text: blocks.map((block) => block.display_text || "").filter(Boolean).join("\n\n"),
+  };
+}
+
 router.get("/books/:bookId/content", optionalVerifyToken, async (req, res) => {
   try {
     await ensureCatalogAnalyticsSchema();
@@ -173,11 +233,14 @@ router.get("/books/:bookId/content", optionalVerifyToken, async (req, res) => {
       [book.id, req.user?.id || null],
     );
 
+    const structured = await getStructuredBookContent(book.id);
+
     return res.json({
       is_locked: false,
       title: book.title,
       access_type: book.access_type,
-      content: await getBookFullText(book.id, book.full_text),
+      content: structured?.plain_text || await getBookFullText(book.id, book.full_text),
+      structured,
     });
   } catch (error) {
     console.error("GET /reader/books/:bookId/content error:", error);

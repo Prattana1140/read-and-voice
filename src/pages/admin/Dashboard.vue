@@ -113,6 +113,14 @@ const goToSystemData = () => {
   router.push({ name: "AdminSystemData" });
 };
 
+const goToPasswordResets = () => {
+  router.push({ name: "AdminPasswordResets" });
+};
+
+const goToSupportTickets = () => {
+  router.push({ name: "AdminSupportTickets" });
+};
+
 const deleteBook = async (id: number, title: string) => {
   const confirmed = window.confirm(`ต้องการลบหนังสือ "${title}" ใช่หรือไม่?`);
   if (!confirmed) return;
@@ -177,6 +185,12 @@ onMounted(() => {
           </button>
           <button class="top-btn secondary" @click="goToSystemData">
             System Data
+          </button>
+          <button class="top-btn secondary" @click="goToPasswordResets">
+            รีเซ็ตรหัสผ่าน
+          </button>
+          <button class="top-btn secondary" @click="goToSupportTickets">
+            Support Tickets
           </button>
           <button class="top-btn primary" @click="goToUpload">
             + เพิ่มหนังสือใหม่
@@ -523,26 +537,140 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .admin-page {
-    padding: var(--page-block, 16px) var(--page-gutter, 16px);
+    padding: 12px 10px 24px;
+  }
+
+  .container {
+    width: 100%;
   }
 
   .page-header {
     flex-direction: column;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .page-header h1 {
+    margin-bottom: 6px;
+    font-size: 28px;
+    line-height: 1.15;
+  }
+
+  .page-header p {
+    font-size: 13px;
+    line-height: 1.55;
   }
 
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
   }
 
-  .header-actions,
+  .header-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
   .top-btn,
   .search-input {
     width: 100%;
   }
 
+  .top-btn {
+    min-height: 40px;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 1.2;
+    padding: 8px 10px;
+  }
+
   .stat-card,
   .state-box {
-    padding: 18px;
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
+  }
+
+  .stat-label {
+    margin-bottom: 4px;
+    font-size: 12px;
+  }
+
+  .stat-value {
+    font-size: 26px;
+    line-height: 1;
+  }
+
+  .toolbar {
+    margin-bottom: 12px;
+  }
+
+  .search-input {
+    max-width: none;
+    min-height: 44px;
+    border-radius: 12px;
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+
+  .table-wrap {
+    border-radius: 14px;
+    box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
+  }
+
+  .book-table {
+    min-width: 650px;
+  }
+
+  .book-table th,
+  .book-table td {
+    padding: 9px 10px;
+    font-size: 12px;
+  }
+
+  .cover-thumb {
+    width: 44px;
+    height: 60px;
+    border-radius: 6px;
+  }
+
+  .title-cell {
+    gap: 3px;
+  }
+
+  .title-cell strong {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 1.25;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
+  .title-cell small {
+    display: none;
+  }
+
+  .status-badge {
+    min-width: 54px;
+    border-radius: 8px;
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+
+  .action-buttons {
+    gap: 5px;
+  }
+
+  .btn {
+    min-height: 30px;
+    border-radius: 8px;
+    font-size: 11px;
+    padding: 6px 8px;
   }
 }
 </style>

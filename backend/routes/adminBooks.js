@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("../config/db");
 const { verifyToken } = require("../middleware/auth");
 const { requireAdmin } = require("../middleware/admin");
+const { ensureCatalogAnalyticsSchema } = require("../services/catalogSchema");
 
 const router = express.Router();
 
@@ -32,8 +33,22 @@ function normalizeApprovalStatus(value) {
   return ["pending", "approved", "rejected"].includes(status) ? status : null;
 }
 
+function normalizeDiscountPercent(value) {
+  const numberValue = Number(value || 0);
+  if (!Number.isFinite(numberValue) || numberValue <= 0) return 0;
+  return Math.min(95, Math.max(1, Math.round(numberValue)));
+}
+
+function normalizeNullableDate(value) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  const date = new Date(text);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 router.get("/pending", verifyToken, requireAdmin, async (_req, res) => {
   try {
+    await ensureCatalogAnalyticsSchema();
     const [rows] = await db.query(
       `SELECT
          b.id,
@@ -52,6 +67,9 @@ router.get("/pending", verifyToken, requireAdmin, async (_req, res) => {
          b.requested_free_book,
          b.requested_hall_of_fame,
          b.requested_recommended,
+         b.promo_discount_percent,
+         b.promo_start_at,
+         b.promo_end_at,
          b.is_best_seller,
          b.is_new_release,
          b.is_promotion,
@@ -97,6 +115,7 @@ router.get("/:id", verifyToken, requireAdmin, async (req, res) => {
 
 router.put("/:id/approval", verifyToken, requireAdmin, async (req, res) => {
   try {
+    await ensureCatalogAnalyticsSchema();
     const bookId = Number(req.params.id);
     const {
       approval_status = "approved",
@@ -107,6 +126,9 @@ router.put("/:id/approval", verifyToken, requireAdmin, async (req, res) => {
       is_free_book = false,
       is_hall_of_fame = false,
       is_recommended = false,
+      promo_discount_percent = 0,
+      promo_start_at = null,
+      promo_end_at = null,
     } = req.body;
 
     if (!Number.isInteger(bookId) || bookId <= 0) {
@@ -116,6 +138,19 @@ router.put("/:id/approval", verifyToken, requireAdmin, async (req, res) => {
     const safeStatus = normalizeApprovalStatus(approval_status);
     if (!safeStatus) {
       return res.status(400).json({ message: "approval_status ไม่ถูกต้อง" });
+    }
+
+    const safeDiscount = normalizeDiscountPercent(promo_discount_percent);
+    const safePromoStartAt = normalizeNullableDate(promo_start_at);
+    const safePromoEndAt = normalizeNullableDate(promo_end_at);
+    const safeIsPromotion = toBoolNumber(is_promotion);
+
+    if (safePromoStartAt && safePromoEndAt && safePromoStartAt > safePromoEndAt) {
+      return res.status(400).json({ message: "promotion start date must be before the end date" });
+    }
+
+    if (safeIsPromotion && safeDiscount <= 0) {
+      return res.status(400).json({ message: "promotion requires a real discount percent" });
     }
 
     const [result] = await db.query(
@@ -136,6 +171,9 @@ router.put("/:id/approval", verifyToken, requireAdmin, async (req, res) => {
            is_free_book = ?,
            is_hall_of_fame = ?,
            is_recommended = ?,
+           promo_discount_percent = ?,
+           promo_start_at = ?,
+           promo_end_at = ?,
            updated_at = NOW()
        WHERE id = ?`,
       [
@@ -149,10 +187,13 @@ router.put("/:id/approval", verifyToken, requireAdmin, async (req, res) => {
         safeStatus,
         toBoolNumber(is_best_seller),
         toBoolNumber(is_new_release),
-        toBoolNumber(is_promotion),
+        safeIsPromotion,
         toBoolNumber(is_free_book),
         toBoolNumber(is_hall_of_fame),
         toBoolNumber(is_recommended),
+        safeIsPromotion ? safeDiscount : 0,
+        safeIsPromotion ? safePromoStartAt : null,
+        safeIsPromotion ? safePromoEndAt : null,
         bookId,
       ],
     );

@@ -8,6 +8,25 @@ type ReaderResponse = {
   lock_reason?: string;
   title?: string;
   content?: string;
+  structured?: StructuredReaderPayload | null;
+};
+
+type StructuredSentence = {
+  display_text?: string;
+  tts_text?: string;
+  plain_text?: string;
+};
+
+type StructuredBlock = {
+  display_text?: string;
+  tts_text?: string;
+  sentences?: StructuredSentence[];
+};
+
+type StructuredReaderPayload = {
+  blocks?: StructuredBlock[];
+  sentences?: StructuredSentence[];
+  plain_text?: string;
 };
 
 type Episode = {
@@ -105,6 +124,20 @@ function splitSentences(text: string) {
       if (item.length <= 220) return [item];
       return item.match(/.{1,180}([,;:]\s*|$)/g)?.map((chunk) => chunk.trim()).filter(Boolean) || [item];
     });
+}
+
+function normalizeStructuredSentences(payload?: StructuredReaderPayload | null) {
+  if (!payload) return [];
+
+  const directSentences = Array.isArray(payload.sentences) ? payload.sentences : [];
+  const blockSentences = Array.isArray(payload.blocks)
+    ? payload.blocks.flatMap((block) => Array.isArray(block.sentences) ? block.sentences : [])
+    : [];
+  const source = directSentences.length ? directSentences : blockSentences;
+
+  return source
+    .map((sentence) => String(sentence.tts_text || sentence.display_text || sentence.plain_text || "").trim())
+    .filter(Boolean);
 }
 
 function loadVoices() {
@@ -252,8 +285,11 @@ async function fetchContent() {
       return;
     }
 
-    content.value = data.content || "";
-    sentences.value = splitSentences(content.value);
+    content.value = data.structured?.plain_text || data.content || "";
+    sentences.value = normalizeStructuredSentences(data.structured);
+    if (!sentences.value.length) {
+      sentences.value = splitSentences(content.value);
+    }
     await loadProgress();
     await nextTick();
     resume();

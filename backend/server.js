@@ -13,6 +13,7 @@ const ordersRoutes = require("./routes/orders");
 const progressRoutes = require("./routes/progress");
 const adminUsersRoutes = require("./routes/adminUsers");
 const adminBooksRoutes = require("./routes/adminBooks");
+const adminPasswordResetsRoutes = require("./routes/adminPasswordResets");
 const adminSettingsRoutes = require("./routes/adminSettings");
 
 const profileRoutes = require("./routes/profile");
@@ -29,8 +30,10 @@ const reviewsRoutes = require("./routes/reviews");
 const episodeCommentsRoutes = require("./routes/episodeComments");
 const notificationsRoutes = require("./routes/notifications");
 const paymentsRoutes = require("./routes/payments");
+const supportRoutes = require("./routes/support");
 const writersRoutes = require("./routes/writers");
 const { generateBookCoverPath } = require("./services/bookCover");
+const { getProductionReadiness } = require("./services/readiness");
 const { ensureDatabaseInitialized } = require("./services/scripts/initDatabase");
 const { migrateContentModel } = require("./services/scripts/migrateContentModel");
 const { ensureTtsArchitectureMigrated } = require("./services/scripts/migrateTtsArchitecture");
@@ -135,6 +138,18 @@ app.get("/", (_req, res) => {
   });
 });
 
+app.get("/health", (_req, res) => {
+  return res.status(200).json({
+    status: "ok",
+    app: "Read and Voice Backend",
+  });
+});
+
+app.get("/ready", (_req, res) => {
+  const readiness = getProductionReadiness();
+  return res.status(readiness.ready ? 200 : 503).json(readiness);
+});
+
 app.get("/api", (_req, res) => {
   return res.status(200).json({
     message: "Read and Voice API",
@@ -185,6 +200,7 @@ app.use("/api/progress", progressRoutes);
 app.use("/api/admin/settings", adminSettingsRoutes);
 app.use("/api/admin", adminUsersRoutes);
 app.use("/api/admin/books", adminBooksRoutes);
+app.use("/api/admin", adminPasswordResetsRoutes);
 
 app.use("/api/profile", profileRoutes);
 app.use("/api/subscriptions", subscriptionsRoutes);
@@ -195,6 +211,7 @@ app.use("/api/coins", coinsRoutes);
 app.use("/api/page-content", pageContentRoutes);
 app.use("/api/account", accountRoutes);
 app.use("/api/account/notifications", notificationsRoutes);
+app.use("/api/support", supportRoutes);
 app.use("/api/writers", writersRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api", reviewsRoutes);

@@ -9,6 +9,7 @@
     "dev:cloud-api": "node scripts/dev-cloud-api.cjs",
     "dev:backend": "npm --prefix backend run dev",
     "build": "vite build",
+    "check:category-scopes": "node backend/services/scripts/checkCategoryScopes.js",
     "preview": "vite preview"
   },
   "dependencies": {

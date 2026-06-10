@@ -412,6 +412,18 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, allowedRoles: adminRoles },
   },
   {
+    path: "/admin/password-resets",
+    name: "AdminPasswordResets",
+    component: () => import("../pages/admin/PasswordResets.vue"),
+    meta: { requiresAuth: true, allowedRoles: adminRoles },
+  },
+  {
+    path: "/admin/support-tickets",
+    name: "AdminSupportTickets",
+    component: () => import("../pages/admin/SupportTickets.vue"),
+    meta: { requiresAuth: true, allowedRoles: adminRoles },
+  },
+  {
     path: "/admin/system-data",
     name: "AdminSystemData",
     component: () => import("../pages/admin/SystemData.vue"),

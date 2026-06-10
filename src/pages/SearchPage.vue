@@ -375,5 +375,52 @@ onMounted(loadSearchData);
   .search-box {
     grid-template-columns: 1fr;
   }
+
+  .result-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .book-card {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    overflow: hidden;
+    border: 0;
+    background: transparent;
+    padding: 0;
+  }
+
+  .book-card img {
+    width: 100%;
+    border-radius: 6px;
+  }
+
+  .book-card span {
+    font-size: 8px;
+  }
+
+  .book-card h2 {
+    display: -webkit-box;
+    min-height: 34px;
+    margin: 2px 0;
+    overflow: hidden;
+    font-size: 11px;
+    line-height: 1.25;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
+  .book-card p,
+  .book-card small {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 9px;
+    line-height: 1.25;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
 }
 </style>

@@ -98,16 +98,37 @@ function getProductionReadiness() {
           : "FRONTEND_URL is missing or still a placeholder",
   });
 
-  const emailReady = !isPlaceholder(readEnv("RESEND_API_KEY")) && !isPlaceholder(readEnv("EMAIL_FROM"));
+  const resendReady = !isPlaceholder(readEnv("RESEND_API_KEY")) && !isPlaceholder(readEnv("EMAIL_FROM"));
+  const emailWebhookReady =
+    !isPlaceholder(readEnv("PASSWORD_RESET_EMAIL_WEBHOOK_URL")) ||
+    !isPlaceholder(readEnv("EMAIL_WEBHOOK_URL"));
+  const emailReady = resendReady || emailWebhookReady;
+  const passwordResetPreviewEnabled = /^(1|true|yes)$/i.test(readEnv("ALLOW_PASSWORD_RESET_PREVIEW"));
+  const adminAssistedPasswordReset = !/^(1|true|yes)$/i.test(readEnv("DISABLE_ADMIN_PASSWORD_RESET"));
   checks.push({
     name: "email_delivery",
-    ok: emailReady || !production,
+    ok: emailReady || adminAssistedPasswordReset || !production,
     configured: emailReady,
-    message: emailReady
+    message: resendReady
       ? "Resend email delivery is configured"
-      : production
-        ? "Set RESEND_API_KEY and EMAIL_FROM for real password reset email"
-        : "Resend email delivery is not configured; password reset email is disabled in development",
+      : emailWebhookReady
+        ? "email webhook delivery is configured"
+        : adminAssistedPasswordReset
+          ? "using admin-assisted password reset"
+          : production
+            ? "Set email delivery or enable admin-assisted password reset"
+            : "Email delivery is not configured; password reset email is disabled in development",
+  });
+  checks.push({
+    name: "password_reset_preview",
+    ok: !production || !passwordResetPreviewEnabled,
+    configured: passwordResetPreviewEnabled,
+    message:
+      production && passwordResetPreviewEnabled
+        ? "ALLOW_PASSWORD_RESET_PREVIEW must be false in production"
+        : passwordResetPreviewEnabled
+          ? "preview reset links are enabled for development"
+          : "preview reset links are disabled",
   });
 
   const gatewayReady =
@@ -125,6 +146,51 @@ function getProductionReadiness() {
       : manualPaymentReady
         ? "manual payment approval is enabled"
         : "Set payment gateway envs or enable MANUAL_PAYMENT_ENABLED with MANUAL_PAYMENT_INSTRUCTIONS",
+  });
+
+  const mockPaymentsEnabled = /^(1|true|yes)$/i.test(readEnv("ENABLE_MOCK_PAYMENTS"));
+  const mockCoinTopupEnabled = /^(1|true|yes)$/i.test(readEnv("ENABLE_MOCK_COIN_TOPUP"));
+  checks.push({
+    name: "mock_payments",
+    ok: !production || (!mockPaymentsEnabled && !mockCoinTopupEnabled),
+    configured: mockPaymentsEnabled || mockCoinTopupEnabled,
+    message:
+      production && (mockPaymentsEnabled || mockCoinTopupEnabled)
+        ? "Disable ENABLE_MOCK_PAYMENTS and ENABLE_MOCK_COIN_TOPUP in production"
+        : mockPaymentsEnabled || mockCoinTopupEnabled
+          ? "mock payments are enabled for development"
+          : "mock payments are disabled",
+  });
+
+  const demoSeedAllowed = /^(1|true|yes)$/i.test(readEnv("ALLOW_DEMO_SEED_IN_PRODUCTION"));
+  checks.push({
+    name: "demo_seed_guard",
+    ok: !production || !demoSeedAllowed,
+    configured: demoSeedAllowed,
+    message:
+      production && demoSeedAllowed
+        ? "ALLOW_DEMO_SEED_IN_PRODUCTION should be false before real launch"
+        : "demo seed is not explicitly allowed in production",
+  });
+
+  const superAdminEmail = readEnv("SUPERADMIN_EMAIL");
+  const superAdminPassword = readEnv("SUPERADMIN_PASSWORD");
+  const superAdminEmailLooksDemo = /@readvoice\.local$/i.test(superAdminEmail);
+  const superAdminPasswordStrong = superAdminPassword.length >= 12 && !isPlaceholder(superAdminPassword);
+  checks.push({
+    name: "superadmin_seed",
+    ok:
+      !production ||
+      (!isPlaceholder(superAdminEmail) && !superAdminEmailLooksDemo && superAdminPasswordStrong),
+    configured: Boolean(superAdminEmail || superAdminPassword),
+    message:
+      !production
+        ? "superadmin seed can use local defaults in development"
+        : superAdminEmailLooksDemo
+          ? "SUPERADMIN_EMAIL should be a real email in production"
+          : !superAdminPasswordStrong
+            ? "Set SUPERADMIN_PASSWORD to a long non-placeholder password before running create:superadmin"
+            : "production superadmin seed credentials are configured",
   });
 
   const ocrEnabled = /^(1|true|yes)$/i.test(readEnv("ENABLE_OCR") || readEnv("ENABLE_PDF_OCR"));

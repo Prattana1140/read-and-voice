@@ -206,15 +206,46 @@ const goRegister = () => {
 @media (max-width: 560px) {
   .account-login-page {
     align-items: flex-start;
+    padding: 10px;
   }
 
   .account-login-box {
+    max-width: 380px;
     border-radius: 14px;
-    padding: 22px 14px;
+    padding: 16px 12px;
   }
 
   .title {
-    font-size: 24px;
+    font-size: 22px;
+    line-height: 1.18;
+  }
+
+  .subtitle {
+    margin-bottom: 14px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .form-group {
+    margin-bottom: 10px;
+  }
+
+  .form-group label {
+    margin-bottom: 5px;
+    font-size: 13px;
+  }
+
+  .form-group input {
+    min-height: 42px;
+    border-radius: 8px;
+    font-size: 14px;
+    padding: 9px 11px;
+  }
+
+  .login-btn {
+    min-height: 42px;
+    margin-top: 4px;
+    padding: 9px 12px;
   }
 }
 </style>

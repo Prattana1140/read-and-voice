@@ -6,6 +6,7 @@ type Category = {
   id: number;
   name: string;
   parent_id: number | null;
+  content_scope?: string | null;
   display_tone?: string | null;
   display_art?: string | null;
   show_on_home?: boolean | number | null;
@@ -15,6 +16,7 @@ type Category = {
 type CategoryForm = {
   name: string;
   parent_id: string;
+  content_scope: string;
   display_tone: string;
   display_art: string;
   show_on_home: boolean;
@@ -27,6 +29,7 @@ type CategoryPreset = {
   name: string;
   tone: string;
   art: string;
+  scope?: string;
 };
 
 const toneOptions = [
@@ -59,11 +62,21 @@ const toneOptions = [
   { value: "audio", label: "น้ำเงิน" },
 ];
 
+const scopeOptions = [
+  { value: "all", label: "ใช้ได้ทุกประเภท" },
+  { value: "ebook", label: "เฉพาะ E-book" },
+  { value: "serial", label: "เฉพาะนิยายรายตอน" },
+];
+
 const formNameLimit = 28;
 const homeGridRows = 2;
 
 const quickPresets: CategoryPreset[] = [
-  { name: "นิยายรัก", tone: "romance", art: "romance-books" },
+  { name: "นิยายรัก", tone: "romance", art: "romance-books", scope: "serial" },
+  { name: "Boy Love", tone: "romance", art: "romance-books", scope: "serial" },
+  { name: "Girl Love", tone: "romance", art: "romance-family", scope: "serial" },
+  { name: "แฟนตาซีรายตอน", tone: "fantasy", art: "fantasy-wizard", scope: "serial" },
+  { name: "สืบสวนรายตอน", tone: "mystery", art: "mystery-book", scope: "serial" },
   { name: "เทคโนโลยี", tone: "technology", art: "space-science" },
   { name: "การศึกษา", tone: "study", art: "education-graduate" },
   { name: "คอมพิวเตอร์", tone: "technology", art: "space-science" },
@@ -198,6 +211,7 @@ const defaultArtValue = artOptions[0]?.value || "travel-book";
 const emptyForm = (): CategoryForm => ({
   name: "",
   parent_id: "",
+  content_scope: "all",
   display_tone: "",
   display_art: "",
   show_on_home: true,
@@ -245,6 +259,7 @@ function toPayload(form: CategoryForm) {
   return {
     name: form.name.trim(),
     parent_id: form.parent_id ? Number(form.parent_id) : null,
+    content_scope: form.content_scope || "all",
     display_tone: form.display_tone || null,
     display_art: form.display_art || null,
     show_on_home: form.show_on_home,
@@ -257,6 +272,7 @@ function formFromCategory(item: Category): CategoryForm {
   return {
     name: item.name,
     parent_id: item.parent_id ? String(item.parent_id) : "",
+    content_scope: item.content_scope || "all",
     display_tone: item.display_tone || "",
     display_art: item.display_art ? getImageArtValue(item.display_art) : "",
     show_on_home: item.show_on_home !== false && item.show_on_home !== 0,
@@ -327,6 +343,7 @@ async function toggleHomeStatus(item: Category) {
     await api.put(`/categories/${item.id}`, {
       name: item.name,
       parent_id: item.parent_id,
+      content_scope: item.content_scope || "all",
       display_tone: item.display_tone || null,
       display_art: item.display_art || null,
       show_on_home: nextStatus,
@@ -415,6 +432,10 @@ function getSelectedArtLabel(form: CategoryForm) {
 
 function getSelectedToneLabel(form: CategoryForm) {
   return toneOptions.find((option) => option.value === form.display_tone)?.label || toneOptions[0].label;
+}
+
+function getScopeLabel(value?: string | null) {
+  return scopeOptions.find((option) => option.value === (value || "all"))?.label || scopeOptions[0].label;
 }
 
 function selectTone(form: CategoryForm, value: string, event?: MouseEvent) {
@@ -509,6 +530,7 @@ async function saveHomeLayout() {
         api.put(`/categories/${item.id}`, {
           name: item.name,
           parent_id: item.parent_id,
+          content_scope: item.content_scope || "all",
           display_tone: item.display_tone || null,
           display_art: item.display_art || null,
           show_on_home: true,
@@ -529,6 +551,7 @@ function applyPreset(form: CategoryForm, preset: CategoryPreset) {
   form.name = preset.name;
   form.display_tone = preset.tone;
   form.display_art = preset.art;
+  form.content_scope = preset.scope || "all";
   form.show_on_home = true;
 }
 
@@ -593,6 +616,15 @@ onMounted(loadCategories);
               <option value="">หมวดหลัก</option>
               <option v-for="item in mainCategories" :key="item.id" :value="item.id">
                 {{ item.name }}
+              </option>
+            </select>
+          </label>
+
+          <label>
+            ใช้กับ
+            <select v-model="newForm.content_scope">
+              <option v-for="option in scopeOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
               </option>
             </select>
           </label>
@@ -773,6 +805,15 @@ onMounted(loadCategories);
                 :value="item.id"
               >
                 {{ item.name }}
+              </option>
+            </select>
+          </label>
+
+          <label>
+            ใช้กับ
+            <select v-model="editForm.content_scope">
+              <option v-for="option in scopeOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
               </option>
             </select>
           </label>
@@ -983,6 +1024,7 @@ onMounted(loadCategories);
             <tr>
               <th>ชื่อปุ่ม</th>
               <th>ชั้นหมวด</th>
+              <th>ใช้กับ</th>
               <th>Home</th>
               <th>ธีม</th>
               <th>ภาพประกอบ</th>
@@ -996,6 +1038,7 @@ onMounted(loadCategories);
                 <strong>{{ item.name }}</strong>
               </td>
               <td>{{ getParentName(item) }}</td>
+              <td>{{ getScopeLabel(item.content_scope) }}</td>
               <td>
                 <button
                   :class="['status-pill', 'status-toggle', item.show_on_home === false || item.show_on_home === 0 ? 'off' : 'on']"
@@ -2973,6 +3016,137 @@ th {
 
   .category-button-preview {
     margin: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 10px;
+  }
+
+  .page-head h1 {
+    font-size: 24px;
+    line-height: 1.15;
+  }
+
+  .page-head p,
+  .panel-title p {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .category-workspace,
+  .admin-grid,
+  .panel,
+  .preset-panel {
+    gap: 8px;
+  }
+
+  .panel {
+    width: min(100%, 330px);
+    max-width: calc(100vw - 20px);
+    border-radius: 12px;
+    padding: 10px;
+    margin-inline: auto;
+  }
+
+  .panel-title {
+    gap: 6px;
+  }
+
+  .panel-title h2 {
+    font-size: 17px;
+    line-height: 1.2;
+  }
+
+  .home-chip {
+    min-height: 24px;
+    font-size: 10px;
+    padding: 3px 7px;
+  }
+
+  .preset-panel {
+    border-radius: 9px;
+    padding: 8px;
+  }
+
+  .preset-panel strong,
+  label,
+  .tone-picker-field,
+  .art-picker-field {
+    font-size: 11.5px;
+  }
+
+  .preset-panel span,
+  .field-hint,
+  .field-hint-row small {
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
+  .preset-grid,
+  .form-grid,
+  .position-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  label {
+    gap: 3px;
+  }
+
+  input,
+  select {
+    min-height: 36px;
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .tone-dropdown summary,
+  .art-picker summary {
+    min-height: 38px;
+    border-radius: 8px;
+    padding: 5px 30px 5px 7px;
+  }
+
+  .tone-dropdown summary::after,
+  .art-picker summary::after {
+    top: 11px;
+    right: 9px;
+    font-size: 14px;
+  }
+
+  .art-selected-preview {
+    display: none;
+  }
+
+  .art-picker summary img,
+  .art-picker__option img {
+    width: 34px;
+    height: 34px;
+  }
+
+  .create-preview__button {
+    min-height: 54px;
+  }
+
+  .check-row {
+    min-height: 38px;
+    padding: 7px 8px;
+  }
+
+  .actions {
+    gap: 7px;
+  }
+
+  .actions button,
+  .primary-btn,
+  .ghost-btn {
+    min-height: 36px;
+    border-radius: 8px;
+    font-size: 12px;
+    padding: 6px 8px;
   }
 }
 </style>

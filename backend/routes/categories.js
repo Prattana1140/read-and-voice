@@ -16,15 +16,34 @@ async function ensureCategorySchema() {
     await db.query("ALTER TABLE categories ADD INDEX idx_categories_parent_id (parent_id)");
   }
 
+  const [scopeColumns] = await db.query("SHOW COLUMNS FROM categories LIKE 'content_scope'");
+  if (scopeColumns.length === 0) {
+    await db.query("ALTER TABLE categories ADD COLUMN content_scope VARCHAR(20) NOT NULL DEFAULT 'all' AFTER parent_id");
+    await db.query("ALTER TABLE categories ADD INDEX idx_categories_content_scope (content_scope)");
+  }
+
   const [displayToneColumns] = await db.query("SHOW COLUMNS FROM categories LIKE 'display_tone'");
   if (displayToneColumns.length === 0) {
-    await db.query("ALTER TABLE categories ADD COLUMN display_tone VARCHAR(40) NULL AFTER parent_id");
+    await db.query("ALTER TABLE categories ADD COLUMN display_tone VARCHAR(40) NULL AFTER content_scope");
   }
 
   const [displayArtColumns] = await db.query("SHOW COLUMNS FROM categories LIKE 'display_art'");
   if (displayArtColumns.length === 0) {
     await db.query("ALTER TABLE categories ADD COLUMN display_art VARCHAR(40) NULL AFTER display_tone");
   }
+
+  await db.query("UPDATE categories SET content_scope = 'serial' WHERE content_scope = 'all' AND display_tone = 'serial'");
+  await db.query(`
+    UPDATE categories c
+    SET c.content_scope = 'all'
+    WHERE c.content_scope IN ('ebook', 'serial')
+      AND EXISTS (
+        SELECT 1
+        FROM books b
+        WHERE b.category_id = c.id
+          AND COALESCE(b.content_type, 'ebook') <> c.content_scope
+      )
+  `);
 
   const [showHomeColumns] = await db.query("SHOW COLUMNS FROM categories LIKE 'show_on_home'");
   if (showHomeColumns.length === 0) {
@@ -49,6 +68,11 @@ function normalizeParentId(value) {
 function normalizeOptionalText(value) {
   const text = String(value || "").trim();
   return text || null;
+}
+
+function normalizeContentScope(value, defaultValue = "all") {
+  const scope = String(value || defaultValue).trim().toLowerCase();
+  return ["all", "ebook", "serial"].includes(scope) ? scope : defaultValue;
 }
 
 function normalizeBoolean(value, defaultValue = true) {
@@ -80,14 +104,35 @@ async function validateParent(parentId, currentId = null) {
   return null;
 }
 
-router.get("/", async (_req, res) => {
+router.get("/", async (req, res) => {
   try {
     await ensureCategorySchema();
 
+    const filters = [];
+    const params = [];
+    const requestedScope = String(req.query.content_scope || req.query.scope || "").trim().toLowerCase();
+    const includeAllScope = !["0", "false", "no"].includes(
+      String(req.query.include_all ?? "1").trim().toLowerCase(),
+    );
+    if (requestedScope && ["ebook", "serial"].includes(requestedScope)) {
+      filters.push(includeAllScope ? "(content_scope = ? OR content_scope = 'all')" : "content_scope = ?");
+      params.push(requestedScope);
+    } else if (requestedScope === "all") {
+      filters.push("content_scope = 'all'");
+    }
+
+    const requestedTone = String(req.query.display_tone || "").trim();
+    if (requestedTone) {
+      filters.push("display_tone = ?");
+      params.push(requestedTone);
+    }
+
     const [rows] = await db.query(
-      `SELECT id, name, parent_id, display_tone, display_art, show_on_home, sort_order, created_at, NULL AS updated_at
+      `SELECT id, name, parent_id, content_scope, display_tone, display_art, show_on_home, sort_order, created_at, NULL AS updated_at
        FROM categories
+       ${filters.length ? `WHERE ${filters.join(" AND ")}` : ""}
        ORDER BY sort_order ASC, COALESCE(parent_id, id) ASC, parent_id IS NOT NULL ASC, name ASC`,
+      params,
     );
 
     return res.json(rows);
@@ -103,6 +148,7 @@ router.post("/", verifyToken, requireAdmin, async (req, res) => {
 
     const name = String(req.body.name || "").trim();
     const parentId = normalizeParentId(req.body.parent_id);
+    const contentScope = normalizeContentScope(req.body.content_scope || req.body.scope);
     const displayTone = normalizeOptionalText(req.body.display_tone);
     const displayArt = normalizeOptionalText(req.body.display_art);
     const showOnHome = normalizeBoolean(req.body.show_on_home, true);
@@ -125,8 +171,8 @@ router.post("/", verifyToken, requireAdmin, async (req, res) => {
     }
 
     const [result] = await db.query(
-      "INSERT INTO categories (name, parent_id, display_tone, display_art, show_on_home, sort_order) VALUES (?, ?, ?, ?, ?, ?)",
-      [name, parentId, displayTone, displayArt, showOnHome, sortOrder],
+      "INSERT INTO categories (name, parent_id, content_scope, display_tone, display_art, show_on_home, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [name, parentId, contentScope, displayTone, displayArt, showOnHome, sortOrder],
     );
 
     return res.json({
@@ -156,13 +202,18 @@ router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
     }
 
     const [exists] = await db.query(
-      "SELECT id FROM categories WHERE id = ? LIMIT 1",
+      "SELECT id, content_scope FROM categories WHERE id = ? LIMIT 1",
       [id],
     );
 
     if (exists.length === 0) {
       return res.status(404).json({ message: "ไม่พบหมวดหมู่" });
     }
+
+    const contentScope = normalizeContentScope(
+      req.body.content_scope || req.body.scope,
+      exists[0].content_scope || "all",
+    );
 
     const parentError = await validateParent(parentId, id);
     if (parentError) return res.status(400).json({ message: parentError });
@@ -176,9 +227,10 @@ router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
       return res.status(400).json({ message: "หมวดหมู่นี้มีอยู่แล้ว" });
     }
 
-    await db.query("UPDATE categories SET name = ?, parent_id = ?, display_tone = ?, display_art = ?, show_on_home = ?, sort_order = ? WHERE id = ?", [
+    await db.query("UPDATE categories SET name = ?, parent_id = ?, content_scope = ?, display_tone = ?, display_art = ?, show_on_home = ?, sort_order = ? WHERE id = ?", [
       name,
       parentId,
+      contentScope,
       displayTone,
       displayArt,
       showOnHome,

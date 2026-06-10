@@ -64,6 +64,17 @@ function buildChildEnv() {
   };
 }
 
+function assertDemoSeedAllowed() {
+  const isProduction = String(process.env.NODE_ENV || "").toLowerCase() === "production";
+  const allowProductionSeed = /^(1|true|yes)$/i.test(process.env.ALLOW_DEMO_SEED_IN_PRODUCTION || "");
+
+  if (isProduction && !allowProductionSeed) {
+    throw new Error(
+      "Refusing to run remote demo seed while NODE_ENV=production. Use a separate demo database, or set ALLOW_DEMO_SEED_IN_PRODUCTION=true only when this is intentionally not real user data.",
+    );
+  }
+}
+
 function run(command, args, env) {
   console.log(`\n> ${command} ${args.join(" ")}`);
   const result = spawnSync(command, args, {
@@ -83,6 +94,8 @@ function run(command, args, env) {
 }
 
 function main() {
+  assertDemoSeedAllowed();
+
   const target = parseTargetUrl();
 
   console.log("Remote seed target verified:");

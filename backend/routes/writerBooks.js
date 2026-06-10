@@ -11,6 +11,7 @@ const {
 } = require("../services/contentSegmenter");
 const { ensureBookCover, ensureBooksHaveCovers, generateBookCoverPath } = require("../services/bookCover");
 const { notifyWriterFollowersAboutEpisode } = require("../services/notifications");
+const { isSystemFeatureEnabled } = require("../services/systemSettings");
 
 const router = express.Router();
 const coverUploadDir = path.join(__dirname, "../uploads/book-covers");
@@ -98,12 +99,45 @@ function normalizeLifecycleStatus(value, fallback = "draft") {
   return fallback;
 }
 
+function normalizeContentType(value) {
+  return value === "serial" ? "serial" : "ebook";
+}
+
+function normalizeSerialStatus(value, fallback = "ongoing") {
+  const status = String(value || fallback).trim().toLowerCase();
+  return ["ongoing", "completed", "hiatus"].includes(status) ? status : fallback;
+}
+
+function normalizeSerialStatusForContentType(value, contentType) {
+  return contentType === "serial" ? normalizeSerialStatus(value) : "completed";
+}
+
 function normalizeFlag(value) {
   if (typeof value === "string") {
     return ["1", "true", "yes", "on"].includes(value.toLowerCase()) ? 1 : 0;
   }
 
   return Number(Boolean(value));
+}
+
+async function validateCategoryForContentType(categoryId, contentType) {
+  if (!categoryId) return null;
+  const [scopeColumns] = await db.query("SHOW COLUMNS FROM categories LIKE 'content_scope'");
+  const scopeExpression = scopeColumns.length > 0 ? "content_scope" : "'all'";
+  const [rows] = await db.query(
+    `SELECT id, name, ${scopeExpression} AS content_scope
+     FROM categories
+     WHERE id = ?
+     LIMIT 1`,
+    [categoryId],
+  );
+
+  if (rows.length === 0) return "ไม่พบหมวดหมู่ที่เลือก";
+  const scope = rows[0].content_scope || "all";
+  if (scope === "all" || scope === contentType) return null;
+  return contentType === "serial"
+    ? "หมวดหมู่นี้ใช้กับหนังสือรายตอนไม่ได้"
+    : "หมวดหมู่นี้ใช้กับหนังสือแบบเล่มไม่ได้";
 }
 
 async function syncBookAggregates(bookId, connection = db) {
@@ -129,6 +163,12 @@ async function syncBookAggregates(bookId, connection = db) {
 
   const totalWords = Number(unitStats[0]?.total_words || 0);
   const estimatedReadingMinutes = Math.max(1, Math.ceil(totalWords / 180 || 0));
+  const [episodeRows] = await connection.query(
+    `SELECT MAX(updated_at) AS latest_episode_at
+     FROM book_units
+     WHERE book_id = ? AND unit_type = 'episode'`,
+    [bookId],
+  );
 
   await connection.query(
     `UPDATE books
@@ -138,6 +178,7 @@ async function syncBookAggregates(bookId, connection = db) {
          total_words = ?,
          total_characters = ?,
          estimated_reading_minutes = ?,
+         latest_episode_at = COALESCE(?, latest_episode_at),
          updated_at = NOW()
      WHERE id = ?`,
     [
@@ -147,6 +188,7 @@ async function syncBookAggregates(bookId, connection = db) {
       totalWords,
       Number(blockStats[0]?.total_characters || 0),
       estimatedReadingMinutes,
+      episodeRows[0]?.latest_episode_at || null,
       bookId,
     ],
   );
@@ -256,6 +298,10 @@ router.post("/", verifyToken, uploadCoverFiles, async (req, res) => {
       return res.status(403).json({ message: "ไม่มีสิทธิ์สร้างหนังสือ" });
     }
 
+    if (!(await isSystemFeatureEnabled("writer_applications_enabled", true))) {
+      return res.status(503).json({ message: "ระบบนักเขียนปิดรับผลงานใหม่ชั่วคราว" });
+    }
+
     const {
       title,
       subtitle = null,
@@ -264,6 +310,7 @@ router.post("/", verifyToken, uploadCoverFiles, async (req, res) => {
       category_id = null,
       language_code = "th",
       content_type = "ebook",
+      serial_status,
       access_type = "paid",
       price = 0,
       coin_price = 0,
@@ -282,6 +329,12 @@ router.post("/", verifyToken, uploadCoverFiles, async (req, res) => {
     } = req.body;
 
     const safeAuthorName = String(author_name || req.user.name || "").trim();
+    const safeContentType = normalizeContentType(content_type);
+    const categoryError = await validateCategoryForContentType(category_id, safeContentType);
+    if (categoryError) {
+      return res.status(400).json({ message: categoryError });
+    }
+
     const uploadedCoverFile = getUploadedCoverFile(req);
     const initialCoverImage =
       getCoverImagePath(uploadedCoverFile, cover_image || cover_image_url) ||
@@ -301,11 +354,11 @@ router.post("/", verifyToken, uploadCoverFiles, async (req, res) => {
     const [result] = await connection.query(
       `INSERT INTO books
        (slug, title, subtitle, author_name, author, description, cover_image_url, cover_image,
-        category_id, language_code, content_type, access_type, lifecycle_status, publishing_status,
+        category_id, language_code, content_type, serial_status, access_type, lifecycle_status, publishing_status,
         price, coin_price, preview_mode, preview_value, age_rating, created_by,
         requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
         requested_hall_of_fame, requested_recommended, approval_status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'ready', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'ready', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())`,
       [
         slugify(title, `book-${Date.now()}`),
         title,
@@ -317,7 +370,8 @@ router.post("/", verifyToken, uploadCoverFiles, async (req, res) => {
         initialCoverImage,
         category_id || null,
         language_code || "th",
-        content_type === "serial" ? "serial" : "ebook",
+        safeContentType,
+        normalizeSerialStatusForContentType(serial_status, safeContentType),
         normalizeBookAccessType(access_type, price),
         Number(price || 0),
         Number(coin_price || 0),
@@ -399,6 +453,107 @@ router.get("/mine", verifyToken, async (req, res) => {
   }
 });
 
+router.get("/stats", verifyToken, async (req, res) => {
+  try {
+    if (!isWriterLike(req.user.role)) {
+      return res.status(403).json({ message: "ไม่มีสิทธิ์ดูสถิตินักเขียน" });
+    }
+
+    const [summaryRows] = await db.query(
+      `SELECT
+         COUNT(*) AS total_books,
+         SUM(CASE WHEN b.is_published = 1 OR b.lifecycle_status = 'published' THEN 1 ELSE 0 END) AS published_books,
+         SUM(CASE WHEN COALESCE(b.approval_status, 'pending') = 'pending' THEN 1 ELSE 0 END) AS pending_books,
+         SUM(CASE WHEN b.content_type = 'serial' THEN 1 ELSE 0 END) AS serial_books,
+         SUM(CASE WHEN b.content_type <> 'serial' OR b.content_type IS NULL THEN 1 ELSE 0 END) AS ebook_books,
+         COALESCE(SUM(COALESCE(b.total_units, 0)), 0) AS total_units,
+         COALESCE(SUM(COALESCE(b.total_sentences, 0)), 0) AS total_sentences,
+         COALESCE(SUM(COALESCE(b.total_words, 0)), 0) AS total_words,
+         COALESCE(SUM(COALESCE(b.total_characters, 0)), 0) AS total_characters
+       FROM books b
+       WHERE b.created_by = ?`,
+      [req.user.id],
+    );
+
+    const [engagementRows] = await db.query(
+      `SELECT
+         (SELECT COUNT(*) FROM book_views bv JOIN books b ON b.id = bv.book_id WHERE b.created_by = ?) AS book_views,
+         (SELECT COUNT(*) FROM episode_views ev JOIN book_episodes ep ON ep.id = ev.episode_id JOIN books b ON b.id = ep.book_id WHERE b.created_by = ?) AS episode_views,
+         (SELECT COUNT(*) FROM book_reviews br JOIN books b ON b.id = br.book_id WHERE b.created_by = ?) AS review_count,
+         (SELECT COALESCE(ROUND(AVG(br.rating), 2), 0) FROM book_reviews br JOIN books b ON b.id = br.book_id WHERE b.created_by = ?) AS average_rating,
+         (SELECT COUNT(*) FROM wishlists w JOIN books b ON b.id = w.book_id WHERE b.created_by = ?) AS wishlist_count,
+         (SELECT COUNT(*) FROM library l JOIN books b ON b.id = l.book_id WHERE b.created_by = ?) AS library_count,
+         (SELECT COUNT(*)
+          FROM order_items oi
+          JOIN orders o ON o.id = oi.order_id
+          LEFT JOIN books direct_book ON direct_book.id = oi.book_id
+          LEFT JOIN book_episodes ep ON ep.id = oi.episode_id
+          LEFT JOIN books episode_book ON episode_book.id = ep.book_id
+          WHERE o.payment_status = 'paid'
+            AND o.order_status = 'completed'
+            AND COALESCE(direct_book.created_by, episode_book.created_by) = ?) AS paid_items,
+         (SELECT COALESCE(SUM(oi.price), 0)
+          FROM order_items oi
+          JOIN orders o ON o.id = oi.order_id
+          LEFT JOIN books direct_book ON direct_book.id = oi.book_id
+          LEFT JOIN book_episodes ep ON ep.id = oi.episode_id
+          LEFT JOIN books episode_book ON episode_book.id = ep.book_id
+          WHERE o.payment_status = 'paid'
+            AND o.order_status = 'completed'
+            AND COALESCE(direct_book.created_by, episode_book.created_by) = ?) AS gross_sales`,
+      Array(8).fill(req.user.id),
+    );
+
+    const [bookRows] = await db.query(
+      `SELECT
+         b.id,
+         b.title,
+         b.content_type,
+         b.lifecycle_status,
+         b.approval_status,
+         b.is_published,
+         b.total_units,
+         b.total_sentences,
+         b.total_words,
+         b.updated_at,
+         (SELECT COUNT(*) FROM book_views bv WHERE bv.book_id = b.id) AS views,
+         (SELECT COUNT(*) FROM book_reviews br WHERE br.book_id = b.id) AS reviews,
+         (SELECT COALESCE(ROUND(AVG(br.rating), 2), 0) FROM book_reviews br WHERE br.book_id = b.id) AS average_rating,
+         (SELECT COUNT(*) FROM wishlists w WHERE w.book_id = b.id) AS wishlists,
+         (SELECT COUNT(*)
+          FROM order_items oi
+          JOIN orders o ON o.id = oi.order_id
+          LEFT JOIN book_episodes ep ON ep.id = oi.episode_id
+          WHERE o.payment_status = 'paid'
+            AND o.order_status = 'completed'
+            AND (oi.book_id = b.id OR ep.book_id = b.id)) AS paid_items,
+         (SELECT COALESCE(SUM(oi.price), 0)
+          FROM order_items oi
+          JOIN orders o ON o.id = oi.order_id
+          LEFT JOIN book_episodes ep ON ep.id = oi.episode_id
+          WHERE o.payment_status = 'paid'
+            AND o.order_status = 'completed'
+            AND (oi.book_id = b.id OR ep.book_id = b.id)) AS gross_sales
+       FROM books b
+       WHERE b.created_by = ?
+       ORDER BY views DESC, b.updated_at DESC
+       LIMIT 20`,
+      [req.user.id],
+    );
+
+    return res.json({
+      summary: {
+        ...(summaryRows[0] || {}),
+        ...(engagementRows[0] || {}),
+      },
+      books: bookRows,
+    });
+  } catch (error) {
+    console.error("GET /writer/books/stats error:", error);
+    return res.status(500).json({ message: "โหลดสถิตินักเขียนไม่สำเร็จ" });
+  }
+});
+
 router.put("/:id", verifyToken, uploadCoverFiles, async (req, res) => {
   try {
     if (!isWriterLike(req.user.role)) {
@@ -430,6 +585,18 @@ router.put("/:id", verifyToken, uploadCoverFiles, async (req, res) => {
       requested_hall_of_fame,
       requested_recommended,
     } = req.body;
+    const [bookRows] = await db.query(
+      "SELECT id, content_type, category_id FROM books WHERE id = ? LIMIT 1",
+      [bookId],
+    );
+    const existingBook = bookRows[0] || {};
+    const categoryError = await validateCategoryForContentType(
+      category_id || existingBook.category_id,
+      normalizeContentType(existingBook.content_type),
+    );
+    if (categoryError) {
+      return res.status(400).json({ message: categoryError });
+    }
 
     const uploadedCoverFile = getUploadedCoverFile(req);
     const requestedCoverImage = getCoverImagePath(

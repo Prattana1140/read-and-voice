@@ -18,6 +18,8 @@ function isProduction() {
 }
 
 function isMockCoinTopupEnabled() {
+  if (isProduction()) return false;
+
   const configuredValue = String(process.env.ENABLE_MOCK_COIN_TOPUP || "").trim();
 
   if (/^(1|true|yes)$/i.test(configuredValue)) return true;

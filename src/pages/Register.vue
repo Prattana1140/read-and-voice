@@ -818,26 +818,108 @@ select.input {
 @media (max-width: 560px) {
   .register-modal {
     place-items: start center;
-    padding:
-      max(12px, env(safe-area-inset-top))
-      max(12px, env(safe-area-inset-right))
-      max(18px, env(safe-area-inset-bottom))
-      max(12px, env(safe-area-inset-left));
+    padding: 8px max(8px, env(safe-area-inset-right)) 12px max(8px, env(safe-area-inset-left));
   }
 
   .register-card {
-    width: 100%;
+    width: min(100%, 306px);
+    max-width: calc(100vw - 28px);
     max-height: none;
-    border-radius: 16px;
-    padding: 20px 14px 18px;
+    border-radius: 12px;
+    padding: 10px;
+    gap: 7px;
+  }
+
+  .register-header {
+    gap: 6px;
+    align-items: center;
+  }
+
+  .close-btn {
+    font-size: 20px;
+    padding: 2px;
+  }
+
+  .register-form {
+    gap: 7px;
+  }
+
+  .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .span-2,
+  .submit-wrap,
+  .checkbox-field,
+  .field-error {
+    grid-column: 1 / -1;
+  }
+
+  .form-group {
+    gap: 3px;
+  }
+
+  .form-group label,
+  .checkbox-field {
+    font-size: 10.5px;
+    line-height: 1.25;
+  }
+
+  .input {
+    min-height: 36px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    padding: 0 7px;
+  }
+
+  .hint,
+  .field-error {
+    font-size: 9.5px;
+    line-height: 1.25;
+  }
+
+  .hint {
+    display: none;
+  }
+
+  .checkbox-field {
+    min-height: 34px;
+    gap: 7px;
+    padding: 6px 8px;
+  }
+
+  .checkbox-field input {
+    width: 15px;
+    height: 15px;
+  }
+
+  .section-title {
+    font-size: 11.5px;
   }
 
   .register-title {
-    font-size: 20px;
+    font-size: 17px;
   }
 
   .register-subtitle {
-    font-size: 12px;
+    display: none;
+  }
+
+  .submit-btn {
+    min-height: 38px;
+    border-radius: 9px;
+    font-size: 12.5px;
+  }
+
+  .login-text {
+    font-size: 10.5px;
+  }
+
+  .error-text,
+  .success-text {
+    padding: 8px;
+    font-size: 11px;
   }
 }
 </style>

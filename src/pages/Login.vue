@@ -568,59 +568,67 @@ watch(error, (message) => {
 
 @media (max-width: 640px) {
   .login-page {
-    min-height: calc(100dvh - 76px);
+    width: 100%;
+    overflow-x: hidden;
+    min-height: calc(100dvh - 70px);
     place-items: start center;
-    padding:
-      clamp(12px, 3.6vw, 18px)
-      max(12px, env(safe-area-inset-right))
-      max(22px, env(safe-area-inset-bottom))
-      max(12px, env(safe-area-inset-left));
+    padding: 10px max(10px, env(safe-area-inset-right)) 18px max(10px, env(safe-area-inset-left));
   }
 
   .login-card {
-    width: 100%;
-    max-width: 440px;
-    padding: 24px clamp(14px, 4.5vw, 20px) 20px;
-    border-radius: 20px;
-    gap: 13px;
+    width: min(100%, 310px);
+    max-width: calc(100vw - 48px);
+    overflow: hidden;
+    padding: 18px 14px 16px;
+    border-radius: 16px;
+    gap: 10px;
     box-shadow: 0 10px 28px rgba(16, 24, 40, 0.08);
   }
 
+  .login-brand {
+    margin-bottom: 0;
+  }
+
   .brand-logo {
-    width: min(126px, 46vw);
+    width: min(86px, 30vw);
   }
 
   .login-title {
-    font-size: 28px;
-    line-height: 1.16;
+    font-size: 23px;
+    line-height: 1.12;
   }
 
   .login-form {
-    gap: 12px;
+    gap: 9px;
+    min-width: 0;
   }
 
   .login-input {
-    min-height: 52px;
-    border-radius: 14px;
-    padding-inline: 14px;
+    min-width: 0;
+    min-height: 44px;
+    border-radius: 11px;
+    font-size: 14px;
+    padding-inline: 12px;
   }
 
   .password-field .login-input {
-    padding-right: 82px;
+    padding-right: 62px;
   }
 
   .toggle-password {
     right: 8px;
     background: var(--primary-soft);
     color: var(--primary-strong, var(--primary));
-    font-size: 13px;
-    padding-inline: 10px;
+    min-height: 28px;
+    font-size: 11px;
+    padding-inline: 8px;
   }
 
   .login-options {
     align-items: flex-start;
-    gap: 10px;
-    line-height: 1.45;
+    gap: 8px;
+    font-size: 12px;
+    line-height: 1.35;
   }
 
   .remember-me {
@@ -628,14 +636,17 @@ watch(error, (message) => {
   }
 
   .forgot-link {
-    min-height: 34px;
+    min-height: 28px;
     line-height: 1.25;
   }
 
   .login-submit,
   .social-submit {
-    min-height: 54px;
-    border-radius: 14px;
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    border-radius: 11px;
+    font-size: 13px;
   }
 
   .social-divider {
@@ -659,13 +670,13 @@ watch(error, (message) => {
   }
 
   .login-policy {
-    font-size: 11.5px;
-    line-height: 1.7;
+    font-size: 10.5px;
+    line-height: 1.45;
   }
 
   .register-text {
-    font-size: 13.5px;
-    line-height: 1.5;
+    font-size: 12px;
+    line-height: 1.35;
   }
 }
 
@@ -676,15 +687,19 @@ watch(error, (message) => {
   }
 
   .login-card {
-    border-radius: 18px;
+    width: min(100%, 310px);
+  }
+
+  .login-card {
+    border-radius: 15px;
   }
 
   .brand-logo {
-    width: min(112px, 44vw);
+    width: min(78px, 28vw);
   }
 
   .login-title {
-    font-size: 26px;
+    font-size: 22px;
   }
 
   .login-options {

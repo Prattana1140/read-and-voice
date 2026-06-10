@@ -1,4 +1,5 @@
 const db = require("../../config/db");
+const { getCategoryScope, seedCategories, serialBookCategories } = require("../serialCategories");
 
 const statements = [
   `
@@ -42,12 +43,14 @@ const statements = [
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     parent_id INT NULL,
+    content_scope VARCHAR(20) NOT NULL DEFAULT 'all',
     display_tone VARCHAR(40) NULL,
     display_art VARCHAR(40) NULL,
     show_on_home TINYINT(1) NOT NULL DEFAULT 1,
     sort_order INT NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_categories_parent_id (parent_id),
+    INDEX idx_categories_content_scope (content_scope),
     INDEX idx_categories_home_sort (show_on_home, sort_order)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `,
@@ -61,6 +64,8 @@ const statements = [
     cover_image TEXT NULL,
     source_type VARCHAR(50) NULL,
     content_type VARCHAR(20) NOT NULL DEFAULT 'ebook',
+    serial_status VARCHAR(30) NOT NULL DEFAULT 'completed',
+    latest_episode_at DATETIME NULL,
     access_type VARCHAR(20) NOT NULL DEFAULT 'paid',
     process_status VARCHAR(50) NOT NULL DEFAULT 'pending',
     full_text LONGTEXT NULL,
@@ -76,6 +81,8 @@ const statements = [
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_books_content_type (content_type),
+    INDEX idx_books_serial_status (serial_status),
+    INDEX idx_books_latest_episode_at (latest_episode_at),
     INDEX idx_books_access_type (access_type),
     INDEX idx_books_category_id (category_id),
     INDEX idx_books_created_by (created_by),
@@ -99,6 +106,7 @@ const statements = [
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_book_episodes_book_episode (book_id, episode_number),
     INDEX idx_book_episodes_book_id (book_id),
+    INDEX idx_book_episodes_book_updated (book_id, updated_at),
     CONSTRAINT fk_book_episodes_book FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `,
@@ -497,16 +505,6 @@ const statements = [
   `,
 ];
 
-const seedCategories = [
-  "นิยาย",
-  "ความรู้",
-  "ธุรกิจ",
-  "เทคโนโลยี",
-  "ภาษา",
-  "สุขภาพ",
-  "เด็กและเยาวชน",
-];
-
 const seedSubscriptionPlans = [
   {
     name: "Starter Reader",
@@ -536,13 +534,65 @@ const seedSubscriptionPlans = [
 
 let initializationPromise;
 
+async function ensureCategoryMetadataColumns() {
+  const metadataColumns = [
+    ["parent_id", "parent_id INT NULL AFTER name"],
+    ["content_scope", "content_scope VARCHAR(20) NOT NULL DEFAULT 'all' AFTER parent_id"],
+    ["display_tone", "display_tone VARCHAR(40) NULL AFTER content_scope"],
+    ["display_art", "display_art VARCHAR(40) NULL AFTER display_tone"],
+    ["show_on_home", "show_on_home TINYINT(1) NOT NULL DEFAULT 1 AFTER display_art"],
+    ["sort_order", "sort_order INT NOT NULL DEFAULT 0 AFTER show_on_home"],
+  ];
+
+  for (const [columnName, definition] of metadataColumns) {
+    const [columns] = await db.query("SHOW COLUMNS FROM categories LIKE ?", [columnName]);
+    if (columns.length === 0) {
+      await db.query(`ALTER TABLE categories ADD COLUMN ${definition}`);
+    }
+  }
+}
+
+async function ensureBookSerialColumns() {
+  const metadataColumns = [
+    ["serial_status", "serial_status VARCHAR(30) NOT NULL DEFAULT 'completed' AFTER content_type"],
+    ["latest_episode_at", "latest_episode_at DATETIME NULL AFTER serial_status"],
+  ];
+
+  for (const [columnName, definition] of metadataColumns) {
+    const [columns] = await db.query("SHOW COLUMNS FROM books LIKE ?", [columnName]);
+    if (columns.length === 0) {
+      await db.query(`ALTER TABLE books ADD COLUMN ${definition}`);
+    }
+  }
+}
+
 async function initializeDatabase() {
   for (const statement of statements) {
     await db.query(statement);
   }
 
-  for (const name of seedCategories) {
-    await db.query("INSERT IGNORE INTO categories (name) VALUES (?)", [name]);
+  await ensureCategoryMetadataColumns();
+  await ensureBookSerialColumns();
+
+  for (const [index, name] of seedCategories.entries()) {
+    const isSerialCategory = serialBookCategories.includes(name);
+    await db.query(
+      `INSERT INTO categories (name, content_scope, display_tone, display_art, show_on_home, sort_order)
+       VALUES (?, ?, ?, ?, 1, ?)
+       ON DUPLICATE KEY UPDATE
+         content_scope = VALUES(content_scope),
+         display_tone = COALESCE(display_tone, VALUES(display_tone)),
+         display_art = COALESCE(display_art, VALUES(display_art)),
+         show_on_home = 1,
+         sort_order = VALUES(sort_order)`,
+      [
+        name,
+        getCategoryScope(name),
+        isSerialCategory ? "serial" : "general",
+        isSerialCategory ? `serial-${index + 1}` : `general-${index + 1}`,
+        index + 1,
+      ],
+    );
   }
 
   const [existingPlans] = await db.query(

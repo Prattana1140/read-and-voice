@@ -239,6 +239,18 @@ async function migrateTtsArchitecture() {
   await addColumn(
     databaseName,
     "books",
+    "serial_status",
+    "serial_status VARCHAR(30) NOT NULL DEFAULT 'completed' AFTER content_type",
+  );
+  await addColumn(
+    databaseName,
+    "books",
+    "latest_episode_at",
+    "latest_episode_at DATETIME NULL AFTER serial_status",
+  );
+  await addColumn(
+    databaseName,
+    "books",
     "lifecycle_status",
     "lifecycle_status ENUM('draft','published','archived') NOT NULL DEFAULT 'draft' AFTER access_type",
   );

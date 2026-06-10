@@ -164,12 +164,48 @@ onMounted(loadWishlist);
 
 @media (max-width: 420px) {
   .grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
   }
 
   .actions {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .book-card {
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .book-card h3 {
+    display: -webkit-box;
+    min-height: 34px;
+    margin: 6px 0 2px;
+    overflow: hidden;
+    font-size: 11px;
+    line-height: 1.25;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
+  .book-card p {
+    overflow: hidden;
+    margin-bottom: 6px;
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .actions button {
+    min-height: 28px;
+    border-radius: 5px;
+    font-size: 9px;
+    padding: 0 2px;
   }
 }
 </style>

@@ -88,7 +88,6 @@
                   :alt="book.title"
                   @error="handleImgError"
                 />
-                <span class="ribbon">{{ section.badge }}</span>
               </div>
 
               <h3>{{ book.title }}</h3>
@@ -150,7 +149,7 @@
                     :alt="book.title"
                     @error="handleImgError"
                   />
-                  <span class="discount-ribbon">-{{ getDiscount(book) }}%</span>
+                  <span v-if="getDiscount(book) > 0" class="discount-ribbon">-{{ getDiscount(book) }}%</span>
                 </div>
 
                 <h3>{{ book.title }}</h3>
@@ -186,11 +185,9 @@
               @error="handleImgError"
             />
             <span
+              v-if="getRibbonText(book)"
               class="ribbon"
-              :class="{
-                movie: getRibbonText(book) === 'ภาพยนตร์',
-                award: getRibbonText(book) === 'รางวัล',
-              }"
+              :class="{ discount: isDiscountRibbon(book) }"
             >
               {{ getRibbonText(book) }}
             </span>
@@ -232,7 +229,10 @@ type Book = {
   review_count?: number;
   read_count?: number;
   promo_discount_percent?: number;
+  active_promo_discount_percent?: number;
   promo_days_left?: number;
+  promo_start_at?: string | null;
+  promo_end_at?: string | null;
   is_best_seller?: number;
   is_new_release?: number;
   is_promotion?: number;
@@ -327,8 +327,7 @@ const sortedBooks = computed(() => {
 
   if (shelf.value.mode === "promo") {
     return items.sort((a, b) => {
-      const discountGap =
-        Number(b.promo_discount_percent || 0) - Number(a.promo_discount_percent || 0);
+      const discountGap = getDiscount(b) - getDiscount(a);
       if (discountGap !== 0) return discountGap;
       return Number(a.promo_days_left || 0) - Number(b.promo_days_left || 0);
     });
@@ -424,6 +423,7 @@ const promoHeroItems = computed(() => {
       book,
       headline: index % 2 === 0 ? campaign.headline : book.title,
       subtitle: book.author || campaign.subtitle,
+      badge: getDiscount(book) > 0 ? `-${getDiscount(book)}%` : "",
       covers,
     };
   });
@@ -458,18 +458,33 @@ const getRatingText = (book: Book) => {
   return `${averageRating.toFixed(1)} (${reviewCount} รีวิว)`;
 };
 
-const getDiscount = (book: Book) => Number(book.promo_discount_percent || 0);
+const hasActiveDiscount = (book: Book) => {
+  const discount = Number(book.active_promo_discount_percent ?? book.promo_discount_percent ?? 0);
+  if (!Number.isFinite(discount) || discount <= 0) return false;
+
+  const now = Date.now();
+  const startAt = book.promo_start_at ? new Date(book.promo_start_at).getTime() : null;
+  const endAt = book.promo_end_at ? new Date(book.promo_end_at).getTime() : null;
+  if (startAt && Number.isFinite(startAt) && startAt > now) return false;
+  if (endAt && Number.isFinite(endAt) && endAt < now) return false;
+  return true;
+};
+
+const getDiscount = (book: Book) => {
+  if (!hasActiveDiscount(book)) return 0;
+  return Math.round(Number(book.active_promo_discount_percent ?? book.promo_discount_percent ?? 0));
+};
 
 const getPromoRemaining = (book: Book) => Number(book.promo_days_left || 0);
 
 const getRibbonText = (book: Book) => {
-  if (Number(book.is_hall_of_fame || 0) === 1) return "รางวัล";
-  if (Number(book.is_best_seller || 0) === 1) return "ขายดี";
-  if (Number(book.is_new_release || 0) === 1) return "มาใหม่";
-  if (Number(book.is_free_book || 0) === 1) return "ฟรี";
-  if (Number(book.is_recommended || 0) === 1) return "แนะนำ";
-  return shelf.value.badge;
+  const discount = getDiscount(book);
+  if (discount > 0) return `-${discount}%`;
+  if (Number(book.is_best_seller || 0) === 1) return "Best Seller";
+  return "";
 };
+
+const isDiscountRibbon = (book: Book) => getDiscount(book) > 0;
 
 const handleImgError = (event: Event) => {
   const target = event.target as HTMLImageElement;
@@ -1125,9 +1140,9 @@ watch(
   }
 
   .book-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 12px;
-    row-gap: 32px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 8px;
+    row-gap: 24px;
   }
 
   .promo-strip {
@@ -1136,8 +1151,8 @@ watch(
   }
 
   .promo-book-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 12px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 8px;
   }
 
   .promo-section-head > div {
@@ -1182,29 +1197,34 @@ watch(
 
   .book-grid,
   .promo-book-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 12px;
-    row-gap: 30px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 8px;
+    row-gap: 24px;
   }
 
   .book-card h3 {
-    min-height: 42px;
-    font-size: 13px;
-    line-height: 1.35;
+    min-height: 34px;
+    margin-top: 7px;
+    font-size: 11px;
+    line-height: 1.25;
   }
 
   .book-card p,
   .meta-line small {
-    min-height: 17px;
-    font-size: 10px;
-    line-height: 1.35;
+    min-height: 14px;
+    font-size: 9px;
+    line-height: 1.25;
+  }
+
+  .meta-line span {
+    font-size: 8px;
   }
 
   .price {
-    min-width: 48px;
-    min-height: 24px;
-    font-size: 10px;
-    padding: 0 6px;
+    min-width: 40px;
+    min-height: 20px;
+    font-size: 8px;
+    padding: 0 4px;
   }
 
   .promo-feature strong {

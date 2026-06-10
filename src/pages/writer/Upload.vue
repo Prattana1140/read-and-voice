@@ -105,6 +105,11 @@ const studioSteps = computed(() => [
     done: totalPreviewSentences.value > 0,
   },
   {
+    title: "TTS Policy",
+    caption: "ตรวจสิทธิ์ preview และภาษาเสียงอ่าน",
+    done: Boolean(studioPreviewMode.value && studioLanguage.value),
+  },
+  {
     title: "Preview",
     caption: "ตรวจบล็อกและประโยค",
     done: totalPreviewSentences.value > 0,
@@ -145,6 +150,7 @@ const canOpenStudioStep = (index: number) => {
   if (index === 1) return Boolean(studioBookId.value);
   if (index === 2) return Boolean(studioBookId.value && selectedUnitId.value);
   if (index === 3) return totalPreviewSentences.value > 0;
+  if (index === 4) return totalPreviewSentences.value > 0;
   return Boolean(studioBookId.value && studioUnits.value.length > 0);
 };
 
@@ -546,7 +552,7 @@ const publishStudioBook = async () => {
 
   try {
     await api.post(`/writer/books/${studioBookId.value}/publish`);
-    advanceStudioStep(4);
+    advanceStudioStep(5);
     message.value = "เผยแพร่หนังสือสำเร็จ";
   } catch (err) {
     setError(err, "เผยแพร่หนังสือไม่สำเร็จ");
@@ -780,7 +786,53 @@ const publishStudioBook = async () => {
           </section>
 
           <section v-show="activeStudioStep === 3" class="studio-panel">
-            <h3>ขั้นตอนที่ 4: Preview สำหรับอ่านออกเสียง</h3>
+            <h3>ขั้นตอนที่ 4: ตั้งค่า TTS และตัวอย่างอ่านฟรี</h3>
+            <p class="muted">
+              ตรวจภาษาหลัก โหมดตัวอย่าง และจำนวน preview ก่อนเปิดให้ reader ใช้โครงสร้าง unit/block/sentence
+            </p>
+            <div class="form-grid compact">
+              <label>
+                <span>ภาษาเสียงอ่าน</span>
+                <input v-model="studioLanguage" type="text" placeholder="th" />
+              </label>
+              <label>
+                <span>โหมดตัวอย่าง</span>
+                <select v-model="studioPreviewMode">
+                  <option value="percentage">เปอร์เซ็นต์</option>
+                  <option value="chapter_count">จำนวนบท/ตอน</option>
+                  <option value="sentence_count">จำนวนประโยค</option>
+                </select>
+              </label>
+              <label>
+                <span>ค่าตัวอย่าง</span>
+                <input v-model.number="studioPreviewValue" min="1" type="number" />
+              </label>
+              <label>
+                <span>เรตอายุ</span>
+                <input v-model="studioAgeRating" type="text" placeholder="ทั่วไป / 13+ / 18+" />
+              </label>
+            </div>
+            <div class="preview-stats">
+              <article>
+                <strong>{{ studioUnits.length }}</strong>
+                <span>บท/ตอน</span>
+              </article>
+              <article>
+                <strong>{{ contentPreview.length }}</strong>
+                <span>บล็อก</span>
+              </article>
+              <article>
+                <strong>{{ totalPreviewSentences }}</strong>
+                <span>ประโยคพร้อม TTS</span>
+              </article>
+            </div>
+            <button class="publish-btn" :disabled="!canOpenStudioStep(4)" @click="goToStudioStep(4)">
+              ไปตรวจ Preview
+            </button>
+          </section>
+
+          <section v-show="activeStudioStep === 4" class="studio-panel">
+            <h3>ขั้นตอนที่ 5: Preview สำหรับอ่านออกเสียง</h3>
             <div class="preview-stats">
               <article>
                 <strong>{{ contentPreview.length }}</strong>
@@ -814,13 +866,13 @@ const publishStudioBook = async () => {
               </p>
             </div>
 
-            <button class="publish-btn" :disabled="!canOpenStudioStep(4)" @click="goToStudioStep(4)">
+            <button class="publish-btn" :disabled="!canOpenStudioStep(5)" @click="goToStudioStep(5)">
               ไปขั้นตอนส่งอนุมัติ
             </button>
           </section>
 
-          <section v-show="activeStudioStep === 4" class="studio-panel">
-            <h3>ขั้นตอนที่ 5: ส่งให้แอดมินอนุมัติ</h3>
+          <section v-show="activeStudioStep === 5" class="studio-panel">
+            <h3>ขั้นตอนที่ 6: ส่งให้แอดมินอนุมัติ</h3>
             <div class="publish-summary">
               <article>
                 <span>หนังสือ</span>
@@ -1171,7 +1223,7 @@ textarea {
 
 .wizard-steps {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -1417,7 +1469,11 @@ textarea {
   .panel,
   .sub-panel,
   .studio-panel {
-    padding: 16px;
+    width: min(100%, 330px);
+    max-width: calc(100vw - 20px);
+    margin-inline: auto;
+    border-radius: 12px;
+    padding: 10px;
   }
 
   .mode-tabs button,
@@ -1425,15 +1481,60 @@ textarea {
   .secondary-btn,
   .publish-btn {
     width: 100%;
-    min-height: 46px;
+    min-height: 38px;
+    border-radius: 8px;
+    font-size: 12px;
+    padding: 7px 8px;
   }
 
   .wizard-steps,
-  .form-grid,
   .preview-stats,
-  .placement-grid,
   .publish-summary {
     grid-template-columns: 1fr;
+  }
+
+  .form-grid,
+  .placement-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .form-grid .full-span,
+  .form-grid textarea,
+  .placement-grid + .helper-text {
+    grid-column: 1 / -1;
+  }
+
+  label,
+  .placement-item {
+    font-size: 11px;
+    line-height: 1.25;
+  }
+
+  input,
+  select,
+  textarea {
+    min-height: 36px;
+    border-radius: 8px;
+    padding: 7px 8px;
+    font-size: 12px;
+  }
+
+  textarea {
+    min-height: 58px;
+  }
+
+  .panel-title h2,
+  .sub-panel h3 {
+    font-size: 17px;
+    line-height: 1.2;
+  }
+
+  .panel-title p,
+  .muted,
+  .helper-text {
+    font-size: 10.5px;
+    line-height: 1.35;
   }
 
   .status-card,

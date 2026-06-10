@@ -433,9 +433,12 @@ async function ensurePlans() {
 }
 
 async function getAllCategories() {
+  const [scopeColumns] = await db.query("SHOW COLUMNS FROM categories LIKE 'content_scope'");
+  const hasContentScope = scopeColumns.length > 0;
   const [rows] = await db.query(
     `SELECT id, name
      FROM categories
+     ${hasContentScope ? "WHERE content_scope IN ('all', 'ebook')" : ""}
      ORDER BY id ASC`,
   );
 
@@ -443,16 +446,22 @@ async function getAllCategories() {
 }
 
 async function getCategoryId(categoryHints) {
+  const [scopeColumns] = await db.query("SHOW COLUMNS FROM categories LIKE 'content_scope'");
+  const hasContentScope = scopeColumns.length > 0;
   for (const hint of categoryHints || []) {
     const [rows] = await db.query(
-      "SELECT id FROM categories WHERE name = ? LIMIT 1",
+      hasContentScope
+        ? "SELECT id FROM categories WHERE name = ? AND content_scope IN ('all', 'ebook') LIMIT 1"
+        : "SELECT id FROM categories WHERE name = ? LIMIT 1",
       [hint],
     );
     if (rows.length > 0) return rows[0].id;
   }
 
   const [fallbackRows] = await db.query(
-    "SELECT id FROM categories ORDER BY id ASC LIMIT 1",
+    hasContentScope
+      ? "SELECT id FROM categories WHERE content_scope IN ('all', 'ebook') ORDER BY id ASC LIMIT 1"
+      : "SELECT id FROM categories ORDER BY id ASC LIMIT 1",
   );
   return fallbackRows[0]?.id || null;
 }
@@ -499,6 +508,8 @@ function buildBookPayload(book, categoryId, creatorId, columns) {
   assign("cover_image_url", coverPath);
   assign("source_type", "seed");
   assign("content_type", book.contentType);
+  assign("serial_status", book.contentType === "serial" ? book.serialStatus || "ongoing" : "completed");
+  assign("latest_episode_at", book.contentType === "serial" ? new Date() : null);
   assign("access_type", book.accessType);
   assign("process_status", "completed");
   assign("full_text", fullText);

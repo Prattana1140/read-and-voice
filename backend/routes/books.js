@@ -211,11 +211,40 @@ function normalizeContentType(value) {
   return value === "serial" ? "serial" : "ebook";
 }
 
+function normalizeSerialStatus(value, fallback = "ongoing") {
+  const status = String(value || fallback).trim().toLowerCase();
+  return ["ongoing", "completed", "hiatus"].includes(status) ? status : fallback;
+}
+
+function normalizeSerialStatusForContentType(value, contentType) {
+  return contentType === "serial" ? normalizeSerialStatus(value) : "completed";
+}
+
 function normalizePositiveInt(value, fallback) {
   const numberValue = Number(value);
   return Number.isInteger(numberValue) && numberValue > 0
     ? numberValue
     : fallback;
+}
+
+async function validateCategoryForContentType(categoryId, contentType) {
+  if (!categoryId) return null;
+  const [scopeColumns] = await db.query("SHOW COLUMNS FROM categories LIKE 'content_scope'");
+  const scopeExpression = scopeColumns.length > 0 ? "content_scope" : "'all'";
+  const [rows] = await db.query(
+    `SELECT id, name, ${scopeExpression} AS content_scope
+     FROM categories
+     WHERE id = ?
+     LIMIT 1`,
+    [categoryId],
+  );
+
+  if (rows.length === 0) return "ไม่พบหมวดหมู่ที่เลือก";
+  const scope = rows[0].content_scope || "all";
+  if (scope === "all" || scope === contentType) return null;
+  return contentType === "serial"
+    ? "หมวดหมู่นี้ใช้กับหนังสือรายตอนไม่ได้"
+    : "หมวดหมู่นี้ใช้กับหนังสือแบบเล่มไม่ได้";
 }
 
 function normalizeFlag(value) {
@@ -224,6 +253,19 @@ function normalizeFlag(value) {
   }
 
   return Number(Boolean(value));
+}
+
+function isActivePromotion(book) {
+  const discount = Number(book?.promo_discount_percent || 0);
+  if (!Number.isFinite(discount) || discount <= 0) return false;
+
+  const now = Date.now();
+  const startAt = book?.promo_start_at ? new Date(book.promo_start_at).getTime() : null;
+  const endAt = book?.promo_end_at ? new Date(book.promo_end_at).getTime() : null;
+
+  if (startAt && Number.isFinite(startAt) && startAt > now) return false;
+  if (endAt && Number.isFinite(endAt) && endAt < now) return false;
+  return true;
 }
 
 function normalizeOptionalPublished(value, fallback) {
@@ -306,6 +348,8 @@ function buildManualBookContent({ chapters, content }) {
 }
 
 async function createBookFromPayload(payload = {}, user, coverFile = null) {
+  await ensureCatalogAnalyticsSchema();
+
   const {
     title,
     author,
@@ -315,6 +359,7 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
     price = 0,
     access_type,
     content_type,
+    serial_status,
     preview_page_limit,
     preview_char_limit,
     chapters,
@@ -329,6 +374,15 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
   }
 
   const normalizedContentType = normalizeContentType(content_type);
+  const normalizedSerialStatus = normalizeSerialStatusForContentType(serial_status, normalizedContentType);
+  const categoryError = await validateCategoryForContentType(category_id, normalizedContentType);
+  if (categoryError) {
+    return {
+      status: 400,
+      body: { message: categoryError },
+    };
+  }
+
   const requestedPlacements = getPlacementRequestValues(payload);
   const autoApprove = ["admin", "superadmin"].includes(user.role);
 
@@ -337,17 +391,18 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
     const [result] = await db.query(
       `INSERT INTO books
        (title, author, description, category_id, cover_image, source_type, content_type,
-        access_type, process_status, full_text, total_pages, is_published, created_by, price,
+        serial_status, access_type, process_status, full_text, total_pages, is_published, created_by, price,
         preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
         requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
         requested_hall_of_fame, requested_recommended, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'manual', 'serial', ?, 'completed', '', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+       VALUES (?, ?, ?, ?, ?, 'manual', 'serial', ?, ?, 'completed', '', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         title,
         author,
         description,
         category_id || null,
         initialCoverImage,
+        normalizedSerialStatus,
         normalizeAccessType(access_type, price),
         autoApprove ? 1 : 0,
         user.id,
@@ -406,11 +461,11 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
   const [result] = await db.query(
     `INSERT INTO books
      (title, author, description, category_id, cover_image, source_type, content_type,
-      access_type, process_status, full_text, total_pages, is_published, created_by, price,
+      serial_status, access_type, process_status, full_text, total_pages, is_published, created_by, price,
       preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
       requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
       requested_hall_of_fame, requested_recommended, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'manual', 'ebook', ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+     VALUES (?, ?, ?, ?, ?, 'manual', 'ebook', 'completed', ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
     [
       title,
       author,
@@ -549,6 +604,9 @@ async function replaceBookPages(bookId, pages = [], connection = db) {
 }
 
 function toPublicBookSummary(book) {
+  const activePromotion = isActivePromotion(book);
+  const activePromoDiscount = activePromotion ? Number(book.promo_discount_percent || 0) : 0;
+
   return {
     id: book.id,
     slug: book.slug,
@@ -566,6 +624,8 @@ function toPublicBookSummary(book) {
     cover_image_url: book.cover_image_url || book.cover_image || "",
     source_type: book.source_type,
     content_type: book.content_type,
+    serial_status: book.content_type === "serial" ? book.serial_status || "ongoing" : null,
+    latest_episode_at: book.latest_episode_at || book.computed_latest_episode_at || null,
     access_type: book.access_type,
     lifecycle_status: book.lifecycle_status,
     publishing_status: book.publishing_status,
@@ -575,10 +635,11 @@ function toPublicBookSummary(book) {
     created_by: book.created_by,
     price: book.price,
     coin_price: book.coin_price,
-    promo_discount_percent: Number(book.promo_discount_percent || 0),
+    promo_discount_percent: activePromoDiscount,
+    active_promo_discount_percent: activePromoDiscount,
     promo_start_at: book.promo_start_at,
     promo_end_at: book.promo_end_at,
-    promo_days_left: Number(book.promo_days_left || 0),
+    promo_days_left: activePromotion ? Number(book.promo_days_left || 0) : 0,
     preview_mode: book.preview_mode,
     preview_value: book.preview_value,
     age_rating: book.age_rating,
@@ -649,6 +710,8 @@ router.get("/", async (_req, res) => {
          ${getBookColumnExpression(columns, "cover_image_url", "NULL")} AS cover_image_url,
          b.source_type,
          b.content_type,
+         ${getBookColumnExpression(columns, "serial_status", "NULL")} AS serial_status,
+         ${getBookColumnExpression(columns, "latest_episode_at", "NULL")} AS latest_episode_at,
          b.access_type,
          ${getBookColumnExpression(columns, "lifecycle_status", "'published'")} AS lifecycle_status,
          ${getBookColumnExpression(columns, "publishing_status", "'ready'")} AS publishing_status,
@@ -733,6 +796,8 @@ router.post(
     const connection = await db.getConnection();
 
     try {
+      await ensureCatalogAnalyticsSchema();
+
       const bookFile = getUploadedFile(req, [...bookFileFields]);
       const coverFile = getUploadedFile(req, [...coverFileFields]);
 
@@ -759,6 +824,12 @@ router.post(
           .json({ message: "กรอกชื่อหนังสือและผู้แต่งให้ครบ" });
       }
 
+      const normalizedContentType = normalizeContentType(content_type);
+      const categoryError = await validateCategoryForContentType(category_id, normalizedContentType);
+      if (categoryError) {
+        return res.status(400).json({ message: categoryError });
+      }
+
       const parsed = await parseBookFile(
         bookFile.path,
         bookFile.mimetype,
@@ -777,11 +848,11 @@ router.post(
       const [result] = await connection.query(
         `INSERT INTO books
          (title, author, description, category_id, cover_image, source_type, content_type,
-          access_type, process_status, full_text, total_pages, is_published, created_by, price,
+          serial_status, access_type, process_status, full_text, total_pages, is_published, created_by, price,
           preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
           requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
           requested_hall_of_fame, requested_recommended, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
           title,
           author,
@@ -791,7 +862,8 @@ router.post(
           parsed.sourceType ||
             path.extname(bookFile.originalname).replace(".", "") ||
             "file",
-          normalizeContentType(content_type),
+          normalizedContentType,
+          normalizeSerialStatusForContentType(req.body.serial_status, normalizedContentType),
           normalizeAccessType(access_type, price),
           fullText,
           pages.length,
@@ -860,6 +932,7 @@ router.post(
   async (req, res) => {
     try {
       const coverFile = getUploadedFile(req, [...coverFileFields]);
+      await ensureCatalogAnalyticsSchema();
       const {
         title,
         author,
@@ -884,11 +957,11 @@ router.post(
       const [result] = await db.query(
         `INSERT INTO books
          (title, author, description, category_id, cover_image, source_type, content_type,
-          access_type, process_status, full_text, total_pages, is_published, created_by, price,
+          serial_status, access_type, process_status, full_text, total_pages, is_published, created_by, price,
           preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
           requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
           requested_hall_of_fame, requested_recommended, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'manual', 'serial', ?, 'completed', '', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+         VALUES (?, ?, ?, ?, ?, 'manual', 'serial', 'ongoing', ?, 'completed', '', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
           title,
           author,
@@ -947,6 +1020,7 @@ router.post(
   async (req, res) => {
     try {
       const coverFile = getUploadedFile(req, [...coverFileFields]);
+      await ensureCatalogAnalyticsSchema();
       const {
         title,
         author,
@@ -984,11 +1058,11 @@ router.post(
       const [result] = await db.query(
         `INSERT INTO books
          (title, author, description, category_id, cover_image, source_type, content_type,
-          access_type, process_status, full_text, total_pages, is_published, created_by, price,
+          serial_status, access_type, process_status, full_text, total_pages, is_published, created_by, price,
           preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
           requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
           requested_hall_of_fame, requested_recommended, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'manual', 'ebook', ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+         VALUES (?, ?, ?, ?, ?, 'manual', 'ebook', 'completed', ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
           title,
           author,
@@ -1069,6 +1143,8 @@ router.get("/:id", optionalVerifyToken, async (req, res) => {
          ${getBookColumnExpression(columns, "cover_image_url", "NULL")} AS cover_image_url,
          b.source_type,
          b.content_type,
+         ${getBookColumnExpression(columns, "serial_status", "NULL")} AS serial_status,
+         ${getBookColumnExpression(columns, "latest_episode_at", "NULL")} AS latest_episode_at,
          b.access_type,
          ${getBookColumnExpression(columns, "lifecycle_status", "'published'")} AS lifecycle_status,
          ${getBookColumnExpression(columns, "publishing_status", "'ready'")} AS publishing_status,
@@ -1406,6 +1482,8 @@ router.post(
   allowRoles("writer", "admin", "superadmin"),
   async (req, res) => {
     try {
+      await ensureCatalogAnalyticsSchema();
+
       const {
         title,
         content = "",
@@ -1464,7 +1542,15 @@ router.post(
       );
 
       await db.query(
-        "UPDATE books SET content_type = 'serial', updated_at = NOW() WHERE id = ?",
+        `UPDATE books
+         SET content_type = 'serial',
+             serial_status = CASE
+               WHEN content_type = 'serial' AND serial_status IN ('completed', 'hiatus') THEN serial_status
+               ELSE 'ongoing'
+             END,
+             latest_episode_at = NOW(),
+             updated_at = NOW()
+         WHERE id = ?`,
         [book.id],
       );
 
@@ -1509,6 +1595,7 @@ router.put("/:id", verifyToken, async (req, res) => {
       price,
       access_type,
       content_type,
+      serial_status,
       is_published,
       requested_best_seller,
       requested_new_release,
@@ -1517,6 +1604,14 @@ router.put("/:id", verifyToken, async (req, res) => {
       requested_hall_of_fame,
       requested_recommended,
     } = req.body;
+    const normalizedContentType = normalizeContentType(content_type || book.content_type);
+    const categoryError = await validateCategoryForContentType(
+      category_id ?? book.category_id,
+      normalizedContentType,
+    );
+    if (categoryError) {
+      return res.status(400).json({ message: categoryError });
+    }
 
     await db.query(
       `UPDATE books
@@ -1530,6 +1625,8 @@ router.put("/:id", verifyToken, async (req, res) => {
            price = ?,
            access_type = ?,
            content_type = ?,
+           serial_status = ?,
+           latest_episode_at = CASE WHEN ? = 'serial' THEN latest_episode_at ELSE NULL END,
            is_published = ?,
            requested_best_seller = COALESCE(?, requested_best_seller),
            requested_new_release = COALESCE(?, requested_new_release),
@@ -1552,7 +1649,9 @@ router.put("/:id", verifyToken, async (req, res) => {
           access_type || book.access_type,
           price ?? book.price,
         ),
-        normalizeContentType(content_type || book.content_type),
+        normalizedContentType,
+        normalizeSerialStatusForContentType(serial_status, normalizedContentType),
+        normalizedContentType,
         normalizeOptionalPublished(is_published, book.is_published),
         requested_best_seller === undefined ? null : normalizeFlag(requested_best_seller),
         requested_new_release === undefined ? null : normalizeFlag(requested_new_release),

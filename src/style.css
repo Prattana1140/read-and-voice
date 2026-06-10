@@ -1,43 +1,44 @@
 :root {
-  --bg: #f5f7fb;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-soft: #eef3f8;
-  --surface-glass: rgba(255, 255, 255, 0.82);
+  --surface-soft: #f7f7f7;
+  --surface-glass: rgba(255, 255, 255, 0.9);
   --surface-raised: #ffffff;
-  --text: #344054;
-  --text-strong: #101828;
-  --text-muted: #667085;
-  --border: #d8e0ea;
-  --border-strong: rgba(17, 156, 145, 0.16);
-  --primary: #07998f;
-  --primary-strong: #067d75;
-  --primary-soft: #dff8f5;
-  --secondary: #4f68d7;
-  --accent-soft: #dff8f3;
-  --accent-strong: #0f766e;
+  --text: #222222;
+  --text-strong: #050505;
+  --text-muted: #8a8a8a;
+  --border: #eeeeee;
+  --border-strong: rgba(0, 184, 170, 0.16);
+  --primary: #00b8aa;
+  --primary-strong: #009d92;
+  --primary-soft: #e7fbf8;
+  --secondary: #6f747b;
+  --accent-soft: #eefbf8;
+  --accent-strong: #00a99b;
   --danger: #b42318;
-  --footer-bg: color-mix(in srgb, #e7fbf7 88%, white);
-  --navbar-bg: color-mix(in srgb, #e7fbf7 88%, white);
-  --panel-bg: #f8fffd;
-  --input-bg: #f2f2f3;
-  --overlay-bg: rgba(15, 23, 42, 0.38);
-  --shadow: 0 12px 32px rgba(16, 24, 40, 0.1);
-  --hero-start: #21b9c5;
-  --hero-mid: #4c7ee8;
-  --hero-end: #7562d8;
+  --footer-bg: #ffffff;
+  --navbar-bg: #ffffff;
+  --panel-bg: #ffffff;
+  --input-bg: #f7f7f7;
+  --overlay-bg: rgba(0, 0, 0, 0.34);
+  --shadow: 0 10px 26px rgba(0, 0, 0, 0.06);
+  --hero-start: #f5fbfa;
+  --hero-mid: #ffffff;
+  --hero-end: #f9fbfb;
   --on-primary: #ffffff;
   --radius: 8px;
   --content-width: 1200px;
   --page-gutter: clamp(14px, 4vw, 28px);
   --page-block: clamp(20px, 4vw, 40px);
-  --sans: "Noto Sans Thai", "Leelawadee UI", "Tahoma", "Segoe UI", Roboto, Arial, sans-serif;
+  --sans: "Sarabun", "Noto Sans Thai", "Leelawadee UI", "Tahoma", "Segoe UI", Arial, sans-serif;
   --a11y-font-scale: 1;
-  --a11y-line-spacing: 1.7;
+  --a11y-line-spacing: 1.5;
   --a11y-letter-spacing: 0em;
 
   color: var(--text);
   background: var(--bg);
   font-family: var(--sans);
+  color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -45,62 +46,63 @@
 }
 
 :root[data-theme="dark"] {
-  --bg: #12151b;
-  --surface: #1c222b;
-  --surface-soft: #252d38;
-  --surface-glass: rgba(28, 34, 43, 0.82);
-  --surface-raised: #222a35;
-  --text: #cbd5e1;
-  --text-strong: #f8fafc;
-  --text-muted: #a8b3c3;
-  --border: #364153;
-  --border-strong: rgba(148, 163, 184, 0.18);
-  --primary: #2dd4bf;
-  --primary-strong: #5eead4;
-  --primary-soft: #143c38;
-  --secondary: #93a4ff;
-  --accent-soft: rgba(45, 212, 191, 0.14);
-  --accent-strong: #7df0de;
+  --bg: #000000;
+  --surface: #000000;
+  --surface-soft: #0b0b0b;
+  --surface-glass: rgba(0, 0, 0, 0.9);
+  --surface-raised: #080808;
+  --text: #e9e9e9;
+  --text-strong: #ffffff;
+  --text-muted: #9a9a9a;
+  --border: #1f1f1f;
+  --border-strong: rgba(0, 214, 214, 0.2);
+  --primary: #00d6d6;
+  --primary-strong: #36ffff;
+  --primary-soft: #072323;
+  --secondary: #b7b7b7;
+  --accent-soft: rgba(0, 214, 214, 0.14);
+  --accent-strong: #36ffff;
   --danger: #fca5a5;
-  --footer-bg: color-mix(in srgb, var(--surface) 92%, #0b1016);
-  --navbar-bg: color-mix(in srgb, var(--surface) 90%, #081019);
-  --panel-bg: #202733;
-  --input-bg: #18202a;
-  --overlay-bg: rgba(2, 6, 23, 0.62);
-  --shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
-  --hero-start: #0f766e;
-  --hero-mid: #1d4ed8;
-  --hero-end: #5b21b6;
-  --on-primary: #061312;
+  --footer-bg: #000000;
+  --navbar-bg: #000000;
+  --panel-bg: #000000;
+  --input-bg: #0b0b0b;
+  --overlay-bg: rgba(0, 0, 0, 0.78);
+  --shadow: none;
+  --hero-start: #000000;
+  --hero-mid: #050505;
+  --hero-end: #000000;
+  --on-primary: #001111;
+  color-scheme: dark;
 }
 
 :root[data-theme="reading"] {
-  --bg: #fbf6e8;
-  --surface: #fffdf5;
-  --surface-soft: #f3ead5;
-  --surface-glass: rgba(255, 253, 245, 0.86);
-  --surface-raised: #fff8ea;
-  --text: #4f4637;
-  --text-strong: #241c12;
-  --text-muted: #746853;
-  --border: #dacdb5;
-  --border-strong: rgba(122, 96, 64, 0.16);
-  --primary: #2f7d69;
-  --primary-strong: #245f50;
-  --primary-soft: #e3f0e9;
-  --secondary: #7a6040;
-  --accent-soft: #efe5cf;
-  --accent-strong: #7a6040;
+  --bg: #fbf7ef;
+  --surface: #fbf7ef;
+  --surface-soft: #f5eee4;
+  --surface-glass: rgba(251, 247, 239, 0.92);
+  --surface-raised: #fffaf1;
+  --text: #2a251f;
+  --text-strong: #050505;
+  --text-muted: #8a8278;
+  --border: #eee2d2;
+  --border-strong: rgba(0, 184, 170, 0.14);
+  --primary: #00b8aa;
+  --primary-strong: #009d92;
+  --primary-soft: #e8f7f2;
+  --secondary: #8a8278;
+  --accent-soft: #f1eadf;
+  --accent-strong: #009d92;
   --danger: #9f2d20;
-  --footer-bg: color-mix(in srgb, var(--surface) 92%, #f2e7cd);
-  --navbar-bg: color-mix(in srgb, var(--surface) 90%, #f5e8cf);
-  --panel-bg: #fff8ea;
-  --input-bg: #f3ead9;
-  --overlay-bg: rgba(54, 42, 28, 0.28);
-  --shadow: 0 12px 28px rgba(63, 49, 28, 0.12);
-  --hero-start: #d7c49b;
-  --hero-mid: #77a38f;
-  --hero-end: #3f7f70;
+  --footer-bg: #fbf7ef;
+  --navbar-bg: #fbf7ef;
+  --panel-bg: #fbf7ef;
+  --input-bg: #f5eee4;
+  --overlay-bg: rgba(48, 38, 27, 0.28);
+  --shadow: 0 10px 24px rgba(63, 49, 28, 0.08);
+  --hero-start: #fbf7ef;
+  --hero-mid: #fffaf1;
+  --hero-end: #fbf7ef;
   --on-primary: #ffffff;
 }
 
@@ -152,7 +154,7 @@ body {
   margin: 0;
   color: var(--text);
   background: var(--bg);
-  font-size: calc(16px * var(--a11y-font-scale));
+  font-size: calc(15px * var(--a11y-font-scale));
   line-height: var(--a11y-line-spacing);
   letter-spacing: var(--a11y-letter-spacing);
   overflow-x: hidden;
@@ -269,6 +271,19 @@ table {
   background: var(--bg);
 }
 
+:root[data-theme="dark"] :where(.book-card, .curated-card, .serial-card, .continue-all-card, .promo-card) {
+  box-shadow: none !important;
+}
+
+:root[data-theme="dark"] :where(.book-card, .curated-card, .serial-card, .continue-all-card, .cover-wrap) {
+  border-color: #1f1f1f !important;
+}
+
+:root[data-theme="reading"] :where(.book-card, .curated-card, .serial-card, .continue-all-card),
+:root :where(.book-card, .curated-card, .serial-card, .continue-all-card) {
+  box-shadow: none;
+}
+
 :where(.table-wrap, .table-wrapper, .table-card, .device-panel) {
   max-width: 100%;
 }
@@ -347,5 +362,151 @@ table {
 
   :where(.app-main) {
     scroll-padding-bottom: max(72px, env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 640px) {
+  :where(
+    .login-card,
+    .account-login-box,
+    .register-card,
+    .forgot-card,
+    .upload-card,
+    .form-card,
+    .settings-card,
+    .profile-card,
+    .profile-panel,
+    .form-section,
+    form.panel,
+    .panel:has(form)
+  ) {
+    width: min(100%, 330px);
+    max-width: calc(100vw - 24px);
+    margin-inline: auto;
+    border-radius: 12px;
+    padding: 12px 10px;
+  }
+
+  :where(
+    .login-card,
+    .account-login-box,
+    .register-card,
+    .forgot-card,
+    .upload-card,
+    .form-card,
+    .settings-card,
+    .profile-card,
+    .profile-panel,
+    .form-section,
+    form.panel,
+    .panel:has(form)
+  ) :where(h1, .title) {
+    font-size: 20px;
+    line-height: 1.15;
+    margin-bottom: 6px;
+  }
+
+  :where(
+    .login-card,
+    .account-login-box,
+    .register-card,
+    .forgot-card,
+    .upload-card,
+    .form-card,
+    .settings-card,
+    .profile-card,
+    .profile-panel,
+    .form-section,
+    form.panel,
+    .panel:has(form)
+  ) :where(h2, h3) {
+    font-size: 16px;
+    line-height: 1.2;
+    margin-bottom: 6px;
+  }
+
+  :where(.form-grid, .form-main, .settings-form, .verification-form, .profile-form) {
+    gap: 7px;
+  }
+
+  :where(.form-group, .field, label) {
+    min-width: 0;
+  }
+
+  :where(.form-group) {
+    margin-bottom: 7px;
+  }
+
+  :where(.form-group label, .field label, form label) {
+    margin-bottom: 3px;
+    font-size: 11.5px;
+    line-height: 1.25;
+  }
+
+  :where(
+    form input,
+    form select,
+    form textarea,
+    .form-group input,
+    .form-group select,
+    .form-group textarea
+  ) {
+    min-height: 38px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.25;
+    padding: 7px 9px;
+  }
+
+  :where(form textarea, .form-group textarea) {
+    min-height: 64px;
+  }
+
+  :where(.form-actions, .actions, .profile-actions) {
+    gap: 7px;
+    margin-top: 8px;
+  }
+
+  :where(form button, .form-actions button, .actions button) {
+    min-height: 38px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.2;
+    padding: 7px 9px;
+  }
+}
+
+@media (max-width: 640px) and (max-height: 760px) {
+  :where(
+    .login-card,
+    .account-login-box,
+    .register-card,
+    .forgot-card,
+    .upload-card,
+    .form-card,
+    .settings-card,
+    .profile-card,
+    .profile-panel,
+    .form-section,
+    form.panel,
+    .panel:has(form)
+  ) {
+    padding: 10px;
+  }
+
+  :where(
+    form input,
+    form select,
+    form textarea,
+    .form-group input,
+    .form-group select,
+    .form-group textarea
+  ) {
+    min-height: 36px;
+    padding-block: 6px;
+  }
+
+  :where(form button, .form-actions button, .actions button) {
+    min-height: 36px;
   }
 }

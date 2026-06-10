@@ -1,13 +1,37 @@
 const db = require("../../config/db");
 const bcrypt = require("bcryptjs");
 
+function getSuperAdminConfig() {
+  const isProduction = String(process.env.NODE_ENV || "").toLowerCase() === "production";
+  const email = String(process.env.SUPERADMIN_EMAIL || "superadmin@readvoice.local").trim();
+  const password = String(process.env.SUPERADMIN_PASSWORD || "").trim();
+  const name = String(process.env.SUPERADMIN_NAME || "Read & Voice Super Admin").trim();
+
+  if (!email) {
+    throw new Error("SUPERADMIN_EMAIL is required.");
+  }
+
+  if (isProduction && !password) {
+    throw new Error("SUPERADMIN_PASSWORD is required when NODE_ENV=production.");
+  }
+
+  if (password && password.length < 12) {
+    throw new Error("SUPERADMIN_PASSWORD must be at least 12 characters.");
+  }
+
+  return {
+    name,
+    email,
+    password: password || "123456",
+    role: "superadmin",
+    status: "active",
+    isProduction,
+  };
+}
+
 async function createOrUpdateSuperAdmin() {
   try {
-    const name = "Read & Voice Super Admin";
-    const email = "superadmin@readvoice.local";
-    const password = "123456";
-    const role = "superadmin";
-    const status = "active";
+    const { name, email, password, role, status, isProduction } = getSuperAdminConfig();
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -28,7 +52,11 @@ async function createOrUpdateSuperAdmin() {
 
       console.log("อัปเดต superadmin สำเร็จ");
       console.log("email:", email);
-      console.log("password:", password);
+      if (isProduction) {
+        console.log("password: configured from SUPERADMIN_PASSWORD");
+      } else {
+        console.log("password:", password);
+      }
       process.exit(0);
     }
 
@@ -42,7 +70,11 @@ async function createOrUpdateSuperAdmin() {
 
     console.log("สร้าง superadmin สำเร็จ");
     console.log("email:", email);
-    console.log("password:", password);
+    if (isProduction) {
+      console.log("password: configured from SUPERADMIN_PASSWORD");
+    } else {
+      console.log("password:", password);
+    }
     process.exit(0);
   } catch (error) {
     console.error("createOrUpdateSuperAdmin error:", error);
@@ -51,4 +83,3 @@ async function createOrUpdateSuperAdmin() {
 }
 
 createOrUpdateSuperAdmin();
-np

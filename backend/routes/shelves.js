@@ -28,15 +28,30 @@ const PUBLIC_BOOK_FIELDS = `SELECT
            FROM book_views v
            WHERE v.book_id = b.id
          ) AS read_count,
-         GREATEST(
-           COALESCE(TIMESTAMPDIFF(DAY, NOW(), b.promo_end_at), 0),
-           0
-         ) AS promo_days_left,
+         CASE
+           WHEN COALESCE(b.promo_discount_percent, 0) > 0
+             AND (b.promo_start_at IS NULL OR b.promo_start_at <= NOW())
+             AND (b.promo_end_at IS NULL OR b.promo_end_at >= NOW())
+           THEN b.promo_discount_percent
+           ELSE 0
+         END AS active_promo_discount_percent,
+         CASE
+           WHEN COALESCE(b.promo_discount_percent, 0) > 0
+             AND (b.promo_start_at IS NULL OR b.promo_start_at <= NOW())
+             AND (b.promo_end_at IS NULL OR b.promo_end_at >= NOW())
+           THEN GREATEST(COALESCE(TIMESTAMPDIFF(DAY, NOW(), b.promo_end_at), 0), 0)
+           ELSE 0
+         END AS promo_days_left,
          (
            SELECT COUNT(*)
            FROM book_episodes e
            WHERE e.book_id = b.id AND e.is_published = 1
-         ) AS episode_count
+         ) AS episode_count,
+         (
+           SELECT MAX(e.updated_at)
+           FROM book_episodes e
+           WHERE e.book_id = b.id AND e.is_published = 1
+         ) AS computed_latest_episode_at
        FROM books b
        LEFT JOIN categories c ON c.id = b.category_id
        WHERE b.is_published = 1
@@ -58,6 +73,15 @@ async function sendShelf(res, shelf, loader) {
   try {
     await ensureCatalogAnalyticsSchema();
     const books = await loader();
+    for (const book of books) {
+      if (!book.latest_episode_at && book.computed_latest_episode_at) {
+        book.latest_episode_at = book.computed_latest_episode_at;
+      }
+      if (!book.serial_status && book.content_type === "serial") {
+        book.serial_status = "ongoing";
+      }
+      delete book.computed_latest_episode_at;
+    }
     return res.json({ shelf, books, count: books.length });
   } catch (error) {
     console.error(`GET /${shelf} error:`, error);
@@ -73,7 +97,10 @@ router.get("/ebooks", (_req, res) => {
 
 router.get("/serials", (_req, res) => {
   return sendShelf(res, "serials", () =>
-    listBooks("ORDER BY episode_count DESC, b.created_at DESC, b.id DESC", "AND COALESCE(b.content_type, 'ebook') = 'serial'")
+    listBooks(
+      "ORDER BY COALESCE(b.latest_episode_at, computed_latest_episode_at, b.updated_at, b.created_at) DESC, episode_count DESC, b.id DESC",
+      "AND COALESCE(b.content_type, 'ebook') = 'serial'",
+    )
   );
 });
 
@@ -96,7 +123,10 @@ router.get("/promotions", (_req, res) => {
   return sendShelf(res, "promotions", () =>
     listBooks(
       "ORDER BY COALESCE(b.promo_discount_percent, 0) DESC, b.promo_end_at ASC, b.created_at DESC, b.id DESC",
-      "AND COALESCE(b.is_promotion, 0) = 1 AND (b.promo_end_at IS NULL OR b.promo_end_at >= NOW())",
+      `AND COALESCE(b.is_promotion, 0) = 1
+       AND COALESCE(b.promo_discount_percent, 0) > 0
+       AND (b.promo_start_at IS NULL OR b.promo_start_at <= NOW())
+       AND (b.promo_end_at IS NULL OR b.promo_end_at >= NOW())`,
     )
   );
 });

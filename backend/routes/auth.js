@@ -5,6 +5,7 @@ const crypto = require("crypto");
 const db = require("../config/db");
 const { verifyToken } = require("../middleware/auth");
 const { sendPasswordResetEmail } = require("../services/email");
+const { isSystemFeatureEnabled } = require("../services/systemSettings");
 
 const fetch = global.fetch || require("node-fetch");
 require("dotenv").config({ quiet: true });
@@ -302,6 +303,29 @@ async function ensurePasswordResetTable() {
       UNIQUE KEY uq_password_reset_tokens_hash (token_hash),
       CONSTRAINT fk_password_reset_tokens_user
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+}
+
+async function ensurePasswordResetRequestsTable() {
+  await ensurePasswordResetTable();
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_requests (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      status VARCHAR(30) NOT NULL DEFAULT 'pending',
+      delivery_method VARCHAR(40) NULL,
+      admin_note TEXT NULL,
+      requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      handled_at DATETIME NULL,
+      handled_by INT NULL,
+      INDEX idx_password_reset_requests_status (status),
+      INDEX idx_password_reset_requests_user (user_id),
+      CONSTRAINT fk_password_reset_requests_user
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      CONSTRAINT fk_password_reset_requests_handler
+        FOREIGN KEY (handled_by) REFERENCES users(id) ON DELETE SET NULL
     )
   `);
 }
@@ -1085,6 +1109,10 @@ function getRegistrationFailureMessage(error) {
 
 router.post("/register", async (req, res) => {
   try {
+    if (!(await isSystemFeatureEnabled("registration_enabled", true))) {
+      return res.status(503).json({ message: "ระบบปิดรับสมัครสมาชิกชั่วคราว" });
+    }
+
     const displayName = normalizeOptionalText(
       req.body.display_name ?? req.body.displayName ?? req.body.name,
       255,
@@ -1314,13 +1342,17 @@ router.post("/login", async (req, res) => {
 
 router.post("/forgot-password", async (req, res) => {
   try {
+    if (!(await isSystemFeatureEnabled("admin_password_reset_enabled", true))) {
+      return res.status(503).json({ message: "ระบบรีเซ็ตรหัสผ่านปิดใช้งานชั่วคราว" });
+    }
+
     const email = normalizeEmail(req.body.email);
 
     if (!email) {
       return res.status(400).json({ message: "Email is required" });
     }
 
-    await ensurePasswordResetTable();
+    await ensurePasswordResetRequestsTable();
 
     const [users] = await db.query(
       `SELECT id, email, status
@@ -1371,17 +1403,27 @@ router.post("/forgot-password", async (req, res) => {
       expiresAt,
     });
 
-    if (!delivery.delivered && isProduction() && !canPreviewPasswordResetLink()) {
-      return res.status(503).json({
-        message: "Password reset email delivery is not configured",
-      });
-    }
+    const deliveryMethod = delivery.delivered ? delivery.delivery : "admin_manual";
+
+    await db.query(
+      `INSERT INTO password_reset_requests
+         (user_id, email, status, delivery_method, requested_at)
+       VALUES (?, ?, ?, ?, NOW())`,
+      [
+        user.id,
+        user.email,
+        delivery.delivered ? "email_sent" : "pending",
+        deliveryMethod,
+      ],
+    );
 
     const payload = {
       message: delivery.delivered
         ? "If the account exists, a reset link has been sent to that email."
-        : "Reset request created. Open the preview link below to choose a new password.",
-      delivery: delivery.delivery,
+        : canPreviewPasswordResetLink()
+          ? "Reset request created. Open the preview link below to choose a new password."
+          : "ส่งคำขอรีเซ็ตรหัสผ่านแล้ว ทีมงานจะตรวจสอบและส่งลิงก์รีเซ็ตให้คุณผ่านช่องทางติดต่อที่แจ้งไว้",
+      delivery: deliveryMethod,
       expires_at: expiresAt.toISOString(),
     };
 

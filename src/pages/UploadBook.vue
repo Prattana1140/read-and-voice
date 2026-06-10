@@ -448,26 +448,73 @@ h1 {
 }
 
 @media (max-width: 640px) {
+  .upload-page {
+    padding-block: 10px 18px;
+  }
+
   .upload-card {
-    border-radius: 16px;
-    padding: 20px 14px;
+    width: min(100%, 330px);
+    border-radius: 12px;
+    padding: 12px 10px;
   }
 
   h1 {
-    font-size: 24px;
-    line-height: 1.25;
+    font-size: 21px;
+    line-height: 1.15;
   }
 
   .subtitle {
-    margin-bottom: 18px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .form-group {
+    margin-bottom: 8px;
+  }
+
+  .form-group label {
+    margin-bottom: 4px;
+    font-size: 12px;
+  }
+
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    min-height: 38px;
+    border-radius: 8px;
+    padding: 7px 9px;
+    font-size: 13px;
+  }
+
+  .form-group textarea {
+    min-height: 66px;
   }
 
   .placement-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .placement-item {
+    min-width: 0;
+    border-radius: 8px;
+    padding: 7px 8px;
+    font-size: 11px;
+  }
+
+  .helper-text,
+  .file-name {
+    margin-top: 6px;
+    font-size: 11px;
+    line-height: 1.35;
   }
 
   .upload-btn {
-    min-height: 52px;
+    min-height: 38px;
+    border-radius: 9px;
+    padding: 8px;
+    font-size: 13px;
   }
 }
 </style>

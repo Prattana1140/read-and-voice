@@ -6,6 +6,8 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "config:check": "node services/scripts/checkProductionReadiness.js",
+    "smoke:roles": "node services/scripts/smokeRoles.js",
+    "smoke:launch": "node services/scripts/smokeLaunch.js",
     "ocr:test": "node services/scripts/checkOcrRuntime.js",
     "db:test": "node services/scripts/testDbConnection.js",
     "db:check:demo-users": "node services/scripts/checkDemoUsers.js",

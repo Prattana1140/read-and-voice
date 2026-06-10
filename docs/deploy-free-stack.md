@@ -5,7 +5,9 @@ This repo can move off Railway without rewriting the app by using:
 - Frontend: Vercel
 - Backend: Render free web service
 - MySQL: Aiven free tier
-- Email: Resend
+- Email: Resend or an email webhook
+
+For the first real-user launch sequence, also use [docs/launch-readiness-checklist.md](</c:/Users/jikke/Read and Voice/docs/launch-readiness-checklist.md:1>).
 
 Important limits from official docs:
 
@@ -67,9 +69,10 @@ npm run db:migrate:tts-architecture
 npm run db:migrate:commerce
 npm run db:migrate:subscriptions
 npm run db:seed:catalog
-npm run db:seed:platform
 npm run create:superadmin
 ```
+
+Do not run `npm run db:seed:platform` for the real production database. It creates demo users with known demo credentials. Use it only for a separate demo database.
 
 ## 4. Deploy backend to Render
 
@@ -83,13 +86,23 @@ In Render:
 
 ```env
 JWT_SECRET=your-secret
+NODE_ENV=production
 API_PUBLIC_URL=https://your-render-service.onrender.com
 FRONTEND_URL=https://your-vercel-domain.vercel.app
-RESEND_API_KEY=...
-EMAIL_FROM=onboarding@resend.dev
+RESEND_API_KEY=
+EMAIL_FROM=
 EMAIL_FROM_NAME=Read and Voice
+PASSWORD_RESET_EMAIL_WEBHOOK_URL=
+PASSWORD_RESET_EMAIL_WEBHOOK_SECRET=
+ALLOW_PASSWORD_RESET_PREVIEW=false
+DISABLE_ADMIN_PASSWORD_RESET=false
 MANUAL_PAYMENT_ENABLED=true
-MANUAL_PAYMENT_INSTRUCTIONS=กรุณาโอนเงินตามช่องทางที่แอดมินแจ้ง แล้วส่งหลักฐานพร้อมเลขรายการ {topup_id} จำนวน {amount} บาท
+MANUAL_PAYMENT_INSTRUCTIONS=Please transfer payment using the admin-provided channel, then submit proof with transaction {topup_id} for {amount} THB.
+ENABLE_MOCK_PAYMENTS=false
+ENABLE_MOCK_COIN_TOPUP=false
+ALLOW_DEMO_SEED_IN_PRODUCTION=false
+SUPERADMIN_EMAIL=your-admin-email@example.com
+SUPERADMIN_PASSWORD=use-a-long-random-password
 LINE_CLIENT_ID=...
 LINE_CLIENT_SECRET=...
 LINE_SCOPE=openid profile email
@@ -124,9 +137,11 @@ npm run config:check
 
 Expected outcomes:
 
-- password reset email sends through Resend
+- password reset uses admin-assisted fallback unless Resend or a webhook is configured
 - LINE login callback points to the Render backend
 - coin top-up works in manual approval mode
+- mock payments are disabled
+- demo user seeding is blocked in production
 - OCR works on Render because the Docker image installs Tesseract and Python OCR tools
 
 ## 7. Honest caveat

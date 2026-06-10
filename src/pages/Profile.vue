@@ -1171,4 +1171,116 @@ button:disabled {
     height: min(180px, 58vw);
   }
 }
+
+@media (max-width: 640px) {
+  .profile-page {
+    padding: 10px 10px 28px;
+  }
+
+  .profile-hero,
+  .edit-panel {
+    border-radius: 12px;
+    padding: 12px 10px;
+  }
+
+  .profile-hero {
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .profile-hero > button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .avatar,
+  .avatar-image,
+  .avatar-shell--member {
+    width: 56px;
+    height: 56px;
+    border-radius: 18px;
+  }
+
+  h1 {
+    font-size: 23px;
+    line-height: 1.12;
+  }
+
+  .hero-meta,
+  .edit-header p,
+  .section-heading p,
+  .profile-form small {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .profile-form {
+    gap: 9px;
+    margin-top: 10px;
+  }
+
+  .avatar-editor,
+  .form-main,
+  .form-section,
+  .field-grid,
+  .password-grid,
+  .password-panel {
+    gap: 7px;
+  }
+
+  .avatar-editor,
+  .form-section,
+  .password-panel {
+    border-radius: 10px;
+    padding: 9px;
+  }
+
+  .avatar-editor {
+    grid-template-columns: 66px minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .avatar-preview-card--member,
+  .avatar-preview {
+    width: 58px;
+    height: 58px;
+    border-radius: 16px;
+  }
+
+  .field-grid,
+  .password-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .full-span,
+  .checkbox-card {
+    grid-column: 1 / -1;
+  }
+
+  .profile-form label,
+  .profile-form .checkbox-card {
+    gap: 4px;
+    font-size: 11px;
+    line-height: 1.25;
+  }
+
+  .profile-form input,
+  .profile-form textarea,
+  .profile-form select {
+    min-height: 36px;
+    border-radius: 8px;
+    padding: 7px 8px;
+    font-size: 12px;
+  }
+
+  .profile-form textarea {
+    min-height: 58px;
+  }
+
+  .form-actions button {
+    min-height: 38px;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+}
 </style>

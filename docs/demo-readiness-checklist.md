@@ -28,6 +28,8 @@ For the full role-by-role UX pass, use `docs/role-ux-checklist.md`.
 
 ## Demo Accounts
 
+These accounts are for local/demo environments only. Do not seed them into a real production database.
+
 All demo accounts use password `123456`.
 
 - `reader.nida@readvoice.local` - user
@@ -35,10 +37,12 @@ All demo accounts use password `123456`.
 - `admin.ops@readvoice.local` - admin
 - `superadmin@readvoice.local` - superadmin
 
-## Still Not Production-Ready
+## Launch Notes
 
-- Payment, subscription, and coin top-up still use mock/demo flows, and the UI now labels this clearly.
-- Forgot password still needs real email delivery, and the UI now labels the preview reset link as demo behavior.
+- Payment starts with manual approval: users create pending coin top-ups, admins approve them, and purchases spend coins.
+- Forgot password can run as admin-assisted reset for a free first launch; Resend or an email webhook can be added later for fully automatic delivery.
+- Mock payments are disabled in production by code; keep `ENABLE_MOCK_PAYMENTS=false` and `ENABLE_MOCK_COIN_TOPUP=false`.
+- Create the real superadmin with `SUPERADMIN_EMAIL` and a strong `SUPERADMIN_PASSWORD`, not the demo password.
 - LINE login needs real credentials before it appears in the UI.
 - Writer upload should become a clearer step-by-step wizard.
 - Production needs final environment variables, HTTPS, backup, and monitoring.

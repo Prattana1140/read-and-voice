@@ -107,7 +107,6 @@
       >
         <div class="section-head section-head--stacked">
           <div>
-            <span class="section-kicker">{{ t("home.chooseByCategory") }}</span>
             <h2>{{ t("home.categoriesTitle") }}</h2>
           </div>
           <button
@@ -218,8 +217,13 @@
                   {{ getContentLabel(book) }}
                 </span>
                 <p>{{ book.title }}</p>
-                <small v-if="book.category_name" class="book-category">{{ book.category_name }}</small>
-                <small>{{ getSellerName(book) }}</small>
+                <small
+                  class="book-category"
+                  :class="{ 'book-category--empty': !book.category_name }"
+                >
+                  {{ book.category_name || "-" }}
+                </small>
+                <small class="book-seller">{{ getSellerName(book) }}</small>
                 <div class="book-card-footer">
                   <div class="rating-box" :aria-label="getReviewLabel(book)">
                     <span class="heart-row" aria-hidden="true">
@@ -944,7 +948,7 @@ async function fetchPageContent() {
 }
 
 async function fetchHomeCategories() {
-  const { data } = await api.get<CategoryResponseItem[]>("/categories");
+  const { data } = await api.get<CategoryResponseItem[]>("/categories?scope=all");
   const seen = new Set<string>();
 
   adminCategoryItems.value = (Array.isArray(data) ? data : [])
@@ -991,8 +995,6 @@ async function loadHomeContent() {
     title: section.title,
     to: section.to,
     kind: "mixed",
-    kicker: t("home.curatedKicker"),
-    description: t("home.curatedDescription"),
     books: (sectionBooks[index].length ? sectionBooks[index] : catalogBooks)
       .map((book) => ({
         ...book,
@@ -1006,16 +1008,12 @@ async function loadHomeContent() {
       title: t("home.ebookSection"),
       to: "/store",
       kind: "ebook",
-      kicker: t("home.ebookKicker"),
-      description: t("home.ebookDescription"),
       books: normalizedEbooks.slice(0, 10),
     },
     {
       title: t("home.serialSection"),
       to: "/serials",
       kind: "serial",
-      kicker: t("home.serialKicker"),
-      description: t("home.serialDescription"),
       books: normalizedSerials.slice(0, 10),
     },
   );
@@ -1077,7 +1075,7 @@ watch(locale, () => {
   background: transparent;
   color: var(--text);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 900;
   padding: 8px 10px;
 }
@@ -1410,7 +1408,7 @@ watch(locale, () => {
   gap: 16px 14px;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
-  padding: 6px 58px 16px 6px;
+  padding: 6px 58px 16px 24px;
   scroll-behavior: smooth;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
@@ -1466,7 +1464,7 @@ watch(locale, () => {
 }
 
 .category-arrow--left {
-  left: 8px;
+  left: 10px;
 }
 
 .category-arrow--right {
@@ -2208,13 +2206,13 @@ watch(locale, () => {
 .book-grid {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: clamp(270px, 24vw, 340px);
+  grid-auto-columns: clamp(180px, 16vw, 220px);
   grid-template-columns: none;
-  gap: 20px;
+  gap: 14px;
   align-items: stretch;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
-  padding: 0 56px 10px 6px;
+  padding: 0 48px 10px 4px;
   scroll-behavior: smooth;
   scroll-snap-type: x proximity;
   scrollbar-width: none;
@@ -2299,7 +2297,9 @@ watch(locale, () => {
 .book-card {
   display: flex;
   flex-direction: column;
+  width: 100%;
   height: 100%;
+  min-height: 0;
   overflow: hidden;
   border-radius: 8px;
   cursor: pointer;
@@ -2317,7 +2317,7 @@ watch(locale, () => {
 .book-card img {
   display: block;
   width: 100%;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 4 / 4.85;
   flex: 0 0 auto;
   height: auto;
   object-fit: cover;
@@ -2326,16 +2326,19 @@ watch(locale, () => {
 
 .book-info {
   display: grid;
-  grid-template-rows: minmax(38px, auto) auto auto;
-  align-content: start;
-  gap: 5px;
+  grid-template-rows: 18px 34px 15px 15px minmax(26px, auto);
+  align-content: stretch;
+  gap: 4px;
   flex: 1 1 auto;
   min-width: 0;
-  padding: 10px 12px 8px;
+  min-height: 136px;
+  padding: 8px 10px 7px;
 }
 
 .content-badge {
+  grid-row: 1;
   justify-self: start;
+  align-self: start;
   border-radius: 999px;
   background: color-mix(in srgb, var(--primary-soft) 74%, white);
   color: var(--primary-strong);
@@ -2351,19 +2354,25 @@ watch(locale, () => {
 }
 
 .book-category {
+  grid-row: 3;
   color: var(--primary-strong) !important;
   font-weight: 800;
 }
 
+.book-category--empty {
+  visibility: hidden;
+}
+
 .book-info p {
+  grid-row: 2;
   display: -webkit-box;
-  min-height: 38px;
+  min-height: 34px;
   margin: 0;
   overflow: hidden;
   color: var(--text-strong);
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 900;
-  line-height: 1.45;
+  line-height: 1.32;
   overflow-wrap: anywhere;
   word-break: break-word;
   line-clamp: 2;
@@ -2373,16 +2382,20 @@ watch(locale, () => {
 
 .book-info small {
   display: -webkit-box;
-  min-height: 18px;
+  min-height: 15px;
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1.4;
+  font-size: 10px;
+  line-height: 1.25;
   overflow-wrap: anywhere;
   word-break: break-word;
   line-clamp: 1;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
+}
+
+.book-seller {
+  grid-row: 4;
 }
 
 .book-meta-line {
@@ -2396,13 +2409,16 @@ watch(locale, () => {
 }
 
 .book-card-footer {
+  grid-row: 5;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: flex-end;
   justify-content: space-between;
   gap: 8px;
+  align-self: stretch;
   min-width: 0;
-  margin-top: 2px;
+  min-height: 26px;
+  margin-top: auto;
 }
 
 .rating-box {
@@ -2437,8 +2453,8 @@ watch(locale, () => {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  min-width: 60px;
-  min-height: 30px;
+  min-width: 48px;
+  min-height: 26px;
   border: 0;
   border-radius: 2px;
   background: #0abf6b;
@@ -2447,7 +2463,7 @@ watch(locale, () => {
   font-size: 13px;
   font-weight: 900;
   line-height: 1;
-  padding: 0 9px;
+  padding: 0 8px;
   text-align: center;
   white-space: nowrap;
   overflow-wrap: anywhere;
@@ -2459,7 +2475,7 @@ watch(locale, () => {
 
 @media (max-width: 1180px) {
   .book-grid {
-    grid-auto-columns: clamp(210px, 30vw, 250px);
+    grid-auto-columns: clamp(158px, 22vw, 190px);
   }
 }
 
@@ -2528,7 +2544,7 @@ watch(locale, () => {
   max-width: 310px;
   overflow: hidden;
   color: #0f766e;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.35;
   line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -2704,46 +2720,57 @@ watch(locale, () => {
   }
 
   .category-chip-grid {
-    grid-auto-columns: minmax(260px, calc(100% - 38px));
-    grid-template-rows: repeat(2, minmax(104px, auto));
+    grid-auto-flow: column;
+    grid-auto-columns: clamp(152px, calc((100vw - 42px) / 2), 176px);
     grid-template-columns: none;
-    gap: 10px;
-    padding-right: 38px;
+    grid-template-rows: repeat(2, minmax(82px, auto));
+    gap: 8px;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    padding: 0 2px 8px;
+    justify-content: start;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
   }
 
   .category-chip-grid--expanded {
     grid-auto-columns: unset;
     grid-template-columns: 1fr;
     grid-template-rows: none;
+    padding-left: 2px;
     padding-right: 2px;
   }
 
   .category-chip {
-    min-height: 104px;
-    border-radius: 18px;
-    padding: 16px 92px 16px 15px;
+    width: 100%;
+    min-width: 0;
+    min-height: 86px;
+    border-radius: 14px;
+    padding: 12px 50px 12px 10px;
   }
 
   .category-chip strong {
-    font-size: 14px;
+    font-size: 12px;
     line-height: 1.1;
   }
 
   .category-art {
-    right: 2px;
-    bottom: -4px;
-    width: 108px;
-    height: 106px;
-    transform: scale(0.72);
+    right: -14px;
+    bottom: -12px;
+    width: 82px;
+    height: 82px;
+    transform: scale(0.52);
     transform-origin: right bottom;
   }
 
   .category-art-image {
-    right: 12px;
-    bottom: 12px;
-    width: 68px;
-    height: 68px;
+    right: 4px;
+    bottom: 10px;
+    width: 48px;
+    height: 48px;
   }
+
 
   .category-bar {
     justify-content: center;
@@ -2770,10 +2797,10 @@ watch(locale, () => {
   }
 
   .book-grid {
-    grid-auto-columns: clamp(150px, 46vw, 190px);
-    gap: 10px;
+    grid-auto-columns: calc((100% - 28px) / 3.25);
+    gap: 8px;
     margin-top: 8px;
-    padding: 0 28px 8px 2px;
+    padding: 0 0 8px;
   }
 
   .book-card img {
@@ -2781,8 +2808,9 @@ watch(locale, () => {
   }
 
   .book-info {
-    grid-template-rows: minmax(38px, auto) auto auto;
+    grid-template-rows: 14px 30px 13px 13px minmax(20px, auto);
     gap: 4px;
+    min-height: 112px;
     padding: 8px 10px 7px;
   }
 
@@ -2793,7 +2821,7 @@ watch(locale, () => {
 
   .book-info p {
     display: -webkit-box;
-    min-height: 0;
+    min-height: 30px;
     font-size: 11px;
     line-height: 1.3;
     line-clamp: 2;
@@ -2802,7 +2830,7 @@ watch(locale, () => {
 
   .book-info small {
     display: -webkit-box;
-    min-height: 0;
+    min-height: 13px;
     font-size: 9px;
     line-clamp: 1;
     -webkit-line-clamp: 1;
@@ -2810,6 +2838,7 @@ watch(locale, () => {
 
   .book-card-footer {
     gap: 3px;
+    min-height: 20px;
   }
 
   .heart-row {
@@ -2835,21 +2864,28 @@ watch(locale, () => {
   }
 
   .category-chip-grid {
-    grid-auto-columns: minmax(250px, calc(100% - 30px));
-    grid-template-rows: repeat(2, minmax(96px, auto));
+    grid-auto-columns: clamp(144px, calc((100vw - 36px) / 2), 168px);
+    grid-template-columns: none;
+    grid-template-rows: repeat(2, minmax(80px, auto));
+    width: 100%;
+    max-width: 100%;
     gap: 8px;
-    padding-right: 30px;
+    padding: 0 2px 8px;
+    justify-content: start;
   }
 
   .category-chip-grid--expanded {
     grid-template-columns: 1fr;
     grid-template-rows: none;
+    padding-left: 2px;
     padding-right: 2px;
   }
 
   .category-chip {
-    min-height: 96px;
-    padding: 14px 76px 14px 12px;
+    width: 100%;
+    min-width: 0;
+    min-height: 82px;
+    padding: 11px 46px 11px 9px;
   }
 
   .category-chip strong {
@@ -2868,14 +2904,15 @@ watch(locale, () => {
   }
 
   .book-grid {
-    grid-auto-columns: clamp(136px, 44vw, 166px);
+    grid-auto-columns: calc((100% - 28px) / 3.25);
     gap: 8px;
-    padding-right: 22px;
+    padding-right: 0;
   }
 
   .book-info {
-    grid-template-rows: minmax(36px, auto) auto auto;
+    grid-template-rows: 12px 28px 12px 12px minmax(18px, auto);
     gap: 3px;
+    min-height: 102px;
     padding: 7px 9px 6px;
   }
 
@@ -2885,12 +2922,13 @@ watch(locale, () => {
   }
 
   .book-info p {
-    min-height: 0;
+    min-height: 28px;
     font-size: 10px;
     line-height: 1.25;
   }
 
   .book-info small {
+    min-height: 12px;
     font-size: 8px;
   }
 

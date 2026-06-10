@@ -27,6 +27,12 @@ services:
         value: onboarding@resend.dev
       - key: EMAIL_FROM_NAME
         value: Read and Voice
+      - key: PASSWORD_RESET_EMAIL_WEBHOOK_URL
+        sync: false
+      - key: PASSWORD_RESET_EMAIL_WEBHOOK_SECRET
+        sync: false
+      - key: ALLOW_PASSWORD_RESET_PREVIEW
+        value: "false"
       - key: MANUAL_PAYMENT_ENABLED
         value: "true"
       - key: MANUAL_PAYMENT_INSTRUCTIONS

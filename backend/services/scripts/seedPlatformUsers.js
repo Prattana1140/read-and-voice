@@ -580,6 +580,17 @@ async function seedUserExperience(connection, usersByEmail, books, planMap) {
 }
 
 async function main() {
+  const production = String(process.env.NODE_ENV || "").toLowerCase() === "production";
+  const allowProductionSeed = /^(1|true|yes)$/i.test(process.env.ALLOW_DEMO_SEED_IN_PRODUCTION || "");
+
+  if (production && !allowProductionSeed) {
+    console.error(
+      "Refusing to seed demo platform users while NODE_ENV=production. Set ALLOW_DEMO_SEED_IN_PRODUCTION=true only for an intentional demo database.",
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const connection = await db.getConnection();
 
   try {

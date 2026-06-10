@@ -1,23 +1,12 @@
 const fs = require("fs");
 const path = require("path");
 const db = require("../../config/db");
+const { getCategoryScope, seedCategories, serialBookCategories } = require("../serialCategories");
 
 const coverDir = path.join(__dirname, "../../uploads/book-covers");
 const sourceType = "seed_launch";
 
-const categories = [
-  "นิยาย",
-  "วรรณกรรม",
-  "แฟนตาซี",
-  "สืบสวน",
-  "โรแมนซ์",
-  "ไซไฟ",
-  "ธุรกิจ",
-  "พัฒนาตนเอง",
-  "สุขภาพ",
-  "เทคโนโลยี",
-  "เด็กและเยาวชน",
-];
+const categories = seedCategories;
 
 const coverPalettes = [
   ["#112A46", "#0EA5A0", "#F7D774", "#F8FAFC"],
@@ -272,10 +261,47 @@ async function getTableColumns(tableName) {
   return new Set(rows.map((row) => row.COLUMN_NAME));
 }
 
+async function ensureCategoryMetadataColumns() {
+  const metadataColumns = [
+    ["parent_id", "parent_id INT NULL AFTER name"],
+    ["content_scope", "content_scope VARCHAR(20) NOT NULL DEFAULT 'all' AFTER parent_id"],
+    ["display_tone", "display_tone VARCHAR(40) NULL AFTER content_scope"],
+    ["display_art", "display_art VARCHAR(40) NULL AFTER display_tone"],
+    ["show_on_home", "show_on_home TINYINT(1) NOT NULL DEFAULT 1 AFTER display_art"],
+    ["sort_order", "sort_order INT NOT NULL DEFAULT 0 AFTER show_on_home"],
+  ];
+
+  for (const [columnName, definition] of metadataColumns) {
+    const [columns] = await db.query("SHOW COLUMNS FROM categories LIKE ?", [columnName]);
+    if (columns.length === 0) {
+      await db.query(`ALTER TABLE categories ADD COLUMN ${definition}`);
+    }
+  }
+}
+
 async function ensureCategories() {
+  await ensureCategoryMetadataColumns();
+
   const categoryIds = new Map();
-  for (const name of categories) {
-    await db.query("INSERT IGNORE INTO categories (name) VALUES (?)", [name]);
+  for (const [index, name] of categories.entries()) {
+    const isSerialCategory = serialBookCategories.includes(name);
+    await db.query(
+      `INSERT INTO categories (name, content_scope, display_tone, display_art, show_on_home, sort_order)
+       VALUES (?, ?, ?, ?, 1, ?)
+       ON DUPLICATE KEY UPDATE
+         content_scope = VALUES(content_scope),
+         display_tone = COALESCE(display_tone, VALUES(display_tone)),
+         display_art = COALESCE(display_art, VALUES(display_art)),
+         show_on_home = 1,
+         sort_order = VALUES(sort_order)`,
+      [
+        name,
+        getCategoryScope(name),
+        isSerialCategory ? "serial" : "general",
+        isSerialCategory ? `serial-${index + 1}` : `general-${index + 1}`,
+        index + 1,
+      ],
+    );
     const [rows] = await db.query("SELECT id FROM categories WHERE name = ? LIMIT 1", [name]);
     if (rows.length > 0) categoryIds.set(name, rows[0].id);
   }
@@ -351,6 +377,8 @@ function buildBookPayload(book, columns, categoryIds, creatorId, coverImage, con
     cover_image: coverImage,
     source_type: sourceType,
     content_type: contentType,
+    serial_status: contentType === "serial" ? book.serialStatus || "ongoing" : "completed",
+    latest_episode_at: contentType === "serial" ? new Date() : null,
     access_type: book.accessType,
     process_status: "completed",
     full_text: fullText,

@@ -150,7 +150,18 @@ async function getTableColumns(tableName) {
 }
 
 async function ensureCategory(name) {
-  await db.query("INSERT IGNORE INTO categories (name) VALUES (?)", [name]);
+  const [scopeColumns] = await db.query("SHOW COLUMNS FROM categories LIKE 'content_scope'");
+  if (scopeColumns.length > 0) {
+    await db.query(
+      `INSERT INTO categories (name, content_scope, display_tone)
+       VALUES (?, 'all', 'general')
+       ON DUPLICATE KEY UPDATE
+         content_scope = IF(content_scope = 'serial', content_scope, 'all')`,
+      [name],
+    );
+  } else {
+    await db.query("INSERT IGNORE INTO categories (name) VALUES (?)", [name]);
+  }
   const [rows] = await db.query("SELECT id FROM categories WHERE name = ? LIMIT 1", [name]);
   return rows[0]?.id || null;
 }

@@ -18,6 +18,9 @@ type BookApproval = {
   requested_free_book?: number;
   requested_hall_of_fame?: number;
   requested_recommended?: number;
+  promo_discount_percent?: number;
+  promo_start_at?: string | null;
+  promo_end_at?: string | null;
   is_best_seller?: number;
   is_new_release?: number;
   is_promotion?: number;
@@ -52,6 +55,11 @@ const approvedPlacements = ref<Record<string, boolean>>({
   is_hall_of_fame: false,
   is_recommended: false,
 });
+const promotionForm = ref({
+  discount_percent: 0,
+  start_at: "",
+  end_at: "",
+});
 
 const selectedBook = computed(() => {
   return books.value.find((book) => book.id === selectedBookId.value) || null;
@@ -61,6 +69,14 @@ const getCoverUrl = (cover?: string) => {
   if (!cover) return "/no-cover.png";
   if (cover.startsWith("http://") || cover.startsWith("https://")) return cover;
   return `${API_BASE_URL}/${cover.replace(/^\/+/, "")}`;
+};
+
+const toDateTimeLocal = (value?: string | null) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const offsetMs = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
 };
 
 const syncSelectedBook = (book: BookApproval | null) => {
@@ -74,6 +90,11 @@ const syncSelectedBook = (book: BookApproval | null) => {
     is_free_book: Number(book.is_free_book) === 1,
     is_hall_of_fame: Number(book.is_hall_of_fame) === 1,
     is_recommended: Number(book.is_recommended) === 1,
+  };
+  promotionForm.value = {
+    discount_percent: Number(book.promo_discount_percent || 0),
+    start_at: toDateTimeLocal(book.promo_start_at),
+    end_at: toDateTimeLocal(book.promo_end_at),
   };
 };
 
@@ -129,6 +150,11 @@ const saveApproval = async () => {
       approval_status: approvalStatus.value,
       approval_note: approvalNote.value || null,
       ...approvedPlacements.value,
+      promo_discount_percent: approvedPlacements.value.is_promotion
+        ? Number(promotionForm.value.discount_percent || 0)
+        : 0,
+      promo_start_at: approvedPlacements.value.is_promotion ? promotionForm.value.start_at || null : null,
+      promo_end_at: approvedPlacements.value.is_promotion ? promotionForm.value.end_at || null : null,
     });
 
     success.value = "บันทึกการอนุมัติสำเร็จ";
@@ -253,6 +279,30 @@ onMounted(fetchPendingBooks);
                   </small>
                 </div>
               </label>
+            </div>
+
+            <div v-if="approvedPlacements.is_promotion" class="promotion-fields">
+              <label>
+                <span>Discount percent</span>
+                <input
+                  v-model.number="promotionForm.discount_percent"
+                  type="number"
+                  min="1"
+                  max="95"
+                  step="1"
+                />
+              </label>
+              <label>
+                <span>Starts at</span>
+                <input v-model="promotionForm.start_at" type="datetime-local" />
+              </label>
+              <label>
+                <span>Ends at</span>
+                <input v-model="promotionForm.end_at" type="datetime-local" />
+              </label>
+              <small>
+                ป้ายลดราคาจะแสดงเฉพาะเมื่อมีเปอร์เซ็นต์ส่วนลดจริง และอยู่ในช่วงวันที่กำหนด
+              </small>
             </div>
           </div>
 
@@ -556,6 +606,21 @@ textarea {
   font-weight: 700;
 }
 
+.promotion-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.promotion-fields small {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
 .actions {
   margin-top: 20px;
 }
@@ -599,6 +664,7 @@ textarea {
 
   .layout,
   .placement-grid,
+  .promotion-fields,
   .form-grid,
   .book-head {
     grid-template-columns: 1fr;

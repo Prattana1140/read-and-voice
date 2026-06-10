@@ -80,7 +80,7 @@ async function submitReset() {
         {{
           isResetMode
             ? "ตั้งรหัสผ่านใหม่สำหรับบัญชีของคุณ หลังบันทึกแล้วระบบจะพากลับไปหน้าเข้าสู่ระบบ"
-            : "กรอกอีเมลของบัญชี ระบบจะส่งลิงก์รีเซ็ตรหัสผ่านไปยังอีเมลนั้น"
+            : "กรอกอีเมลของบัญชี ระบบจะสร้างคำขอรีเซ็ตรหัสผ่านให้ทีมงานตรวจสอบและส่งลิงก์ให้คุณ"
         }}
       </p>
 
@@ -97,7 +97,7 @@ async function submitReset() {
         </label>
 
         <button type="submit" :disabled="loading">
-          {{ loading ? "กำลังสร้างคำขอ..." : "สร้างคำขอรีเซ็ตรหัสผ่าน" }}
+          {{ loading ? "กำลังส่งคำขอ..." : "ส่งคำขอรีเซ็ตรหัสผ่าน" }}
         </button>
       </form>
 
@@ -287,20 +287,62 @@ button:disabled {
 @media (max-width: 560px) {
   .forgot-page {
     place-items: start center;
+    min-height: calc(100dvh - 92px);
+    padding-block: 10px 18px;
   }
 
   .forgot-card {
-    border-radius: 16px;
-    padding: 22px 14px;
+    width: min(100%, 320px);
+    border-radius: 12px;
+    padding: 12px 10px;
+  }
+
+  .eyebrow {
+    margin-bottom: 4px;
+    font-size: 10px;
   }
 
   h1 {
-    font-size: 26px;
+    font-size: 21px;
+    line-height: 1.15;
+  }
+
+  .intro,
+  .state-box {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .forgot-form,
+  label {
+    gap: 6px;
+  }
+
+  label span {
+    font-size: 12px;
+  }
+
+  input,
+  button {
+    min-height: 38px;
+    border-radius: 8px;
+    font-size: 13px;
+    padding-inline: 9px;
+  }
+
+  .state-box {
+    margin-top: 10px;
+    padding: 10px;
   }
 
   .actions,
   .actions button {
     width: 100%;
+  }
+
+  .actions {
+    gap: 7px;
+    margin-top: 12px;
   }
 }
 </style>

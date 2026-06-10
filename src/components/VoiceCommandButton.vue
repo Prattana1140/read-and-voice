@@ -56,6 +56,7 @@ const voiceHelpItems = [
 const buttonLabel = computed(() =>
   isListening.value ? "กำลังฟัง..." : "สั่งงานด้วยเสียง",
 );
+const isSensitiveRoute = computed(() => sensitiveRouteNames.has(String(route.name || "")));
 
 function getRecognition() {
   if (recognition) return recognition;
@@ -973,7 +974,7 @@ watch(
 </script>
 
 <template>
-  <aside class="voice-command" aria-label="สั่งงานด้วยเสียง">
+  <aside v-if="!isSensitiveRoute" class="voice-command" aria-label="สั่งงานด้วยเสียง">
     <button
       class="voice-command__button"
       :class="{ 'is-listening': isListening, 'is-continuous': isContinuousMode }"
@@ -989,7 +990,7 @@ watch(
   </aside>
 
   <section
-    v-if="isHelpOpen"
+    v-if="isHelpOpen && !isSensitiveRoute"
     class="voice-help"
     role="dialog"
     aria-modal="false"
@@ -1005,7 +1006,7 @@ watch(
   </section>
 
   <section
-    v-if="isOnboardingOpen"
+    v-if="isOnboardingOpen && !isSensitiveRoute"
     class="voice-onboarding"
     role="dialog"
     aria-modal="false"
@@ -1219,12 +1220,21 @@ watch(
 @media (max-width: 640px) {
   .voice-command {
     right: 12px;
-    bottom: 82px;
+    bottom: 76px;
   }
 
   .voice-command__button {
+    justify-content: center;
+    width: 44px;
     min-height: 40px;
-    padding: 0 12px;
+    gap: 0;
+    overflow: hidden;
+    font-size: 0;
+    padding: 0;
+  }
+
+  .voice-command__button span {
+    flex: 0 0 auto;
   }
 
   .voice-command p {
@@ -1238,9 +1248,7 @@ watch(
   }
 
   .voice-onboarding {
-    right: 12px;
-    bottom: 134px;
-    width: calc(100vw - 24px);
+    display: none;
   }
 }
 </style>
