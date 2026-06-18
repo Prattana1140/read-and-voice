@@ -84,7 +84,7 @@ async function addBookToLibrary(connection, userId, bookId) {
 }
 
 function normalizePaymentMethod(value) {
-  const method = value === "mock" ? "coin" : String(value || "coin").trim().toLowerCase();
+  const method = String(value || "coin").trim().toLowerCase();
 
   if (method !== "coin") {
     const error = new Error("PAYMENT_METHOD_UNSUPPORTED");

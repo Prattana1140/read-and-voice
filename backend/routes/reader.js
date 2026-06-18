@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("../config/db");
 const { optionalVerifyToken } = require("../middleware/auth");
 const { sanitizeBookText } = require("../services/fileParser");
+const { splitIntoSentences } = require("../services/contentSegmenter");
 const { ensureCatalogAnalyticsSchema } = require("../services/catalogSchema");
 
 const router = express.Router();
@@ -122,6 +123,74 @@ async function getBookFullText(bookId, fullText) {
   );
 }
 
+function buildLegacyStructuredContent({ bookId, title, text, unitType = "chapter" }) {
+  const cleanText = sanitizeBookText(text || "");
+  if (!cleanText) return null;
+
+  const paragraphs = cleanText
+    .split(/\n\s*\n|\n/g)
+    .map((paragraph) => sanitizeBookText(paragraph))
+    .filter(Boolean);
+  const blocks = [];
+  const sentences = [];
+  let sentenceOrder = 0;
+
+  paragraphs.forEach((paragraph, blockIndex) => {
+    const blockId = -1 * (blockIndex + 1);
+    const blockSentences = splitIntoSentences(paragraph);
+    const normalizedBlockSentences = (blockSentences.length ? blockSentences : [paragraph])
+      .map((sentence) => sanitizeBookText(sentence))
+      .filter(Boolean);
+
+    const sentencePayload = normalizedBlockSentences.map((sentence, sentenceIndex) => {
+      sentenceOrder += 1;
+      return {
+        id: -1 * sentenceOrder,
+        book_id: Number(bookId) || null,
+        book_unit_id: null,
+        block_id: blockId,
+        sentence_uuid: `legacy-${bookId || "episode"}-${blockIndex + 1}-${sentenceIndex + 1}`,
+        sentence_order: sentenceOrder,
+        sentence_in_block: sentenceIndex + 1,
+        display_text: sentence,
+        tts_text: sentence,
+        plain_text: sentence,
+        duration_ms_estimate: Math.max(1500, Math.round(sentence.length * 85)),
+      };
+    });
+
+    blocks.push({
+      id: blockId,
+      book_unit_id: null,
+      block_order: blockIndex + 1,
+      block_type: blockIndex === 0 && paragraph.length <= 80 ? "heading" : "paragraph",
+      display_text: paragraph,
+      tts_text: paragraph,
+      speaker_name: null,
+      sentences: sentencePayload,
+    });
+    sentences.push(...sentencePayload);
+  });
+
+  return {
+    version: "legacy-structured-fallback",
+    source: "legacy_text",
+    active_unit_id: null,
+    units: [
+      {
+        id: null,
+        unit_type: unitType,
+        unit_number: 1,
+        title: title || "เนื้อหา",
+        sentence_count: sentences.length,
+      },
+    ],
+    blocks,
+    sentences,
+    plain_text: cleanText,
+  };
+}
+
 async function getStructuredBookContent(bookId) {
   const [unitRows] = await db.query(
     `SELECT id, unit_type, unit_number, title, sentence_count
@@ -234,13 +303,20 @@ router.get("/books/:bookId/content", optionalVerifyToken, async (req, res) => {
     );
 
     const structured = await getStructuredBookContent(book.id);
+    const legacyText = structured ? "" : await getBookFullText(book.id, book.full_text);
+    const fallbackStructured = structured || buildLegacyStructuredContent({
+      bookId: book.id,
+      title: book.title,
+      text: legacyText,
+      unitType: "chapter",
+    });
 
     return res.json({
       is_locked: false,
       title: book.title,
       access_type: book.access_type,
-      content: structured?.plain_text || await getBookFullText(book.id, book.full_text),
-      structured,
+      content: fallbackStructured?.plain_text || legacyText,
+      structured: fallbackStructured,
     });
   } catch (error) {
     console.error("GET /reader/books/:bookId/content error:", error);
@@ -312,11 +388,18 @@ router.get("/episodes/:episodeId/content", optionalVerifyToken, async (req, res)
       [episode.id, req.user?.id || null],
     );
 
+    const content = sanitizeBookText(episode.content || "");
     return res.json({
       is_locked: false,
       title: episode.title,
       access_type: episode.access_type,
-      content: sanitizeBookText(episode.content || ""),
+      content,
+      structured: buildLegacyStructuredContent({
+        bookId: episode.book_id,
+        title: episode.title,
+        text: content,
+        unitType: "episode",
+      }),
     });
   } catch (error) {
     console.error("GET /reader/episodes/:episodeId/content error:", error);

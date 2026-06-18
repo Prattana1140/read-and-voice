@@ -3,7 +3,7 @@ const bcrypt = require("bcryptjs");
 
 function getSuperAdminConfig() {
   const isProduction = String(process.env.NODE_ENV || "").toLowerCase() === "production";
-  const email = String(process.env.SUPERADMIN_EMAIL || "superadmin@readvoice.local").trim();
+  const email = String(process.env.SUPERADMIN_EMAIL || "").trim();
   const password = String(process.env.SUPERADMIN_PASSWORD || "").trim();
   const name = String(process.env.SUPERADMIN_NAME || "Read & Voice Super Admin").trim();
 
@@ -11,8 +11,12 @@ function getSuperAdminConfig() {
     throw new Error("SUPERADMIN_EMAIL is required.");
   }
 
-  if (isProduction && !password) {
-    throw new Error("SUPERADMIN_PASSWORD is required when NODE_ENV=production.");
+  if (/@readvoice\.local$/i.test(email)) {
+    throw new Error("SUPERADMIN_EMAIL must be a real email, not a demo @readvoice.local address.");
+  }
+
+  if (!password) {
+    throw new Error("SUPERADMIN_PASSWORD is required.");
   }
 
   if (password && password.length < 12) {
@@ -22,7 +26,7 @@ function getSuperAdminConfig() {
   return {
     name,
     email,
-    password: password || "123456",
+    password,
     role: "superadmin",
     status: "active",
     isProduction,

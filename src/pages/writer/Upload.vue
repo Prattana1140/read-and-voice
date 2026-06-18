@@ -30,6 +30,27 @@ type StudioBlock = {
   sentences: StudioSentence[];
 };
 
+type OcrQualityReport = {
+  parse_method?: string | null;
+  document?: {
+    score?: number;
+    status?: string;
+    char_count?: number;
+    needs_review?: boolean;
+  };
+  pages?: {
+    total?: number;
+    weak_count?: number;
+    weak?: Array<{
+      page_number: number;
+      score: number;
+      status: string;
+      char_count: number;
+    }>;
+  };
+  needs_manual_review?: boolean;
+};
+
 const mode = ref<UploadMode>("ebook");
 const activeStudioStep = ref(0);
 
@@ -83,6 +104,7 @@ const message = ref("");
 const error = ref("");
 const uploadProgress = ref(0);
 const uploadStage = ref<"idle" | "uploading" | "processing" | "done">("idle");
+const ocrQuality = ref<OcrQualityReport | null>(null);
 
 const selectedUnit = computed(() => {
   return studioUnits.value.find((unit) => unit.id === selectedUnitId.value) || null;
@@ -129,6 +151,34 @@ const isUploadingEbook = computed(() => {
   return mode.value === "ebook" && loading.value && uploadStage.value !== "idle";
 });
 
+const canUploadEbook = computed(() => {
+  return Boolean(title.value.trim() && author.value.trim() && bookFile.value && !loading.value);
+});
+
+const selectedBookFileLabel = computed(() => {
+  if (!bookFile.value) return "";
+  const sizeMb = bookFile.value.size / (1024 * 1024);
+  return `${bookFile.value.name} · ${sizeMb.toFixed(sizeMb >= 10 ? 0 : 1)} MB`;
+});
+
+const selectedCoverFileLabel = computed(() => {
+  if (!coverFile.value) return "";
+  const sizeMb = coverFile.value.size / (1024 * 1024);
+  return `${coverFile.value.name} · ${sizeMb.toFixed(sizeMb >= 10 ? 0 : 1)} MB`;
+});
+
+const ocrReviewItems = computed(() => {
+  if (!ocrQuality.value) return [];
+  const weakPages = ocrQuality.value.pages?.weak_count || 0;
+  return [
+    "เปิด Reader ตรวจหัวบทและย่อหน้าแรก",
+    weakPages
+      ? `ตรวจหน้าคะแนนต่ำ ${weakPages} หน้าแรกในรายการ`
+      : "สุ่มตรวจ 3-5 หน้าเพื่อดูคำตกหล่น",
+    "ลองกดฟัง TTS อย่างน้อย 1 นาที",
+  ];
+});
+
 const uploadProgressLabel = computed(() => {
   if (uploadStage.value === "processing") {
     return "อัปโหลดครบ 100% แล้ว กำลังประมวลผลไฟล์หนังสือ...";
@@ -143,6 +193,15 @@ const uploadProgressLabel = computed(() => {
   }
 
   return "";
+});
+
+const ocrQualityTitle = computed(() => {
+  const score = ocrQuality.value?.document?.score;
+  if (score === undefined) return "";
+  if (ocrQuality.value?.needs_manual_review) {
+    return `OCR ต้องตรวจทาน คะแนน ${score}/100`;
+  }
+  return `OCR อ่านได้ดี คะแนน ${score}/100`;
 });
 
 const canOpenStudioStep = (index: number) => {
@@ -179,6 +238,7 @@ const formatBlockType = (type: string) => {
 const resetStatus = () => {
   message.value = "";
   error.value = "";
+  ocrQuality.value = null;
 };
 
 const resetUploadProgress = () => {
@@ -262,6 +322,7 @@ const uploadEbook = async () => {
 
     uploadProgress.value = 100;
     uploadStage.value = "done";
+    ocrQuality.value = res.data?.ocr_quality || null;
     message.value = `อัปโหลดเล่มเต็มสำเร็จ: หนังสือ #${res.data.book_id}`;
     bookFile.value = null;
     coverFile.value = null;
@@ -919,6 +980,7 @@ const publishStudioBook = async () => {
               accept=".pdf,.txt,.json,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff,image/*"
               @change="onFileChange"
             />
+            <small v-if="selectedBookFileLabel" class="file-meta">{{ selectedBookFileLabel }}</small>
           </label>
           <label class="full">
             <span>ไฟล์รูปปก</span>
@@ -927,6 +989,7 @@ const publishStudioBook = async () => {
               accept=".jpg,.jpeg,.png,.webp"
               @change="onCoverFileChange"
             />
+            <small v-if="selectedCoverFileLabel" class="file-meta">{{ selectedCoverFileLabel }}</small>
           </label>
         </div>
         <div
@@ -949,7 +1012,30 @@ const publishStudioBook = async () => {
             <span :style="{ width: `${uploadProgress}%` }"></span>
           </div>
         </div>
-        <button class="primary-btn" :disabled="loading" @click="uploadEbook">
+        <div
+          v-if="ocrQuality"
+          class="ocr-quality"
+          :class="{ 'needs-review': ocrQuality.needs_manual_review }"
+        >
+          <strong>{{ ocrQualityTitle }}</strong>
+          <span>
+            วิธีอ่านไฟล์: {{ ocrQuality.parse_method || "ไม่ระบุ" }} ·
+            {{ ocrQuality.pages?.total || 0 }} หน้า
+          </span>
+          <span v-if="ocrQuality.pages?.weak_count">
+            ควรตรวจเอง {{ ocrQuality.pages.weak_count }} หน้า:
+            {{
+              ocrQuality.pages.weak
+                ?.slice(0, 8)
+                .map((page) => `หน้า ${page.page_number}`)
+                .join(", ")
+            }}
+          </span>
+          <ul class="ocr-review-list">
+            <li v-for="item in ocrReviewItems" :key="item">{{ item }}</li>
+          </ul>
+        </div>
+        <button class="primary-btn" :disabled="!canUploadEbook" @click="uploadEbook">
           {{ isUploadingEbook ? `กำลังอัปโหลด ${uploadProgress}%` : loading ? "กำลังทำงาน..." : "อัปโหลดเล่มเต็ม" }}
         </button>
       </div>
@@ -1161,6 +1247,15 @@ textarea {
   color: var(--text-strong);
   font: inherit;
   padding: 12px 14px;
+}
+
+.file-meta {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .content-editor {
@@ -1435,6 +1530,43 @@ textarea {
   border-radius: inherit;
   background: var(--primary);
   transition: width 180ms ease;
+}
+
+.ocr-quality {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 16px;
+  border: 1px solid rgba(20, 184, 166, 0.28);
+  border-radius: 8px;
+  background: rgba(20, 184, 166, 0.08);
+  color: var(--text-strong);
+  padding: 12px 14px;
+}
+
+.ocr-quality.needs-review {
+  border-color: rgba(217, 119, 6, 0.35);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.ocr-quality span {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.ocr-review-list {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.ocr-review-list li {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
 }
 
 .episode-form {

@@ -24,6 +24,7 @@ const MIN_PANEL_SPACE = 320;
 const DRAG_THRESHOLD = 4;
 
 const isOpen = ref(false);
+const openedFromExternal = ref(false);
 const position = ref<WidgetPosition>({ x: 0, y: 0 });
 const viewportSize = ref({ width: 0, height: 0 });
 const isDragging = ref(false);
@@ -143,21 +144,30 @@ const togglePanel = () => {
     return;
   }
 
+  openedFromExternal.value = false;
   isOpen.value = !isOpen.value;
 };
 
 const handleExternalToggle = () => {
   toggleAccessibilityMode();
+  openedFromExternal.value = false;
+  isOpen.value = false;
+};
+
+const closePanel = () => {
+  openedFromExternal.value = false;
   isOpen.value = false;
 };
 
 const togglePanelFromExternal = () => {
-  isOpen.value = !isOpen.value;
+  const shouldOpen = !isOpen.value || !openedFromExternal.value;
+  openedFromExternal.value = shouldOpen;
+  isOpen.value = shouldOpen;
 };
 
 const toggleModeFromPanel = () => {
   toggleAccessibilityMode();
-  isOpen.value = false;
+  closePanel();
 };
 
 const handlePointerMove = (event: PointerEvent) => {
@@ -219,7 +229,7 @@ const handleDocumentPointerDown = (event: PointerEvent) => {
   if (widgetRef.value?.contains(target)) return;
   if (target.closest("[data-accessibility-toggle='true']")) return;
 
-  isOpen.value = false;
+  closePanel();
 };
 
 const increaseFont = () => {
@@ -286,6 +296,7 @@ onBeforeUnmount(() => {
       'align-left': accessibilityState.enabled && panelAlignsLeft,
       'open-up': accessibilityState.enabled && panelOpensUp,
       'panel-only': !accessibilityState.enabled,
+      'from-nav': openedFromExternal,
     }"
     :style="widgetStyle"
   >
@@ -316,7 +327,7 @@ onBeforeUnmount(() => {
           <button class="a11y-pill" type="button" @click="toggleModeFromPanel">
             {{ accessibilityState.enabled ? t("a11y.disableMode") : t("a11y.enableMode") }}
           </button>
-          <button class="a11y-close" type="button" :aria-label="t('a11y.minimize')" @click="isOpen = false">
+          <button class="a11y-close" type="button" :aria-label="t('a11y.minimize')" @click="closePanel">
             {{ t("a11y.minimizeShort") }}
           </button>
         </div>
@@ -585,28 +596,161 @@ kbd {
 }
 
 @media (max-width: 640px) {
+  .a11y-widget.panel-only {
+    place-items: end;
+    padding: 0 18px 88px;
+  }
+
   .a11y-panel {
     position: fixed;
     top: auto;
-    right: 12px;
-    bottom: 12px;
-    left: 12px;
-    width: auto;
-    max-height: min(78vh, 560px);
+    right: 18px;
+    bottom: 88px;
+    left: auto;
+    width: min(300px, calc(100vw - 36px));
+    max-height: min(56vh, 420px);
+    gap: 10px;
+    border-radius: 16px;
+    padding: 12px;
+    box-shadow: 0 18px 38px rgba(15, 23, 42, 0.18);
   }
 
-  .a11y-widget.panel-only .a11y-panel {
-    position: relative;
-    top: auto;
-    right: auto;
-    bottom: auto;
-    left: auto;
-    width: min(360px, calc(100vw - 32px));
-    max-height: min(86vh, 620px);
+  .a11y-panel__head,
+  .a11y-panel__actions,
+  .a11y-inline {
+    gap: 7px;
+  }
+
+  .a11y-panel__head {
+    align-items: start;
+  }
+
+  .a11y-panel__head strong {
+    font-size: 14px;
+    line-height: 1.25;
+  }
+
+  .a11y-panel__head small {
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
+  .a11y-panel__actions {
+    flex: 0 0 auto;
+  }
+
+  .a11y-pill,
+  .a11y-close,
+  .a11y-inline button {
+    min-height: 30px;
+    border-radius: 999px;
+    font-size: 11px;
+    padding: 0 10px;
+  }
+
+  .a11y-close {
+    min-width: 34px;
+    padding: 0 8px;
   }
 
   .a11y-grid {
     grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .a11y-card {
+    gap: 2px;
+    border-radius: 12px;
+    padding: 10px 12px;
+  }
+
+  .a11y-card strong {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .a11y-card span {
+    font-size: 10px;
+  }
+
+  .a11y-control {
+    gap: 6px;
+  }
+
+  .a11y-control > span {
+    font-size: 11px;
+  }
+
+  .a11y-inline strong {
+    font-size: 12px;
+  }
+
+  .a11y-note {
+    font-size: 10px;
+    line-height: 1.35;
+  }
+
+  kbd {
+    border-radius: 5px;
+    font-size: 10px;
+    padding: 1px 5px;
+  }
+
+  .a11y-widget.panel-only .a11y-panel {
+    position: fixed;
+    top: auto;
+    right: 18px;
+    bottom: 88px;
+    left: auto;
+    width: min(300px, calc(100vw - 36px));
+    max-height: min(56vh, 420px);
+  }
+
+  .a11y-widget.from-nav .a11y-panel,
+  .a11y-widget.panel-only.from-nav .a11y-panel {
+    top: 76px;
+    right: 18px;
+    bottom: auto;
+    left: auto;
+    width: min(224px, calc(100vw - 36px));
+    max-height: calc(100dvh - 88px);
+  }
+
+  .a11y-widget.from-nav .a11y-panel__head {
+    grid-template-columns: 1fr;
+  }
+
+  .a11y-widget.from-nav .a11y-panel__head,
+  .a11y-widget.from-nav .a11y-panel__actions {
+    align-items: start;
+  }
+
+  .a11y-widget.from-nav .a11y-panel__head {
+    display: grid;
+  }
+
+  .a11y-widget.from-nav .a11y-panel__actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 360px) {
+  .a11y-panel,
+  .a11y-widget.panel-only .a11y-panel {
+    right: 14px;
+    width: min(280px, calc(100vw - 28px));
+    padding: 10px;
+  }
+
+  .a11y-widget.panel-only {
+    padding: 0 14px 84px;
+  }
+
+  .a11y-widget.from-nav .a11y-panel,
+  .a11y-widget.panel-only.from-nav .a11y-panel {
+    right: 14px;
+    width: min(214px, calc(100vw - 28px));
   }
 }
 </style>

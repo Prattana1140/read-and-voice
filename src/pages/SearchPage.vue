@@ -367,6 +367,11 @@ onMounted(loadSearchData);
 }
 
 @media (max-width: 760px) {
+  .search-page {
+    padding-right: 22px;
+    padding-left: 22px;
+  }
+
   .search-hero,
   .filters {
     grid-template-columns: 1fr;
@@ -376,9 +381,23 @@ onMounted(loadSearchData);
     grid-template-columns: 1fr;
   }
 
+  .filters {
+    gap: 7px;
+    margin-top: 12px;
+  }
+
+  .search-box input,
+  .search-box button,
+  .filters select {
+    min-height: 36px;
+    border-radius: 6px;
+    font-size: 12px;
+    padding-inline: 10px;
+  }
+
   .result-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 9px;
+    gap: 7px;
   }
 
   .book-card {
@@ -402,10 +421,10 @@ onMounted(loadSearchData);
 
   .book-card h2 {
     display: -webkit-box;
-    min-height: 34px;
+    min-height: 30px;
     margin: 2px 0;
     overflow: hidden;
-    font-size: 11px;
+    font-size: 10px;
     line-height: 1.25;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -416,7 +435,7 @@ onMounted(loadSearchData);
   .book-card small {
     display: -webkit-box;
     overflow: hidden;
-    font-size: 9px;
+    font-size: 8px;
     line-height: 1.25;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 1;

@@ -1,4 +1,6 @@
 const express = require("express");
+const fs = require("fs");
+const path = require("path");
 const db = require("../config/db");
 const { verifyToken } = require("../middleware/auth");
 const { requireSuperAdmin } = require("../middleware/superadmin");
@@ -15,6 +17,76 @@ const DEFAULT_CHECKLIST = {
 };
 
 let tablesReady;
+
+function readEnv(name) {
+  return String(process.env[name] || "").trim();
+}
+
+function isPlaceholder(value) {
+  const text = String(value || "").trim().toLowerCase();
+  return (
+    !text ||
+    text.includes("change-this") ||
+    text.includes("replace-with") ||
+    text.includes("your-") ||
+    text.includes("example") ||
+    ["x", "xx", "xxx", "xxxx", "xxxxx"].includes(text)
+  );
+}
+
+function getOAuthRedirectUri(provider) {
+  const providerKey = String(provider || "").toUpperCase();
+  return (
+    readEnv(`${providerKey}_REDIRECT_URI`) ||
+    readEnv("OAUTH_REDIRECT_URI") ||
+    `${readEnv("API_PUBLIC_URL") || readEnv("RENDER_EXTERNAL_URL") || "http://localhost:3000"}/api/auth/oauth/${provider}/callback`
+  );
+}
+
+async function countQuery(sql, params = []) {
+  const [rows] = await db.query(sql, params);
+  return Number(rows[0]?.total || 0);
+}
+
+function getLatestBackup() {
+  const backupDir =
+    process.env.DB_BACKUP_DIR ||
+    path.join(__dirname, "..", "backups", "manual");
+
+  if (!fs.existsSync(backupDir)) {
+    return {
+      configured: false,
+      directory: backupDir,
+      latest_file: null,
+      latest_at: null,
+      latest_bytes: 0,
+    };
+  }
+
+  const files = fs
+    .readdirSync(backupDir)
+    .filter((file) => file.toLowerCase().endsWith(".sql"))
+    .map((file) => {
+      const filePath = path.join(backupDir, file);
+      const stats = fs.statSync(filePath);
+      return {
+        file,
+        path: filePath,
+        mtime: stats.mtime,
+        bytes: stats.size,
+      };
+    })
+    .sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
+
+  const latest = files[0] || null;
+  return {
+    configured: true,
+    directory: backupDir,
+    latest_file: latest?.file || null,
+    latest_at: latest?.mtime?.toISOString() || null,
+    latest_bytes: latest?.bytes || 0,
+  };
+}
 
 async function ensureTables() {
   if (!tablesReady) {
@@ -75,6 +147,80 @@ router.get("/checklist", async (_req, res) => {
 
 router.get("/readiness", async (_req, res) => {
   return res.json(getProductionReadiness());
+});
+
+router.get("/operations", async (_req, res) => {
+  try {
+    const lineClientId = readEnv("LINE_CLIENT_ID");
+    const lineClientSecret = readEnv("LINE_CLIENT_SECRET");
+    const lineReady = !isPlaceholder(lineClientId) && !isPlaceholder(lineClientSecret);
+
+    const totalBooks = await countQuery("SELECT COUNT(*) AS total FROM books");
+    const missingStructuredContent = await countQuery(
+      `SELECT COUNT(*) AS total
+       FROM books b
+       WHERE b.full_text IS NOT NULL
+         AND TRIM(b.full_text) <> ''
+         AND NOT EXISTS (
+           SELECT 1 FROM book_units bu WHERE bu.book_id = b.id
+         )`,
+    ).catch(() => 0);
+    const pendingApprovals = await countQuery(
+      `SELECT COUNT(*) AS total
+       FROM books
+       WHERE approval_status = 'pending' OR lifecycle_status = 'pending_review'`,
+    ).catch(() => 0);
+    const pendingTopups = await countQuery(
+      `SELECT COUNT(*) AS total
+       FROM coin_topup_orders
+       WHERE status = 'pending'`,
+    ).catch(() => 0);
+    const openSupportTickets = await countQuery(
+      `SELECT COUNT(*) AS total
+       FROM support_tickets
+       WHERE status IN ('open', 'new', 'pending')`,
+    ).catch(() => 0);
+
+    const backup = getLatestBackup();
+    const latestBackupAgeHours = backup.latest_at
+      ? Math.round((Date.now() - new Date(backup.latest_at).getTime()) / 36e5)
+      : null;
+
+    return res.json({
+      checked_at: new Date().toISOString(),
+      social_login: {
+        line: {
+          configured: lineReady,
+          client_id_set: !isPlaceholder(lineClientId),
+          client_secret_set: !isPlaceholder(lineClientSecret),
+          callback_url: getOAuthRedirectUri("line"),
+        },
+      },
+      content: {
+        total_books: totalBooks,
+        missing_structured_content: missingStructuredContent,
+        content_audit_command: "npm --prefix backend run content:audit",
+      },
+      queues: {
+        pending_book_approvals: pendingApprovals,
+        pending_coin_topups: pendingTopups,
+        open_support_tickets: openSupportTickets,
+      },
+      monitoring: {
+        command: "npm --prefix backend run monitor:check",
+        daily_command: "npm --prefix backend run ops:daily",
+      },
+      backup: {
+        ...backup,
+        latest_age_hours: latestBackupAgeHours,
+        command: "npm --prefix backend run db:backup",
+        retention_days: Number(process.env.DB_BACKUP_RETENTION_DAYS || 14),
+      },
+    });
+  } catch (error) {
+    console.error("GET /admin/settings/operations error:", error);
+    return res.status(500).json({ message: "โหลดสถานะ operational ไม่สำเร็จ" });
+  }
 });
 
 router.get("/system", async (_req, res) => {

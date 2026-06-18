@@ -10,6 +10,7 @@
     "dev:backend": "npm --prefix backend run dev",
     "build": "vite build",
     "check:category-scopes": "node backend/services/scripts/checkCategoryScopes.js",
+    "check:voice-commands": "node scripts/checkVoiceCommands.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

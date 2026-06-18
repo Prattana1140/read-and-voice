@@ -127,7 +127,6 @@ async function ensureWriterProfilesTable() {
           bio TEXT NULL,
           avatar_url TEXT NULL,
           banner_url TEXT NULL,
-          facebook_url VARCHAR(255) NULL,
           x_url VARCHAR(255) NULL,
           pinned_book_id INT NULL,
           created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -906,6 +905,8 @@ router.post(
         message: "อัปโหลดหนังสือสำเร็จ",
         book_id: result.insertId,
         total_pages: pages.length,
+        parse_method: parsed.parseMethod || null,
+        ocr_quality: parsed.quality || null,
       });
     } catch (error) {
       await connection.rollback();

@@ -14,7 +14,10 @@ type ReaderResponse = {
 
 type StructuredSentence = {
   id?: number;
+  book_unit_id?: number | null;
+  block_id?: number | null;
   sentence_uuid?: string;
+  sentence_order?: number;
   display_text?: string;
   tts_text?: string;
   plain_text?: string;
@@ -97,6 +100,7 @@ const selectedVoice = ref("");
 const voices = ref<SpeechSynthesisVoice[]>([]);
 
 const sentences = ref<string[]>([]);
+const sentenceItems = ref<StructuredSentence[]>([]);
 const currentIndex = ref(0);
 const isSpeaking = ref(false);
 const isPaused = ref(false);
@@ -146,6 +150,7 @@ const paragraphs = computed(() => {
     .map((paragraph) => paragraph.trim())
     .filter(Boolean);
 });
+const activeSentence = computed(() => sentenceItems.value[currentIndex.value] || null);
 const currentProgress = computed(() => {
   if (!sentences.value.length) return 0;
   return Math.min(100, Math.round(((currentIndex.value + 1) / sentences.value.length) * 100));
@@ -187,8 +192,23 @@ function normalizeStructuredSentences(payload?: StructuredReaderPayload | null) 
   const source = directSentences.length ? directSentences : blockSentences;
 
   return source
-    .map((sentence) => String(sentence.tts_text || sentence.display_text || sentence.plain_text || "").trim())
-    .filter(Boolean);
+    .map((sentence, index) => {
+      const text = String(sentence.tts_text || sentence.display_text || sentence.plain_text || "").trim();
+      if (!text) return null;
+      return {
+        ...sentence,
+        id: sentence.id ?? index + 1,
+        sentence_order: sentence.sentence_order ?? index + 1,
+        tts_text: text,
+        display_text: String(sentence.display_text || sentence.plain_text || text).trim(),
+      };
+    })
+    .filter(Boolean) as StructuredSentence[];
+}
+
+function findSentenceIndexByUuid(uuid?: string | null) {
+  if (!uuid) return -1;
+  return sentenceItems.value.findIndex((sentence) => sentence.sentence_uuid === uuid);
 }
 
 function loadVoices() {
@@ -325,8 +345,11 @@ async function loadProgress() {
   if (isEpisodeMode.value || !route.params.id) return;
 
   try {
-    const { data } = await api.get(`/progress/${route.params.id}`);
-    const serverIndex = Number(data?.last_position ?? 0);
+    const { data } = await api.get(`/reader/books/${route.params.id}/progress`);
+    const uuidIndex = findSentenceIndexByUuid(data?.sentence_uuid);
+    const serverIndex = uuidIndex >= 0
+      ? uuidIndex
+      : Number(data?.last_position ?? data?.last_position_ms ?? 0);
 
     if (!Number.isNaN(serverIndex) && serverIndex >= 0 && serverIndex < sentences.value.length) {
       currentIndex.value = serverIndex;
@@ -346,15 +369,15 @@ function saveProgress() {
 
   if (isEpisodeMode.value || !route.params.id || !sentences.value.length) return;
 
-  api.post("/progress", {
-    book_id: Number(route.params.id),
-    current_page: 1,
-    last_position: currentIndex.value,
+  const sentence = activeSentence.value;
+  api.post(`/reader/books/${route.params.id}/progress`, {
+    book_unit_id: sentence?.book_unit_id || null,
+    block_id: sentence?.block_id || null,
+    sentence_id: sentence?.id && sentence.id > 0 ? sentence.id : null,
+    sentence_uuid: sentence?.sentence_uuid || null,
     progress_percent: currentProgress.value,
-    rate: rate.value,
-    pitch: pitch.value,
-    volume: volume.value,
-    voice_name: selectedVoice.value || null,
+    last_position_ms: currentIndex.value,
+    reading_mode: "read_listen",
   }).catch(() => {
     // Keep reading flow quiet if progress sync fails.
   });
@@ -375,6 +398,7 @@ async function fetchContent() {
   content.value = "";
   structuredBlocks.value = [];
   sentences.value = [];
+  sentenceItems.value = [];
   currentIndex.value = 0;
   isTocOpen.value = false;
   isSettingsOpen.value = false;
@@ -397,9 +421,20 @@ async function fetchContent() {
 
     structuredBlocks.value = Array.isArray(data.structured?.blocks) ? data.structured.blocks : [];
     content.value = data.structured?.plain_text || data.content || "";
-    sentences.value = normalizeStructuredSentences(data.structured);
+    sentenceItems.value = normalizeStructuredSentences(data.structured);
+    sentences.value = sentenceItems.value
+      .map((sentence) => String(sentence.tts_text || sentence.display_text || sentence.plain_text || "").trim())
+      .filter(Boolean);
     if (!sentences.value.length) {
       sentences.value = splitSentences(content.value);
+      sentenceItems.value = sentences.value.map((sentence, index) => ({
+        id: index + 1,
+        sentence_order: index + 1,
+        sentence_uuid: `local-${readerKey.value}-${index + 1}`,
+        display_text: sentence,
+        tts_text: sentence,
+        plain_text: sentence,
+      }));
     }
     await loadProgress();
     await scrollToCurrent();

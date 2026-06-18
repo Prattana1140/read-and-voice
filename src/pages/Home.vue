@@ -2710,25 +2710,44 @@ watch(locale, () => {
 
 @media (max-width: 640px) {
   .storefront {
-    width: min(100% - 24px, 1280px);
-    padding-top: 14px;
+    width: min(100% - 44px, 1280px);
+    padding-top: 12px;
   }
 
   .shelf-section,
   .category-overview {
-    padding-block: 10px 6px;
+    padding-block: 8px 4px;
+  }
+
+  .category-carousel {
+    margin-top: 8px;
+  }
+
+  .category-arrow {
+    width: 34px;
+    height: 34px;
+    font-size: 18px;
+    box-shadow: 0 8px 20px rgba(15, 118, 110, 0.14);
+  }
+
+  .category-arrow--left {
+    left: 8px;
+  }
+
+  .category-arrow--right {
+    right: 6px;
   }
 
   .category-chip-grid {
     grid-auto-flow: column;
-    grid-auto-columns: clamp(152px, calc((100vw - 42px) / 2), 176px);
+    grid-auto-columns: clamp(136px, calc((100vw - 44px) / 2), 158px);
     grid-template-columns: none;
-    grid-template-rows: repeat(2, minmax(82px, auto));
-    gap: 8px;
+    grid-template-rows: repeat(2, minmax(68px, auto));
+    gap: 6px;
     width: 100%;
     max-width: 100%;
     overflow-x: auto;
-    padding: 0 2px 8px;
+    padding: 0 2px 6px;
     justify-content: start;
     scroll-snap-type: x proximity;
     scrollbar-width: none;
@@ -2745,13 +2764,14 @@ watch(locale, () => {
   .category-chip {
     width: 100%;
     min-width: 0;
-    min-height: 86px;
-    border-radius: 14px;
-    padding: 12px 50px 12px 10px;
+    min-height: 68px;
+    border-width: 1px;
+    border-radius: 12px;
+    padding: 9px 42px 9px 9px;
   }
 
   .category-chip strong {
-    font-size: 12px;
+    font-size: 11px;
     line-height: 1.1;
   }
 
@@ -2765,10 +2785,10 @@ watch(locale, () => {
   }
 
   .category-art-image {
-    right: 4px;
-    bottom: 10px;
-    width: 48px;
-    height: 48px;
+    right: 5px;
+    bottom: 8px;
+    width: 38px;
+    height: 38px;
   }
 
 
@@ -2797,8 +2817,8 @@ watch(locale, () => {
   }
 
   .book-grid {
-    grid-auto-columns: calc((100% - 28px) / 3.25);
-    gap: 8px;
+    grid-auto-columns: calc((100% - 24px) / 3.55);
+    gap: 7px;
     margin-top: 8px;
     padding: 0 0 8px;
   }
@@ -2808,10 +2828,10 @@ watch(locale, () => {
   }
 
   .book-info {
-    grid-template-rows: 14px 30px 13px 13px minmax(20px, auto);
-    gap: 4px;
-    min-height: 112px;
-    padding: 8px 10px 7px;
+    grid-template-rows: 12px 26px 12px 12px minmax(18px, auto);
+    gap: 3px;
+    min-height: 96px;
+    padding: 6px 7px;
   }
 
   .content-badge {
@@ -2821,17 +2841,17 @@ watch(locale, () => {
 
   .book-info p {
     display: -webkit-box;
-    min-height: 30px;
-    font-size: 11px;
-    line-height: 1.3;
+    min-height: 26px;
+    font-size: 10px;
+    line-height: 1.25;
     line-clamp: 2;
     -webkit-line-clamp: 2;
   }
 
   .book-info small {
     display: -webkit-box;
-    min-height: 13px;
-    font-size: 9px;
+    min-height: 12px;
+    font-size: 8px;
     line-clamp: 1;
     -webkit-line-clamp: 1;
   }
@@ -2860,17 +2880,17 @@ watch(locale, () => {
 
 @media (max-width: 420px) {
   .storefront {
-    width: min(100% - 18px, 1280px);
+    width: min(100% - 36px, 1280px);
   }
 
   .category-chip-grid {
-    grid-auto-columns: clamp(144px, calc((100vw - 36px) / 2), 168px);
+    grid-auto-columns: clamp(128px, calc((100vw - 34px) / 2), 150px);
     grid-template-columns: none;
-    grid-template-rows: repeat(2, minmax(80px, auto));
+    grid-template-rows: repeat(2, minmax(64px, auto));
     width: 100%;
     max-width: 100%;
-    gap: 8px;
-    padding: 0 2px 8px;
+    gap: 6px;
+    padding: 0 2px 6px;
     justify-content: start;
   }
 
@@ -2884,12 +2904,26 @@ watch(locale, () => {
   .category-chip {
     width: 100%;
     min-width: 0;
-    min-height: 82px;
-    padding: 11px 46px 11px 9px;
+    min-height: 64px;
+    padding: 8px 38px 8px 8px;
   }
 
   .category-chip strong {
-    font-size: 12px;
+    font-size: 10px;
+    line-height: 1.1;
+  }
+
+  .category-art-image {
+    right: 4px;
+    bottom: 7px;
+    width: 34px;
+    height: 34px;
+  }
+
+  .category-arrow {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
   }
 
   .category-bar {
@@ -2904,16 +2938,16 @@ watch(locale, () => {
   }
 
   .book-grid {
-    grid-auto-columns: calc((100% - 28px) / 3.25);
-    gap: 8px;
+    grid-auto-columns: calc((100% - 22px) / 3.45);
+    gap: 7px;
     padding-right: 0;
   }
 
   .book-info {
-    grid-template-rows: 12px 28px 12px 12px minmax(18px, auto);
+    grid-template-rows: 11px 24px 11px 11px minmax(17px, auto);
     gap: 3px;
-    min-height: 102px;
-    padding: 7px 9px 6px;
+    min-height: 90px;
+    padding: 6px;
   }
 
   .content-badge {
@@ -2922,14 +2956,14 @@ watch(locale, () => {
   }
 
   .book-info p {
-    min-height: 28px;
-    font-size: 10px;
+    min-height: 24px;
+    font-size: 9px;
     line-height: 1.25;
   }
 
   .book-info small {
-    min-height: 12px;
-    font-size: 8px;
+    min-height: 11px;
+    font-size: 7px;
   }
 
   .heart-row {

@@ -72,8 +72,6 @@ npm run db:seed:catalog
 npm run create:superadmin
 ```
 
-Do not run `npm run db:seed:platform` for the real production database. It creates demo users with known demo credentials. Use it only for a separate demo database.
-
 ## 4. Deploy backend to Render
 
 This repo now includes [render.yaml](</c:/Users/jikke/Read and Voice/render.yaml:1>) and [backend/Dockerfile](</c:/Users/jikke/Read and Voice/backend/Dockerfile:1>) so Render can build the backend with real OCR dependencies installed.
@@ -98,9 +96,6 @@ ALLOW_PASSWORD_RESET_PREVIEW=false
 DISABLE_ADMIN_PASSWORD_RESET=false
 MANUAL_PAYMENT_ENABLED=true
 MANUAL_PAYMENT_INSTRUCTIONS=Please transfer payment using the admin-provided channel, then submit proof with transaction {topup_id} for {amount} THB.
-ENABLE_MOCK_PAYMENTS=false
-ENABLE_MOCK_COIN_TOPUP=false
-ALLOW_DEMO_SEED_IN_PRODUCTION=false
 SUPERADMIN_EMAIL=your-admin-email@example.com
 SUPERADMIN_PASSWORD=use-a-long-random-password
 LINE_CLIENT_ID=...
@@ -140,12 +135,12 @@ Expected outcomes:
 - password reset uses admin-assisted fallback unless Resend or a webhook is configured
 - LINE login callback points to the Render backend
 - coin top-up works in manual approval mode
-- mock payments are disabled
-- demo user seeding is blocked in production
+- mock payment routes are removed
+- demo user seed commands are removed
 - OCR works on Render because the Docker image installs Tesseract and Python OCR tools
 
 ## 7. Honest caveat
 
 This is the closest practical "free-all" setup for this codebase without rewriting MySQL to another database.
 
-It is good for testing, demos, and early users, but it is not truly production-grade because the free backend can sleep and Aiven free resources are intentionally small.
+It is good for testing and early users, but it is not truly production-grade because the free backend can sleep and Aiven free resources are intentionally small.

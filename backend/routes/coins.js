@@ -13,21 +13,6 @@ const TOPUP_PACKAGES = [
 
 let topupTablesReady;
 
-function isProduction() {
-  return String(process.env.NODE_ENV || "").toLowerCase() === "production";
-}
-
-function isMockCoinTopupEnabled() {
-  if (isProduction()) return false;
-
-  const configuredValue = String(process.env.ENABLE_MOCK_COIN_TOPUP || "").trim();
-
-  if (/^(1|true|yes)$/i.test(configuredValue)) return true;
-  if (/^(0|false|no)$/i.test(configuredValue)) return false;
-
-  return !isProduction();
-}
-
 function isManualPaymentEnabled() {
   return /^(1|true|yes)$/i.test(process.env.MANUAL_PAYMENT_ENABLED || "");
 }
@@ -167,67 +152,35 @@ router.post("/topup", verifyToken, async (req, res) => {
 
     await ensureTopupTables(connection);
 
-    if (!isMockCoinTopupEnabled()) {
-      const hasCheckoutTemplate = Boolean(process.env.PAYMENT_CHECKOUT_URL_TEMPLATE);
+    const hasCheckoutTemplate = Boolean(process.env.PAYMENT_CHECKOUT_URL_TEMPLATE);
 
-      if (!hasCheckoutTemplate && !isManualPaymentEnabled()) {
-        return res.status(503).json({
-          message: "ยังไม่ได้ตั้งค่า payment gateway หรือ manual payment สำหรับเติม coin จริง",
-        });
-      }
-
-      const [result] = await connection.query(
-        `INSERT INTO coin_topup_orders (user_id, package_id, coins, price, status)
-         VALUES (?, ?, ?, ?, 'pending')`,
-        [userId, selectedPackage?.id || null, amount, price],
-      );
-      const topupOrder = {
-        id: result.insertId,
-        user_id: userId,
-        package_id: selectedPackage?.id || null,
-        coins: amount,
-        price,
-      };
-
-      return res.status(202).json({
-        message: hasCheckoutTemplate
-          ? "สร้างรายการเติม coin แล้ว กรุณาชำระเงินผ่าน payment gateway"
-          : "สร้างรายการเติม coin แล้ว กรุณาโอนเงินและรอ admin อนุมัติ",
-        topup_id: topupOrder.id,
-        payment_status: "pending",
-        checkout_url: hasCheckoutTemplate ? getCheckoutUrl(topupOrder) : null,
-        payment_instructions: hasCheckoutTemplate ? null : getManualPaymentInstructions(topupOrder),
+    if (!hasCheckoutTemplate && !isManualPaymentEnabled()) {
+      return res.status(503).json({
+        message: "ยังไม่ได้ตั้งค่า payment gateway หรือ manual payment สำหรับเติม coin จริง",
       });
     }
 
-    await connection.beginTransaction();
-    await ensureWallet(connection, userId);
-
-    await connection.query(
-      "UPDATE coin_wallets SET balance = balance + ? WHERE user_id = ?",
-      [amount, userId]
+    const [result] = await connection.query(
+      `INSERT INTO coin_topup_orders (user_id, package_id, coins, price, status)
+       VALUES (?, ?, ?, ?, 'pending')`,
+      [userId, selectedPackage?.id || null, amount, price],
     );
-
-    const balanceAfter = await getBalance(connection, userId);
-
-    await connection.query(
-      `INSERT INTO coin_transactions
-       (user_id, type, amount, balance_after, ref_type, description)
-       VALUES (?, 'topup', ?, ?, 'mock_payment', ?)`,
-      [
-        userId,
-        amount,
-        balanceAfter,
-        selectedPackage ? selectedPackage.label : "Manual coin top up",
-      ]
-    );
-
-    await connection.commit();
-
-    return res.json({
-      message: "เติม coin สำเร็จ",
-      balance: balanceAfter,
+    const topupOrder = {
+      id: result.insertId,
+      user_id: userId,
+      package_id: selectedPackage?.id || null,
       coins: amount,
+      price,
+    };
+
+    return res.status(202).json({
+      message: hasCheckoutTemplate
+        ? "สร้างรายการเติม coin แล้ว กรุณาชำระเงินผ่าน payment gateway"
+        : "สร้างรายการเติม coin แล้ว กรุณาโอนเงินและรอ admin อนุมัติ",
+      topup_id: topupOrder.id,
+      payment_status: "pending",
+      checkout_url: hasCheckoutTemplate ? getCheckoutUrl(topupOrder) : null,
+      payment_instructions: hasCheckoutTemplate ? null : getManualPaymentInstructions(topupOrder),
     });
   } catch (error) {
     await connection.rollback();

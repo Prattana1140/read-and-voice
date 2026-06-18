@@ -44,7 +44,6 @@ function toPublicWriterProfile(row) {
     bio: row.bio || "",
     avatar_url: row.avatar_url || "",
     banner_url: row.banner_url || "",
-    facebook_url: row.facebook_url || "",
     x_url: row.x_url || "",
     pinned_book_id: row.pinned_book_id || null,
     follower_count: Number(row.follower_count || 0),
@@ -67,7 +66,6 @@ async function ensureWriterTables() {
           bio TEXT NULL,
           avatar_url TEXT NULL,
           banner_url TEXT NULL,
-          facebook_url VARCHAR(255) NULL,
           x_url VARCHAR(255) NULL,
           pinned_book_id INT NULL,
           created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -129,7 +127,6 @@ async function fetchWriterProfileByUserId(userId) {
        wp.bio,
        wp.avatar_url,
        wp.banner_url,
-       wp.facebook_url,
        wp.x_url,
        wp.pinned_book_id,
        wp.updated_at,
@@ -257,7 +254,6 @@ router.put("/me/profile", verifyToken, async (req, res) => {
     const bio = normalizeOptionalText(req.body.bio, 4000);
     const avatarUrl = normalizeOptionalText(req.body.avatar_url);
     const bannerUrl = normalizeOptionalText(req.body.banner_url);
-    const facebookUrl = normalizeOptionalText(req.body.facebook_url, 255);
     const xUrl = normalizeOptionalText(req.body.x_url, 255);
     const pinnedBookId = req.body.pinned_book_id ? Number(req.body.pinned_book_id) : null;
 
@@ -286,8 +282,8 @@ router.put("/me/profile", verifyToken, async (req, res) => {
 
     await db.query(
       `INSERT INTO writer_profiles
-       (user_id, pen_name, page_slug, tagline, bio, avatar_url, banner_url, facebook_url, x_url, pinned_book_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       (user_id, pen_name, page_slug, tagline, bio, avatar_url, banner_url, x_url, pinned_book_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
          pen_name = VALUES(pen_name),
          page_slug = VALUES(page_slug),
@@ -295,7 +291,6 @@ router.put("/me/profile", verifyToken, async (req, res) => {
          bio = VALUES(bio),
          avatar_url = VALUES(avatar_url),
          banner_url = VALUES(banner_url),
-         facebook_url = VALUES(facebook_url),
          x_url = VALUES(x_url),
          pinned_book_id = VALUES(pinned_book_id),
          updated_at = NOW()`,
@@ -307,7 +302,6 @@ router.put("/me/profile", verifyToken, async (req, res) => {
         bio,
         avatarUrl,
         bannerUrl,
-        facebookUrl,
         xUrl,
         pinnedBookId,
       ],

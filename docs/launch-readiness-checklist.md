@@ -13,8 +13,6 @@ Set these backend environment variables:
 ```env
 MANUAL_PAYMENT_ENABLED=true
 MANUAL_PAYMENT_INSTRUCTIONS=Please transfer payment using the admin-provided channel, then submit proof with transaction {topup_id} for {amount} THB.
-ENABLE_MOCK_COIN_TOPUP=false
-ENABLE_MOCK_PAYMENTS=false
 ```
 
 Expected behavior:
@@ -77,7 +75,6 @@ FRONTEND_URL=https://your-frontend.example.com
 DATABASE_URL=mysql://...
 DB_SSL=true
 DB_SSL_MODE=require
-ALLOW_DEMO_SEED_IN_PRODUCTION=false
 SUPERADMIN_EMAIL=your-admin-email@example.com
 SUPERADMIN_PASSWORD=use-a-long-random-password
 ```
@@ -92,10 +89,13 @@ Run:
 
 ```powershell
 npm --prefix backend run config:check
+npm --prefix backend run monitor:check
+npm --prefix backend run content:audit
+npm --prefix backend run ops:daily
 npm run build
 ```
 
-Both should pass before deploy.
+All checks should pass before deploy.
 
 ## 4. Role Smoke Test
 
@@ -135,4 +135,7 @@ Improve after money and email are stable:
 
 - Make writer upload a clearer step-by-step production wizard.
 - Expand superadmin settings beyond operational shortcuts.
-- Add monitoring, backups, and a real payment gateway when manual approval becomes too slow.
+- Use [docs/operations-runbook.md](operations-runbook.md) for LINE setup, OCR audit, content migration, monitoring, and backup operations.
+- Schedule `npm --prefix backend run ops:daily` for daily monitor + content audit + database backup.
+- Run `npm --prefix backend run db:backup` before major data imports or updates.
+- Add a real payment gateway when manual approval becomes too slow.

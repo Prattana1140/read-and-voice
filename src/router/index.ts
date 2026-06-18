@@ -205,10 +205,6 @@ const routes: RouteRecordRaw[] = [
     meta: { guestOnly: true },
   },
   {
-    path: "/login/facebook",
-    redirect: "/login",
-  },
-  {
     path: "/oauth/callback",
     name: "OAuthCallback",
     component: OAuthCallback,

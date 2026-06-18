@@ -235,16 +235,90 @@ function splitTextToPages(text, chunkSize = 1800) {
   return pages.length ? pages : [cleanText];
 }
 
+function analyzeTextQuality(text) {
+  const value = sanitizeBookText(text || "");
+  const compact = value.replace(/\s/g, "");
+  const length = compact.length;
+  const thaiCount = countMatches(compact, THAI_CHAR_PATTERN);
+  const latinCount = countMatches(compact, LATIN_CHAR_PATTERN);
+  const digitCount = countMatches(compact, DIGIT_PATTERN);
+  const usefulCount = thaiCount + latinCount + digitCount;
+  const badCount =
+    countMatches(value, /\uFFFD/g) +
+    countMatches(value, /[\u0080-\u009F]/g) +
+    countMatches(value, /[|\\/~`^*_+=<>[\]{}]{2,}/g);
+  const usefulRatio = length ? usefulCount / length : 0;
+  const badRatio = length ? badCount / length : 0;
+  const score = Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(usefulRatio * 92 - badRatio * 250 - (looksLikeMojibake(value) ? 35 : 0) + 8),
+    ),
+  );
+
+  return {
+    score,
+    status: score >= 78 ? "good" : score >= 55 ? "review" : "poor",
+    char_count: value.length,
+    useful_ratio: Number(usefulRatio.toFixed(3)),
+    bad_ratio: Number(badRatio.toFixed(3)),
+    has_thai: thaiCount > 0,
+    needs_review: score < 78,
+  };
+}
+
+function buildParseQualityReport({ pages = [], fullText = "", parseMethod = "" }) {
+  const pageReports = (Array.isArray(pages) ? pages : [])
+    .map((page, index) => ({
+      page_number: index + 1,
+      ...analyzeTextQuality(page),
+    }));
+  const document = analyzeTextQuality(fullText || pageReports.map((page) => page.text || "").join("\n\n"));
+  const weakPages = pageReports
+    .filter((page) => page.needs_review || page.char_count < 40)
+    .map((page) => ({
+      page_number: page.page_number,
+      score: page.score,
+      status: page.status,
+      char_count: page.char_count,
+    }));
+
+  return {
+    parse_method: parseMethod,
+    document,
+    pages: {
+      total: pageReports.length,
+      weak: weakPages,
+      weak_count: weakPages.length,
+    },
+    needs_manual_review:
+      document.needs_review ||
+      weakPages.length > Math.max(1, Math.floor(Math.max(pageReports.length, 1) * 0.2)),
+  };
+}
+
+function withQualityReport(result) {
+  return {
+    ...result,
+    quality: buildParseQualityReport({
+      pages: result.pages || [],
+      fullText: result.fullText || "",
+      parseMethod: result.parseMethod || "",
+    }),
+  };
+}
+
 async function parseTxtFile(filePath) {
   const text = decodeTextBuffer(fs.readFileSync(filePath));
   const fullText = sanitizeBookText(text);
 
-  return {
+  return withQualityReport({
     sourceType: "txt",
     fullText,
     pages: splitTextToPages(fullText),
     parseMethod: "plain-text",
-  };
+  });
 }
 
 function extractTextFromJsonValue(value) {
@@ -308,12 +382,12 @@ async function parseJsonFile(filePath) {
     throw new Error("No readable text was found in the JSON file");
   }
 
-  return {
+  return withQualityReport({
     sourceType: "json",
     fullText,
     pages: splitTextToPages(fullText),
     parseMethod: "json",
-  };
+  });
 }
 
 async function extractPdfTextByPage(filePath) {
@@ -374,12 +448,12 @@ async function parsePdfFile(filePath) {
 
   if (!looksLikeScannedPdf(cleanPages)) {
     const fullText = sanitizeBookText(cleanPages.join("\n\n"));
-    return {
+    return withQualityReport({
       sourceType: "pdf",
       fullText,
       pages: cleanPages,
       parseMethod: "pdfjs-dist",
-    };
+    });
   }
 
   console.log("PDF STEP 2: fallback OCR");
@@ -394,23 +468,23 @@ async function parsePdfFile(filePath) {
       throw new Error("Unable to read text from this PDF");
     }
 
-    return {
+    return withQualityReport({
       sourceType: "pdf",
       fullText,
       pages: ocrPages.length ? ocrPages : splitTextToPages(fullText),
       parseMethod: "ocr-fallback",
-    };
+    });
   } catch (ocrErr) {
     console.error("OCR failed:", ocrErr.message);
 
     if (cleanPages.length > 0) {
       const fullText = sanitizeBookText(cleanPages.join("\n\n"));
-      return {
+      return withQualityReport({
         sourceType: "pdf",
         fullText,
         pages: cleanPages,
         parseMethod: "pdfjs-partial",
-      };
+      });
     }
 
     const pdfError = new Error(`Unable to read text from this PDF: ${ocrErr.message}`);
@@ -437,12 +511,12 @@ async function parseImageFile(filePath) {
     throw error;
   }
 
-  return {
+  return withQualityReport({
     sourceType: "image",
     fullText,
     pages: ocrPages.length ? ocrPages : splitTextToPages(fullText),
     parseMethod: "image-ocr",
-  };
+  });
 }
 
 async function parseBookFile(filePath, mimeType, originalName) {
@@ -472,7 +546,9 @@ module.exports = {
   applyThaiOcrCorrections,
   cleanThaiOcrPage,
   cleanOcrText,
+  buildParseQualityReport,
   extractTextFromJsonValue,
+  analyzeTextQuality,
   normalizeText,
   sanitizeBookText,
   looksLikeMojibake,

@@ -87,7 +87,6 @@ flow หลักของหน้าอ่านให้ฟัง:
 - `Register.vue`
 - `ForgotPassword.vue`
 - `LineLogin.vue`
-- `FacebookLogin.vue`
 - `OAuthCallback.vue`
 
 flow หลัก:

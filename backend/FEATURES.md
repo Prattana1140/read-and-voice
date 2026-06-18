@@ -132,8 +132,7 @@
 - `POST /api/orders/purchase`
 - `GET /api/orders/history`
 - `GET /api/payments/status/:orderId`
-- `POST /api/payments/mock/create` - development only; disabled when `NODE_ENV=production`
-- `POST /api/payments/mock/webhook` - development only; disabled when `NODE_ENV=production`
+- Mock payment endpoints were removed. Use coin checkout, manual top-up approval, or a real payment webhook.
 - `POST /api/library`
 - `GET /api/library/me`
 - `DELETE /api/library/:bookId`
@@ -254,7 +253,6 @@
 | `/login` | Login | login + social auth status | login | `POST /api/auth/login`, `GET /api/auth/oauth/status` | พร้อมใช้งาน |
 | `/login/account` | AccountLogin | login แบบบัญชี | login | `POST /api/auth/login` | พร้อมใช้งาน |
 | `/login/line` | LineLogin | social login page | ไม่มีฟอร์มหลัก | OAuth flow | พร้อมใช้งาน |
-| `/login/facebook` | FacebookLogin | social login page | ไม่มีฟอร์มหลัก | OAuth flow | พร้อมใช้งาน |
 | `/oauth/callback` | OAuthCallback | รับ callback หลัง social login | ไม่มี | OAuth flow | พร้อมใช้งาน |
 | `/register` | Register | สมัครสมาชิก | register | `POST /api/auth/register` | พร้อมใช้งาน |
 | `/forgot-password` | ForgotPassword | ขอรีเซ็ตรหัสผ่าน | email form | `POST /api/auth/forgot-password`, `POST /api/auth/reset-password` | พร้อมใช้งาน |

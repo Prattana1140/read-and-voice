@@ -11,7 +11,6 @@ type WriterProfile = {
   bio: string;
   avatar_url: string;
   banner_url: string;
-  facebook_url: string;
   x_url: string;
   pinned_book_id: number | null;
 };
@@ -37,7 +36,6 @@ const form = reactive<WriterProfile>({
   bio: "",
   avatar_url: "",
   banner_url: "",
-  facebook_url: "",
   x_url: "",
   pinned_book_id: null,
 });
@@ -54,7 +52,6 @@ function syncProfile(profile?: Partial<WriterProfile> | null) {
   form.bio = profile?.bio || "";
   form.avatar_url = profile?.avatar_url || "";
   form.banner_url = profile?.banner_url || "";
-  form.facebook_url = profile?.facebook_url || "";
   form.x_url = profile?.x_url || "";
   form.pinned_book_id = profile?.pinned_book_id ?? null;
 }
@@ -86,7 +83,6 @@ async function saveProfile() {
       bio: form.bio.trim(),
       avatar_url: form.avatar_url.trim(),
       banner_url: form.banner_url.trim(),
-      facebook_url: form.facebook_url.trim(),
       x_url: form.x_url.trim(),
       pinned_book_id: form.pinned_book_id || null,
     };
@@ -175,11 +171,6 @@ onMounted(loadProfile);
           <label class="full-span">
             <span>ลิงก์รูปแบนเนอร์</span>
             <input v-model="form.banner_url" type="url" placeholder="https://example.com/banner.jpg" />
-          </label>
-
-          <label>
-            <span>ลิงก์ Facebook</span>
-            <input v-model="form.facebook_url" type="url" placeholder="https://facebook.com/yourpage" />
           </label>
 
           <label>

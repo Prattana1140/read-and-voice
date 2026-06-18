@@ -171,7 +171,7 @@ const statements = [
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     total_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-    payment_method VARCHAR(100) NOT NULL DEFAULT 'mock',
+    payment_method VARCHAR(100) NOT NULL DEFAULT 'coin',
     payment_status VARCHAR(50) NOT NULL DEFAULT 'pending',
     order_status VARCHAR(50) NOT NULL DEFAULT 'pending',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -162,10 +162,17 @@ onMounted(loadWishlist);
   background: #ef4444;
 }
 
+@media (max-width: 680px) {
+  .wishlist-page {
+    padding-right: 22px;
+    padding-left: 22px;
+  }
+}
+
 @media (max-width: 420px) {
   .grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
+    gap: 7px;
     width: 100%;
   }
 
@@ -183,10 +190,10 @@ onMounted(loadWishlist);
 
   .book-card h3 {
     display: -webkit-box;
-    min-height: 34px;
-    margin: 6px 0 2px;
+    min-height: 30px;
+    margin: 5px 0 2px;
     overflow: hidden;
-    font-size: 11px;
+    font-size: 10px;
     line-height: 1.25;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -196,7 +203,7 @@ onMounted(loadWishlist);
   .book-card p {
     overflow: hidden;
     margin-bottom: 6px;
-    font-size: 9px;
+    font-size: 8px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }

@@ -900,6 +900,13 @@ onMounted(async () => {
 }
 
 @media (max-width: 680px) {
+  .crumb {
+    gap: 5px;
+    margin-bottom: 10px;
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
   .vip-hero {
     padding: 24px 18px;
   }

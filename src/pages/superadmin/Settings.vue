@@ -28,6 +28,42 @@ type SystemSettings = {
   updated_note: string;
 };
 
+type OperationsStatus = {
+  checked_at?: string;
+  social_login?: {
+    line?: {
+      configured: boolean;
+      client_id_set: boolean;
+      client_secret_set: boolean;
+      callback_url: string;
+    };
+  };
+  content?: {
+    total_books: number;
+    missing_structured_content: number;
+    content_audit_command: string;
+  };
+  queues?: {
+    pending_book_approvals: number;
+    pending_coin_topups: number;
+    open_support_tickets: number;
+  };
+  monitoring?: {
+    command: string;
+    daily_command: string;
+  };
+  backup?: {
+    configured: boolean;
+    directory: string;
+    latest_file: string | null;
+    latest_at: string | null;
+    latest_bytes: number;
+    latest_age_hours: number | null;
+    command: string;
+    retention_days: number;
+  };
+};
+
 const router = useRouter();
 const currentUser = computed(() => getUser());
 
@@ -36,6 +72,7 @@ const saving = ref(false);
 const statusMessage = ref("");
 const errorMessage = ref("");
 const readiness = ref<ReadinessCheck[]>([]);
+const operations = ref<OperationsStatus | null>(null);
 
 const checklist = reactive<Record<ChecklistKey, boolean>>({
   rolesReviewed: false,
@@ -80,6 +117,13 @@ const checklistItems = [
 
 const readinessPassed = computed(() => readiness.value.filter((item) => item.ok).length);
 const readinessFailed = computed(() => readiness.value.filter((item) => !item.ok));
+const lineConfigured = computed(() => Boolean(operations.value?.social_login?.line?.configured));
+const backupSummary = computed(() => {
+  const backup = operations.value?.backup;
+  if (!backup?.latest_file) return "ยังไม่มี backup";
+  const age = backup.latest_age_hours;
+  return age === null ? backup.latest_file : `${backup.latest_file} (${age} ชม.ก่อน)`;
+});
 
 const quickLinks = [
   { title: "จัดการ role", text: "สิทธิ์และสถานะผู้ใช้", to: "/superadmin/roles" },
@@ -102,15 +146,17 @@ async function loadAll() {
   errorMessage.value = "";
 
   try {
-    const [checklistRes, systemRes, readinessRes] = await Promise.all([
+    const [checklistRes, systemRes, readinessRes, operationsRes] = await Promise.all([
       api.get("/admin/settings/checklist"),
       api.get("/admin/settings/system"),
       api.get("/admin/settings/readiness"),
+      api.get("/admin/settings/operations"),
     ]);
 
     Object.assign(checklist, checklistRes.data?.checklist || {});
     applySettings(systemRes.data?.settings || {});
     readiness.value = Array.isArray(readinessRes.data?.checks) ? readinessRes.data.checks : [];
+    operations.value = operationsRes.data || null;
   } catch (err: any) {
     errorMessage.value = err?.response?.data?.message || "โหลดการตั้งค่าระบบไม่สำเร็จ";
   } finally {
@@ -200,6 +246,54 @@ onMounted(loadAll);
         <article>
           <strong>{{ settings.admin_password_reset_enabled ? "เปิด" : "ปิด" }}</strong>
           <span>admin password reset</span>
+        </article>
+      </section>
+
+      <section class="operations-grid" v-if="operations">
+        <article class="operation-card" :class="{ failed: !lineConfigured }">
+          <span>LINE Login</span>
+          <strong>{{ lineConfigured ? "พร้อม" : "ยังไม่พร้อม" }}</strong>
+          <small>
+            ID: {{ operations.social_login?.line?.client_id_set ? "ตั้งแล้ว" : "ยังไม่ตั้ง" }}
+            · Secret: {{ operations.social_login?.line?.client_secret_set ? "ตั้งแล้ว" : "ยังไม่ตั้ง" }}
+          </small>
+          <code>{{ operations.social_login?.line?.callback_url }}</code>
+        </article>
+
+        <article class="operation-card" :class="{ failed: operations.content?.missing_structured_content }">
+          <span>Reader/TTS Content</span>
+          <strong>{{ operations.content?.missing_structured_content || 0 }} เล่มต้องจัดโครงสร้าง</strong>
+          <small>ทั้งหมด {{ operations.content?.total_books || 0 }} เล่ม</small>
+          <code>{{ operations.content?.content_audit_command }}</code>
+        </article>
+
+        <article class="operation-card">
+          <span>Monitoring</span>
+          <strong>พร้อมตั้ง schedule</strong>
+          <small>ใช้ daily command สำหรับตรวจระบบ + audit + backup</small>
+          <code>{{ operations.monitoring?.daily_command }}</code>
+        </article>
+
+        <article class="operation-card" :class="{ failed: !operations.backup?.latest_file }">
+          <span>Backup</span>
+          <strong>{{ backupSummary }}</strong>
+          <small>Retention {{ operations.backup?.retention_days || 14 }} วัน</small>
+          <code>{{ operations.backup?.command }}</code>
+        </article>
+
+        <article class="operation-card compact">
+          <span>คิวอนุมัติหนังสือ</span>
+          <strong>{{ operations.queues?.pending_book_approvals || 0 }}</strong>
+        </article>
+
+        <article class="operation-card compact">
+          <span>คิวเติม coin</span>
+          <strong>{{ operations.queues?.pending_coin_topups || 0 }}</strong>
+        </article>
+
+        <article class="operation-card compact">
+          <span>Support tickets</span>
+          <strong>{{ operations.queues?.open_support_tickets || 0 }}</strong>
         </article>
       </section>
 
@@ -419,6 +513,48 @@ button:disabled {
   font-size: 26px;
 }
 
+.operations-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.operation-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+.operation-card.failed {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.operation-card.compact {
+  align-content: center;
+}
+
+.operation-card strong {
+  font-size: 20px;
+}
+
+.operation-card code {
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--surface-soft);
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .layout-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -535,6 +671,7 @@ textarea {
 @media (max-width: 900px) {
   .page-head,
   .summary-grid,
+  .operations-grid,
   .layout-grid {
     grid-template-columns: 1fr;
   }

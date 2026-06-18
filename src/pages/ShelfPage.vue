@@ -1114,21 +1114,21 @@ watch(
 
 @media (max-width: 680px) {
   .shelf-content {
-    width: min(100% - 20px, 900px);
+    width: min(100% - 40px, 900px);
     padding-top: 24px;
   }
 
   .shelf-tabs {
-    gap: 6px 10px;
-    padding: 6px 8px;
+    gap: 5px 7px;
+    padding: 5px 6px;
   }
 
   .shelf-tabs a {
     flex: 1 1 calc(25% - 10px);
     justify-content: center;
     min-width: 0;
-    min-height: 34px;
-    font-size: 12px;
+    min-height: 30px;
+    font-size: 11px;
     text-align: center;
     white-space: normal;
   }
@@ -1141,8 +1141,8 @@ watch(
 
   .book-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    column-gap: 8px;
-    row-gap: 24px;
+    column-gap: 7px;
+    row-gap: 20px;
   }
 
   .promo-strip {
@@ -1152,7 +1152,7 @@ watch(
 
   .promo-book-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    column-gap: 8px;
+    column-gap: 7px;
   }
 
   .promo-section-head > div {
@@ -1164,8 +1164,9 @@ watch(
 
 @media (max-width: 420px) {
   .shelf-tabs a {
-    flex-basis: calc(25% - 8px);
-    font-size: 11px;
+    flex-basis: calc(25% - 7px);
+    min-height: 28px;
+    font-size: 10px;
   }
 
   .promo-strip-card {
@@ -1198,21 +1199,21 @@ watch(
   .book-grid,
   .promo-book-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    column-gap: 8px;
-    row-gap: 24px;
+    column-gap: 7px;
+    row-gap: 18px;
   }
 
   .book-card h3 {
-    min-height: 34px;
+    min-height: 30px;
     margin-top: 7px;
-    font-size: 11px;
+    font-size: 10px;
     line-height: 1.25;
   }
 
   .book-card p,
   .meta-line small {
-    min-height: 14px;
-    font-size: 9px;
+    min-height: 12px;
+    font-size: 8px;
     line-height: 1.25;
   }
 

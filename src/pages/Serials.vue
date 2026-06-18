@@ -1494,7 +1494,7 @@ onMounted(() => {
 
 @media (max-width: 520px) {
   .serial-page {
-    width: min(100% - 20px, 1180px);
+    width: min(100% - 40px, 1180px);
     padding: 18px 0 36px;
   }
 
@@ -1531,13 +1531,25 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
+  .category-chip-row {
+    gap: 6px;
+    padding: 0 0 3px;
+  }
+
+  .category-chip {
+    max-width: 136px;
+    min-height: 28px;
+    font-size: 10px;
+    padding: 0 9px;
+  }
+
   .serial-list-card {
     min-width: 0;
   }
 
   .serial-list {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
+    gap: 8px;
   }
 
   .curated-group > h2 {
@@ -1562,14 +1574,14 @@ onMounted(() => {
   }
 
   .curated-rail {
-    grid-auto-columns: minmax(0, calc((100% - 16px) / 3));
-    gap: 8px;
+    grid-auto-columns: minmax(0, calc((100% - 18px) / 3.35));
+    gap: 7px;
   }
 
   .serial-card-clickable h3,
   .curated-card h4 {
-    min-height: 34px;
-    font-size: 11px;
+    min-height: 30px;
+    font-size: 10px;
     line-height: 1.25;
   }
 
@@ -1577,7 +1589,7 @@ onMounted(() => {
   .serial-card-clickable small,
   .curated-card p,
   .curated-meta {
-    font-size: 9px;
+    font-size: 8px;
     line-height: 1.25;
   }
 
@@ -1599,17 +1611,21 @@ onMounted(() => {
   }
 
   .row-scroll-button {
-    display: none;
+    right: -6px;
+    display: grid;
+    width: 26px;
+    height: 26px;
+    font-size: 16px;
   }
 
   .curated-card h4 {
-    font-size: 14px;
-    min-height: 40px;
+    font-size: 11px;
+    min-height: 32px;
   }
 
   .curated-card p,
   .curated-meta {
-    font-size: 12px;
+    font-size: 9px;
   }
 
   .continue-all-page h2 {

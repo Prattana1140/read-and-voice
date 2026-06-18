@@ -12,7 +12,6 @@ type WriterProfile = {
   bio: string;
   avatar_url: string;
   banner_url: string;
-  facebook_url: string;
   x_url: string;
   follower_count: number;
   book_count: number;
@@ -53,7 +52,6 @@ const socialLinks = computed(() => {
   if (!profile.value) return [];
 
   return [
-    { label: "Facebook", url: profile.value.facebook_url },
     { label: "X", url: profile.value.x_url },
   ].filter((item) => item.url);
 });

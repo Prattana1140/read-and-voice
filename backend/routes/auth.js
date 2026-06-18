@@ -14,7 +14,6 @@ const router = express.Router();
 
 const ALLOWED_ROLES = ["user", "writer", "admin", "superadmin"];
 const SOCIAL_PROVIDERS = ["line"];
-const DEFAULT_FACEBOOK_API_VERSION = "v25.0";
 const USERNAME_PATTERN = /^[A-Za-z0-9._@-]{4,32}$/;
 const GENDER_VALUES = new Set(["male", "female", "other", "prefer_not_to_say"]);
 const VISUAL_IMPAIRMENT_VALUES = new Set([
@@ -119,12 +118,6 @@ function isPlaceholderValue(value) {
 
 function isUsableConfigValue(value) {
   return !isPlaceholderValue(value);
-}
-
-function normalizeFacebookApiVersion(version) {
-  const raw = String(version || DEFAULT_FACEBOOK_API_VERSION).trim();
-  if (!raw) return DEFAULT_FACEBOOK_API_VERSION;
-  return raw.startsWith("v") ? raw : `v${raw}`;
 }
 
 function createToken(user) {
@@ -362,6 +355,13 @@ function encodeQuery(params) {
 }
 
 function getOAuthRedirectUri(provider) {
+  const providerKey = String(provider || "").toUpperCase();
+  const providerOverride = readEnv(`${providerKey}_REDIRECT_URI`);
+  const sharedOverride = readEnv("OAUTH_REDIRECT_URI");
+
+  if (providerOverride) return providerOverride;
+  if (sharedOverride) return sharedOverride;
+
   return `${getPublicApiUrl()}/api/auth/oauth/${provider}/callback`;
 }
 
@@ -397,10 +397,6 @@ function getProviderConfig(provider) {
 }
 
 function getProviderDefinition(provider) {
-  const facebookApiVersion = normalizeFacebookApiVersion(
-    readEnv("FACEBOOK_API_VERSION"),
-  );
-
   const configs = {
     line: {
       provider: "line",
@@ -426,29 +422,6 @@ function getProviderDefinition(provider) {
       scope: readEnv("LINE_SCOPE") || "openid profile email",
       requiredEnv: ["LINE_CLIENT_ID", "LINE_CLIENT_SECRET"],
     },
-    facebook: {
-      provider: "facebook",
-      clientId: readEnv("FACEBOOK_CLIENT_ID"),
-      clientSecret: readEnv("FACEBOOK_CLIENT_SECRET"),
-      authUrl:
-        readEnv("FACEBOOK_AUTH_URL") ||
-        `https://www.facebook.com/${facebookApiVersion}/dialog/oauth`,
-      tokenUrl:
-        readEnv("FACEBOOK_TOKEN_URL") ||
-        `https://graph.facebook.com/${facebookApiVersion}/oauth/access_token`,
-      profileUrl:
-        readEnv("FACEBOOK_PROFILE_URL") ||
-        `https://graph.facebook.com/${facebookApiVersion}/me`,
-      debugTokenUrl:
-        readEnv("FACEBOOK_DEBUG_TOKEN_URL") ||
-        `https://graph.facebook.com/${facebookApiVersion}/debug_token`,
-      scope: readEnv("FACEBOOK_SCOPE") || "public_profile,email",
-      profileFields:
-        readEnv("FACEBOOK_PROFILE_FIELDS") ||
-        "id,name,email,picture.type(large)",
-      apiVersion: facebookApiVersion,
-      requiredEnv: ["FACEBOOK_CLIENT_ID", "FACEBOOK_CLIENT_SECRET"],
-    },
   };
 
   return configs[provider] || null;
@@ -470,14 +443,6 @@ function getProviderConfigProblems(provider, config) {
 
   if (provider === "line" && config.clientId && !/^\d+$/.test(config.clientId)) {
     problems.push("LINE_CLIENT_ID must be the numeric LINE Login Channel ID");
-  }
-
-  if (
-    provider === "facebook" &&
-    config.clientId &&
-    !/^\d+$/.test(config.clientId)
-  ) {
-    problems.push("FACEBOOK_CLIENT_ID must be the numeric Facebook App ID");
   }
 
   return problems;
@@ -515,54 +480,6 @@ async function fetchJson(url, options) {
   return data;
 }
 
-function createFacebookAppSecretProof(accessToken, clientSecret) {
-  return crypto
-    .createHmac("sha256", clientSecret)
-    .update(accessToken)
-    .digest("hex");
-}
-
-function base64UrlDecode(value) {
-  const text = String(value || "").replace(/-/g, "+").replace(/_/g, "/");
-  const padded = text.padEnd(
-    text.length + ((4 - (text.length % 4)) % 4),
-    "=",
-  );
-  return Buffer.from(padded, "base64");
-}
-
-function parseFacebookSignedRequest(signedRequest, appSecret) {
-  const [encodedSignature, encodedPayload] = String(signedRequest || "").split(
-    ".",
-    2,
-  );
-
-  if (!encodedSignature || !encodedPayload) {
-    throw createHttpError(400, "Invalid Facebook signed_request");
-  }
-
-  const signature = base64UrlDecode(encodedSignature);
-  const expectedSignature = crypto
-    .createHmac("sha256", appSecret)
-    .update(encodedPayload)
-    .digest();
-
-  if (
-    signature.length !== expectedSignature.length ||
-    !crypto.timingSafeEqual(signature, expectedSignature)
-  ) {
-    throw createHttpError(400, "Invalid Facebook signed_request signature");
-  }
-
-  const payload = JSON.parse(base64UrlDecode(encodedPayload).toString("utf8"));
-
-  if (payload.algorithm && payload.algorithm.toUpperCase() !== "HMAC-SHA256") {
-    throw createHttpError(400, "Unsupported Facebook signed_request algorithm");
-  }
-
-  return payload;
-}
-
 async function exchangeOAuthCode(provider, code, decodedState = {}) {
   const config = getProviderConfig(provider);
   if (!config) {
@@ -574,30 +491,19 @@ async function exchangeOAuthCode(provider, code, decodedState = {}) {
 
   let tokenData;
 
-  if (provider === "facebook") {
-    const tokenParams = {
-      code,
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
-      redirect_uri: getOAuthRedirectUri(provider),
-    };
+  const tokenBody = new URLSearchParams({
+    code,
+    client_id: config.clientId,
+    client_secret: config.clientSecret,
+    redirect_uri: getOAuthRedirectUri(provider),
+    grant_type: "authorization_code",
+  });
 
-    tokenData = await fetchJson(`${config.tokenUrl}?${encodeQuery(tokenParams)}`);
-  } else {
-    const tokenBody = new URLSearchParams({
-      code,
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
-      redirect_uri: getOAuthRedirectUri(provider),
-      grant_type: "authorization_code",
-    });
-
-    tokenData = await fetchJson(config.tokenUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: tokenBody,
-    });
-  }
+  tokenData = await fetchJson(config.tokenUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: tokenBody,
+  });
 
   return fetchProviderProfile(provider, config, tokenData, decodedState);
 }
@@ -609,16 +515,6 @@ async function fetchProviderProfile(provider, config, tokenData, decodedState = 
 
   if (provider === "line") {
     return fetchLineProfile(config, tokenData, decodedState);
-  }
-
-  if (provider === "facebook") {
-    if (!tokenData.access_token) {
-      throw new Error("Facebook social login requires an access token");
-    }
-
-    return fetchFacebookProfile(config, tokenData.access_token, {
-      verifyToken: Boolean(decodedState.verifyProviderToken),
-    });
   }
 
   throw new Error("Unsupported OAuth provider");
@@ -701,55 +597,6 @@ async function fetchLineProfile(config, tokenData, decodedState = {}) {
   };
 }
 
-async function verifyFacebookAccessToken(config, accessToken) {
-  const appAccessToken = `${config.clientId}|${config.clientSecret}`;
-  const tokenInfo = await fetchJson(
-    `${config.debugTokenUrl}?${encodeQuery({
-      input_token: accessToken,
-      access_token: appAccessToken,
-    })}`,
-  );
-
-  if (!tokenInfo?.data?.is_valid) {
-    throw new Error("Facebook access token is invalid");
-  }
-
-  if (String(tokenInfo.data.app_id || "") !== String(config.clientId)) {
-    throw new Error("Facebook access token was not issued for this app");
-  }
-
-  return tokenInfo.data;
-}
-
-async function fetchFacebookProfile(config, accessToken, options = {}) {
-  if (options.verifyToken) {
-    await verifyFacebookAccessToken(config, accessToken);
-  }
-
-  const params = {
-    fields: config.profileFields,
-    access_token: accessToken,
-    appsecret_proof: createFacebookAppSecretProof(
-      accessToken,
-      config.clientSecret,
-    ),
-  };
-
-  const profile = await fetchJson(`${config.profileUrl}?${encodeQuery(params)}`);
-  const providerId = profile.id;
-
-  if (!providerId) {
-    throw new Error("Facebook profile did not include a user id");
-  }
-
-  return {
-    providerId,
-    name: profile.name || "Facebook User",
-    email: normalizeEmail(profile.email),
-    avatarUrl: profile.picture?.data?.url || null,
-  };
-}
-
 async function ensureSocialConnectionsTable() {
   await db.query(`
     CREATE TABLE IF NOT EXISTS social_connections (
@@ -798,25 +645,6 @@ async function ensureLoginEventsTable() {
   `);
 }
 
-async function ensureDataDeletionRequestsTable() {
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS data_deletion_requests (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      user_id INT NULL,
-      provider VARCHAR(40) NOT NULL,
-      provider_user_id VARCHAR(191) NOT NULL,
-      confirmation_code VARCHAR(80) NOT NULL,
-      status VARCHAR(40) NOT NULL DEFAULT 'completed',
-      requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      completed_at DATETIME NULL,
-      UNIQUE KEY uq_data_deletion_confirmation (confirmation_code),
-      INDEX idx_data_deletion_provider_user (provider, provider_user_id),
-      INDEX idx_data_deletion_user (user_id),
-      CONSTRAINT fk_data_deletion_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  `);
-}
-
 function getRequestIp(req) {
   const forwardedFor = req.headers["x-forwarded-for"];
   const rawIp = Array.isArray(forwardedFor)
@@ -846,49 +674,6 @@ async function recordLoginEvent(req, event) {
   } catch (error) {
     console.error("LOGIN EVENT ERROR:", error.message);
   }
-}
-
-async function deleteFacebookDerivedData(providerUserId) {
-  await ensureSocialConnectionsTable();
-  await ensureDataDeletionRequestsTable();
-
-  const [connections] = await db.query(
-    `SELECT user_id
-     FROM social_connections
-     WHERE provider = 'facebook'
-       AND provider_user_id = ?
-     LIMIT 1`,
-    [providerUserId],
-  );
-  const userId = connections[0]?.user_id || null;
-
-  await db.query(
-    `DELETE FROM social_connections
-     WHERE provider = 'facebook'
-       AND provider_user_id = ?`,
-    [providerUserId],
-  );
-
-  if (userId) {
-    await ensureUserProfilesTable();
-    await db.query(
-      `UPDATE user_profiles
-       SET avatar_url = NULL,
-           updated_at = NOW()
-       WHERE user_id = ?`,
-      [userId],
-    );
-  }
-
-  const confirmationCode = crypto.randomBytes(16).toString("hex");
-  await db.query(
-    `INSERT INTO data_deletion_requests
-       (user_id, provider, provider_user_id, confirmation_code, status, completed_at)
-     VALUES (?, 'facebook', ?, ?, 'completed', NOW())`,
-    [userId, providerUserId, confirmationCode],
-  );
-
-  return confirmationCode;
 }
 
 async function saveUserAvatar(userId, avatarUrl) {
@@ -1505,74 +1290,6 @@ router.post("/reset-password", async (req, res) => {
   }
 });
 
-router.get("/facebook/data-deletion", (_req, res) => {
-  return res.status(200).json({
-    app: "Read and Voice",
-    provider: "facebook",
-    message:
-      "Facebook data deletion callback is active. Meta should send POST requests with signed_request to this URL.",
-  });
-});
-
-router.get("/facebook/data-deletion/status/:code", async (req, res) => {
-  try {
-    await ensureDataDeletionRequestsTable();
-    const [rows] = await db.query(
-      `SELECT provider, status, requested_at, completed_at
-       FROM data_deletion_requests
-       WHERE confirmation_code = ?
-       LIMIT 1`,
-      [String(req.params.code || "").trim()],
-    );
-
-    if (rows.length === 0) {
-      return res.status(404).json({ status: "not_found" });
-    }
-
-    return res.status(200).json(rows[0]);
-  } catch (error) {
-    console.error("FACEBOOK DATA DELETION STATUS ERROR:", error);
-    return res.status(500).json({ message: "Could not load deletion status" });
-  }
-});
-
-router.post("/facebook/data-deletion", async (req, res) => {
-  try {
-    const appSecret = readEnv("FACEBOOK_CLIENT_SECRET");
-    if (!isUsableConfigValue(appSecret)) {
-      return res.status(503).json({
-        message: "FACEBOOK_CLIENT_SECRET is not configured",
-      });
-    }
-
-    const signedRequest = req.body.signed_request;
-    if (!signedRequest) {
-      return res.status(400).json({ message: "signed_request is required" });
-    }
-
-    const payload = parseFacebookSignedRequest(signedRequest, appSecret);
-    const providerUserId = String(payload.user_id || "").trim();
-
-    if (!providerUserId) {
-      return res.status(400).json({
-        message: "Facebook signed_request did not include user_id",
-      });
-    }
-
-    const confirmationCode = await deleteFacebookDerivedData(providerUserId);
-
-    return res.status(200).json({
-      url: `${getPublicApiUrl()}/api/auth/facebook/data-deletion/status/${confirmationCode}`,
-      confirmation_code: confirmationCode,
-    });
-  } catch (error) {
-    console.error("FACEBOOK DATA DELETION ERROR:", error);
-    return res.status(error.status || 500).json({
-      message: error.message || "Could not process Facebook data deletion",
-    });
-  }
-});
-
 router.get("/oauth/status", (_req, res) => {
   return res.status(200).json({
     frontendUrl: getFrontendUrl(),
@@ -1738,44 +1455,6 @@ router.post("/social-login", async (req, res) => {
     }
 
     if (!accessToken && !idToken) {
-      if (process.env.ALLOW_UNVERIFIED_SOCIAL_LOGIN === "true") {
-        const providerId = String(req.body.providerId || "").trim();
-        const displayName = String(req.body.name || "").trim();
-        if (!providerId) {
-          return res.status(400).json({
-            message: "providerId is required for unverified social login",
-          });
-        }
-
-        const demoProfile = {
-          providerId,
-          name:
-            displayName ||
-            `${provider.charAt(0).toUpperCase()}${provider.slice(1)} User`,
-          email: normalizeEmail(req.body.email),
-          avatarUrl: req.body.avatar_url || req.body.avatarUrl || null,
-        };
-        const user = await findOrCreateSocialUser(demoProfile, provider);
-        assertActiveUser(user);
-
-        await setAccessibilityMode(user.id, accessibilityMode);
-        const hydratedUser = await hydrateUser(user);
-        const token = createToken(hydratedUser);
-        await recordLoginEvent(req, {
-          userId: hydratedUser.id,
-          provider,
-          providerUserId: demoProfile.providerId,
-          success: true,
-          message: "unverified_social_login_success",
-        });
-
-        return res.status(200).json({
-          message: "เข้าสู่ระบบสำเร็จ",
-          token,
-          user: sanitizeUser(hydratedUser, provider),
-        });
-      }
-
       return res.status(400).json({
         message:
           "Social login ต้องใช้ access_token/id_token จาก provider หรือเริ่มที่ /api/auth/oauth/:provider/start",

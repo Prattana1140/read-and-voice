@@ -255,6 +255,11 @@ h2 {
 }
 
 @media (max-width: 680px) {
+  .library-page {
+    width: min(1180px, calc(100% - 40px));
+    padding-top: 24px;
+  }
+
   .page-head,
   .toolbar {
     align-items: stretch;
@@ -272,13 +277,14 @@ h2 {
   }
 
   .book-card {
-    grid-template-columns: 76px minmax(0, 1fr);
-    gap: 12px;
+    grid-template-columns: 68px minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px;
   }
 
   .book-card img {
-    width: 76px;
-    height: 104px;
+    width: 68px;
+    height: 94px;
   }
 
   .actions {

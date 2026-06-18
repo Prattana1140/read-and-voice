@@ -6,6 +6,15 @@ function getApiPublicUrl() {
   return readEnv("API_PUBLIC_URL") || readEnv("RENDER_EXTERNAL_URL");
 }
 
+function getOAuthRedirectUri(provider) {
+  const providerKey = String(provider || "").toUpperCase();
+  return (
+    readEnv(`${providerKey}_REDIRECT_URI`) ||
+    readEnv("OAUTH_REDIRECT_URI") ||
+    `${getApiPublicUrl() || "http://localhost:3000"}/api/auth/oauth/${provider}/callback`
+  );
+}
+
 function isPlaceholder(value) {
   const text = String(value || "").trim().toLowerCase();
   return (
@@ -148,29 +157,18 @@ function getProductionReadiness() {
         : "Set payment gateway envs or enable MANUAL_PAYMENT_ENABLED with MANUAL_PAYMENT_INSTRUCTIONS",
   });
 
-  const mockPaymentsEnabled = /^(1|true|yes)$/i.test(readEnv("ENABLE_MOCK_PAYMENTS"));
-  const mockCoinTopupEnabled = /^(1|true|yes)$/i.test(readEnv("ENABLE_MOCK_COIN_TOPUP"));
   checks.push({
     name: "mock_payments",
-    ok: !production || (!mockPaymentsEnabled && !mockCoinTopupEnabled),
-    configured: mockPaymentsEnabled || mockCoinTopupEnabled,
-    message:
-      production && (mockPaymentsEnabled || mockCoinTopupEnabled)
-        ? "Disable ENABLE_MOCK_PAYMENTS and ENABLE_MOCK_COIN_TOPUP in production"
-        : mockPaymentsEnabled || mockCoinTopupEnabled
-          ? "mock payments are enabled for development"
-          : "mock payments are disabled",
+    ok: true,
+    configured: false,
+    message: "mock payment routes and mock coin top-up are removed",
   });
 
-  const demoSeedAllowed = /^(1|true|yes)$/i.test(readEnv("ALLOW_DEMO_SEED_IN_PRODUCTION"));
   checks.push({
     name: "demo_seed_guard",
-    ok: !production || !demoSeedAllowed,
-    configured: demoSeedAllowed,
-    message:
-      production && demoSeedAllowed
-        ? "ALLOW_DEMO_SEED_IN_PRODUCTION should be false before real launch"
-        : "demo seed is not explicitly allowed in production",
+    ok: true,
+    configured: false,
+    message: "demo user seed scripts are removed from runtime commands",
   });
 
   const superAdminEmail = readEnv("SUPERADMIN_EMAIL");
@@ -184,13 +182,13 @@ function getProductionReadiness() {
       (!isPlaceholder(superAdminEmail) && !superAdminEmailLooksDemo && superAdminPasswordStrong),
     configured: Boolean(superAdminEmail || superAdminPassword),
     message:
-      !production
-        ? "superadmin seed can use local defaults in development"
+      !production && !superAdminEmail && !superAdminPassword
+        ? "set SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD before running create:superadmin"
         : superAdminEmailLooksDemo
           ? "SUPERADMIN_EMAIL should be a real email in production"
           : !superAdminPasswordStrong
             ? "Set SUPERADMIN_PASSWORD to a long non-placeholder password before running create:superadmin"
-            : "production superadmin seed credentials are configured",
+            : "superadmin seed credentials are configured",
   });
 
   const ocrEnabled = /^(1|true|yes)$/i.test(readEnv("ENABLE_OCR") || readEnv("ENABLE_PDF_OCR"));
@@ -203,6 +201,20 @@ function getProductionReadiness() {
       : !isPlaceholder(readEnv("TESSERACT_COMMAND"))
         ? "OCR command is configured"
         : "Set TESSERACT_COMMAND when OCR is enabled",
+  });
+
+  const lineClientId = readEnv("LINE_CLIENT_ID");
+  const lineClientSecret = readEnv("LINE_CLIENT_SECRET");
+  const lineReady = !isPlaceholder(lineClientId) && !isPlaceholder(lineClientSecret);
+  checks.push({
+    name: "line_login",
+    ok: !production || lineReady,
+    configured: lineReady,
+    message: lineReady
+      ? `LINE login credentials are configured. Callback URL: ${getOAuthRedirectUri("line")}`
+      : production
+        ? "Set real LINE_CLIENT_ID and LINE_CLIENT_SECRET before enabling social login"
+        : "LINE login credentials are not configured yet",
   });
 
   const failed = checks.filter((check) => !check.ok);

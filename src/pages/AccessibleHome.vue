@@ -28,6 +28,52 @@ const quickActions = [
   },
 ];
 
+const voiceCommandGroups = [
+  {
+    title: "เริ่มต้นและค้นหา",
+    commands: [
+      "ช่วยเหลือ",
+      "ค้นหา นิยายรัก",
+      "เปิดร้านหนังสือ",
+      "เปิดชั้นหนังสือ",
+    ],
+  },
+  {
+    title: "อ่านและฟัง",
+    commands: [
+      "อ่านทั้งหน้า",
+      "เล่นเสียง",
+      "หยุดก่อน",
+      "ประโยคถัดไป",
+    ],
+  },
+  {
+    title: "ควบคุมหน้าจอ",
+    commands: [
+      "เลื่อนลง",
+      "ไปบนสุด",
+      "กดปุ่ม บันทึก",
+      "ไปที่ช่อง อีเมล",
+    ],
+  },
+  {
+    title: "กรอกข้อมูล",
+    commands: [
+      "กรอกว่า สมชาย",
+      "กรอก อีเมล ว่า test@example.com",
+      "ล้างข้อความ",
+      "ส่งฟอร์ม",
+    ],
+  },
+];
+
+const voiceTips = [
+  "ใช้ Chrome หรือ Edge เพื่อรองรับการฟังคำสั่งเสียงดีที่สุด",
+  "เปิดผ่าน HTTPS หรือ localhost เพื่อให้เบราว์เซอร์อนุญาตไมโครโฟน",
+  "หน้าเข้าสู่ระบบใช้คำสั่งเสียงแบบกดครั้งเดียว ไม่เปิดฟังต่อเนื่อง",
+  "ถ้าระบบพบหลายรายการ ให้พูดว่า อันที่หนึ่ง หรือ อันที่สอง",
+];
+
 onMounted(() => {
   enableVisualAssistPreset();
   announceAccessibilityMessage("เปิดหน้าใช้งานสำหรับผู้พิการทางสายตาแล้ว");
@@ -66,6 +112,32 @@ onMounted(() => {
           <li>อ่านชื่อปุ่มและฟอร์มด้วยเสียง</li>
         </ul>
       </div>
+
+      <section class="voice-guide" aria-labelledby="voice-guide-title">
+        <div class="voice-guide__head">
+          <p class="eyebrow">สั่งงานด้วยเสียง</p>
+          <h2 id="voice-guide-title">ลองพูดคำสั่งเหล่านี้</h2>
+          <p>กดปุ่มไมค์มุมขวาล่าง อนุญาตไมโครโฟน แล้วพูดคำสั่งสั้น ๆ เป็นภาษาไทย</p>
+        </div>
+
+        <div class="command-grid">
+          <article v-for="group in voiceCommandGroups" :key="group.title" class="command-group">
+            <h3>{{ group.title }}</h3>
+            <ul>
+              <li v-for="command in group.commands" :key="command">
+                <code>{{ command }}</code>
+              </li>
+            </ul>
+          </article>
+        </div>
+
+        <div class="voice-tips">
+          <h3>ก่อนใช้งานจริง</h3>
+          <ul>
+            <li v-for="tip in voiceTips" :key="tip">{{ tip }}</li>
+          </ul>
+        </div>
+      </section>
     </section>
   </main>
 </template>
@@ -172,6 +244,92 @@ h1 {
   line-height: 1.7;
 }
 
+.voice-guide {
+  margin-top: 24px;
+  display: grid;
+  gap: 18px;
+}
+
+.voice-guide__head {
+  display: grid;
+  gap: 8px;
+}
+
+.voice-guide__head h2,
+.voice-guide__head p {
+  margin: 0;
+}
+
+.voice-guide__head h2 {
+  font-size: 1.7rem;
+  line-height: 1.25;
+}
+
+.voice-guide__head p {
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.command-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.command-group {
+  border: 3px solid #111827;
+  border-radius: 18px;
+  background: #ffffff;
+  padding: 18px;
+}
+
+.command-group h3,
+.command-group ul,
+.voice-tips h3,
+.voice-tips ul {
+  margin: 0;
+}
+
+.command-group h3 {
+  font-size: 1.15rem;
+}
+
+.command-group ul {
+  display: grid;
+  gap: 10px;
+  padding: 14px 0 0;
+  list-style: none;
+}
+
+.command-group code {
+  display: inline-block;
+  max-width: 100%;
+  border: 2px solid #0f766e;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.35;
+  padding: 7px 12px;
+  white-space: normal;
+}
+
+.voice-tips {
+  border: 3px dashed #111827;
+  border-radius: 18px;
+  background: #fff7cc;
+  padding: 18px 20px;
+}
+
+.voice-tips ul {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0 0 20px;
+  line-height: 1.7;
+}
+
 @media (max-width: 720px) {
   .accessible-home {
     place-items: start center;
@@ -184,6 +342,10 @@ h1 {
   }
 
   .action-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .command-grid {
     grid-template-columns: 1fr;
   }
 

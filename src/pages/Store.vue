@@ -777,7 +777,7 @@ onMounted(loadStoreData);
 
 @media (max-width: 768px) {
   .store-page {
-    padding: 20px 10px 36px;
+    padding: 20px 22px 36px;
   }
 
   .store-header {
@@ -804,8 +804,25 @@ onMounted(loadStoreData);
     width: 100%;
   }
 
+  .category-filter {
+    gap: 6px;
+  }
+
+  .category-select {
+    width: 100%;
+    min-height: 34px;
+    font-size: 11px;
+    padding: 0 30px 0 10px;
+  }
+
+  .suggestion-row button {
+    min-height: 28px;
+    font-size: 11px;
+    padding: 0 9px;
+  }
+
   .book-grid {
-    gap: 8px;
+    gap: 7px;
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
@@ -824,7 +841,7 @@ onMounted(loadStoreData);
 
   .book-card h2 {
     display: block;
-    font-size: 10px;
+    font-size: 9px;
     line-height: 1.3;
     margin: 0 4px 4px;
     min-height: 0;
@@ -835,7 +852,7 @@ onMounted(loadStoreData);
   .book-card p,
   .book-card small {
     display: block;
-    font-size: 8px;
+    font-size: 7px;
     line-height: 1.25;
     margin-inline: 4px;
     min-height: 0;
@@ -866,7 +883,18 @@ onMounted(loadStoreData);
 
 @media (max-width: 420px) {
   .store-page {
-    padding: 16px 8px 28px;
+    padding: 16px 18px 28px;
+  }
+
+  .category-select {
+    min-height: 32px;
+    font-size: 10px;
+  }
+
+  .suggestion-row button {
+    min-height: 26px;
+    font-size: 10px;
+    padding-inline: 8px;
   }
 
   .book-grid {
@@ -884,13 +912,13 @@ onMounted(loadStoreData);
   }
 
   .book-card h2 {
-    font-size: 9px;
+    font-size: 8px;
     margin-inline: 3px;
   }
 
   .book-card p,
   .book-card small {
-    font-size: 7px;
+    font-size: 6px;
     margin-inline: 3px;
   }
 

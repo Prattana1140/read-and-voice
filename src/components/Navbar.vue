@@ -454,6 +454,17 @@ const closeMenu = () => {
   isMenuOpen.value = false;
 };
 
+const toggleMenu = () => {
+  const shouldOpen = !isMenuOpen.value;
+
+  if (shouldOpen) {
+    closeSearch();
+    closeFloatingMenus();
+  }
+
+  isMenuOpen.value = shouldOpen;
+};
+
 const hasNavbarOverflow = () => {
   const navbar = navbarRef.value;
   const topBar = topBarRef.value;
@@ -527,7 +538,15 @@ const closeSearch = () => {
 };
 
 const toggleNotifications = () => {
-  isNotificationsOpen.value = !isNotificationsOpen.value;
+  const shouldOpen = !isNotificationsOpen.value;
+
+  if (shouldOpen) {
+    closeMenu();
+    closeSearch();
+    closeFloatingMenus();
+  }
+
+  isNotificationsOpen.value = shouldOpen;
 
   if (isNotificationsOpen.value) {
     loadNotifications();
@@ -539,16 +558,37 @@ const openNotificationSettings = () => {
   router.push("/notification-settings");
 };
 
-const closeFloatingMenus = () => {
+const closeFloatingMenus = (exceptDropdown: HTMLDetailsElement | null = null) => {
   isNotificationsOpen.value = false;
   document
     .querySelectorAll<HTMLDetailsElement>(".icon-dropdown[open]")
     .forEach((item) => {
-      item.open = false;
+      if (item !== exceptDropdown) item.open = false;
     });
 };
 
+const handleDropdownToggle = (event: Event) => {
+  const dropdown = event.currentTarget as HTMLDetailsElement | null;
+  if (!dropdown?.open) return;
+
+  closeMenu();
+  closeSearch();
+  closeFloatingMenus(dropdown);
+};
+
+const handleAccountToggle = (event: Event) => {
+  const dropdown = event.currentTarget as HTMLDetailsElement | null;
+  if (dropdown?.open) {
+    loadWalletBalance();
+    loadMembershipLabel();
+  }
+
+  handleDropdownToggle(event);
+};
+
 const openAccessibilityPanel = () => {
+  closeMenu();
+  closeSearch();
   closeFloatingMenus();
   window.dispatchEvent(new CustomEvent("read-voice:open-accessibility-panel"));
 };
@@ -821,7 +861,7 @@ watch(isCompactNav, (compact) => {
           :aria-expanded="isMenuOpen"
           aria-controls="mobile-menu"
           :aria-label="t('common.mainMenu')"
-          @click="isMenuOpen = !isMenuOpen"
+          @click="toggleMenu"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path
@@ -899,7 +939,11 @@ watch(isCompactNav, (compact) => {
           </svg>
         </button>
 
-        <details ref="themeDropdownRef" class="icon-dropdown">
+        <details
+          ref="themeDropdownRef"
+          class="icon-dropdown"
+          @toggle="handleDropdownToggle"
+        >
           <summary class="icon-button" :aria-label="t('theme.switch')">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -1102,10 +1146,7 @@ watch(isCompactNav, (compact) => {
 
         <details
           class="icon-dropdown account-dropdown"
-          @toggle="
-            loadWalletBalance();
-            loadMembershipLabel();
-          "
+          @toggle="handleAccountToggle"
         >
           <summary
             class="avatar-button"
@@ -2810,11 +2851,189 @@ watch(isCompactNav, (compact) => {
   .account-panel {
     position: fixed;
     top: 76px;
-    right: 8px;
-    left: 8px;
-    width: auto;
+    right: 18px;
+    left: auto;
+    width: min(224px, calc(100vw - 36px));
     max-height: calc(100dvh - 88px);
     overflow-y: auto;
+  }
+
+  .dropdown-panel:not(.account-panel),
+  .notification-panel {
+    padding: 10px;
+    border-radius: 16px;
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.14);
+  }
+
+  .theme-panel {
+    gap: 6px;
+  }
+
+  .theme-panel button {
+    min-height: 32px;
+    border-radius: 10px;
+    font-size: 11px;
+  }
+
+  .notification-panel__header {
+    gap: 8px;
+  }
+
+  .notification-panel__header h3 {
+    font-size: 14px;
+    line-height: 1.2;
+  }
+
+  .notification-panel__actions {
+    gap: 5px;
+  }
+
+  .notification-icon-action {
+    flex-basis: 24px;
+    width: 24px;
+    height: 24px;
+  }
+
+  .notification-icon-action svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .notification-list {
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .notification-item {
+    grid-template-columns: 30px 1fr;
+    gap: 8px;
+    border-radius: 12px;
+    padding: 9px;
+  }
+
+  .notification-thumb {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    font-size: 10px;
+  }
+
+  .notification-copy h4 {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .notification-copy p {
+    font-size: 10px;
+    line-height: 1.35;
+  }
+
+  .notification-copy time {
+    font-size: 10px;
+    margin-top: 4px;
+  }
+
+  .notification-open {
+    grid-column: 1 / -1;
+    min-height: 28px;
+    border-radius: 9px;
+    font-size: 10px;
+    padding: 0 8px;
+  }
+
+  .notification-empty,
+  .notification-footer-link {
+    font-size: 12px;
+  }
+
+  .account-panel {
+    gap: 8px;
+    padding: 10px;
+    border-radius: 16px;
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.14);
+  }
+
+  .account-summary-card {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 8px;
+    padding-bottom: 7px;
+  }
+
+  .account-avatar {
+    width: 34px;
+    height: 34px;
+    font-size: 14px;
+  }
+
+  .account-avatar--member {
+    border-width: 2px;
+    box-shadow:
+      0 0 0 1px rgba(20, 184, 166, 0.08),
+      0 7px 18px rgba(20, 184, 166, 0.18);
+  }
+
+  .role-badge {
+    font-size: 8px;
+    padding: 2px 6px;
+  }
+
+  .account-role-hint,
+  .account-membership {
+    font-size: 9px;
+    line-height: 1.2;
+  }
+
+  .logout-chip {
+    grid-column: 1 / -1;
+    min-height: 28px;
+    margin-top: 3px;
+    font-size: 10px;
+    padding: 0 8px;
+  }
+
+  .wallet-row {
+    gap: 7px;
+    padding-bottom: 7px;
+  }
+
+  .wallet-label,
+  .wallet-link {
+    font-size: 10px;
+  }
+
+  .wallet-balance strong {
+    font-size: 11px;
+  }
+
+  .account-shortcuts,
+  .account-section {
+    gap: 6px;
+  }
+
+  .account-shortcuts {
+    padding-bottom: 7px;
+  }
+
+  .account-accordion {
+    padding-bottom: 7px;
+  }
+
+  .account-accordion summary {
+    font-size: 12px;
+  }
+
+  .account-accordion summary svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .account-section {
+    padding-top: 6px;
+  }
+
+  .account-link {
+    font-size: 11px;
+    line-height: 1.25;
   }
 }
 
@@ -2868,6 +3087,17 @@ watch(isCompactNav, (compact) => {
 
   .mobile-panel {
     width: min(204px, calc(100vw - 16px));
+  }
+
+  .account-panel {
+    right: 14px;
+    width: min(214px, calc(100vw - 28px));
+  }
+
+  .dropdown-panel:not(.account-panel),
+  .notification-panel {
+    right: 14px;
+    width: min(214px, calc(100vw - 28px));
   }
 }
 </style>

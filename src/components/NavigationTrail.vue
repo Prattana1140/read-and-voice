@@ -351,18 +351,43 @@ function goTo(item: TrailItem) {
 }
 
 @media (max-width: 640px) {
+  .navigation-trail {
+    border-bottom-color: color-mix(in srgb, var(--border) 70%, transparent);
+  }
+
   .navigation-trail__inner {
     width: calc(100% - calc(var(--page-gutter, 12px) * 2));
+    min-height: 26px;
+    padding: 3px 0;
     align-items: flex-start;
     flex-direction: column;
+    gap: 3px;
   }
 
   .navigation-trail__list {
     width: 100%;
+    gap: 3px;
   }
 
   .navigation-trail__link {
-    max-width: 150px;
+    max-width: 132px;
+    font-size: 0.66rem;
+    padding: 1px 0;
+  }
+
+  .navigation-trail__separator {
+    font-size: 0.62rem;
+  }
+
+  .navigation-trail__item {
+    gap: 3px;
+  }
+
+  .navigation-trail__dashboard {
+    min-height: 26px;
+    border-radius: 6px;
+    font-size: 0.68rem;
+    padding: 0 9px;
   }
 }
 </style>

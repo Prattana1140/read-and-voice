@@ -71,7 +71,6 @@
 | `/login` | Login | เข้าสู่ระบบ | login form | `/api/auth/login` | พร้อมใช้งาน | |
 | `/login/account` | AccountLogin | เข้าสู่ระบบแบบบัญชี | account login form | `/api/auth/login` | พร้อมใช้งาน | |
 | `/login/line` | LineLogin | social login | ปุ่มเชื่อมต่อ | `/api/auth/oauth/:provider/start` | พร้อมใช้งาน | |
-| `/login/facebook` | FacebookLogin | social login | ปุ่มเชื่อมต่อ | `/api/auth/oauth/:provider/start` | พร้อมใช้งาน | |
 | `/oauth/callback` | OAuthCallback | รับ callback social login | ไม่มีฟอร์ม | `/api/auth/oauth/:provider/callback`, `/api/auth/social-login` | พร้อมใช้งาน | |
 | `/register` | Register | สมัครสมาชิก | register form | `/api/auth/register` | พร้อมใช้งาน | |
 | `/forgot-password` | ForgotPassword | ขอรีเซ็ตรหัสผ่านและตั้งรหัสใหม่ผ่าน reset token | email form, reset password form | `/api/auth/forgot-password`, `/api/auth/reset-password` | พร้อมใช้งานแบบ partial | ตอนนี้ใช้ preview reset link ในหน้า ยังไม่มี email delivery จริง |

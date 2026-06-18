@@ -2,6 +2,15 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { announceAccessibilityMessage } from "../utils/accessibility";
+import api, { getApiErrorMessage } from "../utils/api";
+import {
+  normalizeVoiceCommand,
+  normalizeVoiceMatchText,
+  parseVoiceCommand,
+  voiceHelpSections,
+  type ReaderVoiceCommand,
+  type VoiceCommandAction,
+} from "../utils/voiceCommands";
 
 type SpeechRecognitionLike = {
   lang: string;
@@ -20,43 +29,69 @@ type SpeechRecognitionEventLike = {
   results: ArrayLike<ArrayLike<{ transcript: string; isFinal?: boolean }>>;
 };
 
-type ReaderVoiceCommand = "play" | "pause" | "stop" | "next" | "previous";
+type RecordingState = "idle" | "recording" | "transcribing";
 
 const router = useRouter();
 const route = useRoute();
 
 const isListening = ref(false);
 const isSupported = ref(true);
+const canRecordAudio = ref(false);
+const recordingState = ref<RecordingState>("idle");
 const lastCommand = ref("");
 const isContinuousMode = ref(false);
 const isHelpOpen = ref(false);
+const isManualOpen = ref(false);
 const isOnboardingOpen = ref(false);
+const typedCommand = ref("");
 const pendingMatches = ref<HTMLElement[]>([]);
 const pendingAction = ref<"click" | "focus">("click");
 const statusText = ref("กดเพื่อสั่งงานด้วยเสียง");
 const pendingDangerAction = ref<null | (() => void)>(null);
 
 let recognition: SpeechRecognitionLike | null = null;
+let mediaRecorder: MediaRecorder | null = null;
+let recordedChunks: BlobPart[] = [];
+let recordingStream: MediaStream | null = null;
 const ONBOARDING_STORAGE_KEY = "read-voice-voice-command-onboarded";
-const sensitiveRouteNames = new Set(["Login", "AccountLogin", "Register", "Profile", "ProfileSettings"]);
-
-const voiceHelpItems = [
-  "เปิดโหมดสั่งงานต่อเนื่อง / ปิดโหมดสั่งงานต่อเนื่อง",
-  "ช่วยเหลือ / ปิดช่วยเหลือ",
-  "อ่านตรงนี้ / อ่านทั้งหน้า / หยุดอ่าน",
-  "ไปที่ช่อง อีเมล / กรอกว่า สมชาย / ส่งฟอร์ม",
-  "เปิดหมวด นิยายรัก / เปิดหนังสือ ชื่อเรื่อง",
-  "กดปุ่ม บันทึก / คลิก เข้าสู่ระบบ",
-  "เลื่อนลง / เลื่อนขึ้น / ไปบนสุด / ไปล่างสุด",
-  "ปิดหน้าต่าง / เปิดเมนู / ปิดเมนู",
-  "แถวถัดไป / แถวก่อนหน้า / อ่านแถวนี้ / แก้ไขรายการนี้",
-  "อันที่หนึ่ง / อันที่สอง เมื่อระบบพบหลายรายการ",
-];
+const hiddenRouteNames = new Set(["Profile", "ProfileSettings"]);
+const continuousBlockedRouteNames = new Set(["Login", "AccountLogin", "Register", "ForgotPassword", ...hiddenRouteNames]);
 
 const buttonLabel = computed(() =>
-  isListening.value ? "กำลังฟัง..." : "สั่งงานด้วยเสียง",
+  !isSupported.value ? "พิมพ์คำสั่ง" : isListening.value ? "กำลังฟัง..." : "สั่งงานด้วยเสียง",
 );
-const isSensitiveRoute = computed(() => sensitiveRouteNames.has(String(route.name || "")));
+const serverRecordLabel = computed(() =>
+  recordingState.value === "recording"
+    ? "หยุดอัดเสียง"
+    : recordingState.value === "transcribing"
+      ? "กำลังแปลงเสียง..."
+      : "อัดเสียงผ่านเซิร์ฟเวอร์",
+);
+const voiceHelpText = computed(() =>
+  voiceHelpSections.map((section) => `${section.title}: ${section.items.join(". ")}`).join(". "),
+);
+const isVoiceHidden = computed(() => hiddenRouteNames.has(String(route.name || "")));
+const isContinuousBlockedRoute = computed(() => continuousBlockedRouteNames.has(String(route.name || "")));
+
+function detectSpeechSupport() {
+  const SpeechRecognitionConstructor =
+    (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  isSupported.value = Boolean(SpeechRecognitionConstructor && window.isSecureContext);
+
+  if (!SpeechRecognitionConstructor) {
+    statusText.value = "เครื่องนี้ใช้ไมค์สั่งงานไม่ได้ ใช้ช่องพิมพ์คำสั่งแทนได้";
+    isManualOpen.value = true;
+  } else if (!window.isSecureContext) {
+    statusText.value = "เสียงต้องใช้ HTTPS หรือ localhost แต่ช่องพิมพ์คำสั่งยังใช้ได้";
+    isManualOpen.value = true;
+  }
+
+  canRecordAudio.value = Boolean(
+    window.isSecureContext &&
+      navigator.mediaDevices?.getUserMedia &&
+      "MediaRecorder" in window,
+  );
+}
 
 function getRecognition() {
   if (recognition) return recognition;
@@ -66,7 +101,17 @@ function getRecognition() {
 
   if (!SpeechRecognitionConstructor) {
     isSupported.value = false;
-    statusText.value = "เบราว์เซอร์นี้ยังไม่รองรับคำสั่งเสียง";
+    statusText.value = "เครื่องนี้ใช้ไมค์สั่งงานไม่ได้ ใช้ช่องพิมพ์คำสั่งแทนได้";
+    isManualOpen.value = true;
+    announceAccessibilityMessage(statusText.value);
+    return null;
+  }
+
+  if (!window.isSecureContext) {
+    isSupported.value = false;
+    statusText.value = "เสียงต้องใช้ HTTPS หรือ localhost แต่ช่องพิมพ์คำสั่งยังใช้ได้";
+    isManualOpen.value = true;
+    announceAccessibilityMessage(statusText.value);
     return null;
   }
 
@@ -92,9 +137,15 @@ function getRecognition() {
   };
   recognition.onerror = (event) => {
     isListening.value = false;
-    statusText.value = event.error === "not-allowed"
-      ? "กรุณาอนุญาตการใช้ไมโครโฟน"
-      : "ฟังคำสั่งไม่สำเร็จ ลองอีกครั้ง";
+    if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+      statusText.value = "กรุณาอนุญาตไมโครโฟน แล้วใช้ Chrome หรือ Edge บน HTTPS";
+    } else if (event.error === "no-speech") {
+      statusText.value = "ไม่ได้ยินเสียง ลองพูดใกล้ไมค์อีกครั้ง";
+    } else if (event.error === "audio-capture") {
+      statusText.value = "ไม่พบไมโครโฟน กรุณาตรวจสอบอุปกรณ์เสียง";
+    } else {
+      statusText.value = "ฟังคำสั่งไม่สำเร็จ ลองอีกครั้ง";
+    }
     announceAccessibilityMessage(statusText.value);
   };
   recognition.onresult = (event) => {
@@ -122,18 +173,15 @@ function getTranscript(event: SpeechRecognitionEventLike) {
   return chunks.join(" ").trim();
 }
 
-function normalizeCommand(value: string) {
-  return value
-    .trim()
-    .toLocaleLowerCase("th-TH")
-    .replace(/[“”"'.!?]/g, "")
-    .replace(/\s+/g, " ");
-}
-
 function speakStatus(message: string) {
   statusText.value = message;
   announceAccessibilityMessage(message);
   speakText(message, true);
+}
+
+function announceStatusOnly(message: string) {
+  statusText.value = message;
+  announceAccessibilityMessage(message);
 }
 
 function speakText(message: string, interrupt = false) {
@@ -148,6 +196,11 @@ function speakText(message: string, interrupt = false) {
 }
 
 function startListening() {
+  if (!isSupported.value) {
+    isManualOpen.value = true;
+    return;
+  }
+
   const speechRecognition = getRecognition();
   if (!speechRecognition) return;
   speechRecognition.continuous = isContinuousMode.value;
@@ -165,7 +218,118 @@ function startListening() {
   }
 }
 
+function cleanupRecordingStream() {
+  recordingStream?.getTracks().forEach((track) => track.stop());
+  recordingStream = null;
+}
+
+function preferredAudioMimeType() {
+  const options = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4",
+    "audio/ogg;codecs=opus",
+  ];
+
+  return options.find((type) => MediaRecorder.isTypeSupported(type)) || "";
+}
+
+async function transcribeRecordedAudio(blob: Blob) {
+  recordingState.value = "transcribing";
+  statusText.value = "กำลังแปลงเสียงเป็นคำสั่ง...";
+
+  const formData = new FormData();
+  formData.append("audio", blob, `voice-command.${blob.type.includes("mp4") ? "m4a" : "webm"}`);
+  formData.append("language", "th");
+
+  try {
+    const { data } = await api.post("/speech/transcribe", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    const transcript = String(data?.transcript || "").trim();
+    if (!transcript) {
+      speakStatus("แปลงเสียงไม่สำเร็จ ลองพูดใหม่หรือพิมพ์คำสั่ง");
+      return;
+    }
+
+    lastCommand.value = transcript;
+    handleCommand(transcript);
+  } catch (error) {
+    isManualOpen.value = true;
+    speakStatus(getApiErrorMessage(error, "ใช้เสียงผ่านเซิร์ฟเวอร์ไม่ได้ ใช้ช่องพิมพ์คำสั่งแทนได้"));
+  } finally {
+    recordingState.value = "idle";
+  }
+}
+
+async function toggleServerRecording() {
+  if (!canRecordAudio.value) {
+    isManualOpen.value = true;
+    speakStatus("เครื่องนี้อัดเสียงจากเว็บไม่ได้ ใช้ช่องพิมพ์คำสั่งแทนได้");
+    return;
+  }
+
+  if (recordingState.value === "transcribing") return;
+
+  if (recordingState.value === "recording") {
+    mediaRecorder?.stop();
+    return;
+  }
+
+  try {
+    recordedChunks = [];
+    recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mimeType = preferredAudioMimeType();
+    mediaRecorder = new MediaRecorder(recordingStream, mimeType ? { mimeType } : undefined);
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) recordedChunks.push(event.data);
+    };
+    mediaRecorder.onstop = () => {
+      cleanupRecordingStream();
+      const blob = new Blob(recordedChunks, { type: mediaRecorder?.mimeType || "audio/webm" });
+      recordedChunks = [];
+      if (blob.size < 512) {
+        recordingState.value = "idle";
+        speakStatus("ไม่ได้ยินเสียง ลองอัดใหม่หรือพิมพ์คำสั่ง");
+        return;
+      }
+      transcribeRecordedAudio(blob);
+    };
+    mediaRecorder.start();
+    recordingState.value = "recording";
+    statusText.value = "กำลังอัดเสียงคำสั่ง...";
+  } catch {
+    cleanupRecordingStream();
+    recordingState.value = "idle";
+    isManualOpen.value = true;
+    speakStatus("เปิดไมโครโฟนไม่ได้ ใช้ช่องพิมพ์คำสั่งแทนได้");
+  }
+}
+
+function submitTypedCommand() {
+  const command = typedCommand.value.trim();
+  if (!command) {
+    speakStatus("พิมพ์คำสั่งก่อน เช่น ค้นหา นิยายรัก");
+    return;
+  }
+
+  typedCommand.value = "";
+  lastCommand.value = command;
+  handleCommand(command);
+}
+
 function setContinuousMode(enabled: boolean) {
+  if (enabled && !isSupported.value) {
+    isManualOpen.value = true;
+    speakStatus("โหมดฟังต่อเนื่องใช้ได้เฉพาะเครื่องที่รองรับไมค์สั่งงาน แต่พิมพ์คำสั่งได้");
+    return;
+  }
+
+  if (enabled && isContinuousBlockedRoute.value) {
+    speakStatus("หน้านี้ใช้คำสั่งเสียงแบบกดครั้งเดียวเท่านั้น");
+    return;
+  }
+
   isContinuousMode.value = enabled;
   if (recognition) recognition.continuous = enabled;
 
@@ -218,18 +382,12 @@ function runReaderCommand(command: ReaderVoiceCommand, message: string) {
   }
 
   dispatchReaderCommand(command);
-  speakStatus(message);
-}
-
-function extractAfter(command: string, markers: string[]) {
-  for (const marker of markers) {
-    const index = command.indexOf(marker);
-    if (index >= 0) {
-      return command.slice(index + marker.length).trim();
-    }
+  if (command === "play" || command === "next" || command === "previous") {
+    announceStatusOnly(message);
+    return;
   }
 
-  return "";
+  speakStatus(message);
 }
 
 function isVisibleElement(element: HTMLElement) {
@@ -271,7 +429,7 @@ function getElementVoiceName(element: HTMLElement) {
 }
 
 function normalizeMatchText(value: string) {
-  return normalizeCommand(value).replace(/\s+/g, "");
+  return normalizeVoiceMatchText(value);
 }
 
 function matchesVoiceName(element: HTMLElement, target: string) {
@@ -696,25 +854,10 @@ function clickActionInCurrentRow(actionName: string) {
   return true;
 }
 
-function handleGlobalUiCommand(command: string) {
-  const choiceMap: Record<string, number> = {
-    "อันที่หนึ่ง": 0,
-    "อันแรก": 0,
-    "ตัวเลือกแรก": 0,
-    "อันที่สอง": 1,
-    "ตัวเลือกสอง": 1,
-    "อันที่สาม": 2,
-    "ตัวเลือกสาม": 2,
-    "อันที่สี่": 3,
-    "ตัวเลือกสี่": 3,
-    "อันที่ห้า": 4,
-    "ตัวเลือกห้า": 4,
-  };
-
-  if (command in choiceMap) return choosePendingMatch(choiceMap[command]);
-  if (/^(ยืนยันลบ|ยืนยันการลบ)$/.test(command)) {
+function handleDangerConfirmation(command: string) {
+  if (/^(ยืนยันลบ|ยืนยันการลบ|ยืนยันสั่งซื้อ|ยืนยันจ่ายเงิน|ยืนยันชำระเงิน)$/.test(command)) {
     if (!pendingDangerAction.value) {
-      speakStatus("ไม่มีคำสั่งลบที่รอยืนยัน");
+      speakStatus("ไม่มีคำสั่งที่รอยืนยัน");
       return true;
     }
 
@@ -723,249 +866,211 @@ function handleGlobalUiCommand(command: string) {
     action();
     return true;
   }
-  if (/^(ยกเลิกลบ|ไม่ลบ|ยกเลิกคำสั่งลบ)$/.test(command)) {
+  if (/^(ยกเลิกลบ|ไม่ลบ|ยกเลิกคำสั่งลบ|ยกเลิกคำสั่ง|ไม่ยืนยัน)$/.test(command)) {
     pendingDangerAction.value = null;
-    speakStatus("ยกเลิกคำสั่งลบแล้ว");
-    return true;
-  }
-  if (/^(ช่วยเหลือ|คำสั่งเสียง|ดูคำสั่ง)$/.test(command)) {
-    isHelpOpen.value = true;
-    speakText(`คำสั่งที่ใช้ได้ เช่น ${voiceHelpItems.join(". ")}`, true);
-    speakStatus("เปิดรายการคำสั่งเสียงแล้ว");
-    return true;
-  }
-  if (/^(ปิดช่วยเหลือ|ปิดรายการคำสั่ง)$/.test(command)) {
-    isHelpOpen.value = false;
-    speakStatus("ปิดรายการคำสั่งเสียงแล้ว");
-    return true;
-  }
-  if (/^(เปิดโหมดสั่งงานต่อเนื่อง|ฟังต่อเนื่อง|เปิดฟังต่อเนื่อง)$/.test(command)) {
-    setContinuousMode(true);
-    return true;
-  }
-  if (/^(ปิดโหมดสั่งงานต่อเนื่อง|หยุดฟังต่อเนื่อง|ปิดฟังต่อเนื่อง)$/.test(command)) {
-    setContinuousMode(false);
-    return true;
-  }
-  if (/^(อ่านตรงนี้|อ่านรายการนี้|อ่านช่องนี้|อ่านปุ่มนี้|อ่านสิ่งที่เลือก)$/.test(command)) return readFocusedElement();
-  if (/^(อ่านทั้งหน้า|อ่านหน้านี้|สรุปหน้านี้)$/.test(command)) return readPageSummary();
-  if (/^(หยุดอ่านออกเสียง|หยุดพูด|หยุดอ่าน feedback|หยุดอ่านฟีดแบ็ก)$/.test(command)) return stopSpokenFeedback();
-  if (/^(ปิดหน้าต่าง|ปิดเมนู|ปิดกล่อง|ปิดป๊อปอัป|ปิด popup)$/.test(command)) return closeTopLayer();
-  if (/^(เปิดเมนู|เปิดเมนูบัญชี|เปิดแจ้งเตือน)$/.test(command)) return clickElementByName(command.replace(/^เปิด/, ""));
-  if (/^(แถวถัดไป|รายการถัดไป)$/.test(command)) return focusRow(1);
-  if (/^(แถวก่อนหน้า|รายการก่อนหน้า)$/.test(command)) return focusRow(-1);
-  if (/^(อ่านแถวนี้|อ่านรายการนี้)$/.test(command)) return readCurrentRow();
-  if (/^(แก้ไขรายการนี้|แก้ไขแถวนี้)$/.test(command)) return clickActionInCurrentRow("แก้ไข");
-  if (/^(ลบรายการนี้|ลบแถวนี้)$/.test(command)) return clickActionInCurrentRow("ลบ");
-  if (/^(อ่านตัวเลือก|อ่านตัวเลือกทั้งหมด|มีตัวเลือกอะไรบ้าง)$/.test(command)) return readSelectOptions();
-
-  const selectedOption = extractAfter(command, ["เลือกตัวเลือก", "เลือกค่า", "เลือกเป็น"]);
-  if (selectedOption) return selectOptionByVoice(selectedOption);
-
-  if (/^(แท็บถัดไป|ช่องถัดไป|ไปช่องถัดไป|โฟกัสถัดไป)$/.test(command)) return moveFocus(1);
-  if (/^(แท็บก่อนหน้า|ช่องก่อนหน้า|ไปช่องก่อนหน้า|โฟกัสก่อนหน้า)$/.test(command)) return moveFocus(-1);
-
-  if (/^(เลื่อนลง|ลง)$/.test(command)) {
-    window.scrollBy({ top: Math.round(window.innerHeight * 0.75), behavior: "smooth" });
-    speakStatus("เลื่อนลงแล้ว");
-    return true;
-  }
-
-  if (/^(เลื่อนขึ้น|ขึ้น)$/.test(command)) {
-    window.scrollBy({ top: -Math.round(window.innerHeight * 0.75), behavior: "smooth" });
-    speakStatus("เลื่อนขึ้นแล้ว");
-    return true;
-  }
-
-  if (/^(บนสุด|ไปบนสุด)$/.test(command)) {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    speakStatus("ไปบนสุดแล้ว");
-    return true;
-  }
-
-  if (/^(ล่างสุด|ไปล่างสุด)$/.test(command)) {
-    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
-    speakStatus("ไปล่างสุดแล้ว");
-    return true;
-  }
-
-  if (/^(ย้อนกลับ|กลับ)$/.test(command)) {
-    router.back();
-    speakStatus("ย้อนกลับแล้ว");
-    return true;
-  }
-
-  if (/^(ส่งฟอร์ม|ยืนยัน|ตกลง|บันทึก)$/.test(command)) {
-    return submitCurrentForm() || clickElementByName(command);
-  }
-
-  if (/^(ล้างช่อง|ล้างข้อความ|ลบข้อความ)$/.test(command)) {
-    const active = getEditableElement(document.activeElement);
-    if (!active) {
-      speakStatus("ยังไม่ได้เลือกช่องกรอกข้อมูล");
-      return true;
-    }
-
-    setEditableValue(active, "");
-    speakStatus("ล้างข้อความแล้ว");
-    return true;
-  }
-
-  const focusTarget = extractAfter(command, ["ไปที่ช่อง", "โฟกัสช่อง", "เลือกช่อง", "ไปที่"]);
-  if (focusTarget) {
-    if (!focusElementByName(focusTarget)) speakStatus(`ไม่พบ ${focusTarget}`);
-    return true;
-  }
-
-  const clickTarget = extractAfter(command, ["กดปุ่ม", "คลิก", "กด", "เลือก"]);
-  if (clickTarget) {
-    if (!clickElementByName(clickTarget)) speakStatus(`ไม่พบปุ่ม ${clickTarget}`);
-    return true;
-  }
-
-  const fieldFillMatch = command.match(/^(?:กรอก|พิมพ์|ใส่)\s+(.+?)\s+(?:ว่า|เป็น)\s+(.+)$/);
-  if (fieldFillMatch) {
-    const [, fieldName, value] = fieldFillMatch;
-    if (!focusElementByName(fieldName)) {
-      speakStatus(`ไม่พบช่อง ${fieldName}`);
-      return true;
-    }
-    const active = getEditableElement(document.activeElement);
-    if (!active || !setEditableValue(active, value.trim())) {
-      speakStatus(`กรอก ${fieldName} ไม่สำเร็จ`);
-      return true;
-    }
-    speakStatus(`กรอก ${fieldName} แล้ว`);
-    return true;
-  }
-
-  const fillValue = extractAfter(command, ["กรอกว่า", "พิมพ์ว่า", "ใส่ว่า", "กรอก", "พิมพ์", "ใส่"]);
-  if (fillValue) {
-    const active = getEditableElement(document.activeElement);
-    if (!active) {
-      speakStatus("เลือกช่องกรอกข้อมูลก่อน");
-      return true;
-    }
-
-    if (!setEditableValue(active, fillValue)) {
-      speakStatus("กรอกข้อมูลไม่สำเร็จ");
-      return true;
-    }
-
-    speakStatus("กรอกข้อมูลแล้ว");
+    speakStatus("ยกเลิกคำสั่งแล้ว");
     return true;
   }
 
   return false;
 }
 
+function routeMessage(action: Extract<VoiceCommandAction, { type: "navigate" }>) {
+  const messages: Record<string, string> = {
+    Home: "เปิดหน้าแรกแล้ว",
+    Serials: action.query?.view === "continue" ? "เปิดรายการอ่านต่อแล้ว" : "เปิดหน้านิยายรายตอนแล้ว",
+    MyLibrary: "เปิดชั้นหนังสือของฉันแล้ว",
+    Cart: "เปิดรถเข็นแล้ว",
+    WishList: "เปิดรายการโปรดแล้ว",
+    OrderHistory: "เปิดประวัติคำสั่งซื้อแล้ว",
+    Store: "เปิดหน้าหนังสือแล้ว",
+    CoinWallet: "เปิดกระเป๋าคอยน์แล้ว",
+  };
+
+  return messages[action.routeName] || "เปิดหน้าแล้ว";
+}
+
+function readerMessage(command: ReaderVoiceCommand) {
+  const messages: Record<ReaderVoiceCommand, string> = {
+    play: "เริ่มเล่นเสียงแล้ว",
+    pause: "หยุดอ่านชั่วคราวแล้ว",
+    stop: "หยุดเสียงแล้ว",
+    next: "เลื่อนไปถัดไปแล้ว",
+    previous: "ย้อนกลับแล้ว",
+  };
+
+  return messages[command];
+}
+
+function executeVoiceAction(action: VoiceCommandAction, normalizedCommand: string) {
+  switch (action.type) {
+    case "none":
+      speakStatus("ยังไม่รู้จักคำสั่งนี้ ลองพูดว่า ช่วยเหลือ เพื่อดูตัวอย่างคำสั่ง");
+      return;
+    case "cancelListening":
+      recognition?.stop();
+      speakStatus("หยุดฟังคำสั่งแล้ว");
+      return;
+    case "help":
+      isHelpOpen.value = action.open;
+      if (action.open) {
+        speakText(`คำสั่งที่ใช้ได้ เช่น ${voiceHelpText.value}`, true);
+        speakStatus("เปิดรายการคำสั่งเสียงแล้ว");
+      } else {
+        speakStatus("ปิดรายการคำสั่งเสียงแล้ว");
+      }
+      return;
+    case "continuous":
+      setContinuousMode(action.enabled);
+      return;
+    case "readFocused":
+      readFocusedElement();
+      return;
+    case "readPage":
+      readPageSummary();
+      return;
+    case "stopFeedback":
+      stopSpokenFeedback();
+      return;
+    case "closeTopLayer":
+      closeTopLayer();
+      return;
+    case "openMenu":
+      if (!clickElementByName(action.target)) speakStatus(`ไม่พบ ${action.target} ในหน้านี้`);
+      return;
+    case "focusRow":
+      focusRow(action.step);
+      return;
+    case "readCurrentRow":
+      readCurrentRow();
+      return;
+    case "rowAction":
+      clickActionInCurrentRow(action.actionName);
+      return;
+    case "readSelectOptions":
+      readSelectOptions();
+      return;
+    case "selectOption": {
+      const optionIndex = Number(action.value);
+      if (Number.isInteger(optionIndex) && optionIndex >= 1 && optionIndex <= 5 && pendingMatches.value.length) {
+        choosePendingMatch(optionIndex - 1);
+        return;
+      }
+      selectOptionByVoice(action.value);
+      return;
+    }
+    case "moveFocus":
+      moveFocus(action.step);
+      return;
+    case "scroll":
+      if (action.direction === "down") {
+        window.scrollBy({ top: Math.round(window.innerHeight * 0.75), behavior: "smooth" });
+        speakStatus("เลื่อนลงแล้ว");
+      } else if (action.direction === "up") {
+        window.scrollBy({ top: -Math.round(window.innerHeight * 0.75), behavior: "smooth" });
+        speakStatus("เลื่อนขึ้นแล้ว");
+      } else if (action.direction === "top") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        speakStatus("ไปบนสุดแล้ว");
+      } else {
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
+        speakStatus("ไปล่างสุดแล้ว");
+      }
+      return;
+    case "routerBack":
+      router.back();
+      speakStatus("ย้อนกลับแล้ว");
+      return;
+    case "submitForm":
+      if (!submitCurrentForm() && !clickElementByName(normalizedCommand)) speakStatus("ไม่พบฟอร์มให้ส่งในหน้านี้");
+      return;
+    case "clearField": {
+      const active = getEditableElement(document.activeElement);
+      if (!active) {
+        speakStatus("ยังไม่ได้เลือกช่องกรอกข้อมูล");
+        return;
+      }
+      setEditableValue(active, "");
+      speakStatus("ล้างข้อความแล้ว");
+      return;
+    }
+    case "focusElement":
+      if (!focusElementByName(action.target)) speakStatus(`ไม่พบ ${action.target} ในหน้านี้`);
+      return;
+    case "clickElement":
+      if (!clickElementByName(action.target)) speakStatus(`ไม่พบปุ่ม ${action.target} ในหน้านี้`);
+      return;
+    case "fillNamedField": {
+      if (!focusElementByName(action.fieldName)) {
+        speakStatus(`ไม่พบช่อง ${action.fieldName} ในหน้านี้`);
+        return;
+      }
+      const active = getEditableElement(document.activeElement);
+      if (!active || !setEditableValue(active, action.value)) {
+        speakStatus(`กรอก ${action.fieldName} ไม่สำเร็จ`);
+        return;
+      }
+      speakStatus(`กรอก ${action.fieldName} แล้ว`);
+      return;
+    }
+    case "fillActiveField": {
+      const active = getEditableElement(document.activeElement);
+      if (!active) {
+        speakStatus("เลือกช่องกรอกข้อมูลก่อน");
+        return;
+      }
+      if (!setEditableValue(active, action.value)) {
+        speakStatus("กรอกข้อมูลไม่สำเร็จ");
+        return;
+      }
+      speakStatus("กรอกข้อมูลแล้ว");
+      return;
+    }
+    case "navigate":
+      router.push({ name: action.routeName, query: action.query });
+      speakStatus(routeMessage(action));
+      return;
+    case "openAccessibility":
+      window.dispatchEvent(new CustomEvent("read-voice:open-accessibility-panel"));
+      speakStatus("เปิดตั้งค่าการเข้าถึงแล้ว");
+      return;
+    case "openCategory":
+      openCategoryByName(action.category, normalizedCommand);
+      return;
+    case "openBook":
+      openBookByTitle(action.title);
+      return;
+    case "search":
+      pushSearch(action.keyword, action.contentType);
+      speakStatus(`ค้นหา ${action.keyword} แล้ว`);
+      return;
+    case "reader":
+      runReaderCommand(action.command, readerMessage(action.command));
+      return;
+  }
+}
+
 function handleCommand(rawCommand: string) {
-  const command = normalizeCommand(rawCommand);
-
-  if (/^(หยุดฟัง|ยกเลิก)$/.test(command)) {
-    recognition?.stop();
-    speakStatus("หยุดฟังคำสั่งแล้ว");
-    return;
-  }
-
-  if (handleGlobalUiCommand(command)) return;
-
-  if (/หน้าแรก|กลับหน้าแรก|โฮม/.test(command)) {
-    router.push({ name: "Home" });
-    speakStatus("เปิดหน้าแรกแล้ว");
-    return;
-  }
-
-  if (/อ่านต่อ|อ่านค้างไว้|อ่านที่ค้าง/.test(command)) {
-    router.push({ name: "Serials", query: { view: "continue" } });
-    speakStatus("เปิดรายการอ่านต่อแล้ว");
-    return;
-  }
-
-  if (/นิยายรายตอน|รายตอน/.test(command)) {
-    router.push({ name: "Serials" });
-    speakStatus("เปิดหน้านิยายรายตอนแล้ว");
-    return;
-  }
-
-  if (/ร้านหนังสือ|หน้าหนังสือ|หนังสือ|อีบุ๊ก|ebook|e book/.test(command)) {
-    router.push({ name: "Store" });
-    speakStatus("เปิดหน้าหนังสือแล้ว");
-    return;
-  }
-
-  if (/ตั้งค่าการเข้าถึง|การเข้าถึง|accessibility/.test(command)) {
-    window.dispatchEvent(new CustomEvent("read-voice:open-accessibility-panel"));
-    speakStatus("เปิดตั้งค่าการเข้าถึงแล้ว");
-    return;
-  }
-
-  const category = extractAfter(command, ["เปิดหมวด", "ไปหมวด", "หมวด"]);
-  if (category) {
-    openCategoryByName(category, command);
-    return;
-  }
-
-  const bookTitle = extractAfter(command, [
-    "เปิดหนังสือ",
-    "เปิดเรื่อง",
-    "อ่านเรื่อง",
-    "อ่านหนังสือ",
-    "ไปที่หนังสือ",
-    "ไปที่เรื่อง",
-  ]);
-  if (bookTitle) {
-    openBookByTitle(bookTitle);
-    return;
-  }
-
-  const searchKeyword = extractAfter(command, ["ค้นหา", "หาเรื่อง", "หา"]);
-  if (searchKeyword) {
-    pushSearch(searchKeyword, /รายตอน|นิยายรายตอน/.test(command) ? "serial" : "all");
-    speakStatus(`ค้นหา ${searchKeyword} แล้ว`);
-    return;
-  }
-
-  if (/เล่นเสียง|เริ่มอ่าน|อ่านให้ฟัง|อ่านออกเสียง|เล่น/.test(command)) {
-    runReaderCommand("play", "เริ่มเล่นเสียงแล้ว");
-    return;
-  }
-
-  if (/หยุดอ่าน|พักเสียง|พักอ่าน|หยุดชั่วคราว|pause/.test(command)) {
-    runReaderCommand("pause", "หยุดอ่านชั่วคราวแล้ว");
-    return;
-  }
-
-  if (/หยุดเสียง|ปิดเสียง|stop/.test(command)) {
-    runReaderCommand("stop", "หยุดเสียงแล้ว");
-    return;
-  }
-
-  if (/ประโยคถัดไป|ย่อหน้าถัดไป|ถัดไป|ต่อไป/.test(command)) {
-    runReaderCommand("next", "เลื่อนไปถัดไปแล้ว");
-    return;
-  }
-
-  if (/ก่อนหน้า|ย้อนกลับประโยค|ย้อนกลับย่อหน้า/.test(command)) {
-    runReaderCommand("previous", "ย้อนกลับแล้ว");
-    return;
-  }
-
-  speakStatus("ยังไม่รู้จักคำสั่งนี้");
+  const command = normalizeVoiceCommand(rawCommand);
+  if (handleDangerConfirmation(command)) return;
+  executeVoiceAction(parseVoiceCommand(command), command);
 }
 
 onBeforeUnmount(() => {
   recognition?.abort();
+  if (mediaRecorder?.state === "recording") mediaRecorder.stop();
+  cleanupRecordingStream();
 });
 
 onMounted(() => {
+  detectSpeechSupport();
   isOnboardingOpen.value = localStorage.getItem(ONBOARDING_STORAGE_KEY) !== "1";
 });
 
 watch(
   () => route.name,
   (name) => {
-    if (isContinuousMode.value && sensitiveRouteNames.has(String(name || ""))) {
+    if (isContinuousMode.value && continuousBlockedRouteNames.has(String(name || ""))) {
       setContinuousMode(false);
       speakStatus("ปิดโหมดฟังต่อเนื่องในหน้าที่มีข้อมูลส่วนตัวแล้ว");
     }
@@ -974,23 +1079,59 @@ watch(
 </script>
 
 <template>
-  <aside v-if="!isSensitiveRoute" class="voice-command" aria-label="สั่งงานด้วยเสียง">
+  <aside v-if="!isVoiceHidden" class="voice-command" aria-label="สั่งงานด้วยเสียง">
     <button
       class="voice-command__button"
       :class="{ 'is-listening': isListening, 'is-continuous': isContinuousMode }"
       type="button"
-      :disabled="!isSupported"
       :aria-pressed="isListening"
       @click="startListening"
     >
       <span aria-hidden="true"></span>
       {{ buttonLabel }}
     </button>
+    <button
+      v-if="isSupported"
+      class="voice-command__manual-toggle"
+      type="button"
+      :aria-expanded="isManualOpen"
+      @click="isManualOpen = !isManualOpen"
+    >
+      พิมพ์คำสั่ง
+    </button>
+    <button
+      v-if="canRecordAudio"
+      class="voice-command__server-record"
+      :class="{ 'is-recording': recordingState === 'recording' }"
+      type="button"
+      :disabled="recordingState === 'transcribing'"
+      @click="toggleServerRecording"
+    >
+      {{ serverRecordLabel }}
+    </button>
+    <form
+      v-if="isManualOpen || !isSupported"
+      class="voice-command__manual"
+      @submit.prevent="submitTypedCommand"
+    >
+      <label for="voice-command-input">คำสั่ง</label>
+      <div>
+        <input
+          id="voice-command-input"
+          v-model="typedCommand"
+          type="text"
+          inputmode="text"
+          autocomplete="off"
+          placeholder="เช่น ค้นหา นิยายรัก"
+        />
+        <button type="submit">สั่ง</button>
+      </div>
+    </form>
     <p>{{ lastCommand || statusText }}</p>
   </aside>
 
   <section
-    v-if="isHelpOpen && !isSensitiveRoute"
+    v-if="isHelpOpen && !isVoiceHidden"
     class="voice-help"
     role="dialog"
     aria-modal="false"
@@ -1000,20 +1141,25 @@ watch(
       <h2>คำสั่งเสียง</h2>
       <button type="button" aria-label="ปิดช่วยเหลือคำสั่งเสียง" @click="isHelpOpen = false">×</button>
     </header>
-    <ul>
-      <li v-for="item in voiceHelpItems" :key="item">{{ item }}</li>
-    </ul>
+    <div class="voice-help__sections">
+      <section v-for="section in voiceHelpSections" :key="section.title">
+        <h3>{{ section.title }}</h3>
+        <ul>
+          <li v-for="item in section.items" :key="item">{{ item }}</li>
+        </ul>
+      </section>
+    </div>
   </section>
 
   <section
-    v-if="isOnboardingOpen && !isSensitiveRoute"
+    v-if="isOnboardingOpen && !isVoiceHidden"
     class="voice-onboarding"
     role="dialog"
     aria-modal="false"
     aria-label="เริ่มใช้งานคำสั่งเสียง"
   >
     <h2>สั่งงานด้วยเสียง</h2>
-    <p>กดปุ่มไมค์แล้วอนุญาตไมโครโฟน จากนั้นพูดคำสั่ง เช่น “ช่วยเหลือ”, “ค้นหา นิยายรัก”, “ไปที่ช่องอีเมล” หรือ “อ่านทั้งหน้า”</p>
+    <p>กดปุ่มไมค์แล้วอนุญาตไมโครโฟน จากนั้นพูดคำสั่ง เช่น “ช่วยเหลือ”, “ค้นหา นิยายรัก”, “ไปที่ช่องอีเมล” หรือ “อ่านให้ฟัง” ถ้าเครื่องไม่รองรับ ให้ใช้อัดเสียงผ่านเซิร์ฟเวอร์หรือพิมพ์คำสั่งแทน</p>
     <div>
       <button type="button" @click="isHelpOpen = true">ดูคำสั่ง</button>
       <button type="button" @click="closeOnboarding">เข้าใจแล้ว</button>
@@ -1035,11 +1181,16 @@ watch(
 }
 
 .voice-command__button,
+.voice-command__manual-toggle,
+.voice-command__server-record,
+.voice-command__manual,
 .voice-command p {
   pointer-events: auto;
 }
 
-.voice-command__button {
+.voice-command__button,
+.voice-command__manual-toggle,
+.voice-command__server-record {
   display: inline-flex;
   align-items: center;
   gap: 9px;
@@ -1052,6 +1203,35 @@ watch(
   cursor: pointer;
   font-weight: 900;
   padding: 0 15px;
+}
+
+.voice-command__manual-toggle {
+  min-height: 34px;
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 0 12px;
+}
+
+.voice-command__server-record {
+  min-height: 34px;
+  border-color: color-mix(in srgb, #0f766e 45%, var(--border));
+  background: color-mix(in srgb, var(--surface) 92%, #ccfbf1);
+  color: #0f766e;
+  font-size: 12px;
+  padding: 0 12px;
+}
+
+.voice-command__server-record.is-recording {
+  border-color: #dc2626;
+  background: #dc2626;
+  color: #fff;
+}
+
+.voice-command__server-record:disabled {
+  cursor: wait;
+  opacity: 0.72;
 }
 
 .voice-command__button span {
@@ -1087,9 +1267,49 @@ watch(
     0 0 0 3px rgba(245, 158, 11, 0.18);
 }
 
-.voice-command__button:disabled {
-  cursor: not-allowed;
-  opacity: 0.62;
+.voice-command__manual {
+  display: grid;
+  gap: 6px;
+  width: min(320px, calc(100vw - 36px));
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 97%, transparent);
+  box-shadow: var(--shadow);
+  padding: 10px;
+}
+
+.voice-command__manual label {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.voice-command__manual div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.voice-command__manual input {
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-strong);
+  font: inherit;
+  padding: 0 10px;
+}
+
+.voice-command__manual button {
+  min-height: 38px;
+  border: 1px solid var(--primary);
+  border-radius: 10px;
+  background: var(--primary);
+  color: var(--on-primary);
+  cursor: pointer;
+  font-weight: 900;
+  padding: 0 12px;
 }
 
 .voice-command p {
@@ -1149,6 +1369,23 @@ watch(
   cursor: pointer;
   font-size: 20px;
   line-height: 1;
+}
+
+.voice-help__sections {
+  display: grid;
+  gap: 14px;
+}
+
+.voice-help section {
+  display: grid;
+  gap: 6px;
+}
+
+.voice-help h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 900;
 }
 
 .voice-help ul {
@@ -1233,12 +1470,28 @@ watch(
     padding: 0;
   }
 
+  .voice-command__manual-toggle {
+    min-height: 32px;
+    font-size: 11px;
+    padding: 0 10px;
+  }
+
+  .voice-command__server-record {
+    min-height: 32px;
+    font-size: 11px;
+    padding: 0 10px;
+  }
+
   .voice-command__button span {
     flex: 0 0 auto;
   }
 
   .voice-command p {
     display: none;
+  }
+
+  .voice-command__manual {
+    width: min(300px, calc(100vw - 24px));
   }
 
   .voice-help {
