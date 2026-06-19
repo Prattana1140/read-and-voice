@@ -107,7 +107,9 @@
                     <option value="user">user</option>
                     <option value="writer">writer</option>
                     <option value="admin">admin</option>
-                    <option value="superadmin" disabled>superadmin</option>
+                    <option v-if="user.role === 'superadmin'" value="superadmin" disabled>
+                      superadmin
+                    </option>
                   </select>
                 </div>
               </td>
@@ -498,12 +500,40 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .admin-users-page {
-    padding: var(--page-block, 16px) var(--page-gutter, 16px);
+    padding: 10px 16px 22px;
   }
 
   .page-header {
     flex-direction: column;
     align-items: flex-start;
+    gap: 9px;
+    margin-bottom: 12px;
+  }
+
+  .page-header h1 {
+    margin-bottom: 3px;
+    font-size: 22px;
+    line-height: 1.15;
+  }
+
+  .page-header p {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .header-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .refresh-btn,
+  .back-btn {
+    min-height: 36px;
+    border-radius: 10px;
+    padding: 7px 10px;
+    font-size: 12px;
   }
 
   .search-input {
@@ -516,6 +546,158 @@ onMounted(() => {
   .filter-select,
   .role-select {
     width: 100%;
+  }
+
+  .toolbar {
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .search-input,
+  .filter-select,
+  .role-select {
+    min-height: 38px;
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .alert {
+    margin-bottom: 10px;
+    border-radius: 10px;
+    padding: 9px 10px;
+    font-size: 12px;
+  }
+
+  .table-card {
+    border-radius: 14px;
+    box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
+  }
+
+  .state-box {
+    padding: 16px;
+    font-size: 12px;
+  }
+
+  .users-table {
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  .users-table th,
+  .users-table td {
+    overflow-wrap: anywhere;
+    padding: 6px 5px;
+    font-size: 8px;
+    line-height: 1.25;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .users-table th {
+    font-size: 7.5px;
+    line-height: 1.2;
+  }
+
+  .role-badge {
+    padding: 3px 5px;
+    font-size: 7.5px;
+    line-height: 1.1;
+  }
+
+  .action-group {
+    gap: 5px;
+  }
+
+  .action-group .role-select {
+    max-width: 54px;
+    min-height: 22px;
+    padding: 2px 16px 2px 4px;
+    font-size: 7px;
+    line-height: 1.15;
+  }
+
+  .action-btn {
+    min-height: 22px;
+    border-radius: 8px;
+    padding: 3px 4px;
+    font-size: 7px;
+    line-height: 1.15;
+  }
+
+  .note {
+    margin-top: 10px;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+}
+
+@media (max-width: 420px) {
+  .admin-users-page {
+    padding: 8px 18px 20px;
+  }
+
+  .page-header {
+    gap: 7px;
+    margin-bottom: 10px;
+  }
+
+  .page-header h1 {
+    font-size: 19px;
+  }
+
+  .page-header p {
+    font-size: 10px;
+  }
+
+  .refresh-btn,
+  .back-btn {
+    min-height: 32px;
+    border-radius: 9px;
+    font-size: 10px;
+    padding: 6px 8px;
+  }
+
+  .toolbar {
+    gap: 7px;
+  }
+
+  .search-input,
+  .filter-select,
+  .role-select {
+    min-height: 34px;
+    border-radius: 9px;
+    padding: 6px 8px;
+    font-size: 10px;
+  }
+
+  .users-table {
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  .users-table th,
+  .users-table td {
+    padding: 5px 4px;
+    font-size: 7px;
+  }
+
+  .action-btn {
+    min-height: 20px;
+    font-size: 6.5px;
+    padding: 2px 3px;
+  }
+
+  .action-group .role-select {
+    max-width: 50px;
+    min-height: 20px;
+    border-radius: 7px;
+    padding: 1px 14px 1px 3px;
+    font-size: 6.5px;
+  }
+
+  .note {
+    font-size: 10px;
   }
 }
 </style>

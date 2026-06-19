@@ -251,9 +251,20 @@ onMounted(() => {
 }
 
 @media (max-width: 640px) {
+  .edit-page {
+    padding: 8px 18px 22px;
+  }
+
   .header {
     align-items: flex-start;
     flex-direction: column;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .header h1 {
+    font-size: 18px;
+    line-height: 1.2;
   }
 
   .back-btn,
@@ -261,10 +272,60 @@ onMounted(() => {
     width: 100%;
   }
 
+  .back-btn,
+  .save-btn {
+    min-height: 30px;
+    border-radius: 8px;
+    font-size: 10px;
+    padding: 6px 9px;
+  }
+
   .state-box,
   .form-card {
-    border-radius: 16px;
-    padding: 18px;
+    border-radius: 10px;
+    padding: 10px;
+    box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
+  }
+
+  .state-box {
+    font-size: 10px;
+  }
+
+  .form-group {
+    margin-bottom: 10px;
+  }
+
+  .form-group label {
+    margin-bottom: 5px;
+    font-size: 10px;
+  }
+
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    border-radius: 8px;
+    padding: 8px 9px;
+    font-size: 10px;
+  }
+
+  .form-actions {
+    margin-top: 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  .edit-page {
+    padding: 7px 20px 20px;
+  }
+
+  .header h1 {
+    font-size: 16px;
+  }
+
+  .back-btn,
+  .save-btn {
+    min-height: 28px;
+    font-size: 9px;
   }
 }
 </style>

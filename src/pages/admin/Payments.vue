@@ -26,6 +26,8 @@ type PaymentItem = {
 
 const statusFilter = ref<PaymentStatus>("pending");
 const typeFilter = ref<PaymentType | "all">("all");
+const statusOptions: PaymentStatus[] = ["pending", "paid", "failed", "cancelled", "all"];
+const typeOptions: Array<PaymentType | "all"> = ["all", "coin_topup", "order", "subscription"];
 const items = ref<PaymentItem[]>([]);
 const loading = ref(true);
 const savingKey = ref("");
@@ -115,6 +117,30 @@ function typeLabel(type: PaymentType) {
   return "แพ็กเกจสมาชิก";
 }
 
+function statusLabel(status: PaymentStatus) {
+  if (status === "pending") return "รอตรวจ";
+  if (status === "paid") return "อนุมัติแล้ว";
+  if (status === "failed") return "ไม่ผ่าน";
+  if (status === "cancelled") return "ยกเลิก";
+  if (status === "completed") return "เสร็จแล้ว";
+  return "ทั้งหมด";
+}
+
+function typeFilterLabel(type: PaymentType | "all") {
+  if (type === "all") return "ทุกประเภท";
+  return typeLabel(type);
+}
+
+function setStatusFilter(status: PaymentStatus) {
+  if (statusFilter.value === status) return;
+  statusFilter.value = status;
+  loadPayments();
+}
+
+function setTypeFilter(type: PaymentType | "all") {
+  typeFilter.value = type;
+}
+
 function amountLabel(item: PaymentItem) {
   if (item.item_type === "coin_topup") return `${Number(item.coins || 0)} เหรียญ`;
   return formatMoney(item.amount);
@@ -150,23 +176,45 @@ onMounted(loadPayments);
     <section class="toolbar">
       <label>
         <span>สถานะ</span>
-        <select v-model="statusFilter" @change="loadPayments">
+        <select class="status-select" v-model="statusFilter" @change="loadPayments">
           <option value="pending">รอตรวจ</option>
           <option value="paid">อนุมัติแล้ว</option>
           <option value="failed">ไม่ผ่าน</option>
           <option value="cancelled">ยกเลิก</option>
           <option value="all">ทั้งหมด</option>
         </select>
+        <div class="mobile-tabs" aria-label="กรองสถานะรายการชำระเงิน">
+          <button
+            v-for="status in statusOptions"
+            :key="status"
+            type="button"
+            :class="{ active: statusFilter === status }"
+            @click="setStatusFilter(status)"
+          >
+            {{ statusLabel(status) }}
+          </button>
+        </div>
       </label>
 
       <label>
         <span>ประเภท</span>
-        <select v-model="typeFilter">
+        <select class="type-select" v-model="typeFilter">
           <option value="all">ทุกประเภท</option>
           <option value="coin_topup">เติมเหรียญ ({{ typeCounts.coin_topup || 0 }})</option>
           <option value="order">คำสั่งซื้อ ({{ typeCounts.order || 0 }})</option>
           <option value="subscription">สมาชิก ({{ typeCounts.subscription || 0 }})</option>
         </select>
+        <div class="mobile-tabs" aria-label="กรองประเภทรายการชำระเงิน">
+          <button
+            v-for="type in typeOptions"
+            :key="type"
+            type="button"
+            :class="{ active: typeFilter === type }"
+            @click="setTypeFilter(type)"
+          >
+            {{ typeFilterLabel(type) }}
+          </button>
+        </div>
       </label>
 
       <button type="button" @click="loadPayments">รีเฟรช</button>
@@ -394,6 +442,10 @@ button:disabled {
   opacity: 0.6;
 }
 
+.mobile-tabs {
+  display: none;
+}
+
 .state-box {
   color: var(--text-muted);
   padding: 24px;
@@ -460,6 +512,11 @@ dd {
 }
 
 @media (max-width: 760px) {
+  .payments-page {
+    gap: 10px;
+    padding: 10px 16px 24px;
+  }
+
   .hero,
   .payment-main,
   .toolbar {
@@ -468,17 +525,171 @@ dd {
     grid-template-columns: 1fr;
   }
 
+  .hero,
+  .toolbar,
+  .payment-card,
+  .state-box {
+    border-radius: 10px;
+    box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
+  }
+
+  .hero {
+    gap: 9px;
+    padding: 12px;
+  }
+
+  .hero p,
+  .eyebrow,
+  dt {
+    font-size: 9px;
+  }
+
+  .hero h1,
+  .payment-card h2 {
+    margin: 3px 0;
+    font-size: 18px;
+    line-height: 1.2;
+  }
+
+  .hero span,
+  .payment-card span,
+  dd,
+  .detail,
+  label {
+    font-size: 10px;
+    line-height: 1.35;
+  }
+
+  .summary-card {
+    padding: 9px;
+  }
+
+  .summary-card strong {
+    font-size: 22px;
+  }
+
+  .message {
+    border-radius: 8px;
+    font-size: 10px;
+    padding: 8px 9px;
+  }
+
+  .toolbar {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  label {
+    gap: 5px;
+  }
+
+  select,
+  input,
+  button {
+    min-height: 32px;
+    border-radius: 7px;
+    font-size: 10px;
+    padding: 0 9px;
+  }
+
+  .state-box {
+    padding: 14px;
+    font-size: 10px;
+  }
+
+  .payment-list {
+    gap: 8px;
+  }
+
+  .payment-card {
+    gap: 10px;
+    padding: 11px;
+  }
+
+  .payment-main {
+    gap: 8px;
+  }
+
   .amount-box {
     text-align: left;
   }
 
+  .amount-box strong {
+    font-size: 17px;
+  }
+
   dl {
+    gap: 7px;
     grid-template-columns: 1fr;
+  }
+
+  dd {
+    margin-top: 2px;
+  }
+
+  .actions {
+    gap: 7px;
   }
 
   .actions button,
   select {
     width: 100%;
+  }
+
+  .status-select,
+  .type-select {
+    display: none;
+  }
+
+  .mobile-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+    width: 100%;
+  }
+
+  .mobile-tabs button {
+    width: 100%;
+    min-height: 27px;
+    border-radius: 999px;
+    padding: 2px 5px;
+    background: var(--surface-soft);
+    color: var(--text-strong);
+    font-size: 8px;
+    line-height: 1.15;
+  }
+
+  .mobile-tabs button.active {
+    background: #14b8a6;
+    color: #ffffff;
+  }
+}
+
+@media (max-width: 420px) {
+  .payments-page {
+    padding: 8px 18px 22px;
+  }
+
+  .hero h1,
+  .payment-card h2 {
+    font-size: 16px;
+  }
+
+  select,
+  input,
+  button {
+    min-height: 29px;
+    font-size: 9px;
+  }
+
+  .mobile-tabs {
+    gap: 4px;
+  }
+
+  .mobile-tabs button {
+    min-height: 24px;
+    font-size: 7.5px;
+    padding: 2px 4px;
   }
 }
 </style>

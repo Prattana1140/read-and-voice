@@ -3148,5 +3148,120 @@ th {
     font-size: 12px;
     padding: 6px 8px;
   }
+
+  table {
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  th,
+  td {
+    overflow-wrap: anywhere;
+    padding: 5px 4px;
+    font-size: 7px;
+    line-height: 1.25;
+    word-break: break-word;
+  }
+
+  th {
+    font-size: 6.5px;
+    line-height: 1.15;
+  }
+
+  .status-pill,
+  .position-pill {
+    min-height: 16px;
+    border-radius: 5px;
+    font-size: 6.5px;
+    line-height: 1.1;
+    padding: 2px 3px;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 420px) {
+  .page {
+    padding: 8px 18px 22px;
+  }
+
+  .page-head h1 {
+    font-size: 18px;
+  }
+
+  .page-head p,
+  .panel-title p {
+    font-size: 9px;
+    line-height: 1.3;
+  }
+
+  .panel {
+    width: min(100%, 300px);
+    max-width: calc(100vw - 36px);
+    border-radius: 10px;
+    padding: 8px;
+  }
+
+  .panel-title h2 {
+    font-size: 14px;
+  }
+
+  .home-chip {
+    min-height: 22px;
+    font-size: 8px;
+    padding: 2px 6px;
+  }
+
+  .preset-panel strong,
+  label,
+  .tone-picker-field,
+  .art-picker-field {
+    font-size: 9px;
+  }
+
+  .preset-panel span,
+  .field-hint,
+  .field-hint-row small {
+    font-size: 8px;
+  }
+
+  input,
+  select {
+    min-height: 30px;
+    border-radius: 7px;
+    padding: 5px 7px;
+    font-size: 9px;
+  }
+
+  .tone-dropdown summary,
+  .art-picker summary {
+    min-height: 31px;
+    border-radius: 7px;
+  }
+
+  .check-row {
+    min-height: 31px;
+    padding: 5px 7px;
+  }
+
+  .actions button,
+  .primary-btn,
+  .ghost-btn {
+    min-height: 29px;
+    border-radius: 7px;
+    font-size: 9px;
+    padding: 5px 7px;
+  }
+
+  th,
+  td {
+    padding: 4px 3px;
+    font-size: 6.5px;
+  }
+
+  th,
+  .status-pill,
+  .position-pill {
+    font-size: 6px;
+  }
 }
 </style>

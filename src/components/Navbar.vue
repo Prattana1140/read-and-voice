@@ -9,7 +9,11 @@ import {
   getUser,
   logout as clearAuth,
 } from "../utils/auth";
-import { filterBooks, type SearchableBook } from "../utils/bookSearch";
+import {
+  filterBooks,
+  uniqueBookCategories,
+  type SearchableBook,
+} from "../utils/bookSearch";
 import { useI18n } from "../utils/i18n";
 
 type ThemeMode = "normal" | "dark" | "reading";
@@ -89,12 +93,15 @@ const isMembershipActive = ref(false);
 const notificationItems = ref<NotificationItem[]>([]);
 const notificationLoading = ref(false);
 const notificationError = ref("");
+const recentSearches = ref<string[]>([]);
 
 const allRoles: UserRole[] = ["guest", "user", "writer", "admin", "superadmin"];
 const compactNavBreakpoint = 780;
 
 let navResizeObserver: ResizeObserver | null = null;
 let compactMeasureFrame = 0;
+
+const recentSearchStorageKey = "read-voice-recent-searches";
 
 const notificationCount = computed(
   () =>
@@ -224,8 +231,49 @@ const mainNavItems = computed(() =>
 const searchSuggestions = computed(() => {
   const keyword = search.value.trim();
   if (!keyword) return [];
-  return filterBooks(searchBooks.value, keyword).slice(0, 8);
+  return filterBooks(searchBooks.value, keyword).slice(0, 6);
 });
+
+const searchCategories = computed(() => {
+  const keyword = search.value.trim().toLowerCase();
+  const categories = uniqueBookCategories(searchBooks.value);
+
+  if (!keyword) return categories.slice(0, 6);
+
+  return categories
+    .filter((category) => category.toLowerCase().includes(keyword))
+    .slice(0, 4);
+});
+
+const searchAuthors = computed(() => {
+  const keyword = search.value.trim().toLowerCase();
+  if (!keyword) return [];
+
+  return [
+    ...new Set(
+      searchBooks.value
+        .map((book) => book.author || book.author_name)
+        .filter(Boolean)
+        .map(String),
+    ),
+  ]
+    .filter((author) => author.toLowerCase().includes(keyword))
+    .slice(0, 4);
+});
+
+const popularSearches = computed(() => [
+  { label: t("home.freeBooks"), query: { access: "free" } },
+  { label: t("home.bestSellers"), query: { q: t("home.bestSellers") } },
+  { label: t("home.newReleases"), query: { q: t("home.newReleases") } },
+  { label: t("home.promotions"), query: { q: t("home.promotions") } },
+]);
+
+const hasSearchDiscovery = computed(
+  () =>
+    recentSearches.value.length > 0 ||
+    popularSearches.value.length > 0 ||
+    searchCategories.value.length > 0,
+);
 
 const accountGroups = computed<NavGroup[]>(() => {
   const role = currentRole.value;
@@ -537,6 +585,70 @@ const closeSearch = () => {
   isSearchOpen.value = false;
 };
 
+const saveRecentSearch = (value: string) => {
+  const keyword = value.trim();
+  if (!keyword) return;
+
+  recentSearches.value = [
+    keyword,
+    ...recentSearches.value.filter(
+      (item) => item.toLowerCase() !== keyword.toLowerCase(),
+    ),
+  ].slice(0, 6);
+
+  try {
+    localStorage.setItem(
+      recentSearchStorageKey,
+      JSON.stringify(recentSearches.value),
+    );
+  } catch {
+    // Search history is only a convenience.
+  }
+};
+
+const loadRecentSearches = () => {
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(recentSearchStorageKey) || "[]",
+    );
+    recentSearches.value = Array.isArray(parsed)
+      ? parsed.filter(Boolean).map(String).slice(0, 6)
+      : [];
+  } catch {
+    recentSearches.value = [];
+  }
+};
+
+const goToSearch = (query: Record<string, string>) => {
+  closeMenu();
+  closeSearch();
+  router.push({ name: "Search", query });
+};
+
+const searchKeyword = (keyword: string) => {
+  saveRecentSearch(keyword);
+  search.value = keyword;
+  goToSearch({ q: keyword });
+};
+
+const searchCategory = (categoryName: string) => {
+  saveRecentSearch(categoryName);
+  search.value = categoryName;
+  goToSearch({ category: categoryName });
+};
+
+const searchAuthor = (authorName: string) => {
+  saveRecentSearch(authorName);
+  search.value = authorName;
+  goToSearch({ q: authorName });
+};
+
+const searchPopular = (item: { label: string; query: Record<string, string> }) => {
+  saveRecentSearch(item.label);
+  search.value = item.label;
+  goToSearch(item.query);
+};
+
 const toggleNotifications = () => {
   const shouldOpen = !isNotificationsOpen.value;
 
@@ -623,6 +735,7 @@ const submitSearch = () => {
   const keyword = search.value.trim();
   closeMenu();
   closeSearch();
+  saveRecentSearch(keyword);
   router.push(
     keyword ? { name: "Search", query: { q: keyword } } : { name: "Search" },
   );
@@ -649,6 +762,7 @@ const loadSearchBooks = async () => {
 const openSearchBook = (book: SearchableBook) => {
   closeMenu();
   closeSearch();
+  saveRecentSearch(search.value || book.title || "");
   search.value = "";
   router.push({ name: "BookDetail", params: { id: book.id } });
 };
@@ -806,6 +920,7 @@ onMounted(() => {
   }
 
   scheduleCompactNavMeasure();
+  loadRecentSearches();
   loadWalletBalance();
   loadMembershipLabel();
   loadNotifications();
@@ -1314,31 +1429,118 @@ watch(isCompactNav, (compact) => {
         </button>
       </div>
 
-      <section class="search-results" aria-label="หนังสือที่เกี่ยวข้อง">
+      <section class="search-results" aria-label="ผลการค้นหาและคำแนะนำ">
         <p v-if="searchLoading">กำลังค้นหา...</p>
 
         <template v-else-if="search.trim()">
-          <button
-            v-for="book in searchSuggestions"
-            :key="book.id"
-            type="button"
-            @click="openSearchBook(book)"
-          >
-            <img
-              :src="resolveAssetUrl(book.cover_url || book.cover_image)"
-              :alt="book.title || 'book cover'"
-            />
-            <span>
-              <strong>{{ book.title }}</strong>
-              <small>
-                {{ book.author || book.author_name || "ไม่ระบุผู้เขียน" }} ·
-                {{ book.category_name || "หนังสือ" }}
-              </small>
-            </span>
-            <em>{{ book.content_type === "serial" ? "รายตอน" : "อีบุ๊ก" }}</em>
-          </button>
+          <div v-if="searchSuggestions.length" class="search-section">
+            <h3>หนังสือ</h3>
+            <button
+              v-for="book in searchSuggestions"
+              :key="book.id"
+              class="search-book-result"
+              type="button"
+              @click="openSearchBook(book)"
+            >
+              <img
+                :src="resolveAssetUrl(book.cover_url || book.cover_image)"
+                :alt="book.title || 'book cover'"
+              />
+              <span>
+                <strong>{{ book.title }}</strong>
+                <small>
+                  {{ book.author || book.author_name || "ไม่ระบุผู้เขียน" }} ·
+                  {{ book.category_name || "หนังสือ" }}
+                </small>
+              </span>
+              <em>{{ book.content_type === "serial" ? "รายตอน" : "อีบุ๊ก" }}</em>
+            </button>
+          </div>
 
-          <p v-if="searchSuggestions.length === 0">ไม่พบหนังสือที่เกี่ยวข้อง</p>
+          <div v-if="searchAuthors.length" class="search-section">
+            <h3>นักเขียน</h3>
+            <button
+              v-for="author in searchAuthors"
+              :key="author"
+              class="search-chip-result"
+              type="button"
+              @click="searchAuthor(author)"
+            >
+              <span>นักเขียน</span>
+              <strong>{{ author }}</strong>
+            </button>
+          </div>
+
+          <div v-if="searchCategories.length" class="search-section">
+            <h3>หมวดหมู่</h3>
+            <button
+              v-for="categoryName in searchCategories"
+              :key="categoryName"
+              class="search-chip-result"
+              type="button"
+              @click="searchCategory(categoryName)"
+            >
+              <span>หมวดหมู่</span>
+              <strong>{{ categoryName }}</strong>
+            </button>
+          </div>
+
+          <p
+            v-if="
+              searchSuggestions.length === 0 &&
+              searchAuthors.length === 0 &&
+              searchCategories.length === 0
+            "
+          >
+            ไม่พบผลลัพธ์ที่เกี่ยวข้อง
+          </p>
+        </template>
+
+        <template v-else-if="hasSearchDiscovery">
+          <div v-if="recentSearches.length" class="search-section">
+            <h3>ค้นหาล่าสุด</h3>
+            <div class="search-chip-list">
+              <button
+                v-for="keyword in recentSearches"
+                :key="keyword"
+                class="search-suggestion-chip"
+                type="button"
+                @click="searchKeyword(keyword)"
+              >
+                {{ keyword }}
+              </button>
+            </div>
+          </div>
+
+          <div class="search-section">
+            <h3>คำค้นยอดนิยม</h3>
+            <div class="search-chip-list">
+              <button
+                v-for="item in popularSearches"
+                :key="item.label"
+                class="search-suggestion-chip"
+                type="button"
+                @click="searchPopular(item)"
+              >
+                {{ item.label }}
+              </button>
+            </div>
+          </div>
+
+          <div v-if="searchCategories.length" class="search-section">
+            <h3>หมวดหมู่แนะนำ</h3>
+            <div class="search-chip-list">
+              <button
+                v-for="categoryName in searchCategories"
+                :key="categoryName"
+                class="search-suggestion-chip"
+                type="button"
+                @click="searchCategory(categoryName)"
+              >
+                {{ categoryName }}
+              </button>
+            </div>
+          </div>
         </template>
       </section>
     </form>
@@ -2234,7 +2436,25 @@ watch(isCompactNav, (compact) => {
   font-weight: 800;
 }
 
-.search-results button {
+.search-section {
+  display: grid;
+  gap: 8px;
+  padding: 6px;
+}
+
+.search-section + .search-section {
+  border-top: 1px solid rgba(15, 118, 110, 0.1);
+  padding-top: 12px;
+}
+
+.search-section h3 {
+  margin: 0;
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.search-book-result {
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) auto;
   gap: 12px;
@@ -2250,8 +2470,12 @@ watch(isCompactNav, (compact) => {
   text-align: left;
 }
 
-.search-results button:hover,
-.search-results button:focus-visible {
+.search-book-result:hover,
+.search-book-result:focus-visible,
+.search-chip-result:hover,
+.search-chip-result:focus-visible,
+.search-suggestion-chip:hover,
+.search-suggestion-chip:focus-visible {
   background: #ecfdf5;
   outline: 0;
 }
@@ -2263,33 +2487,84 @@ watch(isCompactNav, (compact) => {
   background: #e2e8f0;
 }
 
-.search-results span {
+.search-book-result span {
   display: grid;
   gap: 3px;
   min-width: 0;
 }
 
-.search-results strong,
-.search-results small {
+.search-book-result strong,
+.search-book-result small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.search-results strong {
+.search-book-result strong {
   font-size: 15px;
 }
 
-.search-results small,
-.search-results em {
+.search-book-result small,
+.search-book-result em {
   color: #64748b;
   font-size: 12px;
   font-style: normal;
   font-weight: 800;
 }
 
-.search-results em {
+.search-book-result em {
   color: #0f766e;
+}
+
+.search-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.search-suggestion-chip,
+.search-chip-result {
+  border: 0;
+  background: #f2fbfa;
+  color: #0f172a;
+  cursor: pointer;
+  font: inherit;
+}
+
+.search-suggestion-chip {
+  min-height: 32px;
+  border-radius: 999px;
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 0 12px;
+}
+
+.search-chip-result {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 40px;
+  border-radius: 12px;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.search-chip-result span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.search-chip-result strong {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* =========================
@@ -2658,6 +2933,109 @@ watch(isCompactNav, (compact) => {
     padding: 0 8px;
   }
 
+  .search-overlay {
+    gap: 9px;
+    padding: max(12px, env(safe-area-inset-top)) 12px 12px;
+  }
+
+  .search-box {
+    grid-template-columns: 18px minmax(0, 1fr) 34px;
+    gap: 8px;
+    width: min(520px, calc(100vw - 24px));
+    min-height: 48px;
+    padding: 8px 8px 8px 14px;
+    border-radius: 24px;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.18);
+  }
+
+  .search-box > svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .search-box input {
+    font-size: 13px;
+    line-height: 1.25;
+  }
+
+  .search-close {
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+  }
+
+  .search-close svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .search-results {
+    width: min(520px, calc(100vw - 24px));
+    max-height: min(58vh, 420px);
+    border-radius: 14px;
+    padding: 7px;
+  }
+
+  .search-section {
+    gap: 6px;
+    padding: 5px;
+  }
+
+  .search-section + .search-section {
+    padding-top: 9px;
+  }
+
+  .search-section h3 {
+    font-size: 10px;
+  }
+
+  .search-book-result {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 8px;
+    min-height: 48px;
+    border-radius: 11px;
+    padding: 6px;
+  }
+
+  .search-results img {
+    width: 34px;
+  }
+
+  .search-book-result strong {
+    font-size: 11px;
+  }
+
+  .search-book-result small,
+  .search-book-result em {
+    font-size: 9px;
+  }
+
+  .search-chip-list {
+    gap: 6px;
+  }
+
+  .search-suggestion-chip {
+    min-height: 27px;
+    font-size: 10px;
+    padding: 0 9px;
+  }
+
+  .search-chip-result {
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 7px;
+    min-height: 34px;
+    border-radius: 10px;
+    padding: 6px 8px;
+  }
+
+  .search-chip-result span {
+    font-size: 9px;
+  }
+
+  .search-chip-result strong {
+    font-size: 10px;
+  }
+
   .mobile-backdrop {
     inset: 58px 0 0 0;
   }
@@ -2794,6 +3172,63 @@ watch(isCompactNav, (compact) => {
     height: 22px;
     font-size: 9px;
     padding: 0 6px;
+  }
+
+  .search-overlay {
+    gap: 7px;
+    padding: max(10px, env(safe-area-inset-top)) 10px 10px;
+  }
+
+  .search-box {
+    grid-template-columns: 16px minmax(0, 1fr) 30px;
+    gap: 7px;
+    width: min(360px, calc(100vw - 20px));
+    min-height: 42px;
+    padding: 6px 6px 6px 12px;
+    border-radius: 21px;
+  }
+
+  .search-box > svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .search-box input {
+    font-size: 11px;
+  }
+
+  .search-close {
+    width: 30px;
+    height: 30px;
+    min-height: 30px;
+  }
+
+  .search-close svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .search-results {
+    width: min(360px, calc(100vw - 20px));
+    max-height: min(56vh, 380px);
+  }
+
+  .search-book-result {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .search-book-result em {
+    grid-column: 2;
+  }
+
+  .search-results img {
+    width: 30px;
+  }
+
+  .search-suggestion-chip {
+    min-height: 25px;
+    font-size: 9px;
+    padding: 0 8px;
   }
 
   .mobile-backdrop {

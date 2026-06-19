@@ -537,7 +537,7 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .admin-page {
-    padding: 12px 10px 24px;
+    padding: 8px 16px 20px;
   }
 
   .container {
@@ -546,31 +546,32 @@ onMounted(() => {
 
   .page-header {
     flex-direction: column;
-    gap: 12px;
-    margin-bottom: 14px;
+    gap: 7px;
+    margin-bottom: 9px;
   }
 
   .page-header h1 {
-    margin-bottom: 6px;
-    font-size: 28px;
+    margin-bottom: 3px;
+    font-size: 20px;
     line-height: 1.15;
   }
 
   .page-header p {
-    font-size: 13px;
-    line-height: 1.55;
+    max-width: 34rem;
+    font-size: 9.5px;
+    line-height: 1.35;
   }
 
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    margin-bottom: 12px;
+    gap: 6px;
+    margin-bottom: 8px;
   }
 
   .header-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    gap: 6px;
     width: 100%;
   }
 
@@ -580,40 +581,40 @@ onMounted(() => {
   }
 
   .top-btn {
-    min-height: 40px;
-    border-radius: 10px;
-    font-size: 12px;
+    min-height: 29px;
+    border-radius: 8px;
+    font-size: 9px;
     line-height: 1.2;
-    padding: 8px 10px;
+    padding: 4px 7px;
   }
 
   .stat-card,
   .state-box {
-    border-radius: 14px;
-    padding: 12px;
+    border-radius: 10px;
+    padding: 8px;
     box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
   }
 
   .stat-label {
-    margin-bottom: 4px;
-    font-size: 12px;
+    margin-bottom: 2px;
+    font-size: 9px;
   }
 
   .stat-value {
-    font-size: 26px;
+    font-size: 18px;
     line-height: 1;
   }
 
   .toolbar {
-    margin-bottom: 12px;
+    margin-bottom: 8px;
   }
 
   .search-input {
     max-width: none;
-    min-height: 44px;
-    border-radius: 12px;
-    font-size: 13px;
-    padding: 10px 12px;
+    min-height: 32px;
+    border-radius: 9px;
+    font-size: 10px;
+    padding: 6px 9px;
   }
 
   .table-wrap {
@@ -622,18 +623,27 @@ onMounted(() => {
   }
 
   .book-table {
-    min-width: 650px;
+    min-width: 0;
+    table-layout: fixed;
   }
 
   .book-table th,
   .book-table td {
-    padding: 9px 10px;
-    font-size: 12px;
+    overflow-wrap: anywhere;
+    padding: 5px 4px;
+    font-size: 7px;
+    line-height: 1.25;
+    word-break: break-word;
+  }
+
+  .book-table th {
+    font-size: 6.5px;
+    line-height: 1.15;
   }
 
   .cover-thumb {
-    width: 44px;
-    height: 60px;
+    width: 24px;
+    height: 32px;
     border-radius: 6px;
   }
 
@@ -644,7 +654,7 @@ onMounted(() => {
   .title-cell strong {
     display: -webkit-box;
     overflow: hidden;
-    font-size: 12px;
+    font-size: 7px;
     line-height: 1.25;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -656,10 +666,10 @@ onMounted(() => {
   }
 
   .status-badge {
-    min-width: 54px;
-    border-radius: 8px;
-    font-size: 11px;
-    padding: 6px 8px;
+    min-width: 0;
+    border-radius: 7px;
+    font-size: 6.5px;
+    padding: 3px 4px;
   }
 
   .action-buttons {
@@ -667,10 +677,55 @@ onMounted(() => {
   }
 
   .btn {
-    min-height: 30px;
-    border-radius: 8px;
-    font-size: 11px;
-    padding: 6px 8px;
+    min-height: 19px;
+    border-radius: 7px;
+    font-size: 6.5px;
+    line-height: 1.15;
+    padding: 2px 3px;
+  }
+}
+
+@media (max-width: 420px) {
+  .admin-page {
+    padding: 7px 18px 18px;
+  }
+
+  .page-header h1 {
+    font-size: 18px;
+  }
+
+  .page-header p {
+    font-size: 8.5px;
+    line-height: 1.3;
+  }
+
+  .header-actions {
+    gap: 5px;
+  }
+
+  .top-btn {
+    min-height: 27px;
+    border-radius: 7px;
+    font-size: 8px;
+    padding: 3px 5px;
+  }
+
+  .stats-grid {
+    gap: 6px;
+  }
+
+  .stat-card,
+  .state-box {
+    padding: 7px;
+  }
+
+  .stat-value {
+    font-size: 17px;
+  }
+
+  .book-table {
+    min-width: 0;
+    table-layout: fixed;
   }
 }
 </style>

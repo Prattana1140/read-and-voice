@@ -27,6 +27,8 @@ const normalizeText = (value: unknown) => {
     .replace(/[\u0300-\u036f]/g, "");
 };
 
+const compactText = (value: string) => value.replace(/\s+/g, "");
+
 const getSearchBlob = (book: SearchableBook) => {
   return [
     book.title,
@@ -39,6 +41,45 @@ const getSearchBlob = (book: SearchableBook) => {
   ]
     .map(normalizeText)
     .join(" ");
+};
+
+const getSearchFields = (book: SearchableBook) => {
+  return [
+    book.title,
+    book.author,
+    book.author_name,
+    book.category_name,
+    book.description,
+    book.content_type,
+    book.access_type,
+  ].map(normalizeText);
+};
+
+const isSubsequenceMatch = (target: string, query: string) => {
+  if (!query) return true;
+  if (!target || query.length < 2) return false;
+
+  let queryIndex = 0;
+  for (const character of target) {
+    if (character === query[queryIndex]) queryIndex += 1;
+    if (queryIndex === query.length) return true;
+  }
+
+  return false;
+};
+
+const matchesSearchPart = (book: SearchableBook, part: string) => {
+  const fields = getSearchFields(book);
+  const compactPart = compactText(part);
+
+  return fields.some((field) => {
+    const compactField = compactText(field);
+    return (
+      field.includes(part) ||
+      compactField.includes(compactPart) ||
+      isSubsequenceMatch(compactField, compactPart)
+    );
+  });
 };
 
 export const uniqueBookCategories = (books: SearchableBook[]) => {
@@ -71,8 +112,7 @@ export const filterBooks = (
       }
 
       if (parts.length === 0) return true;
-      const blob = getSearchBlob(book);
-      return parts.every((part) => blob.includes(part));
+      return parts.every((part) => matchesSearchPart(book, part));
     })
     .sort((a, b) => getBookSearchScore(b, keyword) - getBookSearchScore(a, keyword));
 };
@@ -85,19 +125,33 @@ export const getBookSearchScore = (book: SearchableBook, query = "") => {
   const author = normalizeText(book.author || book.author_name);
   const category = normalizeText(book.category_name);
   const blob = getSearchBlob(book);
+  const compactKeyword = compactText(keyword);
+  const compactTitle = compactText(title);
+  const compactAuthor = compactText(author);
+  const compactCategory = compactText(category);
+  const compactBlob = compactText(blob);
 
   let score = 0;
   if (title === keyword) score += 120;
   if (title.startsWith(keyword)) score += 90;
   if (title.includes(keyword)) score += 70;
+  if (compactTitle.includes(compactKeyword)) score += 55;
   if (author.includes(keyword)) score += 35;
+  if (compactAuthor.includes(compactKeyword)) score += 30;
   if (category.includes(keyword)) score += 25;
+  if (compactCategory.includes(compactKeyword)) score += 22;
   if (blob.includes(keyword)) score += 10;
+  if (compactBlob.includes(compactKeyword)) score += 8;
+  if (isSubsequenceMatch(compactTitle, compactKeyword)) score += 18;
+  if (isSubsequenceMatch(compactAuthor, compactKeyword)) score += 10;
+  if (isSubsequenceMatch(compactCategory, compactKeyword)) score += 8;
 
   for (const part of keyword.split(/\s+/).filter(Boolean)) {
-    if (title.includes(part)) score += 12;
-    if (author.includes(part)) score += 8;
-    if (category.includes(part)) score += 6;
+    const compactPart = compactText(part);
+    if (title.includes(part) || compactTitle.includes(compactPart)) score += 12;
+    if (author.includes(part) || compactAuthor.includes(compactPart)) score += 8;
+    if (category.includes(part) || compactCategory.includes(compactPart)) score += 6;
+    if (isSubsequenceMatch(compactTitle, compactPart)) score += 4;
   }
 
   return score;

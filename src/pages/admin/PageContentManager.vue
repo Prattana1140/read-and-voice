@@ -1119,4 +1119,73 @@ onUnmounted(() => {
     padding: 18px;
   }
 }
+
+@media (max-width: 420px) {
+  .admin-page-content {
+    padding: 8px 18px 22px;
+  }
+
+  .page-hero {
+    border-radius: 10px;
+    padding: 10px;
+    box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
+  }
+
+  .page-hero p,
+  .status,
+  .menu-row ul,
+  .step-grid p {
+    font-size: 9px;
+    line-height: 1.3;
+  }
+
+  .page-hero h1 {
+    font-size: 18px;
+    line-height: 1.2;
+  }
+
+  .page-hero span,
+  .menu-name strong,
+  .step-grid strong {
+    font-size: 10px;
+    line-height: 1.35;
+  }
+
+  .hero-actions {
+    gap: 7px;
+  }
+
+  .hero-actions a,
+  .hero-actions button,
+  .banner-actions button {
+    min-height: 29px;
+    border-radius: 7px;
+    font-size: 9px;
+    padding: 0 9px;
+  }
+
+  .admin-note,
+  .banner-manager,
+  .next-steps,
+  .menu-row {
+    border-radius: 10px;
+    padding: 10px;
+  }
+
+  .summary-grid,
+  .step-grid {
+    gap: 8px;
+  }
+
+  .step-grid article {
+    border-radius: 9px;
+    padding: 9px;
+  }
+
+  .error-text {
+    border-radius: 8px;
+    font-size: 10px;
+    padding: 8px 9px;
+  }
+}
 </style>

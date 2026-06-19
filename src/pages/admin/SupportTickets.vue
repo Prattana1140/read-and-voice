@@ -21,6 +21,7 @@ type SupportTicket = {
 };
 
 const statusFilter = ref<TicketStatus>("open");
+const statusOptions: TicketStatus[] = ["open", "in_progress", "resolved", "closed", "all"];
 const items = ref<SupportTicket[]>([]);
 const notes = ref<Record<number, string>>({});
 const loading = ref(true);
@@ -90,7 +91,14 @@ function statusLabel(status: string) {
   if (status === "in_progress") return "กำลังดูแล";
   if (status === "resolved") return "แก้แล้ว";
   if (status === "closed") return "ปิดแล้ว";
+  if (status === "all") return "ทั้งหมด";
   return status;
+}
+
+function setStatusFilter(status: TicketStatus) {
+  if (statusFilter.value === status) return;
+  statusFilter.value = status;
+  loadItems();
 }
 
 function categoryLabel(category: string) {
@@ -129,13 +137,24 @@ onMounted(loadItems);
     <section class="toolbar">
       <label>
         <span>สถานะ</span>
-        <select v-model="statusFilter" @change="loadItems">
+        <select class="status-select" v-model="statusFilter" @change="loadItems">
           <option value="open">เปิดใหม่</option>
           <option value="in_progress">กำลังดูแล</option>
           <option value="resolved">แก้แล้ว</option>
           <option value="closed">ปิดแล้ว</option>
           <option value="all">ทั้งหมด</option>
         </select>
+        <div class="status-tabs" aria-label="กรองสถานะคำขอ">
+          <button
+            v-for="status in statusOptions"
+            :key="status"
+            type="button"
+            :class="{ active: statusFilter === status }"
+            @click="setStatusFilter(status)"
+          >
+            {{ statusLabel(status) }}
+          </button>
+        </div>
       </label>
 
       <button type="button" @click="loadItems">รีเฟรช</button>
@@ -322,6 +341,10 @@ select {
   min-height: 42px;
 }
 
+.status-tabs {
+  display: none;
+}
+
 button {
   background: var(--surface-soft);
   border: 0;
@@ -421,6 +444,11 @@ dd {
 }
 
 @media (max-width: 760px) {
+  .tickets-page {
+    gap: 10px;
+    padding: 10px 16px 24px;
+  }
+
   .hero,
   .ticket-main,
   .toolbar {
@@ -429,17 +457,183 @@ dd {
     grid-template-columns: 1fr;
   }
 
+  .hero,
+  .toolbar,
+  .ticket-card,
+  .state-box {
+    border-radius: 10px;
+    box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
+  }
+
+  .hero {
+    gap: 9px;
+    padding: 12px;
+  }
+
+  .hero p,
+  .eyebrow,
+  dt {
+    font-size: 9px;
+  }
+
+  .hero h1,
+  .ticket-card h2 {
+    margin: 3px 0;
+    font-size: 18px;
+    line-height: 1.2;
+  }
+
+  .hero span,
+  .ticket-card span,
+  dd,
+  .ticket-message,
+  label {
+    font-size: 10px;
+    line-height: 1.35;
+  }
+
+  .summary-card {
+    padding: 9px;
+  }
+
+  .summary-card strong {
+    font-size: 22px;
+  }
+
+  .message {
+    border-radius: 8px;
+    font-size: 10px;
+    padding: 8px 9px;
+  }
+
+  .toolbar {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  label {
+    gap: 5px;
+  }
+
+  select,
+  textarea,
+  button {
+    border-radius: 7px;
+    font-size: 10px;
+  }
+
+  select,
+  button {
+    min-height: 32px;
+    padding: 0 9px;
+  }
+
+  textarea {
+    padding: 8px 9px;
+  }
+
+  .state-box {
+    padding: 14px;
+    font-size: 10px;
+  }
+
+  .ticket-list {
+    gap: 8px;
+  }
+
+  .ticket-card {
+    gap: 10px;
+    padding: 11px;
+  }
+
+  .ticket-main {
+    gap: 8px;
+  }
+
   .date-box {
     text-align: left;
   }
 
   dl {
+    gap: 7px;
     grid-template-columns: 1fr;
+  }
+
+  dd {
+    margin-top: 2px;
+  }
+
+  .ticket-message {
+    border-radius: 7px;
+    padding: 8px;
+  }
+
+  .actions {
+    gap: 7px;
   }
 
   .actions button,
   select {
     width: 100%;
+  }
+
+  .status-select {
+    display: none;
+  }
+
+  .status-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+    width: 100%;
+  }
+
+  .status-tabs button {
+    width: 100%;
+    min-height: 27px;
+    border-radius: 999px;
+    padding: 2px 5px;
+    background: var(--surface-soft);
+    color: var(--text-strong);
+    font-size: 8px;
+    line-height: 1.15;
+  }
+
+  .status-tabs button.active {
+    background: #14b8a6;
+    color: #ffffff;
+  }
+}
+
+@media (max-width: 420px) {
+  .tickets-page {
+    padding: 8px 18px 22px;
+  }
+
+  .hero h1,
+  .ticket-card h2 {
+    font-size: 16px;
+  }
+
+  select,
+  textarea,
+  button {
+    font-size: 9px;
+  }
+
+  select,
+  button {
+    min-height: 29px;
+  }
+
+  .status-tabs {
+    gap: 4px;
+  }
+
+  .status-tabs button {
+    min-height: 24px;
+    font-size: 7.5px;
+    padding: 2px 4px;
   }
 }
 </style>

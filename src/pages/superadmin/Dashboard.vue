@@ -449,17 +449,71 @@ onMounted(loadSummary);
 
 @media (max-width: 760px) {
   .superadmin-page {
-    padding-inline: var(--page-gutter, 16px);
+    padding: 8px 18px 22px;
   }
 
   .hero-card {
     flex-direction: column;
-    border-radius: 18px;
-    padding: 20px;
+    gap: 9px;
+    border-radius: 10px;
+    padding: 11px;
+    box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
+  }
+
+  .eyebrow,
+  .stat-label,
+  .panel-head span,
+  .identity-pill,
+  .shortcut-card span,
+  .popular-item span {
+    font-size: 9px;
+  }
+
+  .hero-card h1 {
+    font-size: 18px;
+    line-height: 1.2;
+  }
+
+  .hero-text,
+  .stat-card p,
+  .empty-box {
+    font-size: 10px;
+    line-height: 1.35;
+  }
+
+  .identity-row {
+    gap: 6px;
+    margin-top: 9px;
+  }
+
+  .identity-pill {
+    padding: 4px 8px;
   }
 
   .hero-actions {
+    gap: 7px;
     width: 100%;
+  }
+
+  .primary-btn,
+  .ghost-btn {
+    min-height: 31px;
+    border-radius: 8px;
+    font-size: 9px;
+    padding: 0 9px;
+  }
+
+  .state-box {
+    margin-top: 9px;
+    border-radius: 10px;
+    padding: 10px;
+    font-size: 10px;
+  }
+
+  .stats-grid,
+  .content-grid {
+    gap: 8px;
+    margin-top: 8px;
   }
 
   .hero-actions button,
@@ -470,8 +524,57 @@ onMounted(loadSummary);
 
   .panel,
   .stat-card {
-    border-radius: 18px;
-    padding: 18px;
+    border-radius: 10px;
+    padding: 10px;
+    box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
+  }
+
+  .stat-card {
+    gap: 4px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+  }
+
+  .panel-head {
+    gap: 7px;
+    margin-bottom: 9px;
+  }
+
+  .panel h2,
+  .shortcut-card strong,
+  .popular-item strong {
+    font-size: 14px;
+  }
+
+  .link-grid,
+  .popular-list {
+    gap: 7px;
+  }
+
+  .shortcut-card,
+  .popular-item,
+  .empty-box {
+    border-radius: 9px;
+    gap: 3px;
+    padding: 8px;
+  }
+}
+
+@media (max-width: 420px) {
+  .superadmin-page {
+    padding: 7px 20px 20px;
+  }
+
+  .hero-card h1 {
+    font-size: 16px;
+  }
+
+  .primary-btn,
+  .ghost-btn {
+    min-height: 29px;
+    font-size: 8px;
   }
 }
 </style>

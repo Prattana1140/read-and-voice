@@ -648,6 +648,11 @@ textarea {
 }
 
 @media (max-width: 900px) {
+  .approvals-page {
+    gap: 10px;
+    padding: 10px 16px 24px;
+  }
+
   .hero {
     flex-direction: column;
   }
@@ -659,7 +664,7 @@ textarea {
 
   .hero-actions a,
   .hero-actions button {
-    flex: 1 1 160px;
+    flex: 1 1 130px;
   }
 
   .layout,
@@ -673,17 +678,135 @@ textarea {
   .hero,
   .queue,
   .approval-card {
-    padding: 18px;
+    border-radius: 10px;
+    padding: 12px;
+    box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
+  }
+
+  .hero {
+    gap: 9px;
+  }
+
+  .hero p,
+  .book-type,
+  label,
+  .placement-item small,
+  .promotion-fields small {
+    font-size: 10px;
+  }
+
+  .hero h1 {
+    margin-top: 3px;
+    font-size: 18px;
+    line-height: 1.2;
+  }
+
+  .hero span,
+  .description,
+  .queue-item span,
+  .queue-item small {
+    font-size: 10px;
+    line-height: 1.35;
+  }
+
+  .hero-actions a,
+  .hero-actions button,
+  input,
+  select,
+  textarea,
+  .primary-btn,
+  .mini-btn {
+    min-height: 32px;
+    border-radius: 8px;
+    font-size: 10px;
+    padding: 0 9px;
+  }
+
+  textarea {
+    padding: 8px 9px;
+  }
+
+  .section-head {
+    margin-bottom: 9px;
+  }
+
+  .section-head h2,
+  .section-head h3,
+  .book-head h2 {
+    font-size: 15px;
+  }
+
+  .queue-item {
+    grid-template-columns: 42px 1fr;
+    gap: 8px;
+    border-radius: 8px;
+    padding: 7px;
+  }
+
+  .queue-item + .queue-item {
+    margin-top: 7px;
+  }
+
+  .queue-item img {
+    width: 42px;
+    height: 58px;
   }
 
   .book-head img {
-    width: min(160px, 52vw);
+    width: min(110px, 42vw);
     height: auto;
     aspect-ratio: 5 / 7;
   }
 
+  .form-grid {
+    gap: 9px;
+    margin-top: 12px;
+  }
+
+  .placement-card {
+    margin-top: 12px;
+    border-radius: 8px;
+    padding: 10px;
+  }
+
+  .placement-grid,
+  .promotion-fields {
+    gap: 8px;
+  }
+
+  .placement-item {
+    gap: 7px;
+    border-radius: 8px;
+    padding: 8px;
+  }
+
+  .actions {
+    margin-top: 12px;
+  }
+
   .actions .primary-btn {
     width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .approvals-page {
+    padding: 8px 18px 22px;
+  }
+
+  .hero h1 {
+    font-size: 16px;
+  }
+
+  .hero-actions a,
+  .hero-actions button,
+  input,
+  select,
+  textarea,
+  .primary-btn,
+  .mini-btn {
+    min-height: 29px;
+    font-size: 9px;
   }
 }
 </style>

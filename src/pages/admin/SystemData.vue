@@ -852,18 +852,137 @@ th {
 
 @media (max-width: 560px) {
   .system-page {
-    padding-inline: var(--page-gutter, 14px);
+    padding: 8px 18px 22px;
   }
 
   .summary-grid {
     grid-template-columns: 1fr;
+    gap: 7px;
+    margin-top: 9px;
   }
 
   .page-head,
   .section-intro,
   .table-card {
-    border-radius: 14px;
-    padding: 14px;
+    border-radius: 10px;
+    padding: 10px;
+    box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
+  }
+
+  .eyebrow,
+  .summary-card span,
+  th,
+  .pill {
+    font-size: 9px;
+  }
+
+  .page-head h1 {
+    font-size: 18px;
+    line-height: 1.2;
+  }
+
+  .page-head p,
+  .section-intro p,
+  td {
+    font-size: 10px;
+    line-height: 1.35;
+  }
+
+  .tabbar {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    overflow: visible;
+    padding: 6px 0;
+  }
+
+  .tabbar button,
+  .section-intro button {
+    min-height: 25px;
+    border-radius: 999px;
+    font-size: 7.5px;
+    line-height: 1.15;
+    padding: 0 7px;
+  }
+
+  .tabbar button {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .section-intro {
+    gap: 8px;
+  }
+
+  .section-intro h2,
+  .table-card h3 {
+    font-size: 14px;
+  }
+
+  .summary-card {
+    border-radius: 9px;
+    gap: 3px;
+    padding: 8px;
+  }
+
+  .summary-card strong {
+    font-size: 18px;
+  }
+
+  .stack {
+    gap: 9px;
+    margin-top: 9px;
+  }
+
+  .table-card {
+    margin-top: 9px;
+  }
+
+  .table-card h3 {
+    margin-bottom: 8px;
+  }
+
+  table {
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  th,
+  td {
+    overflow-wrap: anywhere;
+    padding: 5px 4px;
+    word-break: break-word;
+  }
+
+  th {
+    font-size: 7px;
+    line-height: 1.2;
+  }
+
+  td {
+    font-size: 7px;
+    line-height: 1.25;
+  }
+
+  .pill {
+    max-width: 100%;
+    min-height: 14px;
+    justify-content: center;
+    border-radius: 5px;
+    font-size: 6px;
+    line-height: 1.1;
+    padding: 1px 3px;
+    white-space: normal;
+  }
+
+  .state-box {
+    margin-top: 9px;
+    border-radius: 10px;
+    padding: 10px;
+    font-size: 10px;
   }
 }
 </style>

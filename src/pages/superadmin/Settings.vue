@@ -676,4 +676,137 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 560px) {
+  .settings-page {
+    padding: 8px 18px 22px;
+  }
+
+  .page-head,
+  .panel,
+  .summary-grid article,
+  .operation-card {
+    border-radius: 10px;
+    box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
+  }
+
+  .page-head {
+    gap: 9px;
+    padding: 10px;
+  }
+
+  .eyebrow,
+  span,
+  small,
+  .readiness-row > strong,
+  .operation-card code {
+    font-size: 9px;
+  }
+
+  h1 {
+    font-size: 18px;
+    line-height: 1.2;
+  }
+
+  h2,
+  .operation-card strong {
+    font-size: 14px;
+  }
+
+  p,
+  .check-item,
+  .readiness-row,
+  .toggle-list label,
+  input[type="email"],
+  textarea {
+    font-size: 10px;
+    line-height: 1.35;
+  }
+
+  .session-box,
+  .summary-grid article,
+  .operation-card,
+  .panel,
+  .toggle-list label,
+  .check-item,
+  .readiness-row,
+  .link-grid button {
+    border-radius: 8px;
+    padding: 8px;
+  }
+
+  button {
+    min-height: 29px;
+    border-radius: 7px;
+    font-size: 9px;
+    padding: 0 9px;
+  }
+
+  .notice {
+    margin-top: 9px;
+    border-radius: 8px;
+    font-size: 10px;
+    padding: 8px 9px;
+  }
+
+  .summary-grid,
+  .operations-grid,
+  .layout-grid {
+    gap: 8px;
+    margin-top: 9px;
+  }
+
+  .summary-grid strong {
+    font-size: 18px;
+  }
+
+  .operation-card {
+    gap: 5px;
+  }
+
+  .operation-card code {
+    padding: 5px;
+  }
+
+  .panel {
+    padding: 10px;
+  }
+
+  .panel-head {
+    gap: 7px;
+    margin-bottom: 9px;
+  }
+
+  .toggle-list,
+  .checklist,
+  .readiness-list,
+  .link-grid {
+    gap: 7px;
+  }
+
+  .toggle-list input {
+    width: 14px;
+    height: 14px;
+  }
+
+  .field {
+    gap: 5px;
+    margin-top: 9px;
+  }
+
+  input[type="email"],
+  textarea {
+    border-radius: 7px;
+    padding: 8px;
+  }
+
+  .readiness-row {
+    grid-template-columns: 56px 1fr;
+    gap: 7px;
+  }
+
+  .readiness-row > strong {
+    padding: 3px 6px;
+  }
+}
 </style>

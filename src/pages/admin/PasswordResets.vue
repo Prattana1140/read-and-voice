@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import api from "../../utils/api";
 
-type ResetStatus = "pending" | "link_created" | "resolved" | "rejected" | "all";
+type ResetStatus = "pending" | "link_created" | "temporary_password_created" | "resolved" | "rejected" | "all";
 
 type ResetRequest = {
   id: number;
@@ -19,6 +19,7 @@ type ResetRequest = {
 };
 
 const statusFilter = ref<ResetStatus>("pending");
+const statusOptions: ResetStatus[] = ["pending", "link_created", "temporary_password_created", "resolved", "rejected", "all"];
 const items = ref<ResetRequest[]>([]);
 const loading = ref(true);
 const savingId = ref<number | null>(null);
@@ -188,6 +189,12 @@ function statusLabel(status: string) {
   return status;
 }
 
+function setStatusFilter(status: ResetStatus) {
+  if (statusFilter.value === status) return;
+  statusFilter.value = status;
+  loadItems();
+}
+
 onMounted(loadItems);
 </script>
 
@@ -214,7 +221,7 @@ onMounted(loadItems);
     <section class="toolbar">
       <label>
         <span>สถานะ</span>
-        <select v-model="statusFilter" @change="loadItems">
+        <select class="status-select" v-model="statusFilter" @change="loadItems">
           <option value="pending">รอดำเนินการ</option>
           <option value="link_created">สร้างลิงก์แล้ว</option>
           <option value="temporary_password_created">สร้างรหัสชั่วคราวแล้ว</option>
@@ -222,6 +229,17 @@ onMounted(loadItems);
           <option value="rejected">ปฏิเสธ</option>
           <option value="all">ทั้งหมด</option>
         </select>
+        <div class="mobile-tabs" aria-label="กรองสถานะคำขอรีเซ็ตรหัสผ่าน">
+          <button
+            v-for="status in statusOptions"
+            :key="status"
+            type="button"
+            :class="{ active: statusFilter === status }"
+            @click="setStatusFilter(status)"
+          >
+            {{ statusLabel(status) }}
+          </button>
+        </div>
       </label>
 
       <button type="button" @click="loadItems">รีเฟรช</button>
@@ -461,6 +479,10 @@ button:disabled {
   opacity: 0.6;
 }
 
+.mobile-tabs {
+  display: none;
+}
+
 .state-box {
   color: var(--text-muted);
   padding: 24px;
@@ -532,6 +554,11 @@ dd {
 }
 
 @media (max-width: 760px) {
+  .reset-page {
+    gap: 10px;
+    padding: 10px 16px 24px;
+  }
+
   .hero,
   .request-main,
   .toolbar {
@@ -540,17 +567,166 @@ dd {
     grid-template-columns: 1fr;
   }
 
+  .hero,
+  .toolbar,
+  .request-card,
+  .state-box {
+    border-radius: 10px;
+    box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
+  }
+
+  .hero {
+    gap: 9px;
+    padding: 12px;
+  }
+
+  .hero p,
+  .eyebrow,
+  dt {
+    font-size: 9px;
+  }
+
+  .hero h1,
+  .request-card h2 {
+    margin: 3px 0;
+    font-size: 18px;
+    line-height: 1.2;
+  }
+
+  .hero span,
+  .request-card span,
+  dd,
+  label {
+    font-size: 10px;
+    line-height: 1.35;
+  }
+
+  .summary-card {
+    padding: 9px;
+  }
+
+  .summary-card strong {
+    font-size: 22px;
+  }
+
+  .message {
+    border-radius: 8px;
+    font-size: 10px;
+    padding: 8px 9px;
+  }
+
+  .toolbar {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  label {
+    gap: 5px;
+  }
+
+  select,
+  input,
+  button {
+    min-height: 32px;
+    border-radius: 7px;
+    font-size: 10px;
+    padding: 0 9px;
+  }
+
+  .state-box {
+    padding: 14px;
+    font-size: 10px;
+  }
+
+  .request-list {
+    gap: 8px;
+  }
+
+  .request-card {
+    gap: 10px;
+    padding: 11px;
+  }
+
+  .request-main {
+    gap: 8px;
+  }
+
   .date-box {
     text-align: left;
   }
 
   dl {
+    gap: 7px;
     grid-template-columns: 1fr;
+  }
+
+  dd {
+    margin-top: 2px;
+  }
+
+  .link-box,
+  .actions {
+    gap: 7px;
   }
 
   .actions button,
   select {
     width: 100%;
+  }
+
+  .status-select {
+    display: none;
+  }
+
+  .mobile-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+    width: 100%;
+  }
+
+  .mobile-tabs button {
+    width: 100%;
+    min-height: 27px;
+    border-radius: 999px;
+    padding: 2px 5px;
+    background: var(--surface-soft);
+    color: var(--text-strong);
+    font-size: 8px;
+    line-height: 1.15;
+  }
+
+  .mobile-tabs button.active {
+    background: #14b8a6;
+    color: #ffffff;
+  }
+}
+
+@media (max-width: 420px) {
+  .reset-page {
+    padding: 8px 18px 22px;
+  }
+
+  .hero h1,
+  .request-card h2 {
+    font-size: 16px;
+  }
+
+  select,
+  input,
+  button {
+    min-height: 29px;
+    font-size: 9px;
+  }
+
+  .mobile-tabs {
+    gap: 4px;
+  }
+
+  .mobile-tabs button {
+    min-height: 24px;
+    font-size: 7px;
+    padding: 2px 3px;
   }
 }
 </style>

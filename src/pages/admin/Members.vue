@@ -140,16 +140,56 @@ button {
 }
 
 @media (max-width: 640px) {
+  .page {
+    padding: 8px 18px 22px;
+  }
+
   .card {
-    padding: 16px;
+    border-radius: 10px;
+    padding: 10px;
+    box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
+  }
+
+  h1 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    line-height: 1.2;
+  }
+
+  p {
+    font-size: 10px;
   }
 
   table {
-    min-width: 640px;
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  th,
+  td {
+    overflow-wrap: anywhere;
+    padding: 5px 4px;
+    font-size: 7px;
+    line-height: 1.25;
+    word-break: break-word;
+  }
+
+  th {
+    font-size: 6.5px;
+    line-height: 1.15;
   }
 
   .actions {
+    gap: 5px;
     flex-direction: column;
+  }
+
+  button {
+    min-height: 19px;
+    border-radius: 7px;
+    font-size: 6.5px;
+    line-height: 1.15;
+    padding: 2px 3px;
   }
 }
 </style>
