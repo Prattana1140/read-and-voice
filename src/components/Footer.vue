@@ -87,9 +87,9 @@ const walletLink = computed(() => (isLoggedIn.value ? "/coin-wallet" : "/login")
 <style scoped>
 .footer {
   margin-top: auto;
-  background: #eef3f2;
-  color: #111827;
-  border-top: 1px solid #d8e2e1;
+  background: var(--footer-bg);
+  color: var(--text);
+  border-top: 1px solid var(--border);
 }
 
 .footer-inner,
@@ -115,14 +115,14 @@ const walletLink = computed(() => (isLoggedIn.value ? "/coin-wallet" : "/login")
 
 .footer-column h3 {
   margin: 0 0 10px;
-  color: #111827;
+  color: var(--text-strong);
   font-size: 16px;
   font-weight: 900;
 }
 
 .footer-column a {
   width: fit-content;
-  color: #111827;
+  color: var(--text);
   font-size: 15px;
   line-height: 1.75;
   text-decoration: none;
@@ -130,7 +130,7 @@ const walletLink = computed(() => (isLoggedIn.value ? "/coin-wallet" : "/login")
 }
 
 .footer-column a:hover {
-  color: #0f766e;
+  color: var(--primary-strong);
 }
 
 .footer-about {
@@ -171,7 +171,7 @@ const walletLink = computed(() => (isLoggedIn.value ? "/coin-wallet" : "/login")
   flex-direction: column;
   gap: 14px;
   padding-bottom: 22px;
-  color: #5b6468;
+  color: var(--text-muted);
   font-size: 13px;
   text-align: center;
 }

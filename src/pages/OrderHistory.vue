@@ -63,7 +63,7 @@ onMounted(loadOrders);
 .history-page { min-height: 100vh; min-height: 100dvh; background: var(--bg); color: var(--text); padding: var(--page-block, 24px) var(--page-gutter, 24px); }
 .container { width: min(100%, 1120px); margin: 0 auto; }
 .history-header { display: flex; justify-content: center; margin-bottom: 24px; }
-h1 { margin: 0; color: var(--text-strong); font-size: clamp(34px, 5vw, 52px); font-weight: 900; text-align: center; }
+h1 { margin: 0; color: var(--text-strong); font-size: clamp(24px, 3.6vw, 34px); font-weight: 900; text-align: center; }
 .filter-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 24px; }
 label { display: grid; gap: 6px; }
 .checkbox-row { display: inline-flex; align-items: center; gap: 8px; }

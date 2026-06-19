@@ -265,7 +265,7 @@ onMounted(loadSummary);
 
 .hero-card h1 {
   color: var(--text-strong);
-  font-size: clamp(30px, 5vw, 46px);
+  font-size: clamp(24px, 3.6vw, 34px);
 }
 
 .hero-text {
@@ -363,7 +363,7 @@ onMounted(loadSummary);
 
 .stat-value {
   color: var(--text-strong);
-  font-size: clamp(28px, 4vw, 40px);
+  font-size: clamp(24px, 3.2vw, 32px);
 }
 
 .stat-card p {

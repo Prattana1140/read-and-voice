@@ -333,7 +333,7 @@ dt,
 }
 
 .summary-card strong {
-  font-size: 40px;
+  font-size: 30px;
 }
 
 .message {

@@ -137,6 +137,200 @@
   --on-primary: #111111;
 }
 
+:root[data-accessibility="enabled"][data-contrast="high"] body,
+:root[data-accessibility="enabled"][data-contrast="high"] .app-shell,
+:root[data-accessibility="enabled"][data-contrast="high"] .app-main {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+
+:root[data-accessibility="enabled"][data-contrast="high"] :where(
+  .navbar,
+  .top-bar,
+  .footer,
+  .footer-inner,
+  .footer-bottom,
+  .footer-column,
+  .mobile-menu-panel,
+  .dropdown-panel,
+  .search-panel,
+  .user-menu,
+  .notification-panel,
+  .theme-panel,
+  .category-bar,
+  .category-overview,
+  .section-head,
+  .book-rail,
+  .store-page,
+  .search-page,
+  .shelf-page,
+  .book-card,
+  .curated-card,
+  .serial-card,
+  .continue-all-card,
+  .promo-card,
+  .category-chip,
+  .empty-box,
+  .modal-card,
+  .dialog-card,
+  .panel,
+  .card,
+  .a11y-panel,
+  .voice-command__panel,
+  .voice-command__status
+) {
+  background: var(--surface) !important;
+  background-image: none !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+  box-shadow: none !important;
+}
+
+:root[data-accessibility="enabled"][data-contrast="high"] :where(
+  .navbar,
+  .footer
+) {
+  border-color: var(--border) !important;
+}
+
+:root[data-accessibility="enabled"][data-contrast="high"] :where(
+  .footer h1,
+  .footer h2,
+  .footer h3,
+  .footer strong,
+  .footer a,
+  .footer span,
+  .navbar a,
+  .navbar button,
+  .navbar summary
+) {
+  color: var(--text-strong) !important;
+  text-shadow: none !important;
+}
+
+:root[data-accessibility="enabled"][data-contrast="high"] :where(
+  .category-chip::before,
+  .category-chip::after,
+  .promo-banner::before,
+  .promo-banner::after,
+  .book-card::before,
+  .book-card::after
+) {
+  background: transparent !important;
+  opacity: 0 !important;
+}
+
+:root[data-accessibility="enabled"][data-contrast="high"] :where(
+  h1,
+  h2,
+  h3,
+  h4,
+  strong,
+  .brand-name,
+  .section-head h2,
+  .category-chip strong,
+  .book-card h2,
+  .book-card h3,
+  .book-title,
+  .promo-banner h1
+) {
+  color: var(--text-strong) !important;
+  text-shadow: none !important;
+}
+
+:root[data-accessibility="enabled"][data-contrast="high"] :where(
+  p,
+  small,
+  span,
+  .muted,
+  .book-category,
+  .section-head p,
+  .promo-banner p
+) {
+  color: var(--text) !important;
+  text-shadow: none !important;
+}
+
+:root[data-accessibility="enabled"][data-contrast="high"] :where(
+  button,
+  a,
+  summary,
+  .icon-button,
+  .pill-link,
+  .cta-link,
+  .nav-link,
+  .category-bar button,
+  .view-all-action,
+  .category-arrow,
+  .hero-arrow,
+  .voice-command__button,
+  .a11y-pill,
+  .a11y-close,
+  .a11y-inline button
+) {
+  background: var(--surface-raised) !important;
+  background-image: none !important;
+  color: var(--primary-strong) !important;
+  border-color: var(--border) !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+:root[data-accessibility="enabled"][data-contrast="high"] :where(
+  button:hover,
+  button:focus-visible,
+  a:hover,
+  a:focus-visible,
+  summary:focus-visible,
+  .active,
+  [aria-current="page"],
+  [aria-pressed="true"],
+  .category-bar button.active
+) {
+  background: var(--primary) !important;
+  color: var(--on-primary) !important;
+  border-color: var(--primary-strong) !important;
+}
+
+:root[data-accessibility="enabled"][data-contrast="high"] :where(
+  input,
+  select,
+  textarea
+) {
+  background: var(--input-bg) !important;
+  color: var(--text-strong) !important;
+  border-color: var(--border) !important;
+  box-shadow: none !important;
+}
+
+:root[data-accessibility="enabled"][data-contrast="high"] :where(
+  input::placeholder,
+  textarea::placeholder
+) {
+  color: var(--text-muted) !important;
+  opacity: 1;
+}
+
+:root[data-accessibility="enabled"][data-contrast="high"] :where(
+  .promo-banner,
+  .fallback-promo,
+  .hero-strip
+) {
+  background: #050505 !important;
+  background-image: none !important;
+  border-color: var(--border) !important;
+}
+
+:root[data-accessibility="enabled"][data-contrast="high"] :where(
+  .promo-banner-image,
+  .book-card img,
+  .category-art-image,
+  .cover-wrap img
+) {
+  border: 1px solid var(--border) !important;
+  filter: contrast(1.08) saturate(0.9);
+}
+
 *,
 *::before,
 *::after {
@@ -175,6 +369,47 @@ textarea {
 :root[data-accessibility="enabled"] textarea,
 :root[data-accessibility="enabled"] a {
   min-height: 46px;
+}
+
+:root[data-accessibility="enabled"] :where(h1, .hero-copy h1, .story-main h1, .page-head h1, .page-header h1) {
+  font-size: clamp(22px, 3vw, 34px) !important;
+  line-height: 1.18 !important;
+}
+
+:root[data-accessibility="enabled"] :where(h2, .section-head h2, .section-intro h2) {
+  font-size: clamp(18px, 2.2vw, 26px) !important;
+  line-height: 1.25 !important;
+}
+
+:root[data-accessibility="enabled"] :where(h3, .table-card h3, .admin-note h2) {
+  font-size: clamp(16px, 1.7vw, 22px) !important;
+  line-height: 1.3 !important;
+}
+
+:root[data-accessibility="enabled"] :where(
+  .summary-card strong,
+  .stat-card strong,
+  .metric-card strong,
+  .wallet-balance,
+  .profile-stat strong,
+  .price-value,
+  .plan-price,
+  .hero-number
+) {
+  font-size: clamp(22px, 3.4vw, 34px) !important;
+  line-height: 1.15 !important;
+}
+
+:root[data-accessibility="enabled"] :where(
+  .tabbar button,
+  .tabs button,
+  .filter-tabs button,
+  .category-bar button,
+  .hero-actions a,
+  .hero-actions button
+) {
+  font-size: clamp(12px, 1.1vw, 14px) !important;
+  line-height: 1.2 !important;
 }
 
 button {

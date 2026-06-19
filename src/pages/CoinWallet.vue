@@ -275,7 +275,7 @@ h2 {
 }
 
 .balance-card strong {
-  font-size: 44px;
+  font-size: 34px;
 }
 
 .alert,
@@ -431,7 +431,7 @@ button:disabled {
   }
 
   .balance-card strong {
-    font-size: 36px;
+    font-size: 30px;
   }
 
   .package-grid {

@@ -506,7 +506,7 @@ onMounted(loadStoreData);
 
 .store-header h1 {
   color: var(--text-strong);
-  font-size: 36px;
+  font-size: 30px;
   margin: 0 0 8px;
 }
 

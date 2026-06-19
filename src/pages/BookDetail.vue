@@ -2070,7 +2070,7 @@ onBeforeUnmount(() => {
 .story-main h1 {
   margin: 0;
   color: #ffffff;
-  font-size: clamp(30px, 4vw, 48px);
+  font-size: clamp(24px, 3.2vw, 36px);
   font-weight: 900;
   line-height: 1.12;
 }

@@ -1202,7 +1202,7 @@ watch(locale, () => {
   margin: 8px 0 0;
   overflow: hidden;
   color: #ffffff;
-  font-size: clamp(22px, 2.6vw, 46px);
+  font-size: clamp(20px, 2.3vw, 34px);
   font-weight: 900;
   line-height: 1.06;
   line-clamp: 2;

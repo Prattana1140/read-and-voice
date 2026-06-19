@@ -752,7 +752,7 @@ onUnmounted(resetAvatarSelection);
   place-items: center;
   background: linear-gradient(135deg, #00a878, #20b8ad);
   color: #fff;
-  font-size: 36px;
+  font-size: 28px;
   font-weight: 900;
 }
 
@@ -785,7 +785,7 @@ h1 {
 
 h1 {
   color: var(--text-strong);
-  font-size: clamp(28px, 5vw, 44px);
+  font-size: clamp(24px, 3.6vw, 34px);
 }
 
 .profile-hero span {
@@ -938,7 +938,7 @@ button:disabled {
   place-items: center;
   background: linear-gradient(135deg, #00a878, #20b8ad);
   color: #fff;
-  font-size: 56px;
+  font-size: 30px;
   font-weight: 900;
 }
 

@@ -130,7 +130,7 @@ h2 {
 }
 
 h1 {
-  font-size: clamp(30px, 5vw, 48px);
+  font-size: clamp(24px, 3.6vw, 34px);
 }
 
 .muted,

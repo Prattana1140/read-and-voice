@@ -773,7 +773,7 @@ onMounted(() => {
 .serial-title h1 {
   margin: 0 0 6px;
   color: var(--text-strong);
-  font-size: clamp(28px, 4vw, 42px);
+  font-size: clamp(24px, 3.2vw, 34px);
   font-weight: 900;
   line-height: 1.08;
 }

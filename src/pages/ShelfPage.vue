@@ -622,7 +622,7 @@ watch(
   margin-top: 8px;
   overflow: hidden;
   color: #ffffff;
-  font-size: clamp(26px, 3.2vw, 54px);
+  font-size: clamp(22px, 2.7vw, 38px);
   font-weight: 900;
   line-height: 1.05;
   line-clamp: 2;
@@ -691,7 +691,7 @@ watch(
   border-radius: 999px;
   background: #ffffff;
   color: #0f5ee8;
-  font-size: clamp(18px, 2.4vw, 34px);
+  font-size: clamp(16px, 1.9vw, 26px);
   font-style: normal;
   font-weight: 900;
   line-height: 1;
@@ -895,7 +895,7 @@ watch(
 .promo-feature strong {
   display: block;
   color: #fffbeb;
-  font-size: 54px;
+  font-size: 30px;
   font-weight: 900;
   line-height: 1;
 }
@@ -1229,7 +1229,7 @@ watch(
   }
 
   .promo-feature strong {
-    font-size: 42px;
+    font-size: 30px;
   }
 }
 </style>

@@ -268,12 +268,12 @@ onMounted(async () => {
     <nav class="crumb" aria-label="breadcrumb">
       <router-link to="/">หน้าแรก</router-link>
       <span>/</span>
-      <strong>สมาชิกพิเศษ Pinto</strong>
+      <strong>สมาชิกพิเศษ Read and Voice</strong>
     </nav>
 
     <section class="vip-hero">
       <div class="hero-copy">
-        <p class="eyebrow">Pinto VIP</p>
+        <p class="eyebrow">Read and Voice VIP</p>
         <h1>สมัครสมาชิกพิเศษ อ่านได้คุ้มกว่าเดิม</h1>
         <span>
           เลือกแพ็กเกจที่เหมาะกับจังหวะการอ่านของคุณ แล้วชำระด้วยคอยน์จากกระเป๋าได้ทันที
@@ -289,11 +289,11 @@ onMounted(async () => {
           v-if="heroImageUrl"
           class="hero-image"
           :src="heroImageUrl"
-          alt="สมาชิกพิเศษ Pinto"
+          alt="สมาชิกพิเศษ Read and Voice"
         />
         <div v-else class="vip-token" aria-hidden="true">
           <strong>VIP</strong>
-          <span>Pinto</span>
+          <span>Read and Voice</span>
         </div>
 
         <div class="wallet-card">
@@ -406,7 +406,7 @@ onMounted(async () => {
           <span>อ่านฟรีและซื้อด้วยคอยน์เป็นรายเล่ม</span>
         </div>
         <div>
-          <strong>สมาชิกพิเศษ Pinto</strong>
+          <strong>สมาชิกพิเศษ Read and Voice</strong>
           <span>อ่านคอนเทนต์สมาชิกตามแพ็กเกจ พร้อมซื้อรายเล่มด้วยคอยน์ได้เหมือนเดิม</span>
         </div>
       </div>
@@ -518,7 +518,7 @@ onMounted(async () => {
 
 .hero-copy h1 {
   max-width: 660px;
-  font-size: clamp(38px, 6vw, 78px);
+  font-size: clamp(26px, 3.6vw, 40px);
   font-weight: 900;
   line-height: 1;
   text-wrap: balance;
@@ -595,7 +595,7 @@ onMounted(async () => {
 }
 
 .vip-token strong {
-  font-size: clamp(64px, 10vw, 108px);
+  font-size: clamp(32px, 5vw, 48px);
   line-height: 0.9;
 }
 
@@ -705,7 +705,7 @@ onMounted(async () => {
 .compare-section h2,
 .faq-section h2 {
   color: var(--text-strong);
-  font-size: clamp(24px, 4vw, 36px);
+  font-size: clamp(22px, 3vw, 30px);
   line-height: 1.15;
 }
 
@@ -775,7 +775,7 @@ onMounted(async () => {
 }
 
 .price-line strong {
-  font-size: 36px;
+  font-size: 30px;
   line-height: 1;
 }
 
@@ -912,7 +912,7 @@ onMounted(async () => {
   }
 
   .hero-copy h1 {
-    font-size: 40px;
+    font-size: 32px;
   }
 
   .status-strip,

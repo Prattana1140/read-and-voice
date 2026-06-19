@@ -275,6 +275,10 @@ const hasSearchDiscovery = computed(
     searchCategories.value.length > 0,
 );
 
+const shouldShowSearchResults = computed(
+  () => searchLoading.value || Boolean(search.value.trim()),
+);
+
 const accountGroups = computed<NavGroup[]>(() => {
   const role = currentRole.value;
 
@@ -514,15 +518,11 @@ const toggleMenu = () => {
 };
 
 const hasNavbarOverflow = () => {
-  const navbar = navbarRef.value;
   const topBar = topBarRef.value;
   const leftCluster = leftClusterRef.value;
   const desktopNav = desktopNavRef.value;
   const topActions = topActionsRef.value;
-  if (!navbar || !topBar) return false;
-
-  const viewportWidth =
-    document.documentElement.clientWidth || window.innerWidth;
+  if (!topBar) return false;
   const collisionGap = 12;
   const leftRect = leftCluster?.getBoundingClientRect();
   const navRect = desktopNav?.getBoundingClientRect();
@@ -538,7 +538,6 @@ const hasNavbarOverflow = () => {
 
   return (
     topBar.scrollWidth > topBar.clientWidth + 1 ||
-    navbar.scrollWidth > viewportWidth + 1 ||
     hasCollision
   );
 };
@@ -552,22 +551,8 @@ const scheduleCompactNavMeasure = () => {
     compactMeasureFrame = 0;
     const viewportWidth =
       document.documentElement.clientWidth || window.innerWidth;
-    const navbar = navbarRef.value;
 
-    if (viewportWidth <= compactNavBreakpoint) {
-      isCompactNav.value = true;
-      return;
-    }
-
-    if (isCompactNav.value && navbar) {
-      navbar.classList.remove("navbar--compact");
-      const shouldStayCompact = hasNavbarOverflow();
-      navbar.classList.add("navbar--compact");
-      isCompactNav.value = shouldStayCompact;
-      return;
-    }
-
-    isCompactNav.value = hasNavbarOverflow();
+    isCompactNav.value = viewportWidth <= compactNavBreakpoint;
   });
 };
 
@@ -698,11 +683,24 @@ const handleAccountToggle = (event: Event) => {
   handleDropdownToggle(event);
 };
 
-const openAccessibilityPanel = () => {
+const openAccessibilityPanel = (event: MouseEvent) => {
   closeMenu();
   closeSearch();
   closeFloatingMenus();
-  window.dispatchEvent(new CustomEvent("read-voice:open-accessibility-panel"));
+
+  const trigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+  const rect = trigger?.getBoundingClientRect();
+
+  window.dispatchEvent(new CustomEvent("read-voice:open-accessibility-panel", {
+    detail: rect
+      ? {
+          bottom: rect.bottom,
+          left: rect.left,
+          right: rect.right,
+          width: rect.width,
+        }
+      : undefined,
+  }));
 };
 
 const handleDocumentPointerDown = (event: PointerEvent) => {
@@ -1429,7 +1427,11 @@ watch(isCompactNav, (compact) => {
         </button>
       </div>
 
-      <section class="search-results" aria-label="ผลการค้นหาและคำแนะนำ">
+      <section
+        v-if="shouldShowSearchResults"
+        class="search-results"
+        aria-label="ผลการค้นหาและคำแนะนำ"
+      >
         <p v-if="searchLoading">กำลังค้นหา...</p>
 
         <template v-else-if="search.trim()">
@@ -1625,9 +1627,9 @@ watch(isCompactNav, (compact) => {
   z-index: 50;
   width: 100%;
   overflow-x: visible;
-  background: color-mix(in srgb, #e7fbf7 88%, white);
-  border-bottom: 1px solid rgba(17, 156, 145, 0.16);
-  box-shadow: 0 10px 28px rgba(17, 156, 145, 0.1);
+  background: color-mix(in srgb, var(--navbar-bg) 92%, var(--primary-soft));
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
   backdrop-filter: blur(16px);
 }
 
@@ -1635,10 +1637,10 @@ watch(isCompactNav, (compact) => {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: clamp(14px, 2vw, 34px);
-  min-height: 76px;
-  padding: 8px clamp(24px, 3.4vw, 58px);
+  justify-content: flex-start;
+  gap: clamp(12px, 1.6vw, 28px);
+  min-height: 62px;
+  padding: 6px clamp(22px, 3vw, 48px);
 }
 
 .left-cluster {
@@ -1661,10 +1663,10 @@ watch(isCompactNav, (compact) => {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  flex: 0 0 clamp(106px, 11vw, 148px);
-  width: clamp(106px, 11vw, 148px);
-  min-width: clamp(106px, 11vw, 148px);
-  height: 58px;
+  flex: 0 0 clamp(94px, 8vw, 118px);
+  width: clamp(94px, 8vw, 118px);
+  min-width: clamp(94px, 8vw, 118px);
+  height: 48px;
   border-radius: 8px;
   overflow: hidden;
 }
@@ -1680,23 +1682,30 @@ watch(isCompactNav, (compact) => {
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%);
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: max-content;
-  gap: clamp(14px, 1.5vw, 30px);
+  width: min(360px, calc(100vw - 760px));
+  min-width: 260px;
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+  gap: clamp(12px, 1.1vw, 24px);
 }
 
 .desktop-public-nav a {
-  color: #1f2937;
-  font-size: 15px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: clamp(13px, 0.85vw, 15px);
   font-weight: 800;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .desktop-public-nav a.router-link-active {
-  color: #0f766e;
+  color: var(--primary-strong);
 }
 
 .subscription-link,
@@ -1706,9 +1715,9 @@ watch(isCompactNav, (compact) => {
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  min-height: 34px;
+  min-height: 30px;
   border-radius: 999px;
-  font-size: clamp(13px, 0.72vw, 14px);
+  font-size: clamp(12px, 0.68vw, 13px);
   font-weight: 900;
   line-height: 1.15;
   text-align: center;
@@ -1717,8 +1726,8 @@ watch(isCompactNav, (compact) => {
 
 .subscription-link {
   width: auto;
-  min-width: 164px;
-  padding: 0 16px;
+  min-width: 150px;
+  padding: 0 14px;
   background: linear-gradient(135deg, #15b8c7, #0ea5a8);
   color: #fff;
 }
@@ -1726,8 +1735,8 @@ watch(isCompactNav, (compact) => {
 .coin-link {
   gap: 7px;
   width: auto;
-  min-width: 118px;
-  padding: 0 14px;
+  min-width: 108px;
+  padding: 0 12px;
   background: linear-gradient(180deg, #ff9d10 0%, #f28a00 100%);
   color: #fff;
   box-shadow:
@@ -1737,11 +1746,11 @@ watch(isCompactNav, (compact) => {
 
 .accessibility-link {
   width: auto;
-  min-width: 186px;
-  padding: 0 16px;
-  border: 1px solid rgba(15, 118, 110, 0.16);
-  background: rgba(255, 255, 255, 0.82);
-  color: #0f766e;
+  min-width: 170px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--primary-strong);
   cursor: pointer;
 }
 
@@ -1802,12 +1811,12 @@ watch(isCompactNav, (compact) => {
 .search-close {
   display: inline-grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
-  border: 1px solid rgba(15, 118, 110, 0.16);
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
-  color: #0f172a;
+  background: var(--surface-raised);
+  color: var(--text-strong);
   cursor: pointer;
 }
 
@@ -1816,11 +1825,22 @@ watch(isCompactNav, (compact) => {
 .avatar-button svg,
 .mobile-close svg,
 .search-close svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   fill: currentColor;
   stroke: currentColor;
   stroke-width: 1.2;
+}
+
+.search-close {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+}
+
+.search-close svg {
+  width: 16px;
+  height: 16px;
 }
 
 .avatar-button {
@@ -2358,8 +2378,8 @@ watch(isCompactNav, (compact) => {
   display: grid;
   align-content: start;
   justify-items: center;
-  gap: 14px;
-  padding: max(18px, env(safe-area-inset-top)) 18px 18px;
+  gap: 10px;
+  padding: max(12px, env(safe-area-inset-top)) 14px 14px;
   background:
     linear-gradient(
       180deg,
@@ -2380,12 +2400,12 @@ watch(isCompactNav, (compact) => {
 
 .search-box {
   display: grid;
-  grid-template-columns: 24px 1fr 42px;
+  grid-template-columns: 20px 1fr 34px;
   align-items: center;
-  gap: 12px;
-  width: min(860px, calc(100vw - 36px));
-  min-height: 68px;
-  padding: 12px 14px 12px 18px;
+  gap: 10px;
+  width: min(640px, calc(100vw - 28px));
+  min-height: 52px;
+  padding: 8px 10px 8px 14px;
   border: 1px solid rgba(15, 118, 110, 0.12);
   border-radius: 999px;
   background: #fff;
@@ -2404,7 +2424,7 @@ watch(isCompactNav, (compact) => {
   outline: 0;
   background: transparent;
   color: #0f172a;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   min-width: 0;
 }
@@ -2415,11 +2435,11 @@ watch(isCompactNav, (compact) => {
 }
 
 .search-results {
-  width: min(860px, calc(100vw - 36px));
-  max-height: min(66vh, 560px);
+  width: min(640px, calc(100vw - 28px));
+  max-height: min(62vh, 460px);
   overflow: auto;
   border: 1px solid rgba(15, 118, 110, 0.12);
-  border-radius: 20px;
+  border-radius: 16px;
   background: #ffffff;
   box-shadow: 0 20px 54px rgba(15, 23, 42, 0.18);
   padding: 10px;

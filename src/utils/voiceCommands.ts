@@ -45,8 +45,9 @@ export const voiceHelpSections = [
   {
     title: "นำทาง",
     items: [
-      "หน้าแรก / เปิดร้านหนังสือ / เปิดนิยายรายตอน",
-      "เปิดชั้นหนังสือ / เปิดกระเป๋าคอยน์ / เปิดรถเข็น",
+      "หน้าแรก / ร้านหนังสือ / นิยายรายตอน / อ่านฟรี / โปรโมชัน / หนังสือใหม่ / ขายดี",
+      "ชั้นหนังสือ / กระเป๋าคอยน์ / รถเข็น / โปรไฟล์ / รายการโปรด",
+      "แดชบอร์ดนักเขียน / อัปโหลดหนังสือ / แดชบอร์ดแอดมิน / ตั้งค่าระบบ",
       "ค้นหา นิยายรัก / เปิดหมวด แฟนตาซี / เปิดหนังสือ ชื่อเรื่อง",
       "เลื่อนลง / เลื่อนขึ้น / ไปบนสุด / ไปล่างสุด / ย้อนกลับ",
     ],
@@ -187,13 +188,63 @@ export function parseVoiceCommand(rawCommand: string): VoiceCommandAction {
   if (/อ่านต่อ|อ่านค้างไว้|อ่านที่ค้าง|อ่านต่อจากเดิม|อ่านต่อให้หน่อย/.test(command)) {
     return { type: "navigate", routeName: "Serials", query: { view: "continue" } };
   }
+  if (/ค้นหา|หน้าค้นหา/.test(command)) return { type: "navigate", routeName: "Search" };
+  if (/ขายดี|หนังสือขายดี|เบสเซลเลอร์|best seller|bestseller/.test(command)) return { type: "navigate", routeName: "BestSellers" };
+  if (/หนังสือใหม่|ออกใหม่|มาใหม่|new release/.test(command)) return { type: "navigate", routeName: "NewReleases" };
+  if (/โปรโมชัน|โปรโมชั่น|ลดราคา|promotion|promo/.test(command)) return { type: "navigate", routeName: "Promotions" };
+  if (/อ่านฟรี|หนังสือฟรี|ฟรี|เปิดหน้าอ่านฟรี|ไปหน้าอ่านฟรี|เปิดอ่านฟรี|ไปอ่านฟรี/.test(command)) return { type: "navigate", routeName: "FreeBooks" };
+  if (/หอเกียรติยศ|hall of fame/.test(command)) return { type: "navigate", routeName: "HallOfFame" };
+  if (/แนะนำ|หนังสือแนะนำ|recommended|recommend/.test(command)) return { type: "navigate", routeName: "Recommended" };
+  if (/แพ็กเกจสมาชิก|แพคเกจสมาชิก|แพ็กเกจรายเดือน|แพคเกจรายเดือน|subscription/.test(command)) return { type: "navigate", routeName: "SubscriptionPlans" };
+  if (/หมวดหมู่|หน้าหมวดหมู่|category|categories/.test(command)) return { type: "navigate", routeName: "CategoryIndex" };
+  if (/แท็ก|tag|tags/.test(command)) return { type: "navigate", routeName: "TagIndex" };
+  if (/สำนักพิมพ์|publisher|publishers/.test(command)) return { type: "navigate", routeName: "PublisherIndex" };
+  if (/^(นักเขียน|ผู้เขียน|รายชื่อนักเขียน|หน้านักเขียน|author|authors)$/.test(command)) return { type: "navigate", routeName: "AuthorIndex" };
+  if (/ช่วยเหลือ|ศูนย์ช่วยเหลือ|support|help/.test(command)) return { type: "navigate", routeName: "Support" };
+  if (/ติดต่อ|contact/.test(command)) return { type: "navigate", routeName: "Contact" };
+  if (/รายงานปัญหา|แจ้งปัญหา|report/.test(command)) return { type: "navigate", routeName: "ReportIssue" };
+  if (/เข้าสู่ระบบ|ล็อกอิน|login/.test(command)) return { type: "navigate", routeName: "Login" };
+  if (/สมัครสมาชิก|สมัคร|register/.test(command)) return { type: "navigate", routeName: "Register" };
+  if (/หน้าอ่านง่าย|ใช้งานแบบอ่านง่าย|accessible home|accessibility home/.test(command)) return { type: "navigate", routeName: "AccessibleHome" };
   if (/นิยายรายตอน|รายตอน|เปิดนิยายตอน|ไปหน้านิยาย/.test(command)) return { type: "navigate", routeName: "Serials" };
   if (/ชั้นหนังสือ|ห้องสมุดของฉัน|หนังสือของฉัน|คลังหนังสือ|เปิดชั้นหนังสือ/.test(command)) return { type: "navigate", routeName: "MyLibrary" };
   if (/รถเข็น|ตะกร้า|เปิดรถเข็น|เปิดตะกร้า/.test(command)) return { type: "navigate", routeName: "Cart" };
   if (/รายการโปรด|อยากอ่าน|wishlist|วิชลิสต์/.test(command)) return { type: "navigate", routeName: "WishList" };
   if (/ประวัติคำสั่งซื้อ|คำสั่งซื้อของฉัน|ออเดอร์/.test(command)) return { type: "navigate", routeName: "OrderHistory" };
-  if (/ร้านหนังสือ|หน้าหนังสือ|หนังสือ|อีบุ๊ก|ebook|e book|ไปหน้าร้าน|เปิดร้าน|เลือกร้าน/.test(command)) return { type: "navigate", routeName: "Store" };
+  if (/^(โปรไฟล์|ข้อมูลส่วนตัว|profile)$/.test(command)) return { type: "navigate", routeName: "Profile" };
+  if (/ตั้งค่าการแจ้งเตือน|notification settings/.test(command)) return { type: "navigate", routeName: "NotificationSettings" };
+  if (/การแจ้งเตือน|แจ้งเตือน|notifications/.test(command)) return { type: "navigate", routeName: "AccountNotifications" };
+  if (/กำลังติดตาม|ติดตาม|following/.test(command)) return { type: "navigate", routeName: "AccountFollowing" };
+  if (/กิฟต์โค้ด|gift code|gift codes/.test(command)) return { type: "navigate", routeName: "AccountGiftCodes" };
+  if (/แพ็กเกจของฉัน|แพคเกจของฉัน|บุฟเฟต์|buffet/.test(command)) return { type: "navigate", routeName: "AccountBuffet" };
+  if (/อุปกรณ์ของฉัน|อุปกรณ์|devices/.test(command)) return { type: "navigate", routeName: "AccountDevices" };
+  if (/สิทธิประโยชน์|benefits/.test(command)) return { type: "navigate", routeName: "AccountBenefits" };
+  if (/รีวิวของฉัน|รีวิว|reviews/.test(command)) return { type: "navigate", routeName: "AccountReviews" };
+  if (/ยืนยันอายุ|age verification/.test(command)) return { type: "navigate", routeName: "AccountAgeVerification" };
   if (/กระเป๋า|คอยน์|เหรียญ|เติมเงิน|เติมคอยน์/.test(command)) return { type: "navigate", routeName: "CoinWallet" };
+  if (/แดชบอร์ดนักเขียน|หน้านักเขียน|writer dashboard/.test(command)) return { type: "navigate", routeName: "WriterDashboard" };
+  if (/โปรไฟล์นักเขียน|ตั้งค่าโปรไฟล์นักเขียน|writer profile/.test(command)) return { type: "navigate", routeName: "WriterProfileSettings" };
+  if (/หนังสือของฉันสำหรับนักเขียน|งานเขียนของฉัน|writer books/.test(command)) return { type: "navigate", routeName: "WriterBooks" };
+  if (/อัปโหลดหนังสือ|อัพโหลดหนังสือ|upload book/.test(command)) return { type: "navigate", routeName: "WriterUpload" };
+  if (/สถิติหนังสือ|สถิตินักเขียน|writer stats/.test(command)) return { type: "navigate", routeName: "WriterStats" };
+  if (/แดชบอร์ดแอดมิน|หน้าแอดมิน|admin dashboard/.test(command)) return { type: "navigate", routeName: "AdminDashboard" };
+  if (/จัดการหนังสือ|หนังสือแอดมิน|admin books/.test(command)) return { type: "navigate", routeName: "AdminBooks" };
+  if (/อนุมัติรายการ|รายการอนุมัติ|approvals/.test(command)) return { type: "navigate", routeName: "AdminApprovals" };
+  if (/จัดการการชำระเงิน|ชำระเงินแอดมิน|payment approvals|payments/.test(command)) return { type: "navigate", routeName: "AdminPayments" };
+  if (/เติมคอยน์แอดมิน|coin topups/.test(command)) return { type: "navigate", routeName: "AdminCoinTopups" };
+  if (/คำสั่งซื้อแอดมิน|order payments/.test(command)) return { type: "navigate", routeName: "AdminOrderPayments" };
+  if (/ชำระแพ็กเกจสมาชิก|subscription payments/.test(command)) return { type: "navigate", routeName: "AdminSubscriptionPayments" };
+  if (/รีเซ็ตรหัสผ่าน|password reset/.test(command)) return { type: "navigate", routeName: "AdminPasswordResets" };
+  if (/ซัพพอร์ตทิกเก็ต|support ticket|support tickets/.test(command)) return { type: "navigate", routeName: "AdminSupportTickets" };
+  if (/ข้อมูลระบบ|system data/.test(command)) return { type: "navigate", routeName: "AdminSystemData" };
+  if (/จัดการเนื้อหาหน้าเว็บ|เนื้อหาหน้าเว็บ|page content/.test(command)) return { type: "navigate", routeName: "AdminPageContent" };
+  if (/จัดการหมวดหมู่|หมวดหมู่แอดมิน|admin categories/.test(command)) return { type: "navigate", routeName: "AdminCategories" };
+  if (/สมาชิกแอดมิน|จัดการสมาชิก|members/.test(command)) return { type: "navigate", routeName: "AdminMembers" };
+  if (/แดชบอร์ดซูเปอร์แอดมิน|ซูเปอร์แอดมิน|superadmin dashboard/.test(command)) return { type: "navigate", routeName: "SuperAdminDashboard" };
+  if (/จัดการผู้ใช้|ผู้ใช้|user management/.test(command)) return { type: "navigate", routeName: "SuperAdminUsers" };
+  if (/จัดการบทบาท|บทบาท|role management/.test(command)) return { type: "navigate", routeName: "SuperAdminRoles" };
+  if (/ตั้งค่าระบบ|system settings/.test(command)) return { type: "navigate", routeName: "SuperAdminSettings" };
+  if (/ร้านหนังสือ|หน้าหนังสือ|หนังสือ|อีบุ๊ก|ebook|e book|ไปหน้าร้าน|เปิดร้าน|เลือกร้าน/.test(command)) return { type: "navigate", routeName: "Store" };
   if (/ตั้งค่าการเข้าถึง|การเข้าถึง|accessibility/.test(command)) return { type: "openAccessibility" };
 
   if (/เล่นเสียง|เริ่มอ่าน|เปิดอ่าน|อ่านให้ฟัง|อ่านออกเสียง|เล่น|เริ่มฟัง|เริ่ม|อ่านต่อให้หน่อย|ฟังต่อ|ไปต่อ/.test(command)) return { type: "reader", command: "play" };

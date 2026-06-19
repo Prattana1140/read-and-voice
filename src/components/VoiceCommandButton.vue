@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { announceAccessibilityMessage } from "../utils/accessibility";
-import api, { getApiErrorMessage } from "../utils/api";
+import { getAuthUser, isAuthenticated, type UserRole } from "../utils/auth";
 import {
   normalizeVoiceCommand,
   normalizeVoiceMatchText,
@@ -29,15 +29,27 @@ type SpeechRecognitionEventLike = {
   results: ArrayLike<ArrayLike<{ transcript: string; isFinal?: boolean }>>;
 };
 
-type RecordingState = "idle" | "recording" | "transcribing";
+type VoiceNavigationTarget = {
+  routeName: string;
+  query?: Record<string, string>;
+  label: string;
+};
+
+type VoiceRouteAccess = {
+  label: string;
+  requiresAuth?: boolean;
+  guestOnly?: boolean;
+  allowedRoles?: UserRole[];
+};
 
 const router = useRouter();
 const route = useRoute();
 
+const voiceCommandRef = ref<HTMLElement | null>(null);
+const voiceHelpRef = ref<HTMLElement | null>(null);
+const voiceOnboardingRef = ref<HTMLElement | null>(null);
 const isListening = ref(false);
 const isSupported = ref(true);
-const canRecordAudio = ref(false);
-const recordingState = ref<RecordingState>("idle");
 const lastCommand = ref("");
 const isContinuousMode = ref(false);
 const isHelpOpen = ref(false);
@@ -46,26 +58,86 @@ const isOnboardingOpen = ref(false);
 const typedCommand = ref("");
 const pendingMatches = ref<HTMLElement[]>([]);
 const pendingAction = ref<"click" | "focus">("click");
-const statusText = ref("กดเพื่อสั่งงานด้วยเสียง");
+const statusText = ref("");
+const isStatusOpen = ref(false);
 const pendingDangerAction = ref<null | (() => void)>(null);
+const pendingNavigation = ref<VoiceNavigationTarget | null>(null);
 
 let recognition: SpeechRecognitionLike | null = null;
-let mediaRecorder: MediaRecorder | null = null;
-let recordedChunks: BlobPart[] = [];
-let recordingStream: MediaStream | null = null;
 const ONBOARDING_STORAGE_KEY = "read-voice-voice-command-onboarded";
 const hiddenRouteNames = new Set(["Profile", "ProfileSettings"]);
 const continuousBlockedRouteNames = new Set(["Login", "AccountLogin", "Register", "ForgotPassword", ...hiddenRouteNames]);
+const memberRoles: UserRole[] = ["user", "writer", "admin", "superadmin"];
+const writerRoles: UserRole[] = ["writer"];
+const uploaderRoles: UserRole[] = ["writer", "admin", "superadmin"];
+const adminRoles: UserRole[] = ["admin", "superadmin"];
+const superAdminRoles: UserRole[] = ["superadmin"];
+const voiceRouteAccess: Record<string, VoiceRouteAccess> = {
+  Home: { label: "หน้าแรก" },
+  Store: { label: "ร้านหนังสือ" },
+  Search: { label: "ค้นหา" },
+  Serials: { label: "นิยายรายตอน" },
+  BestSellers: { label: "หนังสือขายดี" },
+  NewReleases: { label: "หนังสือใหม่" },
+  Promotions: { label: "โปรโมชัน" },
+  FreeBooks: { label: "อ่านฟรี" },
+  HallOfFame: { label: "หอเกียรติยศ" },
+  Recommended: { label: "แนะนำ" },
+  SubscriptionPlans: { label: "แพ็กเกจสมาชิก" },
+  CategoryIndex: { label: "หมวดหมู่" },
+  TagIndex: { label: "แท็ก" },
+  PublisherIndex: { label: "สำนักพิมพ์" },
+  AuthorIndex: { label: "นักเขียน" },
+  Support: { label: "ช่วยเหลือ" },
+  Contact: { label: "ติดต่อ" },
+  ReportIssue: { label: "รายงานปัญหา" },
+  Login: { label: "เข้าสู่ระบบ", guestOnly: true },
+  Register: { label: "สมัครสมาชิก", guestOnly: true },
+  AccessibleHome: { label: "หน้าอ่านง่าย", requiresAuth: true, allowedRoles: memberRoles },
+  MyLibrary: { label: "ชั้นหนังสือของฉัน", requiresAuth: true, allowedRoles: memberRoles },
+  WishList: { label: "รายการโปรด", requiresAuth: true, allowedRoles: memberRoles },
+  Cart: { label: "รถเข็น", requiresAuth: true, allowedRoles: memberRoles },
+  OrderHistory: { label: "ประวัติคำสั่งซื้อ", requiresAuth: true, allowedRoles: memberRoles },
+  Profile: { label: "โปรไฟล์", requiresAuth: true, allowedRoles: memberRoles },
+  NotificationSettings: { label: "ตั้งค่าการแจ้งเตือน", requiresAuth: true, allowedRoles: memberRoles },
+  AccountNotifications: { label: "การแจ้งเตือน", requiresAuth: true, allowedRoles: memberRoles },
+  AccountFollowing: { label: "กำลังติดตาม", requiresAuth: true, allowedRoles: memberRoles },
+  AccountGiftCodes: { label: "กิฟต์โค้ด", requiresAuth: true, allowedRoles: memberRoles },
+  AccountBuffet: { label: "แพ็กเกจของฉัน", requiresAuth: true, allowedRoles: memberRoles },
+  AccountDevices: { label: "อุปกรณ์ของฉัน", requiresAuth: true, allowedRoles: memberRoles },
+  AccountBenefits: { label: "สิทธิประโยชน์", requiresAuth: true, allowedRoles: memberRoles },
+  AccountReviews: { label: "รีวิวของฉัน", requiresAuth: true, allowedRoles: memberRoles },
+  AccountAgeVerification: { label: "ยืนยันอายุ", requiresAuth: true, allowedRoles: memberRoles },
+  CoinWallet: { label: "กระเป๋าคอยน์", requiresAuth: true, allowedRoles: memberRoles },
+  WriterDashboard: { label: "แดชบอร์ดนักเขียน", requiresAuth: true, allowedRoles: writerRoles },
+  WriterProfileSettings: { label: "โปรไฟล์นักเขียน", requiresAuth: true, allowedRoles: writerRoles },
+  WriterBooks: { label: "หนังสือของฉันสำหรับนักเขียน", requiresAuth: true, allowedRoles: writerRoles },
+  WriterUpload: { label: "อัปโหลดหนังสือ", requiresAuth: true, allowedRoles: uploaderRoles },
+  WriterStats: { label: "สถิติหนังสือ", requiresAuth: true, allowedRoles: writerRoles },
+  AdminDashboard: { label: "แดชบอร์ดแอดมิน", requiresAuth: true, allowedRoles: adminRoles },
+  AdminBooks: { label: "จัดการหนังสือ", requiresAuth: true, allowedRoles: adminRoles },
+  AdminApprovals: { label: "อนุมัติรายการ", requiresAuth: true, allowedRoles: adminRoles },
+  AdminCoinTopups: { label: "เติมคอยน์แอดมิน", requiresAuth: true, allowedRoles: adminRoles },
+  AdminOrderPayments: { label: "คำสั่งซื้อแอดมิน", requiresAuth: true, allowedRoles: adminRoles },
+  AdminSubscriptionPayments: { label: "ชำระแพ็กเกจสมาชิก", requiresAuth: true, allowedRoles: adminRoles },
+  AdminPayments: { label: "จัดการการชำระเงิน", requiresAuth: true, allowedRoles: adminRoles },
+  AdminPasswordResets: { label: "รีเซ็ตรหัสผ่าน", requiresAuth: true, allowedRoles: adminRoles },
+  AdminSupportTickets: { label: "ซัพพอร์ตทิกเก็ต", requiresAuth: true, allowedRoles: adminRoles },
+  AdminSystemData: { label: "ข้อมูลระบบ", requiresAuth: true, allowedRoles: adminRoles },
+  AdminPageContent: { label: "จัดการเนื้อหาหน้าเว็บ", requiresAuth: true, allowedRoles: adminRoles },
+  UploadBook: { label: "อัปโหลดหนังสือแอดมิน", requiresAuth: true, allowedRoles: ["admin"] },
+  AdminCategories: { label: "จัดการหมวดหมู่", requiresAuth: true, allowedRoles: adminRoles },
+  AdminMembers: { label: "สมาชิก", requiresAuth: true, allowedRoles: adminRoles },
+  SuperAdminDashboard: { label: "แดชบอร์ดซูเปอร์แอดมิน", requiresAuth: true, allowedRoles: superAdminRoles },
+  SuperAdminRoles: { label: "จัดการบทบาท", requiresAuth: true, allowedRoles: superAdminRoles },
+  SuperAdminUsers: { label: "จัดการผู้ใช้", requiresAuth: true, allowedRoles: superAdminRoles },
+  SuperAdminSettings: { label: "ตั้งค่าระบบ", requiresAuth: true, allowedRoles: superAdminRoles },
+};
+const navigationConfirmCommands = /^(ยืนยัน|ใช่|ไปเลย|ตกลง|โอเค|ok|okay|เอาเลย|เปิดเลย|ไปหน้านั้น)$/;
+const navigationCancelCommands = /^(ไม่|ไม่ใช่|ยกเลิก|ไม่ไป|ปิด|หยุด|พอก่อน)$/;
 
 const buttonLabel = computed(() =>
   !isSupported.value ? "พิมพ์คำสั่ง" : isListening.value ? "กำลังฟัง..." : "สั่งงานด้วยเสียง",
-);
-const serverRecordLabel = computed(() =>
-  recordingState.value === "recording"
-    ? "หยุดอัดเสียง"
-    : recordingState.value === "transcribing"
-      ? "กำลังแปลงเสียง..."
-      : "อัดเสียงผ่านเซิร์ฟเวอร์",
 );
 const voiceHelpText = computed(() =>
   voiceHelpSections.map((section) => `${section.title}: ${section.items.join(". ")}`).join(". "),
@@ -86,11 +158,6 @@ function detectSpeechSupport() {
     isManualOpen.value = true;
   }
 
-  canRecordAudio.value = Boolean(
-    window.isSecureContext &&
-      navigator.mediaDevices?.getUserMedia &&
-      "MediaRecorder" in window,
-  );
 }
 
 function getRecognition() {
@@ -122,6 +189,7 @@ function getRecognition() {
   recognition.onstart = () => {
     isListening.value = true;
     statusText.value = "กำลังฟังคำสั่ง...";
+    isStatusOpen.value = true;
   };
   recognition.onend = () => {
     isListening.value = false;
@@ -146,12 +214,14 @@ function getRecognition() {
     } else {
       statusText.value = "ฟังคำสั่งไม่สำเร็จ ลองอีกครั้ง";
     }
+    isStatusOpen.value = true;
     announceAccessibilityMessage(statusText.value);
   };
   recognition.onresult = (event) => {
     const transcript = getTranscript(event);
     if (!transcript) {
       statusText.value = "ไม่ได้ยินคำสั่ง";
+      isStatusOpen.value = true;
       return;
     }
 
@@ -173,25 +243,34 @@ function getTranscript(event: SpeechRecognitionEventLike) {
   return chunks.join(" ").trim();
 }
 
-function speakStatus(message: string) {
+function speakStatus(message: string, afterSpeak?: () => void) {
   statusText.value = message;
+  isStatusOpen.value = true;
   announceAccessibilityMessage(message);
-  speakText(message, true);
+  speakText(message, true, afterSpeak);
 }
 
 function announceStatusOnly(message: string) {
   statusText.value = message;
+  isStatusOpen.value = true;
   announceAccessibilityMessage(message);
 }
 
-function speakText(message: string, interrupt = false) {
-  if (!message || !("speechSynthesis" in window)) return;
+function speakText(message: string, interrupt = false, afterSpeak?: () => void) {
+  if (!message || !("speechSynthesis" in window)) {
+    afterSpeak?.();
+    return;
+  }
   if (interrupt) window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(message);
   utterance.lang = "th-TH";
   utterance.rate = 1;
   utterance.pitch = 1;
+  if (afterSpeak) {
+    utterance.onend = afterSpeak;
+    utterance.onerror = afterSpeak;
+  }
   window.speechSynthesis.speak(utterance);
 }
 
@@ -218,94 +297,6 @@ function startListening() {
   }
 }
 
-function cleanupRecordingStream() {
-  recordingStream?.getTracks().forEach((track) => track.stop());
-  recordingStream = null;
-}
-
-function preferredAudioMimeType() {
-  const options = [
-    "audio/webm;codecs=opus",
-    "audio/webm",
-    "audio/mp4",
-    "audio/ogg;codecs=opus",
-  ];
-
-  return options.find((type) => MediaRecorder.isTypeSupported(type)) || "";
-}
-
-async function transcribeRecordedAudio(blob: Blob) {
-  recordingState.value = "transcribing";
-  statusText.value = "กำลังแปลงเสียงเป็นคำสั่ง...";
-
-  const formData = new FormData();
-  formData.append("audio", blob, `voice-command.${blob.type.includes("mp4") ? "m4a" : "webm"}`);
-  formData.append("language", "th");
-
-  try {
-    const { data } = await api.post("/speech/transcribe", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    const transcript = String(data?.transcript || "").trim();
-    if (!transcript) {
-      speakStatus("แปลงเสียงไม่สำเร็จ ลองพูดใหม่หรือพิมพ์คำสั่ง");
-      return;
-    }
-
-    lastCommand.value = transcript;
-    handleCommand(transcript);
-  } catch (error) {
-    isManualOpen.value = true;
-    speakStatus(getApiErrorMessage(error, "ใช้เสียงผ่านเซิร์ฟเวอร์ไม่ได้ ใช้ช่องพิมพ์คำสั่งแทนได้"));
-  } finally {
-    recordingState.value = "idle";
-  }
-}
-
-async function toggleServerRecording() {
-  if (!canRecordAudio.value) {
-    isManualOpen.value = true;
-    speakStatus("เครื่องนี้อัดเสียงจากเว็บไม่ได้ ใช้ช่องพิมพ์คำสั่งแทนได้");
-    return;
-  }
-
-  if (recordingState.value === "transcribing") return;
-
-  if (recordingState.value === "recording") {
-    mediaRecorder?.stop();
-    return;
-  }
-
-  try {
-    recordedChunks = [];
-    recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mimeType = preferredAudioMimeType();
-    mediaRecorder = new MediaRecorder(recordingStream, mimeType ? { mimeType } : undefined);
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) recordedChunks.push(event.data);
-    };
-    mediaRecorder.onstop = () => {
-      cleanupRecordingStream();
-      const blob = new Blob(recordedChunks, { type: mediaRecorder?.mimeType || "audio/webm" });
-      recordedChunks = [];
-      if (blob.size < 512) {
-        recordingState.value = "idle";
-        speakStatus("ไม่ได้ยินเสียง ลองอัดใหม่หรือพิมพ์คำสั่ง");
-        return;
-      }
-      transcribeRecordedAudio(blob);
-    };
-    mediaRecorder.start();
-    recordingState.value = "recording";
-    statusText.value = "กำลังอัดเสียงคำสั่ง...";
-  } catch {
-    cleanupRecordingStream();
-    recordingState.value = "idle";
-    isManualOpen.value = true;
-    speakStatus("เปิดไมโครโฟนไม่ได้ ใช้ช่องพิมพ์คำสั่งแทนได้");
-  }
-}
-
 function submitTypedCommand() {
   const command = typedCommand.value.trim();
   if (!command) {
@@ -314,6 +305,7 @@ function submitTypedCommand() {
   }
 
   typedCommand.value = "";
+  isManualOpen.value = false;
   lastCommand.value = command;
   handleCommand(command);
 }
@@ -345,6 +337,26 @@ function setContinuousMode(enabled: boolean) {
 function closeOnboarding() {
   isOnboardingOpen.value = false;
   localStorage.setItem(ONBOARDING_STORAGE_KEY, "1");
+}
+
+function closeFloatingVoicePanels() {
+  isManualOpen.value = false;
+  isHelpOpen.value = false;
+  isStatusOpen.value = false;
+  lastCommand.value = "";
+  if (isOnboardingOpen.value) closeOnboarding();
+}
+
+function handleDocumentPointerDown(event: PointerEvent) {
+  const target = event.target;
+  if (!(target instanceof Node)) return;
+
+  const clickedInsideVoiceCommand = Boolean(voiceCommandRef.value?.contains(target));
+  const clickedInsideHelp = Boolean(voiceHelpRef.value?.contains(target));
+  const clickedInsideOnboarding = Boolean(voiceOnboardingRef.value?.contains(target));
+
+  if (clickedInsideVoiceCommand || clickedInsideHelp || clickedInsideOnboarding) return;
+  closeFloatingVoicePanels();
 }
 
 function pushSearch(keyword: string, contentType = "all") {
@@ -875,6 +887,70 @@ function handleDangerConfirmation(command: string) {
   return false;
 }
 
+function getNavigationLabel(action: Extract<VoiceCommandAction, { type: "navigate" }>) {
+  if (action.routeName === "Serials" && action.query?.view === "continue") return "รายการอ่านต่อ";
+  return voiceRouteAccess[action.routeName]?.label || "หน้านั้น";
+}
+
+function canAccessNavigation(routeName: string) {
+  const access = voiceRouteAccess[routeName];
+  const loggedIn = isAuthenticated();
+  const role = getAuthUser()?.role;
+
+  if (!access) return { allowed: true };
+  if (access.guestOnly && loggedIn) {
+    return { allowed: false, message: `คุณเข้าสู่ระบบอยู่แล้ว ไม่จำเป็นต้องไปหน้า${access.label}` };
+  }
+  if (access.requiresAuth && !loggedIn) {
+    return { allowed: false, message: `หน้า${access.label}ต้องเข้าสู่ระบบก่อน` };
+  }
+  if (access.allowedRoles && (!role || !access.allowedRoles.includes(role))) {
+    return { allowed: false, message: `บัญชีนี้ไม่มีสิทธิ์ไปหน้า${access.label}` };
+  }
+
+  return { allowed: true };
+}
+
+function requestNavigationConfirmation(action: Extract<VoiceCommandAction, { type: "navigate" }>) {
+  const access = canAccessNavigation(action.routeName);
+  const label = getNavigationLabel(action);
+
+  if (!access.allowed) {
+    pendingNavigation.value = null;
+    speakStatus(access.message || `ไม่สามารถไปหน้า${label}ได้`);
+    return;
+  }
+
+  pendingNavigation.value = {
+    routeName: action.routeName,
+    query: action.query,
+    label,
+  };
+  speakStatus(`ต้องการไปหน้า${label}ใช่หรือไม่ พูดว่ายืนยัน`, () => {
+    if (pendingNavigation.value && !isListening.value) {
+      startListening();
+    }
+  });
+}
+
+function confirmPendingNavigation() {
+  const target = pendingNavigation.value;
+  if (!target) return false;
+
+  pendingNavigation.value = null;
+  router.push({ name: target.routeName, query: target.query });
+  speakStatus(`เปิดหน้า${target.label}แล้ว`);
+  return true;
+}
+
+function cancelPendingNavigation() {
+  if (!pendingNavigation.value) return false;
+
+  pendingNavigation.value = null;
+  speakStatus("ยกเลิกคำสั่งแล้ว");
+  return true;
+}
+
 function routeMessage(action: Extract<VoiceCommandAction, { type: "navigate" }>) {
   const messages: Record<string, string> = {
     Home: "เปิดหน้าแรกแล้ว",
@@ -884,10 +960,11 @@ function routeMessage(action: Extract<VoiceCommandAction, { type: "navigate" }>)
     WishList: "เปิดรายการโปรดแล้ว",
     OrderHistory: "เปิดประวัติคำสั่งซื้อแล้ว",
     Store: "เปิดหน้าหนังสือแล้ว",
+    FreeBooks: "เปิดหน้าอ่านฟรีแล้ว",
     CoinWallet: "เปิดกระเป๋าคอยน์แล้ว",
   };
 
-  return messages[action.routeName] || "เปิดหน้าแล้ว";
+  return messages[action.routeName] || `เปิดหน้า${getNavigationLabel(action)}แล้ว`;
 }
 
 function readerMessage(command: ReaderVoiceCommand) {
@@ -1027,8 +1104,7 @@ function executeVoiceAction(action: VoiceCommandAction, normalizedCommand: strin
       return;
     }
     case "navigate":
-      router.push({ name: action.routeName, query: action.query });
-      speakStatus(routeMessage(action));
+      requestNavigationConfirmation(action);
       return;
     case "openAccessibility":
       window.dispatchEvent(new CustomEvent("read-voice:open-accessibility-panel"));
@@ -1052,17 +1128,39 @@ function executeVoiceAction(action: VoiceCommandAction, normalizedCommand: strin
 
 function handleCommand(rawCommand: string) {
   const command = normalizeVoiceCommand(rawCommand);
+  if (pendingNavigation.value) {
+    if (navigationConfirmCommands.test(command)) {
+      confirmPendingNavigation();
+      return;
+    }
+    if (navigationCancelCommands.test(command)) {
+      cancelPendingNavigation();
+      return;
+    }
+  }
+
+  const action = parseVoiceCommand(command);
+  if (pendingNavigation.value) {
+    if (action.type === "navigate") {
+      executeVoiceAction(action, command);
+      return;
+    }
+
+    speakStatus(`กำลังรอยืนยันไปหน้า${pendingNavigation.value.label} กรุณาพูดว่ายืนยันหรือยกเลิก`);
+    return;
+  }
+
   if (handleDangerConfirmation(command)) return;
-  executeVoiceAction(parseVoiceCommand(command), command);
+  executeVoiceAction(action, command);
 }
 
 onBeforeUnmount(() => {
+  document.removeEventListener("pointerdown", handleDocumentPointerDown);
   recognition?.abort();
-  if (mediaRecorder?.state === "recording") mediaRecorder.stop();
-  cleanupRecordingStream();
 });
 
 onMounted(() => {
+  document.addEventListener("pointerdown", handleDocumentPointerDown);
   detectSpeechSupport();
   isOnboardingOpen.value = localStorage.getItem(ONBOARDING_STORAGE_KEY) !== "1";
 });
@@ -1079,7 +1177,16 @@ watch(
 </script>
 
 <template>
-  <aside v-if="!isVoiceHidden" class="voice-command" aria-label="สั่งงานด้วยเสียง">
+  <aside
+    v-if="!isVoiceHidden"
+    ref="voiceCommandRef"
+    class="voice-command"
+    :class="{
+      'voice-command--expanded':
+        isManualOpen || isStatusOpen || isListening || isContinuousMode,
+    }"
+    aria-label="สั่งงานด้วยเสียง"
+  >
     <button
       class="voice-command__button"
       :class="{ 'is-listening': isListening, 'is-continuous': isContinuousMode }"
@@ -1087,8 +1194,8 @@ watch(
       :aria-pressed="isListening"
       @click="startListening"
     >
-      <span aria-hidden="true"></span>
-      {{ buttonLabel }}
+      <span class="voice-command__mic" aria-hidden="true"></span>
+      <span class="voice-command__button-label">{{ buttonLabel }}</span>
     </button>
     <button
       v-if="isSupported"
@@ -1098,16 +1205,6 @@ watch(
       @click="isManualOpen = !isManualOpen"
     >
       พิมพ์คำสั่ง
-    </button>
-    <button
-      v-if="canRecordAudio"
-      class="voice-command__server-record"
-      :class="{ 'is-recording': recordingState === 'recording' }"
-      type="button"
-      :disabled="recordingState === 'transcribing'"
-      @click="toggleServerRecording"
-    >
-      {{ serverRecordLabel }}
     </button>
     <form
       v-if="isManualOpen || !isSupported"
@@ -1127,11 +1224,20 @@ watch(
         <button type="submit">สั่ง</button>
       </div>
     </form>
-    <p>{{ lastCommand || statusText }}</p>
+    <p
+      v-if="isStatusOpen && statusText"
+      class="voice-command__status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <strong>{{ statusText }}</strong>
+      <small v-if="lastCommand">คำสั่งล่าสุด: {{ lastCommand }}</small>
+    </p>
   </aside>
 
   <section
     v-if="isHelpOpen && !isVoiceHidden"
+    ref="voiceHelpRef"
     class="voice-help"
     role="dialog"
     aria-modal="false"
@@ -1153,13 +1259,14 @@ watch(
 
   <section
     v-if="isOnboardingOpen && !isVoiceHidden"
+    ref="voiceOnboardingRef"
     class="voice-onboarding"
     role="dialog"
     aria-modal="false"
     aria-label="เริ่มใช้งานคำสั่งเสียง"
   >
     <h2>สั่งงานด้วยเสียง</h2>
-    <p>กดปุ่มไมค์แล้วอนุญาตไมโครโฟน จากนั้นพูดคำสั่ง เช่น “ช่วยเหลือ”, “ค้นหา นิยายรัก”, “ไปที่ช่องอีเมล” หรือ “อ่านให้ฟัง” ถ้าเครื่องไม่รองรับ ให้ใช้อัดเสียงผ่านเซิร์ฟเวอร์หรือพิมพ์คำสั่งแทน</p>
+    <p>กดปุ่มไมค์แล้วอนุญาตไมโครโฟน จากนั้นพูดคำสั่ง เช่น “ช่วยเหลือ”, “ค้นหา นิยายรัก”, “ไปที่ช่องอีเมล” หรือ “อ่านให้ฟัง” ถ้าเครื่องไม่รองรับ ให้พิมพ์คำสั่งแทน</p>
     <div>
       <button type="button" @click="isHelpOpen = true">ดูคำสั่ง</button>
       <button type="button" @click="closeOnboarding">เข้าใจแล้ว</button>
@@ -1171,30 +1278,27 @@ watch(
 .voice-command {
   position: fixed;
   right: 18px;
-  bottom: 92px;
+  bottom: 82px;
   z-index: 90;
   display: grid;
   justify-items: end;
-  gap: 8px;
+  gap: 7px;
   max-width: min(320px, calc(100vw - 36px));
   pointer-events: none;
 }
 
 .voice-command__button,
 .voice-command__manual-toggle,
-.voice-command__server-record,
-.voice-command__manual,
-.voice-command p {
+.voice-command__manual {
   pointer-events: auto;
 }
 
 .voice-command__button,
-.voice-command__manual-toggle,
-.voice-command__server-record {
+.voice-command__manual-toggle {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  min-height: 44px;
+  min-height: 42px;
   border: 1px solid color-mix(in srgb, var(--primary) 50%, var(--border));
   border-radius: 999px;
   background: var(--surface);
@@ -1203,6 +1307,30 @@ watch(
   cursor: pointer;
   font-weight: 900;
   padding: 0 15px;
+}
+
+.voice-command:not(.voice-command--expanded):not(:hover):not(:focus-within) {
+  max-width: 52px;
+}
+
+.voice-command:not(.voice-command--expanded):not(:hover):not(:focus-within)
+  .voice-command__button {
+  width: 52px;
+  height: 52px;
+  min-height: 52px;
+  justify-content: center;
+  padding: 0;
+}
+
+.voice-command:not(.voice-command--expanded):not(:hover):not(:focus-within)
+  .voice-command__button-label,
+.voice-command:not(.voice-command--expanded):not(:hover):not(:focus-within)
+  .voice-command__manual-toggle {
+  display: none;
+}
+
+.voice-command__button-label {
+  white-space: nowrap;
 }
 
 .voice-command__manual-toggle {
@@ -1214,35 +1342,16 @@ watch(
   padding: 0 12px;
 }
 
-.voice-command__server-record {
-  min-height: 34px;
-  border-color: color-mix(in srgb, #0f766e 45%, var(--border));
-  background: color-mix(in srgb, var(--surface) 92%, #ccfbf1);
-  color: #0f766e;
-  font-size: 12px;
-  padding: 0 12px;
-}
-
-.voice-command__server-record.is-recording {
-  border-color: #dc2626;
-  background: #dc2626;
-  color: #fff;
-}
-
-.voice-command__server-record:disabled {
-  cursor: wait;
-  opacity: 0.72;
-}
-
-.voice-command__button span {
+.voice-command__mic {
   position: relative;
+  flex: 0 0 auto;
   width: 14px;
   height: 20px;
   border: 2px solid currentColor;
   border-radius: 999px;
 }
 
-.voice-command__button span::before {
+.voice-command__mic::before {
   content: "";
   position: absolute;
   right: 3px;
@@ -1313,18 +1422,34 @@ watch(
 }
 
 .voice-command p {
+  pointer-events: none;
   max-width: 100%;
   margin: 0;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 14px;
   background: color-mix(in srgb, var(--surface) 94%, transparent);
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 800;
   padding: 7px 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+}
+
+.voice-command__status {
+  display: grid;
+  gap: 3px;
+}
+
+.voice-command__status strong,
+.voice-command__status small {
+  display: block;
+}
+
+.voice-command__status small {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 650;
 }
 
 .voice-help {
@@ -1476,13 +1601,7 @@ watch(
     padding: 0 10px;
   }
 
-  .voice-command__server-record {
-    min-height: 32px;
-    font-size: 11px;
-    padding: 0 10px;
-  }
-
-  .voice-command__button span {
+  .voice-command__mic {
     flex: 0 0 auto;
   }
 

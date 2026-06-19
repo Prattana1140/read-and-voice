@@ -55,7 +55,7 @@ const router = useRouter();
 .not-found-panel h1 {
   margin-top: 8px;
   color: var(--text-strong);
-  font-size: 36px;
+  font-size: 30px;
   line-height: 1.2;
 }
 

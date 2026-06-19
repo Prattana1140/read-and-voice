@@ -657,8 +657,8 @@ onMounted(() => loadSection());
 }
 
 .page-head {
-  border-radius: 22px;
-  padding: 24px;
+  border-radius: 18px;
+  padding: 20px;
 }
 
 .eyebrow,
@@ -679,20 +679,22 @@ onMounted(() => loadSection());
 
 .page-head h1 {
   color: var(--text-strong);
-  font-size: clamp(30px, 5vw, 44px);
+  font-size: clamp(24px, 3.2vw, 34px);
+  line-height: 1.18;
 }
 
 .page-head p,
 .section-intro p {
   color: var(--text-muted);
-  line-height: 1.7;
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .tabbar {
   display: flex;
-  gap: 8px;
+  gap: 7px;
   overflow-x: auto;
-  padding: 14px 0;
+  padding: 12px 0;
 }
 
 .tabbar button,
@@ -703,9 +705,10 @@ onMounted(() => loadSection());
   color: var(--text-strong);
   cursor: pointer;
   font: inherit;
+  font-size: 13px;
   font-weight: 800;
-  min-height: 40px;
-  padding: 0 14px;
+  min-height: 34px;
+  padding: 0 12px;
   white-space: nowrap;
 }
 
@@ -721,8 +724,8 @@ onMounted(() => loadSection());
   justify-content: space-between;
   gap: 16px;
   align-items: center;
-  border-radius: 18px;
-  padding: 18px;
+  border-radius: 16px;
+  padding: 16px;
 }
 
 .section-intro h2,
@@ -740,8 +743,8 @@ onMounted(() => loadSection());
 .summary-card {
   display: grid;
   gap: 6px;
-  border-radius: 16px;
-  padding: 16px;
+  border-radius: 14px;
+  padding: 14px;
 }
 
 .summary-card span {
@@ -753,7 +756,7 @@ onMounted(() => loadSection());
 
 .summary-card strong {
   color: var(--text-strong);
-  font-size: 28px;
+  font-size: 24px;
 }
 
 .stack {

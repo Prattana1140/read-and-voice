@@ -238,7 +238,7 @@ label span {
 
 h1 {
   margin: 0;
-  font-size: clamp(28px, 4vw, 42px);
+  font-size: clamp(24px, 3.2vw, 34px);
 }
 
 .muted,
@@ -344,7 +344,7 @@ button {
   place-items: center;
   background: linear-gradient(135deg, #00a878, #20b8ad);
   color: #fff;
-  font-size: 38px;
+  font-size: 30px;
   font-weight: 900;
   overflow: hidden;
 }

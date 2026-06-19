@@ -318,7 +318,7 @@ watch(error, (message) => {
   margin: 0;
   text-align: center;
   color: var(--text-strong);
-  font-size: 36px;
+  font-size: 30px;
   font-weight: 900;
   line-height: 1.1;
 }

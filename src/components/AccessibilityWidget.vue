@@ -14,6 +14,13 @@ type WidgetPosition = {
   y: number;
 };
 
+type ExternalAnchorRect = {
+  bottom: number;
+  left: number;
+  right: number;
+  width: number;
+};
+
 const POSITION_STORAGE_KEY = "read-voice-accessibility-widget-position";
 const LAUNCHER_WIDTH = 64;
 const LAUNCHER_HEIGHT = 64;
@@ -25,6 +32,7 @@ const DRAG_THRESHOLD = 4;
 
 const isOpen = ref(false);
 const openedFromExternal = ref(false);
+const externalAnchor = ref<ExternalAnchorRect | null>(null);
 const position = ref<WidgetPosition>({ x: 0, y: 0 });
 const viewportSize = ref({ width: 0, height: 0 });
 const isDragging = ref(false);
@@ -37,7 +45,22 @@ let dragStartY = 0;
 let dragStartPosition: WidgetPosition = { x: 0, y: 0 };
 
 const widgetStyle = computed(() => {
-  if (!accessibilityState.enabled) return {};
+  if (openedFromExternal.value && externalAnchor.value) {
+    const panelWidth = Math.min(340, Math.max(0, viewportSize.value.width - EDGE_PADDING * 2));
+    const left = Math.min(
+      Math.max(externalAnchor.value.right - panelWidth, EDGE_PADDING),
+      Math.max(EDGE_PADDING, viewportSize.value.width - panelWidth - EDGE_PADDING),
+    );
+    const top = Math.max(EDGE_PADDING, externalAnchor.value.bottom + PANEL_GAP);
+
+    return {
+      "--a11y-panel-left": `${left}px`,
+      "--a11y-panel-top": `${top}px`,
+      "--a11y-panel-width": `${panelWidth}px`,
+    };
+  }
+
+  if (!accessibilityState.enabled || openedFromExternal.value) return {};
 
   return {
     left: `${position.value.x}px`,
@@ -62,7 +85,7 @@ const panelOpensUp = computed(() => {
 
 const fontPercent = computed(() => `${Math.round(accessibilityState.fontScale * 100)}%`);
 
-const shouldRenderWidget = computed(() => isOpen.value || accessibilityState.enabled);
+const shouldRenderWidget = computed(() => isOpen.value);
 
 const updateViewportSize = () => {
   viewportSize.value = {
@@ -156,12 +179,15 @@ const handleExternalToggle = () => {
 
 const closePanel = () => {
   openedFromExternal.value = false;
+  externalAnchor.value = null;
   isOpen.value = false;
 };
 
-const togglePanelFromExternal = () => {
+const togglePanelFromExternal = (event?: Event) => {
+  const detail = (event as CustomEvent<ExternalAnchorRect | undefined> | undefined)?.detail;
   const shouldOpen = !isOpen.value || !openedFromExternal.value;
   openedFromExternal.value = shouldOpen;
+  externalAnchor.value = shouldOpen && detail ? detail : null;
   isOpen.value = shouldOpen;
 };
 
@@ -263,11 +289,6 @@ const toggleContrast = () => {
   announceAccessibilityMessage(accessibilityState.highContrast ? t("a11y.contrastOn") : t("a11y.contrastOff"));
 };
 
-const toggleUiSpeech = () => {
-  updateAccessibilitySettings({ speakUi: !accessibilityState.speakUi });
-  announceAccessibilityMessage(accessibilityState.speakUi ? t("a11y.speechOn") : t("a11y.speechOff"));
-};
-
 onMounted(async () => {
   updateViewportSize();
   await loadPosition();
@@ -293,15 +314,15 @@ onBeforeUnmount(() => {
     class="a11y-widget"
     :class="{
       dragging: isDragging,
-      'align-left': accessibilityState.enabled && panelAlignsLeft,
-      'open-up': accessibilityState.enabled && panelOpensUp,
-      'panel-only': !accessibilityState.enabled,
+      'align-left': accessibilityState.enabled && !openedFromExternal && panelAlignsLeft,
+      'open-up': accessibilityState.enabled && !openedFromExternal && panelOpensUp,
+      'panel-only': openedFromExternal || !accessibilityState.enabled,
       'from-nav': openedFromExternal,
     }"
     :style="widgetStyle"
   >
     <button
-      v-if="accessibilityState.enabled"
+      v-if="accessibilityState.enabled && !openedFromExternal"
       class="a11y-launcher"
       type="button"
       :aria-expanded="isOpen"
@@ -333,16 +354,10 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div class="a11y-grid">
-        <button class="a11y-card" type="button" :aria-pressed="accessibilityState.highContrast" @click="toggleContrast">
-          <strong>{{ t("a11y.highContrast") }}</strong>
-          <span>{{ accessibilityState.highContrast ? t("a11y.on") : t("a11y.off") }}</span>
-        </button>
-        <button class="a11y-card" type="button" :aria-pressed="accessibilityState.speakUi" @click="toggleUiSpeech">
-          <strong>{{ t("a11y.speakMenu") }}</strong>
-          <span>{{ accessibilityState.speakUi ? t("a11y.on") : t("a11y.off") }}</span>
-        </button>
-      </div>
+      <button class="a11y-card" type="button" :aria-pressed="accessibilityState.highContrast" @click="toggleContrast">
+        <strong>{{ t("a11y.highContrast") }}</strong>
+        <span>{{ accessibilityState.highContrast ? t("a11y.on") : t("a11y.off") }}</span>
+      </button>
 
       <div class="a11y-control">
         <span>{{ t("a11y.fontSize") }}</span>
@@ -361,9 +376,6 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <p class="a11y-note">
-        {{ t("a11y.shortcutPrefix") }} <kbd>Alt</kbd> + <kbd>A</kbd> {{ t("a11y.shortcutMiddle") }} <kbd>Alt</kbd> + <kbd>M</kbd> {{ t("a11y.shortcutSuffix") }}
-      </p>
     </section>
   </div>
 </template>
@@ -507,6 +519,17 @@ onBeforeUnmount(() => {
   max-height: min(86vh, 620px);
 }
 
+.a11y-widget.from-nav .a11y-panel,
+.a11y-widget.panel-only.from-nav .a11y-panel {
+  position: fixed;
+  top: var(--a11y-panel-top, 76px);
+  right: auto;
+  bottom: auto;
+  left: var(--a11y-panel-left, auto);
+  width: min(var(--a11y-panel-width, 340px), calc(100vw - 36px));
+  max-height: calc(100dvh - 92px);
+}
+
 .a11y-widget.align-left .a11y-panel {
   right: auto;
   left: 0;
@@ -526,6 +549,27 @@ onBeforeUnmount(() => {
   gap: 10px;
 }
 
+.a11y-panel__head {
+  align-items: start;
+}
+
+.a11y-panel__head > div:first-child {
+  min-width: 0;
+}
+
+.a11y-panel__head strong {
+  display: block;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.a11y-panel__head small {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 .a11y-panel__head strong,
 .a11y-card strong,
 .a11y-control strong {
@@ -533,31 +577,29 @@ onBeforeUnmount(() => {
 }
 
 .a11y-panel__head small,
-.a11y-card span,
-.a11y-note {
+.a11y-card span {
   color: #5b6b7b;
 }
 
 .a11y-pill,
 .a11y-close,
 .a11y-inline button {
-  min-height: 40px;
+  min-height: 32px;
   border-radius: 999px;
   background: #e6fbf7;
   color: #0f766e;
+  font-size: 12px;
   font-weight: 800;
-  padding: 0 14px;
+  line-height: 1.1;
+  padding: 0 12px;
+  white-space: nowrap;
 }
 
 .a11y-close {
   background: #eef2f7;
   color: #334155;
-}
-
-.a11y-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  min-width: 36px;
+  padding: 0 10px;
 }
 
 .a11y-card {
@@ -565,7 +607,7 @@ onBeforeUnmount(() => {
   gap: 4px;
   border-radius: 16px;
   background: #f6fbfb;
-  padding: 14px;
+  padding: 12px 14px;
   text-align: left;
 }
 
@@ -577,22 +619,6 @@ onBeforeUnmount(() => {
 .a11y-control > span {
   color: #334155;
   font-weight: 700;
-}
-
-.a11y-note {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-kbd {
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  background: #fff;
-  color: #1e293b;
-  font-size: 12px;
-  font-weight: 800;
-  padding: 2px 6px;
 }
 
 @media (max-width: 640px) {
@@ -623,6 +649,7 @@ kbd {
 
   .a11y-panel__head {
     align-items: start;
+    gap: 8px;
   }
 
   .a11y-panel__head strong {
@@ -637,6 +664,9 @@ kbd {
 
   .a11y-panel__actions {
     flex: 0 0 auto;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
   }
 
   .a11y-pill,
@@ -645,17 +675,13 @@ kbd {
     min-height: 30px;
     border-radius: 999px;
     font-size: 11px;
-    padding: 0 10px;
+    padding: 0 9px;
+    white-space: nowrap;
   }
 
   .a11y-close {
     min-width: 34px;
     padding: 0 8px;
-  }
-
-  .a11y-grid {
-    grid-template-columns: 1fr;
-    gap: 8px;
   }
 
   .a11y-card {
@@ -685,17 +711,6 @@ kbd {
     font-size: 12px;
   }
 
-  .a11y-note {
-    font-size: 10px;
-    line-height: 1.35;
-  }
-
-  kbd {
-    border-radius: 5px;
-    font-size: 10px;
-    padding: 1px 5px;
-  }
-
   .a11y-widget.panel-only .a11y-panel {
     position: fixed;
     top: auto;
@@ -708,11 +723,11 @@ kbd {
 
   .a11y-widget.from-nav .a11y-panel,
   .a11y-widget.panel-only.from-nav .a11y-panel {
-    top: 76px;
-    right: 18px;
+    top: var(--a11y-panel-top, 76px);
+    right: auto;
     bottom: auto;
-    left: auto;
-    width: min(224px, calc(100vw - 36px));
+    left: var(--a11y-panel-left, 18px);
+    width: min(var(--a11y-panel-width, 300px), calc(100vw - 36px));
     max-height: calc(100dvh - 88px);
   }
 
@@ -749,8 +764,9 @@ kbd {
 
   .a11y-widget.from-nav .a11y-panel,
   .a11y-widget.panel-only.from-nav .a11y-panel {
-    right: 14px;
-    width: min(214px, calc(100vw - 28px));
+    right: auto;
+    left: var(--a11y-panel-left, 14px);
+    width: min(var(--a11y-panel-width, 280px), calc(100vw - 28px));
   }
 }
 </style>
