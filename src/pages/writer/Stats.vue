@@ -16,7 +16,6 @@ type WriterStatsSummary = {
   episode_views?: number;
   review_count?: number;
   average_rating?: number;
-  wishlist_count?: number;
   library_count?: number;
   paid_items?: number;
   gross_sales?: number;
@@ -35,7 +34,6 @@ type WriterBookStats = {
   views?: number;
   reviews?: number;
   average_rating?: number;
-  wishlists?: number;
   paid_items?: number;
   gross_sales?: number;
   updated_at?: string;
@@ -64,7 +62,6 @@ const cards = computed(() => [
   { label: "รีวิว", value: summary.value.review_count || 0 },
   { label: "คะแนนเฉลี่ย", value: Number(summary.value.average_rating || 0).toFixed(2) },
   { label: "เพิ่มเข้าชั้น", value: summary.value.library_count || 0 },
-  { label: "Wishlist", value: summary.value.wishlist_count || 0 },
   { label: "ขายแล้ว", value: summary.value.paid_items || 0 },
   { label: "ยอดขายรวม", value: `${moneyFormat.format(Number(summary.value.gross_sales || 0))} coin` },
   { label: "หน่วยเนื้อหา", value: summary.value.total_units || 0 },
@@ -106,7 +103,7 @@ onMounted(loadStats);
       <div>
         <p class="eyebrow">Writer Analytics</p>
         <h1>สถิตินักเขียน</h1>
-        <p>ดูภาพรวมผลงาน ยอดอ่าน รีวิว Wishlist และยอดขายจากหนังสือของคุณเท่านั้น</p>
+        <p>ดูภาพรวมผลงาน ยอดอ่าน รีวิว การเพิ่มเข้าชั้น และยอดขายจากหนังสือของคุณเท่านั้น</p>
       </div>
       <button type="button" :disabled="loading" @click="loadStats">
         {{ loading ? "กำลังโหลด..." : "รีเฟรช" }}

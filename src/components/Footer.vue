@@ -12,26 +12,25 @@ const authUser = computed(() => getAuthUser() as { role?: string } | null);
 const currentRole = computed<UserRole | null>(() => {
   const role = authUser.value?.role?.trim().toLowerCase();
 
-  if (role === "user" || role === "writer" || role === "admin" || role === "superadmin") {
+  if (
+    role === "user" ||
+    role === "writer" ||
+    role === "admin" ||
+    role === "superadmin"
+  ) {
     return role;
   }
 
   return null;
 });
 
-const canManageCategories = computed(
-  () => currentRole.value === "admin" || currentRole.value === "superadmin",
-);
-const canUploadBooks = computed(
-  () =>
-    currentRole.value === "writer" ||
-    currentRole.value === "admin" ||
-    currentRole.value === "superadmin",
-);
 const canWriteBooks = computed(() => currentRole.value === "writer");
-const memberLink = computed(() => (isLoggedIn.value ? "/my-library" : "/login"));
-const recentLink = computed(() => (isLoggedIn.value ? "/profile" : "/login"));
-const walletLink = computed(() => (isLoggedIn.value ? "/coin-wallet" : "/login"));
+const memberLink = computed(() =>
+  isLoggedIn.value ? "/my-library" : "/login",
+);
+const walletLink = computed(() =>
+  isLoggedIn.value ? "/coin-wallet" : "/login",
+);
 </script>
 
 <template>
@@ -40,22 +39,20 @@ const walletLink = computed(() => (isLoggedIn.value ? "/coin-wallet" : "/login")
       <section class="footer-column">
         <h3>{{ t("footer.content") }}</h3>
         <router-link to="/store">{{ t("nav.books") }}</router-link>
-        <router-link to="/subscription-plans">{{ t("nav.subscription") }}</router-link>
+        <router-link to="/subscription-plans">{{
+          t("nav.subscription")
+        }}</router-link>
         <router-link to="/serials">{{ t("nav.serials") }}</router-link>
-        <router-link v-if="canManageCategories" to="/admin/categories">
-          {{ t("footer.categories") }}
-        </router-link>
-        <router-link to="/recommended">{{ t("footer.content") }}</router-link>
+        <router-link to="/recommended">{{ t("home.recommended") }}</router-link>
       </section>
 
       <section class="footer-column">
         <h3>{{ t("footer.memberMenu") }}</h3>
         <router-link :to="memberLink">{{ t("account.bookshelf") }}</router-link>
-        <router-link :to="recentLink">{{ t("footer.recent") }}</router-link>
         <router-link v-if="canWriteBooks" to="/writer/books">
-          {{ t("account.writerDashboard") }}
+          {{ t("footer.writerBooks") }}
         </router-link>
-        <router-link v-if="canUploadBooks" to="/writer/upload">
+        <router-link v-if="canWriteBooks" to="/writer/upload">
           {{ t("account.uploadBook") }}
         </router-link>
       </section>
@@ -63,12 +60,15 @@ const walletLink = computed(() => (isLoggedIn.value ? "/coin-wallet" : "/login")
       <section class="footer-column footer-about">
         <div class="footer-about-links">
           <h3>{{ t("footer.about") }}</h3>
-          <router-link to="/contact">{{ t("footer.contact") }}</router-link>
+          <router-link to="/support">{{ t("footer.help") }}</router-link>
           <router-link to="/terms">{{ t("footer.terms") }}</router-link>
-          <router-link to="/privacy-policy">{{ t("footer.privacy") }}</router-link>
-          <router-link to="/data-privacy">{{ t("footer.dataPrivacy") }}</router-link>
+          <router-link to="/privacy-policy">{{
+            t("footer.privacy")
+          }}</router-link>
+          <router-link to="/data-privacy">{{
+            t("footer.dataPrivacy")
+          }}</router-link>
           <router-link :to="walletLink">{{ t("nav.topUp") }}</router-link>
-          <router-link to="/report">{{ t("footer.report") }}</router-link>
         </div>
 
         <div class="footer-logo-wrap">
@@ -159,7 +159,7 @@ const walletLink = computed(() => (isLoggedIn.value ? "/coin-wallet" : "/login")
 }
 
 .footer-logo {
-  width: 260px;
+  width: 200px;
   height: auto;
   object-fit: contain;
 }
@@ -199,21 +199,26 @@ const walletLink = computed(() => (isLoggedIn.value ? "/coin-wallet" : "/login")
 
   .footer-about {
     grid-column: auto;
-    grid-template-columns: minmax(130px, 1fr) minmax(92px, 120px);
-    gap: clamp(12px, 3vw, 24px);
+    grid-template-columns: minmax(130px, 1fr) 120px;
+    gap: 12px;
   }
 
   .footer-logo {
-    width: 128px;
+    width: 100px;
+  }
+
+  .footer-bottom {
+    font-size: 12px;
+    gap: 12px;
   }
 }
 
 @media (max-width: 640px) {
   .footer-inner {
     grid-template-columns:
-      minmax(88px, 0.8fr)
-      minmax(104px, 0.85fr)
-      minmax(190px, 1.25fr);
+      minmax(70px, 0.8fr)
+      minmax(80px, 0.85fr)
+      minmax(180px, 1.4fr);
     gap: 12px;
     padding-inline: 18px;
     padding-top: 28px;
@@ -221,16 +226,25 @@ const walletLink = computed(() => (isLoggedIn.value ? "/coin-wallet" : "/login")
   }
 
   .footer-about {
-    grid-template-columns: minmax(118px, 1fr) 96px;
-    gap: 12px;
-  }
-
-  .footer-logo {
-    width: 104px;
+    grid-template-columns: minmax(0, 1fr) 70px;
+    gap: 8px;
   }
 
   .footer-logo-wrap {
+    display: flex;
     justify-content: center;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  .footer-logo {
+    width: 60px;
+    max-width: 60px;
+    height: auto;
+  }
+  .footer-bottom {
+    font-size: 11px;
+    gap: 8px;
   }
 }
 
@@ -239,16 +253,16 @@ const walletLink = computed(() => (isLoggedIn.value ? "/coin-wallet" : "/login")
     grid-template-columns:
       minmax(58px, 0.75fr)
       minmax(68px, 0.78fr)
-      minmax(138px, 1.4fr);
+      minmax(150px, 1.4fr);
     gap: 6px;
     padding-inline: 10px;
     padding-top: 24px;
   }
 
   .footer-about {
-    grid-template-columns: minmax(84px, 1fr) 46px;
+    grid-template-columns: minmax(0, 1fr) 60px;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
   }
 
   .footer-column {
@@ -256,25 +270,32 @@ const walletLink = computed(() => (isLoggedIn.value ? "/coin-wallet" : "/login")
   }
 
   .footer-column h3 {
-    font-size: 12px;
+    font-size: 11px;
     margin-bottom: 6px;
   }
 
   .footer-column a {
     font-size: 10px;
-    line-height: 1.55;
+    line-height: 1.45;
   }
 
   .footer-logo {
-    width: 52px;
+    width: 50px;
+    max-width: 50px;
+    height: auto;
   }
 
   .footer-logo-wrap {
+    display: flex;
     justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    padding-inline: 4px;
   }
 
   .footer-bottom {
-    gap: 10px;
+    font-size: 10px;
+    gap: 6px;
     padding-inline: var(--page-gutter, 16px);
   }
 }

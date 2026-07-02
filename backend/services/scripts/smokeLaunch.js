@@ -24,7 +24,6 @@ const roleChecks = [
       "/api/auth/me",
       "/api/profile/me",
       "/api/library/me",
-      "/api/wishlist",
       "/api/cart",
       "/api/orders/history",
       "/api/coins/wallet",

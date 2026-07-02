@@ -296,7 +296,7 @@ function getPrice(book: SerialBook) {
 
 function getPrimaryActionLabel(book: SerialBook) {
   if (book.access_type === "subscription") return "อ่านด้วยแพ็กเกจ";
-  if (book.access_type === "paid" || getPrice(book) > 0) return "ดูตอน/ซื้อ";
+  if (book.access_type === "paid" || getPrice(book) > 0) return "ดูรายละเอียด";
   return "อ่านเลย";
 }
 
@@ -332,10 +332,6 @@ function handlePrimaryAction(book: SerialBook) {
 
 function goToMyLibrary() {
   router.push({ name: "MyLibrary" });
-}
-
-function goToWishlist() {
-  router.push({ name: "WishList" });
 }
 
 function goToCart() {
@@ -494,9 +490,8 @@ onMounted(() => {
         />
 
         <div class="header-actions" aria-label="เมนูของฉัน">
-          <button class="top-btn" type="button" @click="goToWishlist">Wishlist</button>
           <button class="top-btn" type="button" @click="goToCart">ตะกร้า</button>
-          <button class="top-btn primary" type="button" @click="goToMyLibrary">ชั้น</button>
+          <button class="top-btn primary" type="button" @click="goToMyLibrary">ชั้นหนังสือของฉัน</button>
         </div>
       </div>
 
@@ -794,9 +789,8 @@ onMounted(() => {
 }
 
 .top-btn {
-  min-width: 0;
+  min-width: max-content;
   min-height: 40px;
-  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface-soft);
@@ -805,7 +799,6 @@ onMounted(() => {
   font-size: 12px;
   font-weight: 800;
   padding: 0 13px;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -1282,7 +1275,7 @@ onMounted(() => {
 
 .serial-list {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 18px;
   width: 100%;
 }
@@ -1323,7 +1316,7 @@ onMounted(() => {
   border-radius: 999px;
   background: var(--surface-soft);
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 900;
   max-width: 50%;
   padding: 4px 7px;
@@ -1337,9 +1330,9 @@ onMounted(() => {
   margin: 0 0 6px;
   overflow: hidden;
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 900;
-  line-height: 1.45;
+  line-height: 1.5;
   overflow-wrap: anywhere;
   word-break: break-word;
   -webkit-box-orient: vertical;
@@ -1353,8 +1346,8 @@ onMounted(() => {
   margin: 0 0 2px;
   overflow: hidden;
   color: var(--text);
-  font-size: 11px;
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.5;
   overflow-wrap: anywhere;
   word-break: break-word;
   -webkit-box-orient: vertical;
@@ -1366,7 +1359,8 @@ onMounted(() => {
   min-height: 14px;
   margin: 0;
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 11px;
+  line-height: 1.45;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -1396,8 +1390,8 @@ onMounted(() => {
 
 .serial-stat span {
   color: var(--text-muted);
-  font-size: 10px;
-  line-height: 1.2;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .serial-price-pill {
@@ -1444,7 +1438,7 @@ onMounted(() => {
 
 @media (max-width: 1100px) {
   .serial-list {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .curated-rail {
@@ -1471,7 +1465,7 @@ onMounted(() => {
   }
 
   .serial-list {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .curated-rail {
@@ -1548,8 +1542,8 @@ onMounted(() => {
   }
 
   .serial-list {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
   }
 
   .curated-group > h2 {
@@ -1574,23 +1568,23 @@ onMounted(() => {
   }
 
   .curated-rail {
-    grid-auto-columns: minmax(0, calc((100% - 18px) / 3.35));
-    gap: 7px;
+    grid-auto-columns: minmax(0, calc((100% - 12px) / 2.15));
+    gap: 12px;
   }
 
   .serial-card-clickable h3,
   .curated-card h4 {
-    min-height: 30px;
-    font-size: 10px;
-    line-height: 1.25;
+    min-height: 42px;
+    font-size: 14px;
+    line-height: 1.45;
   }
 
   .serial-card-clickable p,
   .serial-card-clickable small,
   .curated-card p,
   .curated-meta {
-    font-size: 8px;
-    line-height: 1.25;
+    font-size: 12px;
+    line-height: 1.45;
   }
 
   .serial-card-badges {
@@ -1599,15 +1593,15 @@ onMounted(() => {
   }
 
   .serial-card-badges span {
-    font-size: 8px;
-    padding: 3px 4px;
+    font-size: 11px;
+    padding: 4px 7px;
   }
 
   .serial-price-pill,
   .curated-actions button {
-    min-height: 24px;
-    font-size: 9px;
-    padding-inline: 4px;
+    min-height: 30px;
+    font-size: 12px;
+    padding-inline: 8px;
   }
 
   .row-scroll-button {
@@ -1619,13 +1613,13 @@ onMounted(() => {
   }
 
   .curated-card h4 {
-    font-size: 11px;
-    min-height: 32px;
+    font-size: 14px;
+    min-height: 42px;
   }
 
   .curated-card p,
   .curated-meta {
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .continue-all-page h2 {

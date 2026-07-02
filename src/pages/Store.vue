@@ -45,7 +45,7 @@ const statusMessage = ref("");
 const copy = {
   th: {
     title: "ร้านหนังสือ",
-    subtitle: "เลือกหนังสือที่ชอบ เพิ่มเข้าชั้นหนังสือ รายการที่อยากอ่าน หรือตะกร้าได้ทันที",
+    subtitle: "เลือกหนังสือที่ชอบ เพิ่มเข้าชั้นหนังสือหรือตะกร้าได้ทันที",
     cart: "ตะกร้า",
     library: "ชั้นหนังสือของฉัน",
     searchPanel: "ค้นหาและกรองหนังสือ",
@@ -82,7 +82,7 @@ const copy = {
   },
   en: {
     title: "Book store",
-    subtitle: "Choose books you like and add them to your library, wishlist, or cart instantly.",
+    subtitle: "Choose books you like and add them to your library or cart instantly.",
     cart: "Cart",
     library: "My library",
     searchPanel: "Search and filter books",
@@ -351,10 +351,6 @@ function goToMyLibrary() {
   router.push({ name: "MyLibrary" });
 }
 
-function goToWishlist() {
-  router.push({ name: "WishList" });
-}
-
 function goToCart() {
   router.push({ name: "Cart" });
 }
@@ -381,9 +377,6 @@ onMounted(loadStoreData);
       </div>
 
       <div class="header-actions">
-        <button class="top-btn" type="button" @click="goToWishlist">
-          Wishlist
-        </button>
         <button class="top-btn" type="button" @click="goToCart">{{ text().cart }}</button>
         <button class="top-btn primary" type="button" @click="goToMyLibrary">
           {{ text().library }}
@@ -686,8 +679,8 @@ onMounted(loadStoreData);
 .book-card h2 {
   display: -webkit-box;
   color: var(--text-strong);
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 14px;
+  line-height: 1.5;
   margin: 0 8px 6px;
   min-height: 38px;
   overflow: hidden;
@@ -701,8 +694,8 @@ onMounted(loadStoreData);
 .book-card p {
   display: -webkit-box;
   color: var(--text);
-  font-size: 11px;
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.5;
   margin: 0 8px 2px;
   min-height: 16px;
   overflow: hidden;
@@ -715,7 +708,7 @@ onMounted(loadStoreData);
 
 .book-card small {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 11px;
   min-height: 14px;
   margin: 0 8px;
   overflow-wrap: anywhere;
@@ -822,8 +815,8 @@ onMounted(loadStoreData);
   }
 
   .book-grid {
-    gap: 7px;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .book-card {
@@ -831,19 +824,19 @@ onMounted(loadStoreData);
   }
 
   .meta-row {
-    margin: 5px 4px 4px;
+    margin: 8px 8px 6px;
   }
 
   .meta-row span {
-    font-size: 8px;
-    padding: 3px 4px;
+    font-size: 11px;
+    padding: 4px 7px;
   }
 
   .book-card h2 {
     display: block;
-    font-size: 9px;
-    line-height: 1.3;
-    margin: 0 4px 4px;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0 8px 6px;
     min-height: 0;
     line-clamp: unset;
     -webkit-line-clamp: unset;
@@ -852,32 +845,32 @@ onMounted(loadStoreData);
   .book-card p,
   .book-card small {
     display: block;
-    font-size: 7px;
-    line-height: 1.25;
-    margin-inline: 4px;
+    font-size: 12px;
+    line-height: 1.45;
+    margin-inline: 8px;
     min-height: 0;
     line-clamp: unset;
     -webkit-line-clamp: unset;
   }
 
   .book-card-footer {
-    gap: 4px;
-    padding: 5px 4px;
+    gap: 8px;
+    padding: 8px;
   }
 
   .heart-row {
-    font-size: 8px;
+    font-size: 12px;
   }
 
   .rating-box small {
-    font-size: 7px;
+    font-size: 11px;
   }
 
   .price-pill {
-    min-width: 34px;
-    min-height: 20px;
-    font-size: 8px;
-    padding: 0 4px;
+    min-width: 46px;
+    min-height: 28px;
+    font-size: 12px;
+    padding: 0 7px;
   }
 }
 
@@ -898,47 +891,49 @@ onMounted(loadStoreData);
   }
 
   .book-grid {
-    gap: 6px;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .meta-row {
-    margin: 4px 3px 3px;
+    margin: 7px 7px 5px;
   }
 
   .meta-row span {
-    font-size: 7px;
-    padding: 2px 3px;
+    font-size: 10px;
+    padding: 4px 6px;
   }
 
   .book-card h2 {
-    font-size: 8px;
-    margin-inline: 3px;
+    font-size: 13px;
+    line-height: 1.45;
+    margin-inline: 7px;
   }
 
   .book-card p,
   .book-card small {
-    font-size: 6px;
-    margin-inline: 3px;
+    font-size: 11px;
+    line-height: 1.45;
+    margin-inline: 7px;
   }
 
   .book-card-footer {
-    padding: 4px 3px;
+    padding: 7px;
   }
 
   .heart-row {
-    font-size: 7px;
+    font-size: 11px;
   }
 
   .rating-box small {
-    font-size: 6px;
+    font-size: 10px;
   }
 
   .price-pill {
-    min-width: 30px;
-    min-height: 18px;
-    font-size: 7px;
-    padding: 0 3px;
+    min-width: 42px;
+    min-height: 26px;
+    font-size: 11px;
+    padding: 0 6px;
   }
 }
 </style>

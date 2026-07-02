@@ -96,18 +96,6 @@ const goToCoinTopups = () => {
   router.push({ name: "AdminPayments" });
 };
 
-const goToCoinTopupApprovals = () => {
-  router.push({ name: "AdminCoinTopups" });
-};
-
-const goToOrderPaymentApprovals = () => {
-  router.push({ name: "AdminOrderPayments" });
-};
-
-const goToSubscriptionPaymentApprovals = () => {
-  router.push({ name: "AdminSubscriptionPayments" });
-};
-
 const goToSystemData = () => {
   router.push({ name: "AdminSystemData" });
 };
@@ -172,15 +160,6 @@ onMounted(() => {
           </button>
           <button class="top-btn secondary" @click="goToCoinTopups">
             อนุมัติชำระเงิน
-          </button>
-          <button class="top-btn secondary" @click="goToCoinTopupApprovals">
-            อนุมัติเติมเหรียญ
-          </button>
-          <button class="top-btn secondary" @click="goToOrderPaymentApprovals">
-            อนุมัติคำสั่งซื้อ
-          </button>
-          <button class="top-btn secondary" @click="goToSubscriptionPaymentApprovals">
-            อนุมัติสมาชิก
           </button>
           <button class="top-btn secondary" @click="goToSystemData">
             System Data

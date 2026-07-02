@@ -238,18 +238,6 @@ const statements = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `,
   `
-  CREATE TABLE IF NOT EXISTS wishlists (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    book_id INT NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_wishlists_user_book (user_id, book_id),
-    INDEX idx_wishlists_user (user_id),
-    CONSTRAINT fk_wishlists_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_wishlists_book FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  `,
-  `
   CREATE TABLE IF NOT EXISTS reading_progress (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,

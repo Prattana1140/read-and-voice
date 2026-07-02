@@ -1138,8 +1138,41 @@ watch(locale, () => {
 
 .empty-banner {
   display: grid;
+  flex: 0 0 calc(100% - 10px);
   align-items: center;
+  min-height: clamp(180px, 21vw, 300px);
   padding: 14px 16px;
+  background:
+    radial-gradient(circle at 78% 22%, rgba(20, 184, 166, 0.12), transparent 24%),
+    linear-gradient(135deg, #eefaf7 0%, #f8fffd 58%, #ffffff 100%);
+}
+
+.empty-banner .promo-copy {
+  display: grid;
+  gap: 12px;
+  max-width: 720px;
+  padding-inline: clamp(10px, 2vw, 28px);
+}
+
+.empty-banner .promo-copy span {
+  color: #16423d;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.empty-banner .promo-copy h1 {
+  margin: 0;
+  color: #214844;
+  font-size: clamp(26px, 3vw, 48px);
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.empty-banner .promo-copy p {
+  margin: 0;
+  color: #315a55;
+  font-size: clamp(14px, 1.2vw, 18px);
+  font-weight: 700;
 }
 
 .fallback-promo {
@@ -2192,10 +2225,15 @@ watch(locale, () => {
 }
 
 .empty-box {
+  display: grid;
+  min-height: clamp(260px, 36vh, 460px);
+  place-items: center;
   margin-top: 18px;
   border-radius: var(--radius);
   padding: 24px;
   color: var(--text-muted);
+  font-weight: 800;
+  text-align: center;
 }
 
 .shelf-rail-wrap {
@@ -2326,13 +2364,13 @@ watch(locale, () => {
 
 .book-info {
   display: grid;
-  grid-template-rows: 18px 34px 15px 15px minmax(26px, auto);
+  grid-template-rows: 20px 44px 18px 18px minmax(30px, auto);
   align-content: stretch;
-  gap: 4px;
+  gap: 6px;
   flex: 1 1 auto;
   min-width: 0;
-  min-height: 136px;
-  padding: 8px 10px 7px;
+  min-height: 158px;
+  padding: 10px 12px 9px;
 }
 
 .content-badge {
@@ -2342,7 +2380,7 @@ watch(locale, () => {
   border-radius: 999px;
   background: color-mix(in srgb, var(--primary-soft) 74%, white);
   color: var(--primary-strong);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 900;
   line-height: 1;
   padding: 4px 7px;
@@ -2366,13 +2404,13 @@ watch(locale, () => {
 .book-info p {
   grid-row: 2;
   display: -webkit-box;
-  min-height: 34px;
+  min-height: 44px;
   margin: 0;
   overflow: hidden;
   color: var(--text-strong);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
-  line-height: 1.32;
+  line-height: 1.45;
   overflow-wrap: anywhere;
   word-break: break-word;
   line-clamp: 2;
@@ -2382,11 +2420,11 @@ watch(locale, () => {
 
 .book-info small {
   display: -webkit-box;
-  min-height: 15px;
+  min-height: 18px;
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 10px;
-  line-height: 1.25;
+  font-size: 11.5px;
+  line-height: 1.45;
   overflow-wrap: anywhere;
   word-break: break-word;
   line-clamp: 1;
@@ -2441,11 +2479,11 @@ watch(locale, () => {
 }
 
 .rating-box small {
-  min-height: 14px;
+  min-height: 16px;
   color: #475569;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.35;
 }
 
 .price-pill {
@@ -2454,13 +2492,13 @@ watch(locale, () => {
   justify-content: center;
   flex: 0 0 auto;
   min-width: 48px;
-  min-height: 26px;
+  min-height: 30px;
   border: 0;
   border-radius: 2px;
   background: #0abf6b;
   color: #ffffff;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 900;
   line-height: 1;
   padding: 0 8px;
@@ -2817,8 +2855,8 @@ watch(locale, () => {
   }
 
   .book-grid {
-    grid-auto-columns: calc((100% - 24px) / 3.55);
-    gap: 7px;
+    grid-auto-columns: calc((100% - 14px) / 2.15);
+    gap: 12px;
     margin-top: 8px;
     padding: 0 0 8px;
   }
@@ -2828,53 +2866,54 @@ watch(locale, () => {
   }
 
   .book-info {
-    grid-template-rows: 12px 26px 12px 12px minmax(18px, auto);
-    gap: 3px;
-    min-height: 96px;
-    padding: 6px 7px;
+    grid-template-rows: 18px 42px 18px 18px minmax(28px, auto);
+    gap: 5px;
+    min-height: 148px;
+    padding: 10px;
   }
 
   .content-badge {
-    font-size: 8px;
-    padding: 3px 5px;
+    font-size: 11px;
+    padding: 4px 7px;
   }
 
   .book-info p {
     display: -webkit-box;
-    min-height: 26px;
-    font-size: 10px;
-    line-height: 1.25;
+    min-height: 42px;
+    font-size: 14px;
+    line-height: 1.45;
     line-clamp: 2;
     -webkit-line-clamp: 2;
   }
 
   .book-info small {
     display: -webkit-box;
-    min-height: 12px;
-    font-size: 8px;
+    min-height: 18px;
+    font-size: 12px;
+    line-height: 1.45;
     line-clamp: 1;
     -webkit-line-clamp: 1;
   }
 
   .book-card-footer {
-    gap: 3px;
-    min-height: 20px;
+    gap: 6px;
+    min-height: 28px;
   }
 
   .heart-row {
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .rating-box small {
     min-height: 0;
-    font-size: 7px;
+    font-size: 11px;
   }
 
   .price-pill {
-    min-width: 34px;
-    min-height: 20px;
-    font-size: 8px;
-    padding: 0 4px;
+    min-width: 46px;
+    min-height: 28px;
+    font-size: 12px;
+    padding: 0 7px;
   }
 }
 
@@ -2938,47 +2977,47 @@ watch(locale, () => {
   }
 
   .book-grid {
-    grid-auto-columns: calc((100% - 22px) / 3.45);
-    gap: 7px;
+    grid-auto-columns: calc((100% - 12px) / 2.05);
+    gap: 12px;
     padding-right: 0;
   }
 
   .book-info {
-    grid-template-rows: 11px 24px 11px 11px minmax(17px, auto);
-    gap: 3px;
-    min-height: 90px;
-    padding: 6px;
+    grid-template-rows: 17px 40px 17px 17px minmax(27px, auto);
+    gap: 5px;
+    min-height: 142px;
+    padding: 9px;
   }
 
   .content-badge {
-    font-size: 7px;
-    padding: 2px 4px;
+    font-size: 10px;
+    padding: 4px 6px;
   }
 
   .book-info p {
-    min-height: 24px;
-    font-size: 9px;
-    line-height: 1.25;
+    min-height: 40px;
+    font-size: 13px;
+    line-height: 1.45;
   }
 
   .book-info small {
-    min-height: 11px;
-    font-size: 7px;
+    min-height: 17px;
+    font-size: 11px;
   }
 
   .heart-row {
-    font-size: 7px;
+    font-size: 11px;
   }
 
   .rating-box small {
-    font-size: 6px;
+    font-size: 10px;
   }
 
   .price-pill {
-    min-width: 30px;
-    min-height: 18px;
-    font-size: 7px;
-    padding-inline: 3px;
+    min-width: 44px;
+    min-height: 26px;
+    font-size: 11px;
+    padding-inline: 6px;
   }
 
   .hero-track {

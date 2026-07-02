@@ -141,7 +141,6 @@ const backupSummary = computed(() => {
 });
 
 const quickLinks = [
-  { title: "จัดการ role", text: "สิทธิ์และสถานะผู้ใช้", to: "/superadmin/roles" },
   { title: "ผู้ใช้ทั้งหมด", text: "บัญชีและผู้ดูแลระบบ", to: "/superadmin/users" },
   { title: "อนุมัติหนังสือ", text: "คิวงานจากนักเขียน", to: "/admin/approvals" },
   { title: "Support Tickets", text: "คำร้องจากหน้า support", to: "/admin/support-tickets" },

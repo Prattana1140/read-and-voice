@@ -18,7 +18,6 @@ import AccessibleHome from "../pages/AccessibleHome.vue";
 import LineLogin from "../pages/LineLogin.vue";
 
 import MyLibrary from "../pages/MyLibrary.vue";
-import WishList from "../pages/Wishlist.vue";
 import Cart from "../pages/Cart.vue";
 import OrderHistory from "../pages/OrderHistory.vue";
 import Profile from "../pages/Profile.vue";
@@ -124,12 +123,12 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/contact",
     name: "Contact",
-    component: () => import("../pages/HelpSupport.vue"),
+    redirect: "/support",
   },
   {
     path: "/report",
     name: "ReportIssue",
-    component: () => import("../pages/HelpSupport.vue"),
+    redirect: "/support",
   },
   {
     path: "/categories",
@@ -243,12 +242,6 @@ const routes: RouteRecordRaw[] = [
     path: "/my-library",
     name: "MyLibrary",
     component: MyLibrary,
-    meta: { requiresAuth: true, allowedRoles: memberRoles },
-  },
-  {
-    path: "/wishlist",
-    name: "WishList",
-    component: WishList,
     meta: { requiresAuth: true, allowedRoles: memberRoles },
   },
   {
@@ -386,19 +379,19 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/admin/coin-topups",
     name: "AdminCoinTopups",
-    component: () => import("../pages/admin/CoinTopups.vue"),
+    redirect: { path: "/admin/payments", query: { type: "coin_topup" } },
     meta: { requiresAuth: true, allowedRoles: adminRoles },
   },
   {
     path: "/admin/order-payments",
     name: "AdminOrderPayments",
-    component: () => import("../pages/admin/OrderPayments.vue"),
+    redirect: { path: "/admin/payments", query: { type: "order" } },
     meta: { requiresAuth: true, allowedRoles: adminRoles },
   },
   {
     path: "/admin/subscription-payments",
     name: "AdminSubscriptionPayments",
-    component: () => import("../pages/admin/SubscriptionPayments.vue"),
+    redirect: { path: "/admin/payments", query: { type: "subscription" } },
     meta: { requiresAuth: true, allowedRoles: adminRoles },
   },
   {
@@ -465,7 +458,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/superadmin/roles",
     name: "SuperAdminRoles",
-    component: () => import("../pages/superadmin/Roles.vue"),
+    redirect: "/superadmin/users",
     meta: { requiresAuth: true, allowedRoles: superAdminRoles },
   },
   {

@@ -12,7 +12,6 @@
 - ดูรายละเอียดหนังสือ, ตอน, รีวิว, คำอธิบาย, ราคา, สิทธิ์การเข้าถึง
 - ซื้อหนังสือหรือซื้อตอน
 - เพิ่มหนังสือลงตะกร้า
-- เพิ่มหนังสือลง wishlist
 - เปิดหน้าอ่านหนังสือพร้อมระบบ TTS
 - ดูชั้นหนังสือของฉัน
 - ดูประวัติคำสั่งซื้อ
@@ -124,7 +123,7 @@
 - `POST /api/account/notifications/:id/read`
 - `POST /api/account/notifications/read-all`
 
-### Cart / Orders / Library / Wishlist / Progress
+### Cart / Orders / Library / Progress
 - `POST /api/cart`
 - `GET /api/cart`
 - `DELETE /api/cart/:id`
@@ -136,9 +135,6 @@
 - `POST /api/library`
 - `GET /api/library/me`
 - `DELETE /api/library/:bookId`
-- `GET /api/wishlist`
-- `POST /api/wishlist`
-- `DELETE /api/wishlist/:bookId`
 - `POST /api/progress`
 - `GET /api/progress/:bookId`
 
@@ -237,7 +233,7 @@
 | Route | หน้า | ฟังก์ชันหลัก | ฟอร์ม | API หลัก | สถานะ |
 |---|---|---|---|---|---|
 | `/` | Home | หน้าแรก, แนะนำหนังสือ | ไม่มีฟอร์มหลัก | ใช้ข้อมูลหนังสือ / shelf | พร้อมใช้งาน |
-| `/store` | Store | ร้านหนังสือ, ค้นหา, wishlist, ซื้อ | ค้นหา | `GET /api/books`, `POST /api/wishlist`, `POST /api/library` | พร้อมใช้งาน |
+| `/store` | Store | ร้านหนังสือ, ค้นหา, ซื้อ, เพิ่มเข้าชั้น | ค้นหา | `GET /api/books`, `POST /api/library`, `POST /api/cart` | พร้อมใช้งาน |
 | `/serials` | Serials | ดูรายการหนังสือแบบรายตอน | ไม่มีฟอร์มหลัก | `GET /api/books` | พร้อมใช้งาน |
 | `/book/:id` | BookDetail | รายละเอียดหนังสือ, ตอน, รีวิว, ซื้อ, เพิ่มตะกร้า | รีวิว, ซื้อ, เพิ่มตะกร้า | `GET /api/books/:id`, `GET /api/books/:id/episodes`, `GET /api/books/:id/content`, `GET/POST/PUT/DELETE รีวิว`, `POST /api/cart`, `POST /api/orders/purchase` | พร้อมใช้งาน |
 | `/best-sellers` | ShelfPage | ชั้นหนังสือแบบขายดี | ค้นหา | `GET /api/books` | พร้อมใช้งาน |
@@ -258,7 +254,6 @@
 | `/forgot-password` | ForgotPassword | ขอรีเซ็ตรหัสผ่าน | email form | `POST /api/auth/forgot-password`, `POST /api/auth/reset-password` | พร้อมใช้งาน |
 | `/reader/:id` | ReaderPage | อ่านหนังสือ, TTS, resume progress | ควบคุมเสียง / ตอน | `GET /api/books/:id`, `GET /api/books/:id/episodes`, `GET /api/progress/:bookId`, `GET /api/reader/books/:bookId/content`, `GET /api/reader/episodes/:episodeId/content`, `GET /api/reader/books/:bookId/access`, `GET /api/reader/books/:bookId/units/:unitId`, `GET /api/reader/settings/tts`, `PUT /api/reader/settings/tts` | พร้อมใช้งาน |
 | `/my-library` | MyLibrary | ดูหนังสือที่มีสิทธิ์อ่าน | ค้นหา | `GET /api/library/me`, `DELETE /api/library/:bookId` | พร้อมใช้งาน |
-| `/wishlist` | Wishlist | รายการที่อยากได้ | ไม่มีฟอร์มหลัก | `GET /api/wishlist`, `DELETE /api/wishlist/:bookId` | พร้อมใช้งาน |
 | `/cart` | Cart | ดูตะกร้า, ลบ, checkout | checkout | `GET /api/cart`, `DELETE /api/cart/:id`, `GET /api/coins/wallet`, `POST /api/orders/checkout` | พร้อมใช้งาน |
 | `/orders/history` | OrderHistory | ประวัติคำสั่งซื้อ | ไม่มี | `GET /api/orders/history` | พร้อมใช้งาน |
 | `/profile` | Profile | ดูและแก้ไขโปรไฟล์, ลิงก์ไปหน้าบัญชีย่อย | แก้ไขโปรไฟล์ | `GET /api/profile/me`, `PUT /api/profile/me` | พร้อมใช้งาน |
@@ -291,7 +286,7 @@
 | หน้า | หมายเหตุ |
 |---|---|
 | Home | หน้าแรกใช้งานได้ |
-| Store | ค้นหา, wishlist, ซื้อ/เพิ่ม library |
+| Store | ค้นหา, ซื้อ/เพิ่ม library |
 | Serials | แสดงรายการรายตอน |
 | BookDetail | ข้อมูลหนังสือ, ตอน, รีวิว, ซื้อ |
 | ShelfPage ทุกหมวด | ใช้งานได้ครบตาม route |
@@ -299,7 +294,7 @@
 | CoinWallet | wallet, package, transaction, top-up |
 | Login / AccountLogin / Register / OAuthCallback | flow หลักพร้อม |
 | ReaderPage | reader + TTS + progress |
-| MyLibrary / Wishlist / Cart / OrderHistory | ฟีเจอร์หลักพร้อม |
+| MyLibrary / Cart / OrderHistory | ฟีเจอร์หลักพร้อม |
 | Profile | ดูและแก้ไขโปรไฟล์ได้ |
 | WriterDashboard / WriterBooks | ใช้งานได้ |
 | AdminDashboard / AdminEditBook / UploadBook / Categories / Members / PageContent | ใช้งานได้ |

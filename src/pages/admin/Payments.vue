@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { useRoute } from "vue-router";
 import api from "../../utils/api";
 
 type PaymentStatus = "pending" | "paid" | "failed" | "cancelled" | "completed" | "all";
@@ -28,6 +29,7 @@ const statusFilter = ref<PaymentStatus>("pending");
 const typeFilter = ref<PaymentType | "all">("all");
 const statusOptions: PaymentStatus[] = ["pending", "paid", "failed", "cancelled", "all"];
 const typeOptions: Array<PaymentType | "all"> = ["all", "coin_topup", "order", "subscription"];
+const route = useRoute();
 const items = ref<PaymentItem[]>([]);
 const loading = ref(true);
 const savingKey = ref("");
@@ -141,6 +143,18 @@ function setTypeFilter(type: PaymentType | "all") {
   typeFilter.value = type;
 }
 
+function applyRouteTypeFilter() {
+  const type = route.query.type;
+  if (
+    type === "coin_topup" ||
+    type === "order" ||
+    type === "subscription" ||
+    type === "all"
+  ) {
+    typeFilter.value = type;
+  }
+}
+
 function amountLabel(item: PaymentItem) {
   if (item.item_type === "coin_topup") return `${Number(item.coins || 0)} เหรียญ`;
   return formatMoney(item.amount);
@@ -150,7 +164,10 @@ function canApprove(item: PaymentItem) {
   return item.payment_status !== "paid" && item.item_status !== "completed";
 }
 
-onMounted(loadPayments);
+onMounted(() => {
+  applyRouteTypeFilter();
+  loadPayments();
+});
 </script>
 
 <template>

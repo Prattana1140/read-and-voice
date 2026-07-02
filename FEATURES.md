@@ -18,7 +18,7 @@
 
 | กลุ่ม | สถานะ |
 |---|---|
-| Public storefront, รายละเอียดหนังสือ, ตะกร้า, wishlist, library, orders | พร้อมใช้งาน |
+| Public storefront, รายละเอียดหนังสือ, ตะกร้า, library, orders | พร้อมใช้งาน |
 | Reader + TTS | พร้อมใช้งาน |
 | Writer upload / TTS Studio / serial creation | พร้อมใช้งาน |
 | Admin จัดการหนังสือ / หมวดหมู่ / สมาชิก / approval | พร้อมใช้งาน |
@@ -38,7 +38,6 @@
 | `/api/cart` | ตะกร้า |
 | `/api/orders` | checkout, purchase, order history |
 | `/api/library` | ชั้นหนังสือของฉัน |
-| `/api/wishlist` | wishlist |
 | `/api/reviews` และ `/api/books/:bookId/reviews` | รีวิว |
 | `/api/categories` | หมวดหมู่ |
 | `/api/subscriptions` | แพ็กเกจและ subscribe |
@@ -57,9 +56,9 @@
 | Route | หน้า | ฟังก์ชันหลัก | ฟอร์ม | API ที่ใช้หลัก | สถานะ | หมายเหตุ |
 |---|---|---|---|---|---|---|
 | `/` | Home | หน้าแรก, ดึงชั้นหนังสือ/แนะนำ | ไม่มีฟอร์มหลัก | shelf APIs, `/api/page-content` | พร้อมใช้งาน | หน้า landing ใช้งานได้ |
-| `/store` | Store | ดูรายการหนังสือ, ค้นหา, เพิ่ม wishlist/cart/library | ค้นหา | `/api/books`, `/api/wishlist`, `/api/library`, `/api/cart` | พร้อมใช้งาน | flow ซื้อและบันทึกใช้งานได้ |
+| `/store` | Store | ดูรายการหนังสือ, ค้นหา, เพิ่ม cart/library | ค้นหา | `/api/books`, `/api/library`, `/api/cart` | พร้อมใช้งาน | flow ซื้อและบันทึกใช้งานได้ |
 | `/serials` | Serials | ดูรายการนิยายรายตอน | ค้นหา/กรอง | `/api/serials` หรือ `/api/books` | พร้อมใช้งาน | |
-| `/book/:id` | BookDetail | รายละเอียดหนังสือ, ตอน, รีวิว, ซื้อ, wishlist/cart | รีวิว, ซื้อ, เพิ่ม wishlist/cart | `/api/books/:id`, `/api/books/:id/episodes`, `/api/books/:id/content`, review APIs, `/api/cart`, `/api/orders/purchase` | พร้อมใช้งาน | |
+| `/book/:id` | BookDetail | รายละเอียดหนังสือ, ตอน, รีวิว, ซื้อ, cart/library | รีวิว, ซื้อ, เพิ่ม cart/library | `/api/books/:id`, `/api/books/:id/episodes`, `/api/books/:id/content`, review APIs, `/api/cart`, `/api/library`, `/api/orders/purchase` | พร้อมใช้งาน | |
 | `/best-sellers` | ShelfPage | ชั้นขายดี | ค้นหา | `/api/best-sellers` | พร้อมใช้งาน | ตอนนี้ผูกกับ approval placement flag แล้ว |
 | `/new-releases` | ShelfPage | ชั้นมาใหม่ | ค้นหา | `/api/new-releases` | พร้อมใช้งาน | |
 | `/promotions` | ShelfPage | ชั้นโปรโมชั่น | ค้นหา | `/api/promotions` | พร้อมใช้งาน | |
@@ -76,7 +75,6 @@
 | `/forgot-password` | ForgotPassword | ขอรีเซ็ตรหัสผ่านและตั้งรหัสใหม่ผ่าน reset token | email form, reset password form | `/api/auth/forgot-password`, `/api/auth/reset-password` | พร้อมใช้งาน | ส่งอีเมลผ่าน Resend/webhook เมื่อ config พร้อม และมี dev preview/admin fallback ตาม env |
 | `/reader/:id` | ReaderPage | อ่านหนังสือ, TTS, จำ progress | controls reader/TTS | `/api/books/:id`, `/api/books/:id/episodes`, `/api/progress/:bookId`, `/api/reader/books/:bookId/content`, `/api/reader/episodes/:episodeId/content`, `/api/reader/books/:bookId/progress`, `/api/reader/settings/tts` | พร้อมใช้งาน | ใช้ payload unit/block/sentence, sentence progress และ TTS settings endpoint แล้ว |
 | `/my-library` | MyLibrary | ชั้นหนังสือของฉัน | ค้นหา | `/api/library/me`, `/api/library/:bookId` | พร้อมใช้งาน | |
-| `/wishlist` | Wishlist | wishlist ของฉัน | ไม่มีฟอร์มหลัก | `/api/wishlist` | พร้อมใช้งาน | |
 | `/cart` | Cart | ดูตะกร้าและ checkout | checkout | `/api/cart`, `/api/orders/checkout`, `/api/coins/wallet` | พร้อมใช้งาน | |
 | `/orders/history` | OrderHistory | ประวัติคำสั่งซื้อ | ไม่มีฟอร์มหลัก | `/api/orders/history` | พร้อมใช้งาน | |
 | `/profile` | Profile | ดูและแก้โปรไฟล์ | profile form | `/api/profile/me` | พร้อมใช้งาน | |
@@ -91,7 +89,7 @@
 | `/writer/books` | WriterBooks | รายการหนังสือของนักเขียน | ไม่มีฟอร์มหลัก | `/api/writer/books/mine` | พร้อมใช้งาน | |
 | `/writer/upload` | WriterUpload | อัปโหลด ebook, สร้าง serial, TTS Studio 6 step, เสนอ placement | upload form, serial form, studio draft/unit/content/publish readiness forms | `/api/categories`, `/api/books/upload`, `/api/books/serial`, `/api/books/:id/episodes`, `/api/writer/books`, `/api/writer/books/:bookId/units`, `/api/writer/books/:bookId/units/:unitId/import-text`, `/api/writer/books/:bookId/units/:unitId/content`, `/api/writer/books/:bookId/publish` | พร้อมใช้งาน | มี wizard, publish readiness checklist, schema language/tags/sentence-level และส่งเข้าคิว admin approval |
 | `/writer/books/:id/edit` | WriterEditBook | แก้ metadata หนังสือของนักเขียน | edit form | `/api/books/:id`, `PUT /api/writer/books/:id`, `/api/categories` | พร้อมใช้งาน | แก้ title, author, category, access, price, cover, description ได้แล้ว |
-| `/writer/stats` | WriterStats | ดูสถิตินักเขียนแบบละเอียด | ไม่มีฟอร์มหลัก | `/api/writer/books/stats` | พร้อมใช้งาน | รวมยอดอ่าน รีวิว wishlist/library ยอดขาย และ content stats เฉพาะผลงานของนักเขียน |
+| `/writer/stats` | WriterStats | ดูสถิตินักเขียนแบบละเอียด | ไม่มีฟอร์มหลัก | `/api/writer/books/stats` | พร้อมใช้งาน | รวมยอดอ่าน รีวิว library ยอดขาย และ content stats เฉพาะผลงานของนักเขียน |
 | `/admin` | AdminDashboard | dashboard แอดมิน, ลิงก์ไปจัดการส่วนต่าง ๆ | ไม่มีฟอร์มหลัก | `/api/books`, `/api/admin/stats/summary` | พร้อมใช้งาน | |
 | `/admin/books` | AdminBooks | รายการหนังสือทั้งหมดสำหรับแอดมิน | ค้นหา/จัดการ | `/api/books`, `/api/books/:id`, `/api/books/:id/episodes`, `/api/books/:id/content`, `/api/books/:id/reviews` | พร้อมใช้งาน | |
 | `/admin/approvals` | AdminApprovals | อนุมัติหนังสือและกำหนด placement จริง | approval form, note, placement checkboxes | `/api/admin/books/pending`, `/api/admin/books/:id`, `/api/admin/books/:id/approval`, `/api/admin/books/:id/requested-placements` | พร้อมใช้งาน | เป็น flow ใหม่สำหรับอนุมัติ e-book/รายตอนระดับหนังสือ |
@@ -109,7 +107,7 @@
 | กลุ่ม | ฟอร์ม |
 |---|---|
 | Auth | login, register, account login |
-| Store | search, review, add-to-cart, wishlist |
+| Store | search, review, add-to-cart, add-to-library |
 | Commerce | checkout, subscription checkout, coin top-up |
 | Reader | reader controls, TTS controls, progress |
 | Writer | ebook upload, serial creation, episode creation, TTS Studio draft, unit builder, import text, structured content submit, publish |

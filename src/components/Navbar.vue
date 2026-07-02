@@ -187,7 +187,6 @@ const accountQuickLinks = computed<NavItem[]>(() => {
 
   return [
     { label: t("account.bookshelf"), to: "/my-library", roles: readerRoles },
-    { label: t("account.wishlist"), to: "/wishlist", roles: readerRoles },
     {
       label: t("account.following"),
       to: "/account/following",
@@ -331,7 +330,6 @@ const accountGroups = computed<NavGroup[]>(() => {
     title: t("account.readingMember"),
     items: [
       { label: t("account.bookshelf"), to: "/my-library", roles: readerRoles },
-      { label: t("account.wishlist"), to: "/wishlist", roles: readerRoles },
       {
         label: t("account.following"),
         to: "/account/following",
@@ -424,27 +422,12 @@ const accountGroups = computed<NavGroup[]>(() => {
         roles: ["admin", "superadmin"],
       },
       {
-        label: t("admin.coinTopups"),
-        to: "/admin/coin-topups",
-        roles: ["admin", "superadmin"],
-      },
-      {
-        label: t("admin.orderPayments"),
-        to: "/admin/order-payments",
-        roles: ["admin", "superadmin"],
-      },
-      {
-        label: t("admin.subscriptionPayments"),
-        to: "/admin/subscription-payments",
-        roles: ["admin", "superadmin"],
-      },
-      {
         label: locale.value === "th" ? "ข้อมูลระบบ" : "System Data",
         to: "/admin/system-data",
         roles: ["admin", "superadmin"],
       },
       {
-        label: t("account.uploadBook"),
+        label: t("account.adminUploadBook"),
         to: "/admin/upload-book",
         roles: ["admin"],
       },
@@ -466,11 +449,6 @@ const accountGroups = computed<NavGroup[]>(() => {
         roles: superAdminRoles,
       },
       {
-        label: t("account.roleManagement"),
-        to: "/superadmin/roles",
-        roles: superAdminRoles,
-      },
-      {
         label: t("account.settingsSystem"),
         to: "/superadmin/settings",
         roles: superAdminRoles,
@@ -483,11 +461,6 @@ const accountGroups = computed<NavGroup[]>(() => {
     title: t("admin.shortcuts"),
     items: [
       { label: t("admin.viewWebsite"), to: "/", roles: ["admin", "superadmin"] },
-      {
-        label: t("account.settingsSystem"),
-        to: "/superadmin/settings",
-        roles: ["superadmin"],
-      },
     ],
   };
 
@@ -1906,6 +1879,19 @@ watch(isCompactNav, (compact) => {
 
 .menu-toggle {
   display: none;
+}
+
+@media (max-width: 780px) {
+  .menu-toggle {
+    display: inline-grid;
+  }
+
+  .desktop-public-nav,
+  .subscription-link,
+  .coin-link,
+  .accessibility-link {
+    display: none;
+  }
 }
 
 .mobile-accessibility-button {

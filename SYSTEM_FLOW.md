@@ -30,7 +30,6 @@
 - `อ่านเลย`
 - `อ่านให้ฟัง`
 - `เพิ่มเข้าชั้น`
-- `wishlist`
 
 ถ้าหนังสืออ่านได้ทันที ระบบจะพาไป:
 
@@ -99,7 +98,6 @@ flow หลัก:
 
 - `profile`
 - `my-library`
-- `wishlist`
 - `cart`
 - `orders/history`
 - กลุ่ม `account/*`
@@ -142,21 +140,21 @@ backend หลักที่รองรับ:
 - `/api/subscriptions`
 - `/api/coins`
 
-## 6. Flow ชั้นหนังสือและ wishlist
+## 6. Flow ชั้นหนังสือและตะกร้า
 
 จาก `BookDetail` ผู้ใช้กด:
 
 - `เพิ่มเข้าชั้น` ไป `library`
-- `wishlist` ไป `wishlist`
+- `เพิ่มตะกร้า` ไป `cart`
 
 หน้าที่เกี่ยวข้อง:
 
 - `MyLibrary.vue`
-- `Wishlist.vue`
+- `Cart.vue`
 
 flow นี้ใช้สำหรับ:
 
-- เก็บไว้ก่อนอ่าน
+- ซื้อหรือเก็บสิทธิ์อ่าน
 - สะสมคลังหนังสือ
 
 ## 7. Flow รีวิว
@@ -263,7 +261,6 @@ flow ปัจจุบัน:
 
 - cart
 - library
-- wishlist
 - account pages
 
 สิ่งที่ควรทำ:

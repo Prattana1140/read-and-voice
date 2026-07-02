@@ -61,16 +61,10 @@ const stats = computed(() => [
 
 const quickLinks = computed<QuickLink[]>(() => [
   {
-    title: "จัดการสิทธิ์และบทบาท",
-    text: "ตรวจ role, อนุมัติสิทธิ์ admin และจัดการผู้ใช้ระดับสูง",
-    to: "/superadmin/roles",
-    tone: "accent",
-  },
-  {
     title: "ผู้ใช้ทั้งหมด",
     text: "ดูสถานะบัญชี ระงับหรือคืนสิทธิ์ และติดตามการดูแลผู้ใช้",
     to: "/superadmin/users",
-    tone: "default",
+    tone: "accent",
   },
   {
     title: "ตั้งค่าระบบ",

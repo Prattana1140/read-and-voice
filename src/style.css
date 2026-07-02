@@ -31,8 +31,13 @@
   --page-gutter: clamp(14px, 4vw, 28px);
   --page-block: clamp(20px, 4vw, 40px);
   --sans: "Sarabun", "Noto Sans Thai", "Leelawadee UI", "Tahoma", "Segoe UI", Arial, sans-serif;
+  --readable-body-size: 16.5px;
+  --readable-small-size: 13.5px;
+  --readable-mobile-size: 13px;
+  --readable-line-height: 1.68;
+  --readable-tight-line-height: 1.48;
   --a11y-font-scale: 1;
-  --a11y-line-spacing: 1.5;
+  --a11y-line-spacing: var(--readable-line-height);
   --a11y-letter-spacing: 0em;
 
   color: var(--text);
@@ -348,7 +353,7 @@ body {
   margin: 0;
   color: var(--text);
   background: var(--bg);
-  font-size: calc(15px * var(--a11y-font-scale));
+  font-size: calc(var(--readable-body-size) * var(--a11y-font-scale));
   line-height: var(--a11y-line-spacing);
   letter-spacing: var(--a11y-letter-spacing);
   overflow-x: hidden;
@@ -455,6 +460,37 @@ h4,
 p {
   margin-top: 0;
   overflow-wrap: anywhere;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  line-height: 1.26;
+}
+
+p,
+li,
+dd,
+dt,
+td,
+th,
+label,
+input,
+select,
+textarea,
+button {
+  line-height: var(--readable-tight-line-height);
+}
+
+small,
+.muted,
+.eyebrow,
+.caption,
+.meta,
+.note,
+.hint {
+  line-height: 1.52;
 }
 
 img,
@@ -589,6 +625,7 @@ table {
   :root {
     --page-gutter: clamp(12px, 4vw, 18px);
     --page-block: 20px;
+    --readable-body-size: 16px;
   }
 
   :where(input, select, textarea) {
@@ -601,6 +638,46 @@ table {
 }
 
 @media (max-width: 640px) {
+  :where(
+    .app-main,
+    .footer,
+    .navbar,
+    .navigation-trail,
+    .a11y-panel,
+    .voice-command__panel
+  ) :where(p, li, dd, dt, label, input, select, textarea, button, a, summary) {
+    line-height: 1.55 !important;
+  }
+
+  :where(
+    .app-main,
+    .footer,
+    .navbar,
+    .navigation-trail,
+    .a11y-panel,
+    .voice-command__panel
+  ) :where(p, li, dd, dt, label, input, select, textarea, button, a, summary, small) {
+    font-size: max(var(--readable-mobile-size), 1em) !important;
+  }
+
+  :where(.app-main, .footer, .navbar) :where(td, th) {
+    font-size: max(12px, 1em) !important;
+    line-height: 1.5 !important;
+  }
+
+  :where(.app-main, .footer, .navbar) :where(.eyebrow, .caption, .meta, .note, .hint) {
+    font-size: max(12px, 1em) !important;
+    line-height: 1.5 !important;
+  }
+
+  :where(.app-main, .footer, .navbar) :where(h1) {
+    line-height: 1.2 !important;
+  }
+
+  :where(.app-main, .footer, .navbar) :where(h2, h3, h4) {
+    line-height: 1.28 !important;
+  }
+
   :where(
     .login-card,
     .account-login-box,
@@ -743,5 +820,63 @@ table {
 
   :where(form button, .form-actions button, .actions button) {
     min-height: 36px;
+  }
+}
+
+@media (max-width: 640px) {
+  :where(
+    .admin-page,
+    .admin-dashboard,
+    .admin-shell,
+    .superadmin-page,
+    .superadmin-dashboard,
+    .settings-page,
+    .payments-page,
+    .support-page,
+    .members-page,
+    .page-content-page,
+    .password-resets-page
+  ) :where(p, span, small, label, dt, dd, li, td, th, input, select, textarea, button, a) {
+    font-size: max(12px, 1em) !important;
+    line-height: 1.5 !important;
+  }
+
+  :where(
+    .admin-page,
+    .admin-dashboard,
+    .admin-shell,
+    .superadmin-page,
+    .superadmin-dashboard,
+    .settings-page,
+    .payments-page,
+    .support-page,
+    .members-page,
+    .page-content-page,
+    .password-resets-page
+  ) :where(button, .primary-btn, .ghost-btn, .top-btn, .action-btn, .mobile-tabs button) {
+    min-height: 36px !important;
+    padding: 7px 10px !important;
+    white-space: normal !important;
+  }
+
+  :where(
+    .admin-page,
+    .admin-dashboard,
+    .admin-shell,
+    .superadmin-page,
+    .superadmin-dashboard,
+    .settings-page,
+    .payments-page,
+    .support-page,
+    .members-page,
+    .page-content-page,
+    .password-resets-page
+  ) :where(.stats-grid, .summary-grid, .content-grid, .operations-grid, .step-grid) {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  :where(.table-wrap, .table-wrapper) {
+    overflow-x: auto;
   }
 }

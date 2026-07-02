@@ -209,7 +209,6 @@ export function parseVoiceCommand(rawCommand: string): VoiceCommandAction {
   if (/นิยายรายตอน|รายตอน|เปิดนิยายตอน|ไปหน้านิยาย/.test(command)) return { type: "navigate", routeName: "Serials" };
   if (/ชั้นหนังสือ|ห้องสมุดของฉัน|หนังสือของฉัน|คลังหนังสือ|เปิดชั้นหนังสือ/.test(command)) return { type: "navigate", routeName: "MyLibrary" };
   if (/รถเข็น|ตะกร้า|เปิดรถเข็น|เปิดตะกร้า/.test(command)) return { type: "navigate", routeName: "Cart" };
-  if (/รายการโปรด|อยากอ่าน|wishlist|วิชลิสต์/.test(command)) return { type: "navigate", routeName: "WishList" };
   if (/ประวัติคำสั่งซื้อ|คำสั่งซื้อของฉัน|ออเดอร์/.test(command)) return { type: "navigate", routeName: "OrderHistory" };
   if (/^(โปรไฟล์|ข้อมูลส่วนตัว|profile)$/.test(command)) return { type: "navigate", routeName: "Profile" };
   if (/ตั้งค่าการแจ้งเตือน|notification settings/.test(command)) return { type: "navigate", routeName: "NotificationSettings" };

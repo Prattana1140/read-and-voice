@@ -31,7 +31,6 @@ const localizedRouteLabels: Record<"th" | "en", Record<string, string>> = {
     ReaderPage: "อ่านอีบุ๊ก",
     ReaderListenPage: "โหมดอ่านให้ฟัง",
     MyLibrary: "ชั้นหนังสือของฉัน",
-    WishList: "รายการที่ติดตาม",
     Cart: "ตะกร้า",
     OrderHistory: "ประวัติการสั่งซื้อของฉัน",
     Profile: "ข้อมูลของฉัน",
@@ -79,7 +78,6 @@ const localizedRouteLabels: Record<"th" | "en", Record<string, string>> = {
     ReaderPage: "Read e-book",
     ReaderListenPage: "Listen mode",
     MyLibrary: "My library",
-    WishList: "Wishlist",
     Cart: "Cart",
     OrderHistory: "My order history",
     Profile: "My profile",
@@ -141,8 +139,9 @@ const parentRoutes: Record<string, { fullPath: string; routeName: string }> = {
   AdminCategories: { fullPath: "/admin", routeName: "AdminDashboard" },
   AdminMembers: { fullPath: "/admin", routeName: "AdminDashboard" },
   AdminSystemData: { fullPath: "/admin", routeName: "AdminDashboard" },
-  SuperAdminRoles: { fullPath: "/superadmin/users", routeName: "SuperAdminUsers" },
-  SuperAdminSettings: { fullPath: "/superadmin/users", routeName: "SuperAdminUsers" },
+  SuperAdminRoles: { fullPath: "/superadmin", routeName: "SuperAdminDashboard" },
+  SuperAdminUsers: { fullPath: "/superadmin", routeName: "SuperAdminDashboard" },
+  SuperAdminSettings: { fullPath: "/superadmin", routeName: "SuperAdminDashboard" },
 };
 
 function fallbackLabel(currentRoute: RouteLocationNormalizedLoaded) {

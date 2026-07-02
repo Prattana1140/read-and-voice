@@ -481,7 +481,6 @@ router.get("/stats", verifyToken, async (req, res) => {
          (SELECT COUNT(*) FROM episode_views ev JOIN book_episodes ep ON ep.id = ev.episode_id JOIN books b ON b.id = ep.book_id WHERE b.created_by = ?) AS episode_views,
          (SELECT COUNT(*) FROM book_reviews br JOIN books b ON b.id = br.book_id WHERE b.created_by = ?) AS review_count,
          (SELECT COALESCE(ROUND(AVG(br.rating), 2), 0) FROM book_reviews br JOIN books b ON b.id = br.book_id WHERE b.created_by = ?) AS average_rating,
-         (SELECT COUNT(*) FROM wishlists w JOIN books b ON b.id = w.book_id WHERE b.created_by = ?) AS wishlist_count,
          (SELECT COUNT(*) FROM library l JOIN books b ON b.id = l.book_id WHERE b.created_by = ?) AS library_count,
          (SELECT COUNT(*)
           FROM order_items oi
@@ -501,7 +500,7 @@ router.get("/stats", verifyToken, async (req, res) => {
           WHERE o.payment_status = 'paid'
             AND o.order_status = 'completed'
             AND COALESCE(direct_book.created_by, episode_book.created_by) = ?) AS gross_sales`,
-      Array(8).fill(req.user.id),
+      Array(7).fill(req.user.id),
     );
 
     const [bookRows] = await db.query(
@@ -519,7 +518,6 @@ router.get("/stats", verifyToken, async (req, res) => {
          (SELECT COUNT(*) FROM book_views bv WHERE bv.book_id = b.id) AS views,
          (SELECT COUNT(*) FROM book_reviews br WHERE br.book_id = b.id) AS reviews,
          (SELECT COALESCE(ROUND(AVG(br.rating), 2), 0) FROM book_reviews br WHERE br.book_id = b.id) AS average_rating,
-         (SELECT COUNT(*) FROM wishlists w WHERE w.book_id = b.id) AS wishlists,
          (SELECT COUNT(*)
           FROM order_items oi
           JOIN orders o ON o.id = oi.order_id

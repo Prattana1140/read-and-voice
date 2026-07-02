@@ -25,7 +25,6 @@ const coinsRoutes = require("./routes/coins");
 const pageContentRoutes = require("./routes/pageContent");
 const shelvesRoutes = require("./routes/shelves");
 const accountRoutes = require("./routes/account");
-const wishlistRoutes = require("./routes/wishlist");
 const reviewsRoutes = require("./routes/reviews");
 const episodeCommentsRoutes = require("./routes/episodeComments");
 const notificationsRoutes = require("./routes/notifications");
@@ -183,7 +182,6 @@ app.get("/api", (_req, res) => {
       "/api/reader/books/:bookId/content",
       "/api/reader/settings/tts",
       "/api/payments/status/:orderId",
-      "/api/wishlist",
       "/api/books/:bookId/reviews",
       "/api/reviews/:reviewId",
     ],
@@ -215,7 +213,6 @@ app.use("/api/account/notifications", notificationsRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/writers", writersRoutes);
 app.use("/api/speech", speechRoutes);
-app.use("/api/wishlist", wishlistRoutes);
 app.use("/api", reviewsRoutes);
 app.use("/api", episodeCommentsRoutes);
 app.use("/api", shelvesRoutes);

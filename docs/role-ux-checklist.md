@@ -24,7 +24,7 @@ Create real test accounts in your own database. Do not use shared demo credentia
 ## User Flow
 
 1. Log in as a real user account.
-2. Open `/my-library`, `/wishlist`, `/cart`, and `/orders/history`.
+2. Open `/my-library`, `/cart`, and `/orders/history`.
 3. Open a readable book and test `/reader/:id`.
 4. Open `/coin-wallet` and confirm manual payment instructions are visible.
 
