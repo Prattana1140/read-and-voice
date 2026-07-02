@@ -695,7 +695,6 @@ import {
   watch,
 } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import axios from "axios";
 import { getAuthHeaders, getUser } from "../utils/auth";
 import api from "../utils/api";
 import { announceAccessibilityMessage } from "../utils/accessibility";
@@ -1328,12 +1327,12 @@ const fetchBook = async () => {
   try {
     const id = Number(route.params.id);
 
-    const bookRes = await axios.get(`${API_BASE_URL}/api/books/${id}`);
+    const bookRes = await api.get(`${API_BASE_URL}/api/books/${id}`);
     book.value = bookRes.data;
     fetchReviews();
 
     if (book.value?.content_type === "serial") {
-      const episodeRes = await axios.get(
+      const episodeRes = await api.get(
         `${API_BASE_URL}/api/books/${id}/episodes`,
         {
           headers: getAuthHeaders(),
@@ -1344,7 +1343,7 @@ const fetchBook = async () => {
       return;
     }
 
-    const contentRes = await axios.get(
+    const contentRes = await api.get(
       `${API_BASE_URL}/api/books/${id}/content`,
       {
         headers: getAuthHeaders(),
@@ -1713,7 +1712,7 @@ const addToLibrary = async () => {
 
     if (!book.value) return;
 
-    const res = await axios.post(
+    const res = await api.post(
       `${API_BASE_URL}/api/library`,
       { book_id: book.value.id },
       { headers: getAuthHeaders() },

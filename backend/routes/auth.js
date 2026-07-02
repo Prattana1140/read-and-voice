@@ -7,7 +7,7 @@ const { verifyToken } = require("../middleware/auth");
 const { sendPasswordResetEmail } = require("../services/email");
 const { isSystemFeatureEnabled } = require("../services/systemSettings");
 
-const fetch = global.fetch || require("node-fetch");
+const fetch = global.fetch;
 require("dotenv").config({ quiet: true });
 
 const router = express.Router();
@@ -465,6 +465,10 @@ function getProviderSetupStatus(provider) {
 }
 
 async function fetchJson(url, options) {
+  if (typeof fetch !== "function") {
+    throw new Error("OAuth requests require a Node.js runtime with global fetch support.");
+  }
+
   const response = await fetch(url, options);
   const data = await response.json().catch(() => ({}));
 

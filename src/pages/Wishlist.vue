@@ -14,7 +14,9 @@ type WishlistItem = {
 const router = useRouter();
 const wishlist = ref<WishlistItem[]>([]);
 const loading = ref(false);
+const removingId = ref<number | null>(null);
 const errorMessage = ref("");
+const successMessage = ref("");
 
 function coverUrl(item: WishlistItem) {
   const cover = item.cover || item.cover_image || "";
@@ -27,6 +29,7 @@ async function loadWishlist() {
   try {
     loading.value = true;
     errorMessage.value = "";
+    successMessage.value = "";
     const { data } = await api.get("/wishlist");
     wishlist.value = Array.isArray(data) ? data : [];
   } catch (error: any) {
@@ -38,13 +41,22 @@ async function loadWishlist() {
   }
 }
 
-async function removeItem(id: number) {
+async function removeItem(item: WishlistItem) {
+  const confirmed = window.confirm(`ลบ "${item.title}" ออกจากรายการที่อยากได้ใช่ไหม`);
+  if (!confirmed) return;
+
   try {
-    await api.delete(`/wishlist/${id}`);
-    wishlist.value = wishlist.value.filter((book) => Number(book.id) !== Number(id));
+    removingId.value = item.id;
+    errorMessage.value = "";
+    successMessage.value = "";
+    await api.delete(`/wishlist/${item.id}`);
+    wishlist.value = wishlist.value.filter((book) => Number(book.id) !== Number(item.id));
+    successMessage.value = "ลบรายการที่อยากได้สำเร็จ";
   } catch (error: any) {
     errorMessage.value =
       error?.response?.data?.message || "ลบรายการที่อยากได้ไม่สำเร็จ";
+  } finally {
+    removingId.value = null;
   }
 }
 
@@ -53,21 +65,40 @@ onMounted(loadWishlist);
 
 <template>
   <main class="wishlist-page">
-    <h1>รายการที่อยากได้</h1>
+    <header class="page-heading">
+      <p>หนังสือที่เก็บไว้ดูภายหลัง</p>
+      <h1>รายการที่อยากได้</h1>
+    </header>
 
-    <div v-if="loading" class="state-box">กำลังโหลดข้อมูล...</div>
-    <div v-else-if="errorMessage" class="state-box error">{{ errorMessage }}</div>
-    <div v-else-if="!wishlist.length" class="state-box">ยังไม่มีรายการ</div>
+    <div v-if="loading" class="state-box" role="status">กำลังโหลดข้อมูล...</div>
+    <div v-else-if="errorMessage" class="state-box error" role="alert">
+      <span>{{ errorMessage }}</span>
+      <button type="button" @click="loadWishlist">ลองใหม่</button>
+    </div>
+    <div v-else-if="!wishlist.length" class="state-box">
+      <strong>ยังไม่มีรายการ</strong>
+      <span>เมื่อกดบันทึกหนังสือที่สนใจ รายการจะแสดงที่หน้านี้</span>
+      <button type="button" @click="router.push('/store')">ไปเลือกร้านหนังสือ</button>
+    </div>
 
-    <section v-else class="grid">
+    <p v-if="successMessage" class="success-message" role="status">{{ successMessage }}</p>
+
+    <section v-if="!loading && !errorMessage && wishlist.length" class="grid">
       <article v-for="item in wishlist" :key="item.id" class="book-card">
-        <img :src="coverUrl(item)" :alt="item.title" class="cover" />
+        <img :src="coverUrl(item)" :alt="`ปกหนังสือ ${item.title}`" class="cover" />
         <h3>{{ item.title }}</h3>
         <p>{{ item.author || "ไม่ระบุผู้แต่ง" }}</p>
 
         <div class="actions">
           <button type="button" @click="router.push(`/book/${item.id}`)">ดู</button>
-          <button type="button" class="danger" @click="removeItem(item.id)">ลบ</button>
+          <button
+            type="button"
+            class="danger"
+            :disabled="removingId === item.id"
+            @click="removeItem(item)"
+          >
+            {{ removingId === item.id ? "กำลังลบ" : "ลบ" }}
+          </button>
         </div>
       </article>
     </section>
@@ -82,12 +113,24 @@ onMounted(loadWishlist);
   padding: var(--page-block, 32px) var(--page-gutter, 32px);
 }
 
-.wishlist-page h1 {
-  margin: 0 0 20px;
+.page-heading {
+  margin: 0 auto 20px;
   text-align: center;
 }
 
+.page-heading p {
+  margin: 0 0 6px;
+  color: var(--text-muted);
+  font-weight: 800;
+}
+
+.page-heading h1 {
+  margin: 0;
+}
+
 .state-box {
+  display: grid;
+  gap: 10px;
   width: min(720px, 100%);
   margin: 0 auto;
   border: 1px solid var(--border);
@@ -95,12 +138,37 @@ onMounted(loadWishlist);
   background: var(--surface);
   color: var(--text-muted);
   padding: 18px;
+  text-align: center;
+}
+
+.state-box button {
+  justify-self: center;
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  background: #20b8ad;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 900;
+  padding: 0 14px;
 }
 
 .state-box.error {
   background: #fef2f2;
   border-color: #fecaca;
   color: #dc2626;
+}
+
+.success-message {
+  width: min(720px, 100%);
+  margin: 0 auto 16px;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #166534;
+  padding: 12px 16px;
+  text-align: center;
+  font-weight: 800;
 }
 
 .grid {
@@ -160,6 +228,11 @@ onMounted(loadWishlist);
 
 .actions button.danger {
   background: #ef4444;
+}
+
+.actions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 @media (max-width: 680px) {

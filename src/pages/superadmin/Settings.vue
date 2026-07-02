@@ -38,6 +38,13 @@ type OperationsStatus = {
       callback_url: string;
     };
   };
+  password_reset?: {
+    configured: boolean;
+    provider: "resend" | "webhook" | null;
+    email_from_set: boolean;
+    preview_enabled: boolean;
+    admin_fallback_enabled: boolean;
+  };
   content?: {
     total_books: number;
     missing_structured_content: number;
@@ -118,6 +125,14 @@ const checklistItems = [
 const readinessPassed = computed(() => readiness.value.filter((item) => item.ok).length);
 const readinessFailed = computed(() => readiness.value.filter((item) => !item.ok));
 const lineConfigured = computed(() => Boolean(operations.value?.social_login?.line?.configured));
+const passwordResetReady = computed(() => Boolean(operations.value?.password_reset?.configured));
+const passwordResetLabel = computed(() => {
+  const reset = operations.value?.password_reset;
+  if (reset?.provider === "resend") return "Resend email";
+  if (reset?.provider === "webhook") return "Email webhook";
+  if (reset?.admin_fallback_enabled) return "Admin fallback";
+  return "ยังไม่พร้อม";
+});
 const backupSummary = computed(() => {
   const backup = operations.value?.backup;
   if (!backup?.latest_file) return "ยังไม่มี backup";
@@ -258,6 +273,16 @@ onMounted(loadAll);
             · Secret: {{ operations.social_login?.line?.client_secret_set ? "ตั้งแล้ว" : "ยังไม่ตั้ง" }}
           </small>
           <code>{{ operations.social_login?.line?.callback_url }}</code>
+        </article>
+
+        <article class="operation-card" :class="{ failed: !passwordResetReady }">
+          <span>Password Reset Email</span>
+          <strong>{{ passwordResetLabel }}</strong>
+          <small>
+            From: {{ operations.password_reset?.email_from_set ? "ตั้งแล้ว" : "ยังไม่ตั้ง" }}
+            · Preview: {{ operations.password_reset?.preview_enabled ? "เปิด" : "ปิด" }}
+          </small>
+          <code>{{ passwordResetReady ? "ส่งลิงก์รีเซ็ตผ่านอีเมลได้แล้ว" : "ตั้ง RESEND_API_KEY + EMAIL_FROM หรือ PASSWORD_RESET_EMAIL_WEBHOOK_URL" }}</code>
         </article>
 
         <article class="operation-card" :class="{ failed: operations.content?.missing_structured_content }">

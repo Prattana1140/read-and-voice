@@ -34,6 +34,10 @@ function isPlaceholder(value) {
   );
 }
 
+function isTruthyEnv(value) {
+  return /^(1|true|yes)$/i.test(String(value || "").trim());
+}
+
 function getOAuthRedirectUri(provider) {
   const providerKey = String(provider || "").toUpperCase();
   return (
@@ -154,6 +158,12 @@ router.get("/operations", async (_req, res) => {
     const lineClientId = readEnv("LINE_CLIENT_ID");
     const lineClientSecret = readEnv("LINE_CLIENT_SECRET");
     const lineReady = !isPlaceholder(lineClientId) && !isPlaceholder(lineClientSecret);
+    const resendReady = !isPlaceholder(readEnv("RESEND_API_KEY")) && !isPlaceholder(readEnv("EMAIL_FROM"));
+    const webhookReady =
+      !isPlaceholder(readEnv("PASSWORD_RESET_EMAIL_WEBHOOK_URL")) ||
+      !isPlaceholder(readEnv("EMAIL_WEBHOOK_URL"));
+    const previewEnabled = isTruthyEnv(readEnv("ALLOW_PASSWORD_RESET_PREVIEW"));
+    const adminFallbackEnabled = !isTruthyEnv(readEnv("DISABLE_ADMIN_PASSWORD_RESET"));
 
     const totalBooks = await countQuery("SELECT COUNT(*) AS total FROM books");
     const missingStructuredContent = await countQuery(
@@ -195,6 +205,13 @@ router.get("/operations", async (_req, res) => {
           client_secret_set: !isPlaceholder(lineClientSecret),
           callback_url: getOAuthRedirectUri("line"),
         },
+      },
+      password_reset: {
+        configured: resendReady || webhookReady,
+        provider: resendReady ? "resend" : webhookReady ? "webhook" : null,
+        email_from_set: !isPlaceholder(readEnv("EMAIL_FROM")),
+        preview_enabled: previewEnabled,
+        admin_fallback_enabled: adminFallbackEnabled,
       },
       content: {
         total_books: totalBooks,

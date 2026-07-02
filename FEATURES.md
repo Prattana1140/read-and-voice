@@ -19,13 +19,13 @@
 | กลุ่ม | สถานะ |
 |---|---|
 | Public storefront, รายละเอียดหนังสือ, ตะกร้า, wishlist, library, orders | พร้อมใช้งาน |
-| Reader + TTS | พร้อมใช้งานแบบ partial |
-| Writer upload / TTS Studio / serial creation | พร้อมใช้งานแบบ partial |
+| Reader + TTS | พร้อมใช้งาน |
+| Writer upload / TTS Studio / serial creation | พร้อมใช้งาน |
 | Admin จัดการหนังสือ / หมวดหมู่ / สมาชิก / approval | พร้อมใช้งาน |
 | Account ย่อย (`/account/*`) | Placeholder แต่มี backend บางส่วน |
-| Forgot password | พร้อมใช้งานแบบ partial |
-| Writer edit book | มีหน้าอ่านข้อมูล แต่ยังไม่มี save flow จริง |
-| Superadmin settings | Placeholder |
+| Forgot password | พร้อมใช้งาน |
+| Writer edit book | พร้อมใช้งาน |
+| Superadmin settings | พร้อมใช้งาน |
 
 ## กลุ่ม API ในระบบ
 
@@ -73,8 +73,8 @@
 | `/login/line` | LineLogin | social login | ปุ่มเชื่อมต่อ | `/api/auth/oauth/:provider/start` | พร้อมใช้งาน | |
 | `/oauth/callback` | OAuthCallback | รับ callback social login | ไม่มีฟอร์ม | `/api/auth/oauth/:provider/callback`, `/api/auth/social-login` | พร้อมใช้งาน | |
 | `/register` | Register | สมัครสมาชิก | register form | `/api/auth/register` | พร้อมใช้งาน | |
-| `/forgot-password` | ForgotPassword | ขอรีเซ็ตรหัสผ่านและตั้งรหัสใหม่ผ่าน reset token | email form, reset password form | `/api/auth/forgot-password`, `/api/auth/reset-password` | พร้อมใช้งานแบบ partial | ตอนนี้ใช้ preview reset link ในหน้า ยังไม่มี email delivery จริง |
-| `/reader/:id` | ReaderPage | อ่านหนังสือ, TTS, จำ progress | controls reader/TTS | `/api/books/:id`, `/api/books/:id/episodes`, `/api/progress/:bookId`, `/api/reader/books/:bookId/content`, `/api/reader/episodes/:episodeId/content` | พร้อมใช้งานแบบ partial | หน้า reader ยังใช้ flow เดิมเป็นหลัก แม้ backend ใหม่ระดับ unit/sentence มีแล้ว |
+| `/forgot-password` | ForgotPassword | ขอรีเซ็ตรหัสผ่านและตั้งรหัสใหม่ผ่าน reset token | email form, reset password form | `/api/auth/forgot-password`, `/api/auth/reset-password` | พร้อมใช้งาน | ส่งอีเมลผ่าน Resend/webhook เมื่อ config พร้อม และมี dev preview/admin fallback ตาม env |
+| `/reader/:id` | ReaderPage | อ่านหนังสือ, TTS, จำ progress | controls reader/TTS | `/api/books/:id`, `/api/books/:id/episodes`, `/api/progress/:bookId`, `/api/reader/books/:bookId/content`, `/api/reader/episodes/:episodeId/content`, `/api/reader/books/:bookId/progress`, `/api/reader/settings/tts` | พร้อมใช้งาน | ใช้ payload unit/block/sentence, sentence progress และ TTS settings endpoint แล้ว |
 | `/my-library` | MyLibrary | ชั้นหนังสือของฉัน | ค้นหา | `/api/library/me`, `/api/library/:bookId` | พร้อมใช้งาน | |
 | `/wishlist` | Wishlist | wishlist ของฉัน | ไม่มีฟอร์มหลัก | `/api/wishlist` | พร้อมใช้งาน | |
 | `/cart` | Cart | ดูตะกร้าและ checkout | checkout | `/api/cart`, `/api/orders/checkout`, `/api/coins/wallet` | พร้อมใช้งาน | |
@@ -89,9 +89,9 @@
 | `/account/age-verification` | AccountPlaceholder | ส่งคำขอยืนยันอายุ | ปุ่ม submit verification | `/api/account/age-verification` | Placeholder | มี action จริง แต่ยังใช้หน้า generic |
 | `/writer` | WriterDashboard | dashboard นักเขียน | ไม่มีฟอร์มหลัก | `/api/books` | พร้อมใช้งานแบบ partial | ใช้ข้อมูลสรุประดับรวม ยังไม่ใช่ dashboard writer เชิงลึก |
 | `/writer/books` | WriterBooks | รายการหนังสือของนักเขียน | ไม่มีฟอร์มหลัก | `/api/writer/books/mine` | พร้อมใช้งาน | |
-| `/writer/upload` | WriterUpload | อัปโหลด ebook, สร้าง serial, TTS Studio MVP, เสนอ placement | upload form, serial form, studio draft/unit/content forms | `/api/categories`, `/api/books/upload`, `/api/books/serial`, `/api/books/:id/episodes`, `/api/writer/books`, `/api/writer/books/:bookId/units`, `/api/writer/books/:bookId/units/:unitId/import-text`, `/api/writer/books/:bookId/units/:unitId/content`, `/api/writer/books/:bookId/publish` | พร้อมใช้งานแบบ partial | ใช้งานได้จริงแล้ว แต่ยังไม่แยกเป็น wizard production-ready เต็มรูปแบบ |
+| `/writer/upload` | WriterUpload | อัปโหลด ebook, สร้าง serial, TTS Studio 6 step, เสนอ placement | upload form, serial form, studio draft/unit/content/publish readiness forms | `/api/categories`, `/api/books/upload`, `/api/books/serial`, `/api/books/:id/episodes`, `/api/writer/books`, `/api/writer/books/:bookId/units`, `/api/writer/books/:bookId/units/:unitId/import-text`, `/api/writer/books/:bookId/units/:unitId/content`, `/api/writer/books/:bookId/publish` | พร้อมใช้งาน | มี wizard, publish readiness checklist, schema language/tags/sentence-level และส่งเข้าคิว admin approval |
 | `/writer/books/:id/edit` | WriterEditBook | แก้ metadata หนังสือของนักเขียน | edit form | `/api/books/:id`, `PUT /api/writer/books/:id`, `/api/categories` | พร้อมใช้งาน | แก้ title, author, category, access, price, cover, description ได้แล้ว |
-| `/writer/stats` | WriterStats | ดูสถิตินักเขียนเบื้องต้น | ไม่มีฟอร์มหลัก | `/api/books` | พร้อมใช้งานแบบ partial | ยังไม่ใช้ endpoint stats เฉพาะนักเขียน |
+| `/writer/stats` | WriterStats | ดูสถิตินักเขียนแบบละเอียด | ไม่มีฟอร์มหลัก | `/api/writer/books/stats` | พร้อมใช้งาน | รวมยอดอ่าน รีวิว wishlist/library ยอดขาย และ content stats เฉพาะผลงานของนักเขียน |
 | `/admin` | AdminDashboard | dashboard แอดมิน, ลิงก์ไปจัดการส่วนต่าง ๆ | ไม่มีฟอร์มหลัก | `/api/books`, `/api/admin/stats/summary` | พร้อมใช้งาน | |
 | `/admin/books` | AdminBooks | รายการหนังสือทั้งหมดสำหรับแอดมิน | ค้นหา/จัดการ | `/api/books`, `/api/books/:id`, `/api/books/:id/episodes`, `/api/books/:id/content`, `/api/books/:id/reviews` | พร้อมใช้งาน | |
 | `/admin/approvals` | AdminApprovals | อนุมัติหนังสือและกำหนด placement จริง | approval form, note, placement checkboxes | `/api/admin/books/pending`, `/api/admin/books/:id`, `/api/admin/books/:id/approval`, `/api/admin/books/:id/requested-placements` | พร้อมใช้งาน | เป็น flow ใหม่สำหรับอนุมัติ e-book/รายตอนระดับหนังสือ |
@@ -102,7 +102,7 @@
 | `/admin/members` | AdminMembers | จัดการสมาชิกและ status | status form | `/api/admin/users`, `/api/admin/users/:id/status` | พร้อมใช้งาน | |
 | `/superadmin/roles` | SuperAdminRoles | จัดการ role ผู้ใช้ | role form | `/api/admin/users`, `/api/admin/users/:id/role` | พร้อมใช้งาน | |
 | `/superadmin/users` | SuperAdminUsers | จัดการผู้ใช้ระดับสูง | role/status form | `/api/admin/users`, `/api/admin/users/:id/status`, `/api/admin/users/:id/role`, `/api/admin/users/:id/approve-admin`, `/api/admin/users/:id/revoke-admin` | พร้อมใช้งาน | |
-| `/superadmin/settings` | SuperAdminSettings | หน้าตั้งค่าระบบ | ไม่มีฟอร์มที่ผูก backend | ไม่มี | Placeholder | เป็น static page |
+| `/superadmin/settings` | SuperAdminSettings | หน้าตั้งค่าระบบและ operational readiness | system settings, launch checklist | `/api/admin/settings/checklist`, `/api/admin/settings/system`, `/api/admin/settings/readiness`, `/api/admin/settings/operations` | พร้อมใช้งาน | ผูก backend จริง รวม LINE, password reset email, content audit, queue และ backup status |
 
 ## ฟอร์มสำคัญในระบบ
 
@@ -127,16 +127,16 @@
 | `/account/benefits` | ใช้ `AccountPlaceholder.vue` |
 | `/account/reviews` | ใช้ `AccountPlaceholder.vue` |
 | `/account/age-verification` | ใช้ `AccountPlaceholder.vue` แม้มี action จริง |
-| `/superadmin/settings` | เป็น static page |
+| `/superadmin/settings` | ไม่ใช่ placeholder แล้ว ผูก API settings/readiness/operations |
 
 ## หน้าที่มี UI แล้ว แต่ยังขาด backend หรือ flow ยังไม่ครบ
 
 | Route | สิ่งที่ขาด |
 |---|---|
-| `/forgot-password` | ยังไม่มี email delivery จริง ตอนนี้ใช้ preview reset link |
-| `/reader/:id` | ยังไม่ได้ย้ายทั้งหน้าไปใช้ unit/block/sentence APIs ชุดใหม่เต็มรูปแบบ |
-| `/writer/upload` | ใช้งานได้แล้ว แต่ยังไม่ครบ wizard 6 step ตามสเปกเต็ม |
-| `/writer/stats` | ยังไม่มี stats backend เฉพาะนักเขียนแบบละเอียด |
+| `/forgot-password` | พร้อมใช้งานแล้วเมื่อ config Resend หรือ email webhook; preview/admin fallback ใช้ตาม env |
+| `/reader/:id` | ใช้ unit/block/sentence payload, progress และ TTS settings endpoint แล้ว |
+| `/writer/upload` | มี wizard 6 step, structured content, readiness checklist และส่งเข้า admin approval แล้ว |
+| `/writer/stats` | มี endpoint `/api/writer/books/stats` แล้ว |
 | `/writer` | dashboard ยังเป็นภาพรวม ไม่ใช่ writer analytics เต็มรูปแบบ |
 
 ## ไฟล์หน้าที่มีอยู่ แต่ไม่ได้ถูก route ใช้งานตรง ๆ
@@ -150,8 +150,6 @@
 
 ## งานที่ควรทำต่อก่อน
 
-1. ย้าย `ReaderPage` ไปใช้ `/api/reader/books/:bookId/units/:unitId` และ progress แบบ sentence-level เต็มรูปแบบ
-2. เปลี่ยน `/writer/upload` จาก MVP form เดียวเป็น wizard แยก step
-3. ทำ `/writer/books/:id/edit` ให้บันทึกได้จริง
-4. แยก `AccountPlaceholder.vue` ออกเป็นหน้าจริงทีละหน้า
-5. ทำ forgot password backend ให้ครบ token + email flow
+1. แยก `AccountPlaceholder.vue` ออกเป็นหน้าจริงทีละหน้า
+2. เพิ่ม analytics เชิงลึกกว่านี้ให้ `/writer` dashboard หากต้องการกราฟรายวัน/รายเดือน
+3. ต่อ email provider จริงใน production ด้วย `RESEND_API_KEY` + `EMAIL_FROM` หรือ `PASSWORD_RESET_EMAIL_WEBHOOK_URL`

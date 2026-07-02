@@ -1008,9 +1008,10 @@ router.post("/:bookId/publish", verifyToken, async (req, res) => {
 
     await db.query(
       `UPDATE books
-       SET lifecycle_status = 'published',
-           is_published = 1,
-           published_at = COALESCE(published_at, NOW()),
+       SET lifecycle_status = 'draft',
+           publishing_status = 'ready',
+           approval_status = 'pending',
+           is_published = 0,
            updated_at = NOW()
        WHERE id = ?`,
       [bookId],
@@ -1025,7 +1026,7 @@ router.post("/:bookId/publish", verifyToken, async (req, res) => {
       [bookId],
     );
 
-    return res.json({ message: "เผยแพร่หนังสือสำเร็จ" });
+    return res.json({ message: "ส่งหนังสือให้แอดมินอนุมัติแล้ว" });
   } catch (error) {
     console.error("POST /writer/books/:bookId/publish error:", error);
     return res.status(500).json({ message: "เผยแพร่หนังสือไม่สำเร็จ" });

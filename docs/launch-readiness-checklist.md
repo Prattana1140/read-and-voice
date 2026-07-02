@@ -32,13 +32,13 @@ DISABLE_ADMIN_PASSWORD_RESET=false
 ALLOW_PASSWORD_RESET_PREVIEW=false
 ```
 
-Expected behavior:
+Expected fallback behavior when no email provider is configured:
 
-- `/forgot-password` creates an admin password reset request.
-- Admin opens `/admin/password-resets` and generates a temporary password.
-- The temporary password is delivered manually by your chosen support channel.
+- `/forgot-password` creates a reset token and records the request for admin visibility.
+- Admin can open `/admin/password-resets` to review pending requests.
+- The user receives the reset flow through the configured fallback/preview policy.
 
-Automatic email options for later:
+Automatic email delivery options:
 
 Resend:
 
@@ -62,6 +62,7 @@ Expected behavior:
 - `/forgot-password` creates a reset token.
 - Production sends the reset link by email when an email provider is configured.
 - Production does not return a preview reset link unless `ALLOW_PASSWORD_RESET_PREVIEW=true`.
+- `/superadmin/settings` shows the active password reset provider under operational status.
 
 ## 3. Production Environment
 

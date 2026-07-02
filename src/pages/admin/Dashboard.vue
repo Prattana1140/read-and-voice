@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { API_BASE_URL } from "../../utils/api";
+import api, { API_BASE_URL } from "../../utils/api";
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import axios from "axios";
 import { getAuthHeaders, getUser } from "../../utils/auth";
 
 type Book = {
@@ -59,7 +58,7 @@ const fetchBooks = async () => {
   error.value = "";
 
   try {
-    const res = await axios.get(`${API_BASE_URL}/api/books`);
+    const res = await api.get(`${API_BASE_URL}/api/books`);
     books.value = Array.isArray(res.data) ? res.data : [];
   } catch (err) {
     console.error("fetchBooks error:", err);
@@ -126,7 +125,7 @@ const deleteBook = async (id: number, title: string) => {
   if (!confirmed) return;
 
   try {
-    await axios.delete(`${API_BASE_URL}/api/books/${id}`, {
+    await api.delete(`${API_BASE_URL}/api/books/${id}`, {
       headers: getAuthHeaders(),
     });
 

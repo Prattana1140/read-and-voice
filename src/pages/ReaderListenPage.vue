@@ -181,12 +181,16 @@ async function loadVoiceSettings() {
   if (!isAuthenticated.value) return;
 
   try {
-    const { data } = await api.get("/account/preferences");
-    const tts = data?.preferences?.tts || {};
+    const [{ data }, ttsRes] = await Promise.all([
+      api.get("/account/preferences"),
+      api.get("/reader/settings/tts").catch(() => ({ data: null })),
+    ]);
+    const tts = ttsRes.data || data?.preferences?.tts || {};
     if (Number.isFinite(Number(tts.rate))) rate.value = Number(tts.rate);
     if (Number.isFinite(Number(tts.pitch))) pitch.value = Number(tts.pitch);
     if (Number.isFinite(Number(tts.volume))) volume.value = Number(tts.volume);
-    if (typeof tts.voice === "string") selectedVoice.value = tts.voice;
+    if (typeof tts.voice_name === "string") selectedVoice.value = tts.voice_name;
+    else if (typeof tts.voice === "string") selectedVoice.value = tts.voice;
   } catch {
     // Local voice settings remain the fallback.
   }
@@ -200,16 +204,27 @@ function saveVoiceSettings() {
 
   if (!isAuthenticated.value) return;
 
-  api.put("/account/preferences", {
-    preferences: {
-      tts: {
-        rate: rate.value,
-        pitch: pitch.value,
-        volume: volume.value,
-        voice: selectedVoice.value,
+  Promise.allSettled([
+    api.put("/account/preferences", {
+      preferences: {
+        tts: {
+          rate: rate.value,
+          pitch: pitch.value,
+          volume: volume.value,
+          voice: selectedVoice.value,
+        },
       },
-    },
-  }).catch(() => {
+    }),
+    api.put("/reader/settings/tts", {
+      voice_name: selectedVoice.value || null,
+      locale: selectedVoiceObject.value?.lang || "th-TH",
+      rate: rate.value,
+      pitch: pitch.value,
+      volume: volume.value,
+      autoplay: true,
+      highlight_enabled: true,
+    }),
+  ]).catch(() => {
     // Settings are already saved locally.
   });
 }

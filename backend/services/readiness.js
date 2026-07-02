@@ -2,6 +2,10 @@ function readEnv(name) {
   return String(process.env[name] || "").trim();
 }
 
+function getEmailFrom() {
+  return readEnv("EMAIL_FROM") || readEnv("RESEND_FROM_EMAIL");
+}
+
 function getApiPublicUrl() {
   return readEnv("API_PUBLIC_URL") || readEnv("RENDER_EXTERNAL_URL");
 }
@@ -25,6 +29,10 @@ function isPlaceholder(value) {
     text.includes("example") ||
     ["x", "xx", "xxx", "xxxx", "xxxxx"].includes(text)
   );
+}
+
+function isLocalHttpUrl(value) {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(String(value || "").trim());
 }
 
 function statusFromEnv(name, options = {}) {
@@ -61,15 +69,19 @@ function getProductionReadiness() {
   ];
 
   const apiPublicUrl = getApiPublicUrl();
+  const apiLooksLocal = isLocalHttpUrl(apiPublicUrl);
   checks.push({
     name: "API_PUBLIC_URL",
-    ok: !isPlaceholder(apiPublicUrl),
+    ok: !isPlaceholder(apiPublicUrl) && (!production || !apiLooksLocal),
     configured: Boolean(apiPublicUrl),
-    message: !isPlaceholder(apiPublicUrl)
-      ? readEnv("API_PUBLIC_URL")
-        ? "configured"
-        : "using RENDER_EXTERNAL_URL"
-      : "API_PUBLIC_URL is missing or still a placeholder",
+    message:
+      production && apiLooksLocal
+        ? "API_PUBLIC_URL points to localhost while NODE_ENV=production"
+        : !isPlaceholder(apiPublicUrl)
+          ? readEnv("API_PUBLIC_URL")
+            ? "configured"
+            : "using RENDER_EXTERNAL_URL"
+          : "API_PUBLIC_URL is missing or still a placeholder",
   });
 
   const hasDatabaseUrl =
@@ -94,7 +106,7 @@ function getProductionReadiness() {
   });
 
   const frontendUrl = readEnv("FRONTEND_URL");
-  const frontendLooksLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(frontendUrl);
+  const frontendLooksLocal = isLocalHttpUrl(frontendUrl);
   checks.push({
     name: "FRONTEND_URL",
     ok: !isPlaceholder(frontendUrl) && (!production || !frontendLooksLocal),
@@ -107,26 +119,33 @@ function getProductionReadiness() {
           : "FRONTEND_URL is missing or still a placeholder",
   });
 
-  const resendReady = !isPlaceholder(readEnv("RESEND_API_KEY")) && !isPlaceholder(readEnv("EMAIL_FROM"));
+  const emailFrom = getEmailFrom();
+  const resendReady = !isPlaceholder(readEnv("RESEND_API_KEY")) && !isPlaceholder(emailFrom);
+  const smtpReady =
+    !isPlaceholder(readEnv("SMTP_HOST")) &&
+    !isPlaceholder(readEnv("SMTP_PORT")) &&
+    !isPlaceholder(readEnv("SMTP_USER")) &&
+    !isPlaceholder(readEnv("SMTP_PASSWORD")) &&
+    !isPlaceholder(emailFrom);
   const emailWebhookReady =
     !isPlaceholder(readEnv("PASSWORD_RESET_EMAIL_WEBHOOK_URL")) ||
     !isPlaceholder(readEnv("EMAIL_WEBHOOK_URL"));
-  const emailReady = resendReady || emailWebhookReady;
+  const emailReady = resendReady || smtpReady || emailWebhookReady;
   const passwordResetPreviewEnabled = /^(1|true|yes)$/i.test(readEnv("ALLOW_PASSWORD_RESET_PREVIEW"));
   const adminAssistedPasswordReset = !/^(1|true|yes)$/i.test(readEnv("DISABLE_ADMIN_PASSWORD_RESET"));
   checks.push({
     name: "email_delivery",
-    ok: emailReady || adminAssistedPasswordReset || !production,
+    ok: emailReady || (!production && adminAssistedPasswordReset),
     configured: emailReady,
     message: resendReady
       ? "Resend email delivery is configured"
-      : emailWebhookReady
-        ? "email webhook delivery is configured"
-        : adminAssistedPasswordReset
-          ? "using admin-assisted password reset"
-          : production
-            ? "Set email delivery or enable admin-assisted password reset"
-            : "Email delivery is not configured; password reset email is disabled in development",
+      : smtpReady
+        ? "SMTP email delivery is configured"
+        : emailWebhookReady
+          ? "email webhook delivery is configured"
+          : !production && adminAssistedPasswordReset
+            ? "using admin-assisted password reset in development"
+            : "Set Resend, SMTP, or email webhook delivery for password reset",
   });
   checks.push({
     name: "password_reset_preview",
@@ -203,18 +222,36 @@ function getProductionReadiness() {
         : "Set TESSERACT_COMMAND when OCR is enabled",
   });
 
+  const sttEnabled = /^(1|true|yes|on)$/i.test(readEnv("ENABLE_STT"));
+  const sttCommand = readEnv("STT_COMMAND");
+  checks.push({
+    name: "stt",
+    ok: !sttEnabled || !isPlaceholder(sttCommand),
+    configured: Boolean(sttCommand),
+    message: !sttEnabled
+      ? "STT is disabled"
+      : !isPlaceholder(sttCommand)
+        ? "STT command is configured"
+        : "Set STT_COMMAND and STT_ARGS when ENABLE_STT=true",
+  });
+
   const lineClientId = readEnv("LINE_CLIENT_ID");
   const lineClientSecret = readEnv("LINE_CLIENT_SECRET");
   const lineReady = !isPlaceholder(lineClientId) && !isPlaceholder(lineClientSecret);
+  const lineRedirectUri = getOAuthRedirectUri("line");
+  const lineRedirectLooksLocal = isLocalHttpUrl(lineRedirectUri);
   checks.push({
     name: "line_login",
-    ok: !production || lineReady,
+    ok: !production || (lineReady && !lineRedirectLooksLocal),
     configured: lineReady,
-    message: lineReady
-      ? `LINE login credentials are configured. Callback URL: ${getOAuthRedirectUri("line")}`
-      : production
-        ? "Set real LINE_CLIENT_ID and LINE_CLIENT_SECRET before enabling social login"
-        : "LINE login credentials are not configured yet",
+    message:
+      production && lineRedirectLooksLocal
+        ? `LINE callback URL points to localhost while NODE_ENV=production: ${lineRedirectUri}`
+        : lineReady
+          ? `LINE login credentials are configured. Callback URL: ${lineRedirectUri}`
+          : production
+            ? "Set real LINE_CLIENT_ID and LINE_CLIENT_SECRET before enabling social login"
+            : "LINE login credentials are not configured yet",
   });
 
   const failed = checks.filter((check) => !check.ok);

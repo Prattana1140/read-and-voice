@@ -271,9 +271,9 @@
 | `/account/age-verification` | AccountPlaceholder | ดู/ส่งคำขอยืนยันอายุ | ปุ่มส่งคำขอ | `GET/POST /api/account/age-verification` | Placeholder |
 | `/writer` | WriterDashboard | dashboard นักเขียน | ไม่มีฟอร์มหลัก | `GET /api/books` | พร้อมใช้งาน |
 | `/writer/books` | WriterBooks | รายการหนังสือของนักเขียน | ไม่มีฟอร์มหลัก | `GET /api/writer/books/mine` | พร้อมใช้งาน |
-| `/writer/upload` | WriterUpload | อัปโหลด ebook/serial/manual | ฟอร์มอัปโหลดเต็มรูปแบบ | `GET /api/categories`, `POST /api/books/upload`, `POST /api/books/manual`, `POST /api/books/serial`, `POST /api/books/:id/episodes` | พร้อมใช้งานแบบ partial |
+| `/writer/upload` | WriterUpload | อัปโหลด ebook/serial/manual และ TTS Studio 6 step | ฟอร์มอัปโหลดเต็มรูปแบบ + publish readiness checklist | `GET /api/categories`, `POST /api/books/upload`, `POST /api/books/manual`, `POST /api/books/serial`, `POST /api/books/:id/episodes`, `POST /api/writer/books`, `POST /api/writer/books/:bookId/units`, `POST /api/writer/books/:bookId/units/:unitId/content`, `POST /api/writer/books/:bookId/publish` | พร้อมใช้งาน |
 | `/writer/books/:id/edit` | WriterEditBook | ดูข้อมูลหนังสือก่อนแก้ไข | ฟอร์มแก้ไข/บันทึก | `GET /api/books/:id`, `PUT /api/books/:id` | พร้อมใช้งาน |
-| `/writer/stats` | WriterStats | ดูสถิติหนังสือเบื้องต้น | ไม่มี | `GET /api/books` | พร้อมใช้งานแบบ partial |
+| `/writer/stats` | WriterStats | ดูสถิตินักเขียนแบบละเอียด | ไม่มี | `GET /api/writer/books/stats` | พร้อมใช้งาน |
 | `/admin` | AdminDashboard | จัดการหนังสือแบบรวม | ค้นหา, ลบหนังสือ | `GET /api/books`, `DELETE /api/books/:id` | พร้อมใช้งาน |
 | `/admin/books` | AdminBooks | รายการหนังสือแอดมิน | ไม่มีฟอร์มหลัก | ใช้ข้อมูลหนังสือ | พร้อมใช้งาน |
 | `/admin/page-content` | AdminPageContent | จัดการภาพ/คอนเทนต์บางส่วน | upload image / delete | `GET /api/books`, `GET /api/page-content`, `POST /api/page-content/subscription-hero`, `DELETE /api/page-content/subscription-hero` | พร้อมใช้งาน |
@@ -283,7 +283,7 @@
 | `/admin/members` | AdminMembers | จัดการสถานะสมาชิก | เปลี่ยน status | `GET /api/admin/users`, `PUT /api/admin/users/:id/status` | พร้อมใช้งาน |
 | `/superadmin/roles` | SuperAdminRoles | จัดการ role | เปลี่ยน role | `GET /api/admin/users`, `PATCH /api/admin/users/:id/role` | พร้อมใช้งาน |
 | `/superadmin/users` | SuperAdminUsers | จัดการ user ระดับสูง | เปลี่ยน role/status | `GET /api/admin/users`, `PATCH /api/admin/users/:id/status`, `PATCH /api/admin/users/:id/role`, `PATCH /api/admin/users/:id/approve-admin`, `PATCH /api/admin/users/:id/revoke-admin` | พร้อมใช้งาน |
-| `/superadmin/settings` | SuperAdminSettings | หน้า settings ระดับระบบ | ไม่มี | ไม่มี API ผูกอยู่ | Placeholder |
+| `/superadmin/settings` | SuperAdminSettings | หน้า settings ระดับระบบและ operational readiness | launch checklist + system settings | `GET/PUT /api/admin/settings/checklist`, `GET/PUT /api/admin/settings/system`, `GET /api/admin/settings/readiness`, `GET /api/admin/settings/operations` | พร้อมใช้งาน |
 
 ## 5. Audit สถานะหน้า
 
@@ -315,15 +315,15 @@
 | AccountBenefits | ใช้ `AccountPlaceholder.vue` |
 | AccountReviews | ใช้ `AccountPlaceholder.vue` |
 | AccountAgeVerification | ใช้ `AccountPlaceholder.vue` พร้อมปุ่มส่งคำขอ |
-| SuperAdminSettings | เป็นหน้าเนื้อหาคงที่ ยังไม่ผูก API |
+| SuperAdminSettings | ผูก API settings/readiness/operations แล้ว |
 
 ### C. มีหน้าแล้ว แต่ยังขาด backend หรือยังไม่ครบ flow
 | หน้า | ที่ขาด |
 |---|---|
 | ForgotPassword | มี backend แล้วผ่าน `POST /api/auth/forgot-password` และ `POST /api/auth/reset-password` |
 | WriterEditBook | มี backend save/update แล้วผ่าน `PUT /api/books/:id` |
-| WriterUpload | ใช้งานได้มากขึ้นแล้ว แต่ schema ยังขาด `language`, `tags`, TOC แยก, sentence-level storage, TTS preset persistence |
-| WriterStats | ใช้ข้อมูลรวมจาก `/api/books` ยังไม่ใช่สถิติเฉพาะนักเขียนแบบละเอียด |
+| WriterUpload | มี schema `language`, `tags`, unit/block/sentence-level storage, TTS settings และ publish readiness flow แล้ว |
+| WriterStats | ใช้ endpoint เฉพาะนักเขียน `/api/writer/books/stats` แล้ว |
 
 ### D. ไฟล์หน้าที่มีอยู่ แต่ยังไม่ถูก route ใช้งานตรง ๆ
 | ไฟล์ | หมายเหตุ |
@@ -338,5 +338,5 @@
 ตอนนี้ระบบมีโครงสร้างหลักครบแล้วทั้งฝั่งผู้อ่าน, นักเขียน, แอดมิน, และซูเปอร์แอดมิน แต่ยังมี 3 กลุ่มที่ควรทำต่อเป็นลำดับแรก
 
 1. ทำหน้ากลุ่ม `account/*` ให้เลิกใช้ placeholder แยกเป็นหน้าจริง
-2. ปรับปรุง UX ของ `ForgotPassword` และ `WriterEditBook` ให้สอดคล้องกับ backend ที่มีแล้ว
-3. ขยาย schema ฝั่ง writer upload ให้รองรับ `language`, `tags`, TOC, sentence-level content, และ TTS presets แบบถาวร
+2. ต่อ provider อีเมลจริงใน production สำหรับ forgot password หากยังไม่ได้ตั้งค่า Resend/webhook
+3. เพิ่ม analytics รายวัน/รายเดือนให้ writer dashboard หากต้องการมากกว่าสรุปรวม

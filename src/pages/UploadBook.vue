@@ -2,7 +2,7 @@
 import { API_BASE_URL } from "../utils/api";
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import axios from "axios";
+import api from "../utils/api";
 import { getAuthHeaders, getUser } from "../utils/auth";
 
 type Category = {
@@ -52,7 +52,7 @@ const bookFileAccept = `${bookFileExtensions.join(",")},image/*`;
 
 const fetchCategories = async () => {
   try {
-    const res = await axios.get(`${API_BASE}/categories`);
+    const res = await api.get(`${API_BASE}/categories`);
     categories.value = Array.isArray(res.data) ? res.data : [];
 
     if (categories.value.length > 0 && !categoryId.value) {
@@ -192,7 +192,7 @@ const uploadBook = async () => {
       formData.append("cover_file", selectedCoverFile.value);
     }
 
-    const res = await axios.post(`${API_BASE}/books/upload`, formData, {
+    const res = await api.post(`${API_BASE}/books/upload`, formData, {
       headers: {
         ...getAuthHeaders(),
         "Content-Type": "multipart/form-data",

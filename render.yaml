@@ -23,13 +23,27 @@ services:
         sync: false
       - key: RESEND_API_KEY
         sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
       - key: EMAIL_FROM
         value: onboarding@resend.dev
       - key: EMAIL_FROM_NAME
         value: Read and Voice
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_SECURE
+        value: "false"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
       - key: PASSWORD_RESET_EMAIL_WEBHOOK_URL
         sync: false
       - key: PASSWORD_RESET_EMAIL_WEBHOOK_SECRET
+        sync: false
+      - key: EMAIL_TEST_TO
         sync: false
       - key: ALLOW_PASSWORD_RESET_PREVIEW
         value: "false"
@@ -37,6 +51,14 @@ services:
         value: "true"
       - key: MANUAL_PAYMENT_INSTRUCTIONS
         value: "กรุณาโอนเงินตามช่องทางที่แอดมินแจ้ง แล้วส่งหลักฐานพร้อมเลขรายการ {topup_id} จำนวน {amount} บาท"
+      - key: PAYMENT_CHECKOUT_URL_TEMPLATE
+        sync: false
+      - key: PAYMENT_WEBHOOK_SECRET
+        sync: false
+      - key: SUPERADMIN_EMAIL
+        sync: false
+      - key: SUPERADMIN_PASSWORD
+        sync: false
       - key: ENABLE_OCR
         value: "true"
       - key: OCR_LANG
@@ -47,3 +69,13 @@ services:
         value: "3"
       - key: OCR_RENDER_SCALE
         value: "2"
+      - key: ENABLE_STT
+        value: "false"
+      - key: STT_COMMAND
+        sync: false
+      - key: STT_ARGS
+        sync: false
+      - key: STT_HEALTHCHECK_ARGS
+        sync: false
+      - key: STT_LANGUAGE
+        value: th

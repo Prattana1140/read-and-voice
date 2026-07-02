@@ -1,0 +1,171 @@
+// Core ER diagram for Read & Voice
+// Import this file at https://dbdiagram.io
+
+Table users {
+  id int [pk, increment]
+  name varchar(255) [not null]
+  email varchar(255) [not null, unique]
+  password varchar(255) [not null]
+  role varchar(30) [not null, note: 'user, writer, admin, superadmin']
+  status varchar(50) [not null]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+}
+
+Table user_profiles {
+  user_id int [pk, ref: > users.id]
+  username varchar(64) [unique]
+  avatar_url text
+  visual_impairment_status varchar(40)
+  uses_screen_reader boolean
+  preferred_reading_mode varchar(40)
+  accessibility_mode boolean
+  updated_at datetime
+}
+
+Table categories {
+  id int [pk, increment]
+  name varchar(255) [not null, unique]
+  parent_id int [ref: > categories.id]
+  content_scope varchar(20)
+  show_on_home boolean
+  sort_order int
+}
+
+Table books {
+  id int [pk, increment]
+  title varchar(500) [not null]
+  author varchar(255) [not null]
+  category_id int [ref: > categories.id]
+  created_by int [ref: > users.id]
+  content_type varchar(20)
+  access_type varchar(20)
+  process_status varchar(50)
+  price decimal(10,2)
+  is_published boolean
+  created_at datetime
+  updated_at datetime
+}
+
+Table book_episodes {
+  id int [pk, increment]
+  book_id int [not null, ref: > books.id]
+  episode_number int [not null]
+  title varchar(500) [not null]
+  access_type varchar(20)
+  price decimal(10,2)
+  is_published boolean
+
+  indexes { (book_id, episode_number) [unique] }
+}
+
+Table book_pages {
+  id int [pk, increment]
+  book_id int [not null, ref: > books.id]
+  page_number int [not null]
+  page_text text
+
+  indexes { (book_id, page_number) [unique] }
+}
+
+Table book_reviews {
+  id int [pk, increment]
+  user_id int [not null, ref: > users.id]
+  book_id int [not null, ref: > books.id]
+  rating int [not null]
+  comment text
+  created_at datetime
+}
+
+Table library {
+  id int [pk, increment]
+  user_id int [not null, ref: > users.id]
+  book_id int [not null, ref: > books.id]
+  created_at datetime
+
+  indexes { (user_id, book_id) [unique] }
+}
+
+Table reading_progress {
+  id int [pk, increment]
+  user_id int [not null, ref: > users.id]
+  book_id int [not null, ref: > books.id]
+  current_page int
+  last_position int
+  progress_percent decimal(6,2)
+  last_read_at datetime
+
+  indexes { (user_id, book_id) [unique] }
+}
+
+Table cart {
+  id int [pk, increment]
+  user_id int [not null, ref: > users.id]
+  book_id int [ref: > books.id]
+  episode_id int [ref: > book_episodes.id]
+  quantity int
+}
+
+Table orders {
+  id int [pk, increment]
+  user_id int [not null, ref: > users.id]
+  total_amount decimal(10,2)
+  payment_method varchar(100)
+  payment_status varchar(50)
+  order_status varchar(50)
+  created_at datetime
+}
+
+Table order_items {
+  id int [pk, increment]
+  order_id int [not null, ref: > orders.id]
+  book_id int [ref: > books.id]
+  episode_id int [ref: > book_episodes.id]
+  quantity int
+  price decimal(10,2)
+}
+
+Table subscription_plans {
+  id int [pk, increment]
+  name varchar(255) [not null]
+  price decimal(10,2)
+  duration_days int
+  is_active boolean
+}
+
+Table user_subscriptions {
+  id int [pk, increment]
+  user_id int [not null, ref: > users.id]
+  plan_id int [not null, ref: > subscription_plans.id]
+  status varchar(50)
+  payment_status varchar(50)
+  start_at datetime
+  end_at datetime
+}
+
+Table coin_wallets {
+  user_id int [pk, ref: > users.id]
+  balance int [not null]
+  updated_at datetime
+}
+
+Table coin_transactions {
+  id int [pk, increment]
+  user_id int [not null, ref: > users.id]
+  type varchar(30)
+  amount int
+  balance_after int
+  ref_type varchar(50)
+  ref_id int
+  created_at datetime
+}
+
+Table tts_settings {
+  id int [pk, increment]
+  user_id int [not null, unique, ref: > users.id]
+  rate decimal(5,2)
+  pitch decimal(5,2)
+  volume decimal(5,2)
+  voice_name varchar(255)
+  lang varchar(20)
+}

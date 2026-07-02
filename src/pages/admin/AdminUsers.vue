@@ -127,10 +127,9 @@
 </template>
 
 <script setup lang="ts">
-import { API_BASE_URL } from "../../utils/api";
+import api, { API_BASE_URL } from "../../utils/api";
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import axios from "axios";
 import { getAuthHeaders, getUser } from "../../utils/auth";
 
 type UserItem = {
@@ -186,7 +185,7 @@ const fetchUsers = async () => {
   try {
     loading.value = true;
 
-    const res = await axios.get(`${API_BASE}/users`, {
+    const res = await api.get(`${API_BASE}/users`, {
       headers: getAuthHeaders(),
     });
 
@@ -206,7 +205,7 @@ const approveAdmin = async (userId: number) => {
   try {
     actionLoadingId.value = userId;
 
-    const res = await axios.patch(
+    const res = await api.patch(
       `${API_BASE}/users/${userId}/approve-admin`,
       {},
       {
@@ -231,7 +230,7 @@ const revokeAdmin = async (userId: number) => {
   try {
     actionLoadingId.value = userId;
 
-    const res = await axios.patch(
+    const res = await api.patch(
       `${API_BASE}/users/${userId}/revoke-admin`,
       {},
       {
@@ -256,7 +255,7 @@ const changeRole = async (userId: number, role: string) => {
   try {
     actionLoadingId.value = userId;
 
-    const res = await axios.patch(
+    const res = await api.patch(
       `${API_BASE}/users/${userId}/role`,
       { role },
       {

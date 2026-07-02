@@ -147,6 +147,33 @@ const totalPreviewSentences = computed(() => {
   return contentPreview.value.reduce((sum, block) => sum + block.sentences.length, 0);
 });
 
+const publishReadiness = computed(() => [
+  {
+    label: "สร้างร่างหนังสือแล้ว",
+    ok: Boolean(studioBookId.value),
+  },
+  {
+    label: "มีชื่อเรื่องและภาษาสำหรับระบบอ่านออกเสียง",
+    ok: Boolean(title.value.trim() && studioLanguage.value.trim()),
+  },
+  {
+    label: "มีบทหรือตอนอย่างน้อย 1 รายการ",
+    ok: studioUnits.value.length > 0,
+  },
+  {
+    label: "มีเนื้อหาที่แตกเป็นประโยคสำหรับ Reader/TTS",
+    ok: totalPreviewSentences.value > 0,
+  },
+  {
+    label: "ตั้งค่านโยบาย preview แล้ว",
+    ok: Boolean(studioPreviewMode.value && Number(studioPreviewValue.value) >= 1),
+  },
+]);
+
+const canPublishStudioBook = computed(() => {
+  return publishReadiness.value.every((item) => item.ok);
+});
+
 const isUploadingEbook = computed(() => {
   return mode.value === "ebook" && loading.value && uploadStage.value !== "idle";
 });
@@ -609,12 +636,17 @@ const publishStudioBook = async () => {
     return;
   }
 
+  if (!canPublishStudioBook.value) {
+    error.value = "กรุณาทำ checklist ก่อนเผยแพร่ให้ครบ";
+    return;
+  }
+
   loading.value = true;
 
   try {
     await api.post(`/writer/books/${studioBookId.value}/publish`);
     advanceStudioStep(5);
-    message.value = "เผยแพร่หนังสือสำเร็จ";
+    message.value = "ส่งหนังสือให้แอดมินอนุมัติแล้ว";
   } catch (err) {
     setError(err, "เผยแพร่หนังสือไม่สำเร็จ");
   } finally {
@@ -955,7 +987,18 @@ const publishStudioBook = async () => {
             <p class="muted">
               เมื่อกดส่ง หนังสือจะเข้าสู่ flow เผยแพร่และรอแอดมินตรวจ/อนุมัติตำแหน่งแสดงผลตามที่เลือกไว้
             </p>
-            <button class="publish-btn" :disabled="loading || !studioBookId || !studioUnits.length" @click="publishStudioBook">
+            <div class="publish-checklist">
+              <div
+                v-for="item in publishReadiness"
+                :key="item.label"
+                class="publish-check"
+                :class="{ done: item.ok }"
+              >
+                <strong>{{ item.ok ? "ผ่าน" : "ต้องทำ" }}</strong>
+                <span>{{ item.label }}</span>
+              </div>
+            </div>
+            <button class="publish-btn" :disabled="loading || !canPublishStudioBook" @click="publishStudioBook">
               {{ loading ? "กำลังส่ง..." : "ส่งอนุมัติ / เผยแพร่" }}
             </button>
           </section>
@@ -1403,6 +1446,37 @@ textarea {
 
 .publish-summary strong {
   color: var(--text-strong);
+}
+
+.publish-checklist {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.publish-check {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  padding: 10px 12px;
+}
+
+.publish-check strong {
+  color: var(--danger, #b42318);
+  font-size: 13px;
+}
+
+.publish-check.done strong {
+  color: var(--success, #047857);
+}
+
+.publish-check span {
+  color: var(--text-muted);
+  text-align: right;
 }
 
 .unit-list,

@@ -1,8 +1,7 @@
 ﻿<script setup lang="ts">
-import { API_BASE_URL } from "../utils/api";
+import api, { API_BASE_URL } from "../utils/api";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import axios from "axios";
 
 type OrderItem = { id: number; title: string; price: number; };
 type Order = { id: number; created_at: string; payment_status: string; order_status: string; total_amount: number; items?: OrderItem[]; };
@@ -27,7 +26,7 @@ async function loadOrders() {
   try {
     const token = localStorage.getItem('token') || '';
     if (!token) { alert('กรุณาเข้าสู่ระบบก่อน'); router.push({ name: 'Login' }); return; }
-    const res = await axios.get(`${API_BASE_URL}/api/orders/history`, { headers: { Authorization: `Bearer ${token}` } });
+    const res = await api.get(`${API_BASE_URL}/api/orders/history`, { headers: { Authorization: `Bearer ${token}` } });
     orders.value = Array.isArray(res.data) ? res.data : [];
   } catch (err) {
     console.error('loadOrders error:', err);

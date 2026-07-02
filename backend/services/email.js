@@ -4,6 +4,18 @@ function readEnv(name) {
   return String(process.env[name] || "").trim();
 }
 
+function isPlaceholder(value) {
+  const text = String(value || "").trim().toLowerCase();
+  return (
+    !text ||
+    text.includes("change-this") ||
+    text.includes("replace-with") ||
+    text.includes("your-") ||
+    text.includes("example") ||
+    ["x", "xx", "xxx", "xxxx", "xxxxx"].includes(text)
+  );
+}
+
 function getEmailFrom() {
   const from = readEnv("EMAIL_FROM");
   if (from) return from;
@@ -23,7 +35,31 @@ function buildSender() {
 }
 
 function isEmailConfigured() {
-  return Boolean(readEnv("RESEND_API_KEY") && getEmailFrom());
+  return Boolean(getEmailProviderStatus().configured);
+}
+
+function getEmailProviderStatus() {
+  const from = getEmailFrom();
+  const resendReady = Boolean(!isPlaceholder(readEnv("RESEND_API_KEY")) && !isPlaceholder(from));
+  const smtpReady = Boolean(
+    !isPlaceholder(readEnv("SMTP_HOST")) &&
+      !isPlaceholder(readEnv("SMTP_PORT")) &&
+      !isPlaceholder(readEnv("SMTP_USER")) &&
+      !isPlaceholder(readEnv("SMTP_PASSWORD")) &&
+      !isPlaceholder(from),
+  );
+  const webhookReady = Boolean(
+    !isPlaceholder(readEnv("PASSWORD_RESET_EMAIL_WEBHOOK_URL")) ||
+      !isPlaceholder(readEnv("EMAIL_WEBHOOK_URL")),
+  );
+
+  return {
+    configured: resendReady || smtpReady || webhookReady,
+    resend: resendReady,
+    smtp: smtpReady,
+    webhook: webhookReady,
+    provider: resendReady ? "resend" : smtpReady ? "smtp" : webhookReady ? "email_webhook" : "not_configured",
+  };
 }
 
 function renderPasswordResetEmail({ resetUrl, expiresAt }) {
@@ -129,9 +165,52 @@ async function sendViaWebhook({ to, subject, html, text, template, data }) {
   return { delivered: true, delivery: "email_webhook" };
 }
 
+async function sendViaSmtp({ to, subject, html, text }) {
+  const from = buildSender();
+  const host = readEnv("SMTP_HOST");
+  const port = Number(readEnv("SMTP_PORT") || 587);
+  const user = readEnv("SMTP_USER");
+  const pass = readEnv("SMTP_PASSWORD");
+
+  if (!from || !host || !port || !user || !pass) {
+    return { delivered: false, delivery: "not_configured" };
+  }
+
+  const nodemailer = require("nodemailer");
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: /^(1|true|yes)$/i.test(readEnv("SMTP_SECURE")) || port === 465,
+    auth: { user, pass },
+    connectionTimeout: Number(readEnv("SMTP_TIMEOUT_MS") || 15000),
+    greetingTimeout: Number(readEnv("SMTP_TIMEOUT_MS") || 15000),
+    socketTimeout: Number(readEnv("SMTP_TIMEOUT_MS") || 15000),
+  });
+
+  const info = await transporter.sendMail({
+    from,
+    to,
+    subject,
+    html,
+    text,
+  });
+
+  return {
+    delivered: true,
+    delivery: "smtp",
+    provider_id: info.messageId || null,
+  };
+}
+
 async function sendEmail(message) {
-  if (isEmailConfigured()) {
+  const status = getEmailProviderStatus();
+
+  if (status.resend) {
     return sendViaResend(message);
+  }
+
+  if (status.smtp) {
+    return sendViaSmtp(message);
   }
 
   return sendViaWebhook(message);
@@ -152,7 +231,9 @@ async function sendPasswordResetEmail({ to, resetUrl, expiresAt }) {
 }
 
 module.exports = {
+  getEmailProviderStatus,
   sendEmail,
   sendPasswordResetEmail,
   isEmailConfigured,
+  renderPasswordResetEmail,
 };

@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { API_BASE_URL } from "../../utils/api";
+import api, { API_BASE_URL } from "../../utils/api";
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import axios from "axios";
 
 const route = useRoute();
 const router = useRouter();
@@ -27,7 +26,7 @@ const fetchBook = async () => {
 
   try {
     const id = route.params.id;
-    const res = await axios.get(`${API_BASE_URL}/api/books/${id}`);
+    const res = await api.get(`${API_BASE_URL}/api/books/${id}`);
     const book = res.data;
 
     form.value = {
@@ -48,7 +47,7 @@ const fetchBook = async () => {
 
 const fetchCategories = async () => {
   try {
-    const res = await axios.get(`${API_BASE_URL}/api/categories`);
+    const res = await api.get(`${API_BASE_URL}/api/categories`);
     const items = Array.isArray(res.data)
       ? res.data
       : Array.isArray(res.data?.categories)
@@ -83,7 +82,7 @@ const saveBook = async () => {
     saving.value = true;
     const id = route.params.id;
 
-    await axios.put(`${API_BASE_URL}/api/books/${id}`, {
+    await api.put(`${API_BASE_URL}/api/books/${id}`, {
       ...form.value,
       category_id: form.value.category_id || null,
       is_published: Number(form.value.is_published),

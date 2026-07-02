@@ -2,7 +2,7 @@
 import { API_BASE_URL } from "../../utils/api";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import axios from "axios";
+import api from "../../utils/api";
 
 type StoredUser = {
   id?: number;
@@ -60,7 +60,7 @@ const fetchBooks = async () => {
   loading.value = true;
 
   try {
-    const res = await axios.get(`${API_BASE_URL}/api/books`);
+    const res = await api.get(`${API_BASE_URL}/api/books`);
     books.value = Array.isArray(res.data) ? res.data : [];
   } finally {
     loading.value = false;

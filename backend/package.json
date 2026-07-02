@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
+    "test": "node services/scripts/runTestSuite.js",
     "config:check": "node services/scripts/checkProductionReadiness.js",
     "smoke:roles": "node services/scripts/smokeRoles.js",
     "smoke:launch": "node services/scripts/smokeLaunch.js",
@@ -13,7 +14,9 @@
     "content:migrate-legacy": "node services/scripts/migrateLegacyContentToUnits.js",
     "db:backup": "node services/scripts/backupDatabase.js",
     "ops:daily": "node services/scripts/runDailyMaintenance.js",
+    "email:test": "node services/scripts/checkEmailDelivery.js",
     "ocr:test": "node services/scripts/checkOcrRuntime.js",
+    "stt:test": "node services/scripts/checkSttRuntime.js",
     "db:test": "node services/scripts/testDbConnection.js",
     "db:init": "node services/scripts/initDatabase.js",
     "db:seed:catalog": "node services/scripts/seedCatalogData.js",
@@ -39,8 +42,7 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
     "mysql2": "^3.20.0",
-    "pdf-parse": "^2.4.5",
-    "pdf2pic": "^3.2.0",
+    "nodemailer": "^9.0.3",
     "pdfjs-dist": "^5.6.205",
     "tesseract.js": "^7.0.0"
   },

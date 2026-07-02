@@ -4,34 +4,10 @@ const { verifyToken } = require("../middleware/auth");
 
 const router = express.Router();
 
-let tableReady;
-
-async function ensureTable() {
-  if (!tableReady) {
-    tableReady = db
-      .query(`
-        CREATE TABLE IF NOT EXISTS wishlists (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          user_id INT NOT NULL,
-          book_id INT NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          UNIQUE KEY uq_wishlists_user_book (user_id, book_id),
-          INDEX idx_wishlists_user (user_id),
-          CONSTRAINT fk_wishlists_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-          CONSTRAINT fk_wishlists_book FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
-        )
-      `)
-      .then(() => true);
-  }
-
-  return tableReady;
-}
-
 router.use(verifyToken);
 
 router.get("/", async (req, res) => {
   try {
-    await ensureTable();
     const [rows] = await db.query(
       `SELECT
          w.id AS wishlist_id,
@@ -60,7 +36,6 @@ router.get("/", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    await ensureTable();
     const bookId = Number(req.body.book_id);
 
     if (!bookId || Number.isNaN(bookId)) {
@@ -90,7 +65,6 @@ router.post("/", async (req, res) => {
 
 router.delete("/:bookId", async (req, res) => {
   try {
-    await ensureTable();
     await db.query("DELETE FROM wishlists WHERE user_id = ? AND book_id = ?", [
       req.user.id,
       req.params.bookId,

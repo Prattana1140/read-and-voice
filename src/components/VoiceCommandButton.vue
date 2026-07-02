@@ -939,7 +939,13 @@ function confirmPendingNavigation() {
 
   pendingNavigation.value = null;
   router.push({ name: target.routeName, query: target.query });
-  speakStatus(`เปิดหน้า${target.label}แล้ว`);
+  speakStatus(
+    routeMessage({
+      type: "navigate",
+      routeName: target.routeName,
+      query: target.query,
+    }),
+  );
   return true;
 }
 

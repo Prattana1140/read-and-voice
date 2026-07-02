@@ -261,11 +261,21 @@ const searchAuthors = computed(() => {
     .slice(0, 4);
 });
 
-const popularSearches = computed(() => [
-  { label: t("home.freeBooks"), query: { access: "free" } },
-  { label: t("home.bestSellers"), query: { q: t("home.bestSellers") } },
-  { label: t("home.newReleases"), query: { q: t("home.newReleases") } },
-  { label: t("home.promotions"), query: { q: t("home.promotions") } },
+type SearchChip = {
+  label: string;
+  query: Record<string, string>;
+};
+
+const createSearchChip = (label: string, query: Record<string, string>): SearchChip => ({
+  label,
+  query,
+});
+
+const popularSearches = computed<SearchChip[]>(() => [
+  createSearchChip(t("home.freeBooks"), { access: "free" }),
+  createSearchChip(t("home.bestSellers"), { q: t("home.bestSellers") }),
+  createSearchChip(t("home.newReleases"), { q: t("home.newReleases") }),
+  createSearchChip(t("home.promotions"), { q: t("home.promotions") }),
 ]);
 
 const hasSearchDiscovery = computed(
@@ -552,7 +562,8 @@ const scheduleCompactNavMeasure = () => {
     const viewportWidth =
       document.documentElement.clientWidth || window.innerWidth;
 
-    isCompactNav.value = viewportWidth <= compactNavBreakpoint;
+    isCompactNav.value =
+      viewportWidth <= compactNavBreakpoint || hasNavbarOverflow();
   });
 };
 
@@ -628,7 +639,7 @@ const searchAuthor = (authorName: string) => {
   goToSearch({ q: authorName });
 };
 
-const searchPopular = (item: { label: string; query: Record<string, string> }) => {
+const searchPopular = (item: SearchChip) => {
   saveRecentSearch(item.label);
   search.value = item.label;
   goToSearch(item.query);

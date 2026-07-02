@@ -29,8 +29,7 @@ async function submitRequest() {
     });
 
     successMessage.value =
-      data?.message ||
-      "สร้างคำขอรีเซ็ตรหัสผ่านสำเร็จ";
+      data?.message || "ส่งคำขอรีเซ็ตรหัสผ่านสำเร็จ กรุณาตรวจสอบอีเมลของคุณ";
     previewResetUrl.value = String(data?.reset_url || "");
   } catch (error: any) {
     errorMessage.value =
@@ -56,8 +55,7 @@ async function submitReset() {
       password: password.value,
     });
 
-    successMessage.value =
-      data?.message || "รีเซ็ตรหัสผ่านสำเร็จ";
+    successMessage.value = data?.message || "รีเซ็ตรหัสผ่านสำเร็จ";
 
     window.setTimeout(() => {
       router.push("/login");
@@ -80,7 +78,7 @@ async function submitReset() {
         {{
           isResetMode
             ? "ตั้งรหัสผ่านใหม่สำหรับบัญชีของคุณ หลังบันทึกแล้วระบบจะพากลับไปหน้าเข้าสู่ระบบ"
-            : "กรอกอีเมลของบัญชี ระบบจะสร้างคำขอรีเซ็ตรหัสผ่านให้ทีมงานตรวจสอบและส่งลิงก์ให้คุณ"
+            : "กรอกอีเมลของบัญชี ระบบจะส่งลิงก์รีเซ็ตรหัสผ่านให้คุณทางอีเมล หากยังไม่ได้ตั้งค่าการส่งเมล ระบบจะสร้างคำขอให้ทีมงานช่วยดำเนินการ"
         }}
       </p>
 

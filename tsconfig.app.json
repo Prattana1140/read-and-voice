@@ -12,20 +12,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
-  "exclude": [
-    "src/components/AuthModal.vue",
-    "src/components/HelloWorld.vue",
-    "src/components/public/AccountPanel.vue",
-    "src/components/public/NotificationPanel.vue",
-    "src/components/public/PublicFooter.vue",
-    "src/components/public/PublicHeader.vue",
-    "src/components/public/PublicNav.vue",
-    "src/components/public/RegisterModal.vue",
-    "src/components/public/SearchOverlay.vue",
-    "src/pages/Reader.vue",
-    "src/pages/SubscriptionPage.vue",
-    "src/pages/account/AccountPlaceholder.vue",
-    "src/pages/writer/MyBooks.vue"
-  ]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
 }
