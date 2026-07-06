@@ -294,13 +294,28 @@ async function runImageOCR(filePath) {
 
   try {
     let text = "";
+    let pages = [];
 
-    try {
-      text = await runTesseractCliOnImage(filePath);
-    } catch (cliError) {
-      console.warn("Tesseract CLI image OCR failed, trying Tesseract.js:", cliError.message);
-      const jsResult = await runTesseractJsOnImages([filePath]);
-      text = jsResult.text;
+    if (hasPythonOCRCommand()) {
+      try {
+        const pythonResult = await runPythonOCR(filePath);
+        text = pythonResult.text;
+        pages = pythonResult.pages;
+      } catch (pythonError) {
+        console.warn("Python image OCR failed, trying Tesseract:", pythonError.message);
+      }
+    }
+
+    if (!text) {
+      try {
+        text = await runTesseractCliOnImage(filePath);
+        pages = [text];
+      } catch (cliError) {
+        console.warn("Tesseract CLI image OCR failed, trying Tesseract.js:", cliError.message);
+        const jsResult = await runTesseractJsOnImages([filePath]);
+        text = jsResult.text;
+        pages = jsResult.pages;
+      }
     }
 
     if (!text) {
@@ -311,7 +326,7 @@ async function runImageOCR(filePath) {
 
     return {
       text,
-      pages: [text],
+      pages: pages.length ? pages : [text],
     };
   } catch (error) {
     console.error("Image OCR failed:", error);
@@ -357,6 +372,9 @@ async function runPythonOCR(filePath) {
     return {
       text: normalizeOcrText(parsed.text || ""),
       pages: Array.isArray(parsed.pages) ? parsed.pages.map(normalizeOcrText) : [],
+      engine: parsed.engine,
+      fallbackFrom: parsed.fallback_from,
+      fallbackReason: parsed.fallback_reason,
     };
   }
 

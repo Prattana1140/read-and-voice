@@ -26,6 +26,7 @@ const loading = ref(true);
 const saving = ref(false);
 const publishing = ref(false);
 const episodesLoading = ref(false);
+const addingEpisode = ref(false);
 const errorMessage = ref("");
 const successMessage = ref("");
 const categories = ref<Category[]>([]);
@@ -41,6 +42,15 @@ const form = ref({
   cover_image: "",
   access_type: "free",
   price: 0,
+});
+
+const episodeForm = ref({
+  episode_number: 1,
+  title: "",
+  content: "",
+  is_free: true,
+  price: 0,
+  preview_char_limit: 1500,
 });
 
 const bookId = computed(() => Number(route.params.id));
@@ -74,6 +84,14 @@ function formatLifecycleStatus(value: string) {
   return value;
 }
 
+function syncNextEpisodeNumber() {
+  const maxEpisode = episodes.value.reduce(
+    (max, episode) => Math.max(max, Number(episode.episode_number || 0)),
+    0,
+  );
+  episodeForm.value.episode_number = maxEpisode + 1;
+}
+
 function handleImageError(event: Event) {
   const target = event.target as HTMLImageElement;
   if (!target || target.src.endsWith("/no-cover.png")) return;
@@ -97,8 +115,10 @@ async function fetchEpisodes() {
     episodesLoading.value = true;
     const { data } = await api.get(`/writer/books/${bookId.value}/episodes`);
     episodes.value = Array.isArray(data) ? data : [];
+    syncNextEpisodeNumber();
   } catch {
     episodes.value = [];
+    syncNextEpisodeNumber();
   } finally {
     episodesLoading.value = false;
   }
@@ -187,6 +207,41 @@ async function unpublishBook() {
     errorMessage.value = error?.response?.data?.message || "ย้ายกลับเป็นร่างไม่สำเร็จ";
   } finally {
     publishing.value = false;
+  }
+}
+
+async function addEpisode() {
+  errorMessage.value = "";
+  successMessage.value = "";
+
+  if (!episodeForm.value.title.trim() || !episodeForm.value.content.trim()) {
+    errorMessage.value = "กรุณากรอกชื่อตอนและเนื้อหาตอน";
+    return;
+  }
+
+  try {
+    addingEpisode.value = true;
+    const price = episodeForm.value.is_free ? 0 : Number(episodeForm.value.price || 0);
+    const { data } = await api.post(`/books/${bookId.value}/episodes`, {
+      episode_number: episodeForm.value.episode_number,
+      title: episodeForm.value.title.trim(),
+      content: episodeForm.value.content,
+      is_free: episodeForm.value.is_free ? 1 : 0,
+      price,
+      access_type: episodeForm.value.is_free ? "free" : "paid",
+      preview_char_limit: episodeForm.value.preview_char_limit || 1500,
+    });
+
+    successMessage.value = data?.message || "เพิ่มตอนใหม่สำเร็จ";
+    episodeForm.value.title = "";
+    episodeForm.value.content = "";
+    episodeForm.value.price = 0;
+    episodeForm.value.is_free = true;
+    await fetchEpisodes();
+  } catch (error: any) {
+    errorMessage.value = error?.response?.data?.message || "เพิ่มตอนไม่สำเร็จ";
+  } finally {
+    addingEpisode.value = false;
   }
 }
 
@@ -299,10 +354,57 @@ onMounted(fetchBook);
           <div class="content-head">
             <div>
               <h2>ตอนและเนื้อหา</h2>
-              <p class="muted">ตรวจว่าหนังสือมีเนื้อหาแล้วหรือยัง และเข้าไปแก้เพิ่มเติมจากหน้า upload/studio ได้</p>
+              <p class="muted">เพิ่มตอนใหม่ต่อจากเรื่องเดิมได้ทุกวัน ระบบจะผูกเข้ากับหนังสือเล่มนี้โดยอัตโนมัติ</p>
             </div>
             <button class="ghost-btn" type="button" @click="fetchEpisodes">โหลดใหม่</button>
           </div>
+
+          <form class="episode-create" @submit.prevent="addEpisode">
+            <div class="episode-create__head">
+              <div>
+                <h3>เพิ่มตอนถัดไป</h3>
+                <p class="muted">ถ้าเคยเพิ่มตอนแล้ว เลขตอนจะต่อจากตอนล่าสุดให้อัตโนมัติ</p>
+              </div>
+              <button class="save-btn" type="submit" :disabled="addingEpisode">
+                {{ addingEpisode ? "กำลังเพิ่มตอน..." : "เพิ่มตอน" }}
+              </button>
+            </div>
+
+            <div class="episode-form-grid">
+              <label>
+                <span>ตอนที่</span>
+                <input v-model.number="episodeForm.episode_number" min="1" type="number" />
+              </label>
+              <label>
+                <span>ชื่อตอน</span>
+                <input v-model="episodeForm.title" type="text" />
+              </label>
+              <label>
+                <span>อ่านฟรี</span>
+                <select v-model="episodeForm.is_free">
+                  <option :value="true">ฟรี</option>
+                  <option :value="false">เสียเงิน</option>
+                </select>
+              </label>
+              <label>
+                <span>ราคาตอน</span>
+                <input
+                  v-model.number="episodeForm.price"
+                  :disabled="episodeForm.is_free"
+                  min="0"
+                  type="number"
+                />
+              </label>
+              <label class="full">
+                <span>ตัวอย่างกี่ตัวอักษร</span>
+                <input v-model.number="episodeForm.preview_char_limit" min="1" type="number" />
+              </label>
+              <label class="full">
+                <span>เนื้อหาตอน</span>
+                <textarea v-model="episodeForm.content" rows="9" />
+              </label>
+            </div>
+          </form>
 
           <div v-if="episodesLoading" class="state-box">กำลังโหลดตอน...</div>
           <div v-else-if="episodes.length" class="episode-list">
@@ -315,7 +417,7 @@ onMounted(fetchBook);
             </article>
           </div>
           <div v-else class="state-box">
-            ยังไม่พบตอนของหนังสือเล่มนี้ หากเป็น serial ให้กลับไปเพิ่มตอนที่หน้า writer upload/studio ก่อนเผยแพร่
+            ยังไม่พบตอนของหนังสือเล่มนี้ เพิ่มตอนแรกจากฟอร์มด้านบนได้เลย
           </div>
         </section>
 
@@ -524,6 +626,38 @@ select {
   margin-top: 16px;
 }
 
+.episode-create {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-soft);
+}
+
+.episode-create__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.episode-create__head h3 {
+  margin: 0 0 4px;
+  color: var(--text-strong);
+}
+
+.episode-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.episode-form-grid .full {
+  grid-column: 1 / -1;
+}
+
 .episode-item {
   display: flex;
   justify-content: space-between;
@@ -576,9 +710,14 @@ ul {
   }
 
   .header,
+  .episode-create__head,
   .episode-item {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .episode-form-grid {
+    grid-template-columns: 1fr;
   }
 
   .panel,

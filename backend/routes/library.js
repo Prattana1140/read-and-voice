@@ -4,6 +4,20 @@ const { verifyToken } = require("../middleware/auth");
 
 const router = express.Router();
 
+async function ensureLibraryHiddenTable() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS library_hidden (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      book_id INT NOT NULL,
+      hidden_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_library_hidden_user_book (user_id, book_id),
+      CONSTRAINT fk_library_hidden_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      CONSTRAINT fk_library_hidden_book FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+}
+
 async function hasPurchasedBook(userId, bookId) {
   const [rows] = await db.query(
     `SELECT oi.id
@@ -80,6 +94,12 @@ router.post("/", verifyToken, async (req, res) => {
       });
     }
 
+    await ensureLibraryHiddenTable();
+    await db.query(
+      "DELETE FROM library_hidden WHERE user_id = ? AND book_id = ?",
+      [userId, book_id],
+    );
+
     const [exists] = await db.query(
       "SELECT id FROM `library` WHERE user_id = ? AND book_id = ?",
       [userId, book_id]
@@ -103,6 +123,8 @@ router.post("/", verifyToken, async (req, res) => {
 
 router.get("/me", verifyToken, async (req, res) => {
   try {
+    await ensureLibraryHiddenTable();
+
     const [rows] = await db.query(
       `SELECT
         owned.library_id,
@@ -143,10 +165,13 @@ router.get("/me", verifyToken, async (req, res) => {
         GROUP BY owned_source.book_id
       ) owned
       JOIN books b ON owned.book_id = b.id
+      LEFT JOIN library_hidden lh
+        ON lh.user_id = ? AND lh.book_id = owned.book_id
       LEFT JOIN categories c ON b.category_id = c.id
       WHERE b.is_published = 1
+        AND lh.id IS NULL
       ORDER BY owned.added_at DESC, owned.book_id DESC`,
-      [req.user.id, req.user.id, req.user.id]
+      [req.user.id, req.user.id, req.user.id, req.user.id]
     );
 
     return res.json(rows);
@@ -158,6 +183,15 @@ router.get("/me", verifyToken, async (req, res) => {
 
 router.delete("/:bookId", verifyToken, async (req, res) => {
   try {
+    await ensureLibraryHiddenTable();
+
+    await db.query(
+      `INSERT INTO library_hidden (user_id, book_id)
+       VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE hidden_at = CURRENT_TIMESTAMP`,
+      [req.user.id, req.params.bookId],
+    );
+
     await db.query("DELETE FROM `library` WHERE user_id = ? AND book_id = ?", [
       req.user.id,
       req.params.bookId,

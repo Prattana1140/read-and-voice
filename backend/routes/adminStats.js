@@ -353,14 +353,12 @@ router.get("/system-data/:section", verifyToken, requireAdmin, async (req, res) 
     }
 
     const emptyTables = [
-      "book_assets",
       "book_files",
       "book_units",
       "book_unit_blocks",
       "book_unit_sentences",
       "bookmarks",
       "cart",
-      "cart_items",
       "coin_topup_orders",
       "episode_comments",
       "user_notifications",

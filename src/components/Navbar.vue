@@ -140,9 +140,6 @@ const superAdminRoles: UserRole[] = ["superadmin"];
 
 const isReaderRole = computed(() => readerRoles.includes(currentRole.value));
 const isAdminRole = computed(() => adminRoles.includes(currentRole.value));
-const isSuperAdminRole = computed(() =>
-  superAdminRoles.includes(currentRole.value),
-);
 
 const roleLabel = computed(() => {
   if (currentRole.value === "superadmin") return t("account.role.superadmin");
@@ -152,13 +149,6 @@ const roleLabel = computed(() => {
   return t("account.role.guest");
 });
 
-const roleHint = computed(() => {
-  if (isSuperAdminRole.value) return t("account.roleHint.superadmin");
-  if (currentRole.value === "admin") return t("account.roleHint.admin");
-  if (currentRole.value === "writer") return t("account.roleHint.writer");
-  if (currentRole.value === "user") return t("account.roleHint.user");
-  return "";
-});
 
 const localizedPlanNames: Record<string, string> = {
   "annual unlimited": "account.plan.annualUnlimited",
@@ -1288,10 +1278,6 @@ watch(isCompactNav, (compact) => {
                     :class="`role-badge--${currentRole}`"
                   >
                     {{ roleLabel }}
-                  </small>
-
-                  <small v-if="roleHint" class="account-role-hint">
-                    {{ roleHint }}
                   </small>
 
                   <small v-if="isReaderRole" class="account-membership">

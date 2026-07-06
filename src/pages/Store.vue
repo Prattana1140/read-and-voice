@@ -659,6 +659,7 @@ onMounted(loadStoreData);
   border-radius: 0;
   margin-bottom: 0;
   object-fit: cover;
+  object-position: top center;
   width: 100%;
 }
 

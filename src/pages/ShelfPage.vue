@@ -976,6 +976,7 @@ watch(
   width: 100%;
   aspect-ratio: 3 / 4.35;
   object-fit: cover;
+  object-position: top center;
 }
 
 .ribbon {

@@ -14,6 +14,7 @@ const tesseractCommand =
   process.env.TESSERACT_COMMAND ||
   (process.platform === "win32" ? "C:\\Program Files\\Tesseract-OCR\\tesseract.exe" : "tesseract");
 const pythonCommand = String(process.env.OCR_PYTHON_COMMAND || "").trim();
+const ocrEngine = String(process.env.OCR_ENGINE || "auto").trim().toLowerCase() || "auto";
 const requiredLangs = String(process.env.OCR_LANG || "tha+eng")
   .split(/[+,]/)
   .map((lang) => lang.trim())
@@ -52,8 +53,16 @@ async function checkPython() {
     return;
   }
 
-  const version = await execFileText(pythonCommand, ["--version"]);
-  console.log(`OK python OCR command: ${version.trim()}`);
+  try {
+    const version = await execFileText(pythonCommand, ["--version"]);
+    console.log(`OK python OCR command: ${version.trim()}`);
+  } catch (error) {
+    const message = `Python OCR command is not available: ${error.message}`;
+    if (ocrEngine === "paddle" || ocrEngine === "paddleocr") {
+      throw new Error(message);
+    }
+    console.warn(`WARN ${message}; backend will use Tesseract fallback`);
+  }
 }
 
 function createTestImage(filePath) {

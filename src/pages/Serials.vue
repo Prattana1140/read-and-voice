@@ -1053,6 +1053,7 @@ onMounted(() => {
   border-radius: 6px;
   background: var(--surface-soft);
   object-fit: cover;
+  object-position: top center;
 }
 
 .curated-card h4 {
@@ -1233,6 +1234,7 @@ onMounted(() => {
   border-radius: 6px;
   background: var(--surface-soft);
   object-fit: cover;
+  object-position: top center;
 }
 
 .continue-all-copy {
@@ -1294,6 +1296,7 @@ onMounted(() => {
   border-radius: 6px;
   background: var(--surface-soft);
   object-fit: cover;
+  object-position: top center;
 }
 
 .serial-card-clickable {

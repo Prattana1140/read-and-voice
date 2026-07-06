@@ -37,22 +37,24 @@ const { getProductionReadiness } = require("./services/readiness");
 const { ensureDatabaseInitialized } = require("./services/scripts/initDatabase");
 const { migrateContentModel } = require("./services/scripts/migrateContentModel");
 const { ensureTtsArchitectureMigrated } = require("./services/scripts/migrateTtsArchitecture");
+const {
+  createAuthRateLimiter,
+  createCorsOptions,
+  createPaymentRateLimiter,
+  requestId,
+  securityHeaders,
+} = require("./middleware/security");
 
 const app = express();
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-].filter(Boolean);
+const authRateLimiter = createAuthRateLimiter();
+const paymentRateLimiter = createPaymentRateLimiter();
 
 app.disable("x-powered-by");
+app.set("trust proxy", 1);
 
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-  }),
-);
+app.use(requestId);
+app.use(securityHeaders);
+app.use(cors(createCorsOptions()));
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
@@ -187,6 +189,29 @@ app.get("/api", (_req, res) => {
     ],
   });
 });
+
+app.use(
+  [
+    "/api/auth/login",
+    "/api/auth/register",
+    "/api/auth/forgot-password",
+    "/api/auth/reset-password",
+    "/api/auth/social-login",
+    "/api/auth/oauth",
+  ],
+  authRateLimiter,
+);
+
+app.use(
+  [
+    "/api/coins/topup",
+    "/api/orders/checkout",
+    "/api/orders/purchase",
+    "/api/payments",
+    "/api/subscriptions/checkout",
+  ],
+  paymentRateLimiter,
+);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/books", booksRoutes);

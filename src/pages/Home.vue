@@ -2359,6 +2359,7 @@ watch(locale, () => {
   flex: 0 0 auto;
   height: auto;
   object-fit: cover;
+  object-position: top center;
   background: var(--surface-soft);
 }
 

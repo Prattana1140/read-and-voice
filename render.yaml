@@ -19,6 +19,16 @@ services:
         sync: false
       - key: FRONTEND_URL
         sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: AUTH_RATE_LIMIT_WINDOW_MS
+        value: "900000"
+      - key: AUTH_RATE_LIMIT_MAX
+        value: "30"
+      - key: PAYMENT_RATE_LIMIT_WINDOW_MS
+        value: "900000"
+      - key: PAYMENT_RATE_LIMIT_MAX
+        value: "60"
       - key: API_PUBLIC_URL
         sync: false
       - key: RESEND_API_KEY
@@ -61,6 +71,16 @@ services:
         sync: false
       - key: ENABLE_OCR
         value: "true"
+      - key: OCR_PYTHON_COMMAND
+        value: python3
+      - key: OCR_ENGINE
+        value: auto
+      - key: PADDLEOCR_LANG
+        value: th
+      - key: PADDLEOCR_MIN_SCORE
+        value: "0.35"
+      - key: PADDLEOCR_DPI
+        value: "260"
       - key: OCR_LANG
         value: tha+eng
       - key: TESSERACT_COMMAND

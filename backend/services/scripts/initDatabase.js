@@ -238,6 +238,17 @@ const statements = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `,
   `
+  CREATE TABLE IF NOT EXISTS library_hidden (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    book_id INT NOT NULL,
+    hidden_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_library_hidden_user_book (user_id, book_id),
+    CONSTRAINT fk_library_hidden_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_library_hidden_book FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `,
+  `
   CREATE TABLE IF NOT EXISTS reading_progress (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -359,22 +370,6 @@ const statements = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `,
   `
-  CREATE TABLE IF NOT EXISTS book_assets (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    book_id BIGINT UNSIGNED NOT NULL,
-    asset_type ENUM('cover','source_file','audio','image') NOT NULL,
-    storage_provider VARCHAR(40) NOT NULL DEFAULT 'local',
-    original_name VARCHAR(500) NULL,
-    file_path TEXT NOT NULL,
-    mime_type VARCHAR(255) NULL,
-    file_size BIGINT UNSIGNED NOT NULL DEFAULT 0,
-    is_primary TINYINT(1) NOT NULL DEFAULT 0,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_book_assets_book_id (book_id),
-    INDEX idx_book_assets_type (asset_type)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  `,
-  `
   CREATE TABLE IF NOT EXISTS tts_user_settings (
     user_id BIGINT UNSIGNED PRIMARY KEY,
     voice_name VARCHAR(255) NULL,
@@ -385,15 +380,6 @@ const statements = [
     autoplay TINYINT(1) NOT NULL DEFAULT 0,
     highlight_enabled TINYINT(1) NOT NULL DEFAULT 1,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  `,
-  `
-  CREATE TABLE IF NOT EXISTS cart_items (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    cart_id INT NULL,
-    book_id INT NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_cart_items_book_id (book_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `,
   `
@@ -617,22 +603,6 @@ const statements = [
     INDEX idx_login_events_provider (provider, provider_user_id),
     INDEX idx_login_events_created_at (created_at),
     CONSTRAINT fk_login_events_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  `,
-  `
-  CREATE TABLE IF NOT EXISTS data_deletion_requests (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NULL,
-    provider VARCHAR(40) NOT NULL,
-    provider_user_id VARCHAR(191) NOT NULL,
-    confirmation_code VARCHAR(80) NOT NULL,
-    status VARCHAR(40) NOT NULL DEFAULT 'completed',
-    requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    completed_at DATETIME NULL,
-    UNIQUE KEY uq_data_deletion_confirmation (confirmation_code),
-    INDEX idx_data_deletion_provider_user (provider, provider_user_id),
-    INDEX idx_data_deletion_user (user_id),
-    CONSTRAINT fk_data_deletion_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `,
   `

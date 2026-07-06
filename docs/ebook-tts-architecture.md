@@ -212,24 +212,11 @@ CREATE TABLE book_unit_sentences (
 - ใช้ `sentence_uuid` เป็น stable identity
 - resume, bookmark, note, highlight ควรอ้างอิงที่ระดับนี้
 
-### 2.6 `book_assets`
+### 2.6 Book asset storage
 
-```sql
-CREATE TABLE book_assets (
-  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  book_id BIGINT UNSIGNED NOT NULL,
-  asset_type ENUM('cover','source_file','audio','image') NOT NULL,
-  storage_provider VARCHAR(40) NOT NULL DEFAULT 'local',
-  original_name VARCHAR(500) NULL,
-  file_path TEXT NOT NULL,
-  mime_type VARCHAR(255) NULL,
-  file_size BIGINT UNSIGNED NOT NULL DEFAULT 0,
-  is_primary TINYINT(1) NOT NULL DEFAULT 0,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_book_assets_book_id (book_id),
-  INDEX idx_book_assets_type (asset_type)
-);
-```
+`book_assets` was removed from the active schema because no runtime flow reads or writes it.
+The current implementation keeps source files in `book_files` and cover paths on `books`
+(`cover_image` / `cover_image_url`).
 
 ### 2.7 `reading_progress`
 

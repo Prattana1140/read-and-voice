@@ -111,13 +111,130 @@ async function parseResponseBody(response: Response) {
   return text || null;
 }
 
+function parseXhrResponseBody(xhr: XMLHttpRequest) {
+  if (xhr.status === 204) return null;
+
+  const contentType = xhr.getResponseHeader("content-type") || "";
+  const text = xhr.responseText || "";
+
+  if (contentType.includes("application/json")) {
+    return text ? JSON.parse(text) : null;
+  }
+
+  return text || null;
+}
+
+function buildHeadersFromRaw(rawHeaders: string) {
+  const headers = new Headers();
+
+  rawHeaders
+    .trim()
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .forEach((line) => {
+      const separatorIndex = line.indexOf(":");
+      if (separatorIndex <= 0) return;
+      headers.append(
+        line.slice(0, separatorIndex).trim(),
+        line.slice(separatorIndex + 1).trim(),
+      );
+    });
+
+  return headers;
+}
+
+function requestWithUploadProgress<T = any>(
+  url: string,
+  config: ApiRequestConfig,
+): Promise<ApiResponse<T>> {
+  return new Promise((resolve, reject) => {
+    const requestUrl = normalizeApiUrl(url, config.params);
+    const init = buildRequestInit(config);
+    const xhr = new XMLHttpRequest();
+
+    xhr.open(init.method || "GET", requestUrl, true);
+
+    if (config.timeout) {
+      xhr.timeout = config.timeout;
+    }
+
+    const headers = init.headers || {};
+    if (headers instanceof Headers) {
+      headers.forEach((value, key) => xhr.setRequestHeader(key, value));
+    } else if (Array.isArray(headers)) {
+      headers.forEach(([key, value]) => xhr.setRequestHeader(key, value));
+    } else {
+      Object.entries(headers).forEach(([key, value]) => {
+        if (value !== undefined) xhr.setRequestHeader(key, String(value));
+      });
+    }
+
+    xhr.upload.onprogress = (event) => {
+      config.onUploadProgress?.({
+        loaded: event.loaded,
+        total: event.lengthComputable ? event.total : undefined,
+      });
+    };
+
+    xhr.onload = () => {
+      try {
+        const data = parseXhrResponseBody(xhr);
+        const response = {
+          data: data as T,
+          status: xhr.status,
+          ok: xhr.status >= 200 && xhr.status < 300,
+          headers: buildHeadersFromRaw(xhr.getAllResponseHeaders()),
+        };
+
+        if (!response.ok) {
+          const error = new Error(
+            typeof (data as any)?.message === "string"
+              ? (data as any).message
+              : `HTTP ${xhr.status}`,
+          ) as ApiError;
+          error.response = {
+            status: xhr.status,
+            data,
+          };
+          reject(normalizeApiError(error));
+          return;
+        }
+
+        config.onUploadProgress?.({ loaded: 1, total: 1 });
+        resolve(response);
+      } catch (cause: any) {
+        const error = new Error(cause?.message || "Invalid server response") as ApiError;
+        error.request = true;
+        reject(normalizeApiError(error));
+      }
+    };
+
+    xhr.onerror = () => {
+      const error = new Error("Network request failed") as ApiError;
+      error.request = true;
+      reject(normalizeApiError(error));
+    };
+
+    xhr.ontimeout = () => {
+      const error = new Error("Network request timed out") as ApiError;
+      error.request = true;
+      reject(normalizeApiError(error));
+    };
+
+    config.onUploadProgress?.({ loaded: 0, total: 1 });
+    xhr.send((init.body as XMLHttpRequestBodyInit | undefined) || null);
+  });
+}
+
 async function request<T = any>(url: string, config: ApiRequestConfig = {}): Promise<ApiResponse<T>> {
   let response: Response;
 
+  if (config.onUploadProgress) {
+    return requestWithUploadProgress<T>(url, config);
+  }
+
   try {
-    config.onUploadProgress?.({ loaded: 0 });
     response = await fetch(normalizeApiUrl(url, config.params), buildRequestInit(config));
-    config.onUploadProgress?.({ loaded: 1, total: 1 });
   } catch (cause: any) {
     const error = new Error(cause?.message || "Network request failed") as ApiError;
     error.request = true;

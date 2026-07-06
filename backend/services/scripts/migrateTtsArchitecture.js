@@ -129,23 +129,6 @@ async function ensureTables() {
   `);
 
   await db.query(`
-    CREATE TABLE IF NOT EXISTS book_assets (
-      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-      book_id BIGINT UNSIGNED NOT NULL,
-      asset_type ENUM('cover','source_file','audio','image') NOT NULL,
-      storage_provider VARCHAR(40) NOT NULL DEFAULT 'local',
-      original_name VARCHAR(500) NULL,
-      file_path TEXT NOT NULL,
-      mime_type VARCHAR(255) NULL,
-      file_size BIGINT UNSIGNED NOT NULL DEFAULT 0,
-      is_primary TINYINT(1) NOT NULL DEFAULT 0,
-      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_book_assets_book_id (book_id),
-      INDEX idx_book_assets_type (asset_type)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  `);
-
-  await db.query(`
     CREATE TABLE IF NOT EXISTS tts_user_settings (
       user_id BIGINT UNSIGNED PRIMARY KEY,
       voice_name VARCHAR(255) NULL,

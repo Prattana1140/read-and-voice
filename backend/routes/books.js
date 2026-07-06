@@ -88,6 +88,27 @@ const upload = multer({
   },
 });
 
+function nowMs() {
+  return Number(process.hrtime.bigint() / 1000000n);
+}
+
+function elapsedMs(startMs) {
+  return Math.max(0, nowMs() - startMs);
+}
+
+function summarizeUploadedFiles(req) {
+  const files = Array.isArray(req.files)
+    ? req.files
+    : Object.values(req.files || {}).flat();
+
+  return files.map((file) => ({
+    field: file.fieldname,
+    name: file.originalname || file.filename,
+    bytes: Number(file.size || 0),
+    type: file.mimetype || "application/octet-stream",
+  }));
+}
+
 let episodeCommentsTableReady;
 let writerProfilesTableReady;
 let booksColumnsPromise;
@@ -180,7 +201,14 @@ async function ensureBooksRouteSchema() {
 }
 
 function uploadBookFiles(req, res, next) {
+  const uploadStartedAt = nowMs();
+
   upload.any()(req, res, (error) => {
+    req.uploadTiming = {
+      upload_ms: elapsedMs(uploadStartedAt),
+      files: summarizeUploadedFiles(req),
+    };
+
     if (!error) return next();
 
     const message =
@@ -792,7 +820,14 @@ router.post(
   allowRoles("writer", "admin", "superadmin"),
   uploadBookFiles,
   async (req, res) => {
+    const requestStartedAt = nowMs();
     const connection = await db.getConnection();
+    const timings = {
+      upload_ms: Number(req.uploadTiming?.upload_ms || 0),
+      parse_ms: 0,
+      db_ms: 0,
+      total_ms: 0,
+    };
 
     try {
       await ensureCatalogAnalyticsSchema();
@@ -829,11 +864,13 @@ router.post(
         return res.status(400).json({ message: categoryError });
       }
 
+      const parseStartedAt = nowMs();
       const parsed = await parseBookFile(
         bookFile.path,
         bookFile.mimetype,
         bookFile.originalname,
       );
+      timings.parse_ms = elapsedMs(parseStartedAt);
       const pages = Array.isArray(parsed.pages)
         ? parsed.pages.map(sanitizeBookText).filter(Boolean)
         : [];
@@ -842,6 +879,7 @@ router.post(
       const requestedPlacements = getPlacementRequestValues(req.body);
       const autoApprove = ["admin", "superadmin"].includes(req.user.role);
 
+      const dbStartedAt = nowMs();
       await connection.beginTransaction();
 
       const [result] = await connection.query(
@@ -900,6 +938,17 @@ router.post(
         );
       }
       await connection.commit();
+      timings.db_ms = elapsedMs(dbStartedAt);
+      timings.total_ms = timings.upload_ms + elapsedMs(requestStartedAt);
+
+      console.info("POST /books/upload timing", {
+        book_id: result.insertId,
+        parse_method: parsed.parseMethod || null,
+        source_type: parsed.sourceType || null,
+        file_bytes: Number(bookFile.size || 0),
+        page_count: pages.length,
+        ...timings,
+      });
 
       return res.json({
         message: "อัปโหลดหนังสือสำเร็จ",
@@ -907,6 +956,7 @@ router.post(
         total_pages: pages.length,
         parse_method: parsed.parseMethod || null,
         ocr_quality: parsed.quality || null,
+        upload_timing: timings,
       });
     } catch (error) {
       await connection.rollback();

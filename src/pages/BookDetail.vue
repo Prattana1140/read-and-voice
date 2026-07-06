@@ -10,13 +10,26 @@
       </div>
 
       <template v-else-if="book">
-        <section class="story-hero">
+        <section
+          class="story-hero"
+          :class="{
+            'story-hero--serial': book.content_type === 'serial',
+            'story-hero--ebook': book.content_type !== 'serial',
+          }"
+        >
           <div class="story-hero__inner">
             <figure class="story-cover">
               <img :src="bookCover" :alt="book.title" @error="handleImgError" />
             </figure>
 
             <div class="story-main">
+              <span
+                v-if="book.content_type !== 'serial' && isEbookBestSeller"
+                class="ebook-ribbon"
+              >
+                Best<br />Seller
+              </span>
+
               <div class="story-tags">
                 <span>{{ book.category_name || "นิยาย" }}</span>
                 <span>
@@ -31,7 +44,7 @@
 
               <h1>{{ book.title }}</h1>
 
-              <p class="story-author">
+              <p v-if="book.content_type === 'serial'" class="story-author">
                 <button
                   type="button"
                   class="author-link"
@@ -47,6 +60,31 @@
                   {{ isFollowingWriter ? "ติดตามแล้ว" : "ติดตาม" }}
                 </button>
               </p>
+
+              <div
+                v-if="book.content_type !== 'serial'"
+                class="ebook-meta-lines"
+              >
+                <p>
+                  โดย
+                  <button
+                    type="button"
+                    class="ebook-inline-link"
+                    :disabled="!getWriterPagePath()"
+                    @click="
+                      getWriterPagePath() && router.push(getWriterPagePath())
+                    "
+                  >
+                    {{ book.author || "ไม่ระบุผู้เขียน" }}
+                  </button>
+                </p>
+                <p v-if="ebookPublisher">
+                  สำนักพิมพ์ <span>{{ ebookPublisher }}</span>
+                </p>
+                <p>
+                  หมวดหมู่ <span>{{ book.category_name || "หนังสือ" }}</span>
+                </p>
+              </div>
 
               <p class="story-description">
                 {{ book.description || "ยังไม่มีคำโปรยสำหรับเรื่องนี้" }}
@@ -69,20 +107,73 @@
 
               <div class="story-actions">
                 <button
+                  v-if="book.content_type === 'serial'"
+                  class="heart-action"
+                  type="button"
+                  aria-label="แสดงความชอบเรื่องนี้"
+                  @click="startNewReview"
+                >
+                  ♡
+                </button>
+                <button
                   class="outline-action"
                   type="button"
-                  @click="addToLibrary"
+                  @click="
+                    book.content_type === 'serial'
+                      ? addToLibrary()
+                      : scrollToEbookPreview()
+                  "
                 >
-                  เพิ่มเข้าชั้น
+                  {{
+                    book.content_type === "serial" ? "เพิ่มเข้าชั้น" : "ทดลองอ่าน"
+                  }}
                 </button>
                 <button
                   class="primary-action"
                   type="button"
                   @click="handleReadAction"
                 >
-                  อ่านเลย
+                  {{ heroPrimaryActionLabel }}
                 </button>
               </div>
+
+              <div
+                v-if="book.content_type !== 'serial'"
+                class="ebook-quick-actions"
+                aria-label="การทำงานเพิ่มเติม"
+              >
+                <button type="button" @click="addToLibrary">
+                  <span aria-hidden="true">♡</span>
+                  <small>อยากได้</small>
+                </button>
+                <button type="button" @click="toggleWriterFollow">
+                  <span aria-hidden="true">＋</span>
+                  <small>{{ isFollowingWriter ? "ติดตามแล้ว" : "ติดตาม" }}</small>
+                </button>
+                <button type="button" @click="shareBook">
+                  <span aria-hidden="true">↗</span>
+                  <small>แชร์</small>
+                </button>
+              </div>
+
+              <dl v-if="book.content_type !== 'serial'" class="ebook-facts">
+                <div>
+                  <dt>ประเภทไฟล์</dt>
+                  <dd>{{ ebookFileTypes }}</dd>
+                </div>
+                <div>
+                  <dt>วันที่วางขาย</dt>
+                  <dd>{{ formatPublishDate(book.created_at) }}</dd>
+                </div>
+                <div>
+                  <dt>ความยาว</dt>
+                  <dd>{{ ebookLengthLabel }}</dd>
+                </div>
+                <div>
+                  <dt>ราคา</dt>
+                  <dd>{{ accessPresentation.priceLabel }}</dd>
+                </div>
+              </dl>
             </div>
           </div>
         </section>
@@ -679,6 +770,13 @@ type Book = {
   content?: string;
   full_text?: string;
   category_name?: string;
+  publisher?: string;
+  publisher_name?: string;
+  file_type?: string;
+  source_type?: string;
+  page_count?: number;
+  total_pages?: number;
+  word_count?: number;
   price?: number;
   content_type?: "ebook" | "serial";
   access_type?: "paid" | "free" | "subscription";
@@ -989,6 +1087,24 @@ const subscriptionActionLabel = computed(() => {
   return hasActiveSubscription.value ? "อ่านเลย" : "อ่านด้วยแพ็กเกจ";
 });
 
+const heroPrimaryActionLabel = computed(() => {
+  if (!book.value) return "อ่านเลย";
+
+  if (book.value.content_type === "serial") {
+    return "อ่านเลย";
+  }
+
+  if (canReadImmediately.value) {
+    return bookAccessType.value === "free" ? "อ่านฟรี" : "อ่านเลย";
+  }
+
+  if (heroDecision.value === "subscribe") {
+    return subscriptionActionLabel.value;
+  }
+
+  return `ซื้อ ${formatCoinAmount(book.value.price)} คอยน์`;
+});
+
 const heroDecision = computed(() => {
   return getBookHeroDecision({
     accessType: bookAccessType.value,
@@ -1054,6 +1170,44 @@ const displayReadCount = computed(() => {
   if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
   if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
   return String(count);
+});
+
+const ebookPublisher = computed(() => {
+  return String(
+    book.value?.publisher_name || book.value?.publisher || "",
+  ).trim();
+});
+
+const ebookFileTypes = computed(() => {
+  const raw = String(book.value?.file_type || book.value?.source_type || "")
+    .trim()
+    .toLowerCase();
+  if (!raw) return "pdf, epub";
+  if (raw.includes("pdf") || raw.includes("epub")) return raw;
+  return raw.toUpperCase();
+});
+
+const ebookLengthLabel = computed(() => {
+  const pages = Number(book.value?.page_count || book.value?.total_pages || 0);
+  if (Number.isFinite(pages) && pages > 0) {
+    return `${Math.ceil(pages).toLocaleString()} หน้า`;
+  }
+
+  const words = Number(book.value?.word_count || 0);
+  if (Number.isFinite(words) && words > 0) {
+    const estimatedPages = Math.max(1, Math.round(words / 230));
+    return `${estimatedPages.toLocaleString()} หน้า (ประมาณ ${words.toLocaleString()} คำ)`;
+  }
+
+  return "ไม่ระบุ";
+});
+
+const isEbookBestSeller = computed(() => {
+  if (book.value?.content_type === "serial") return false;
+
+  const reads = Number(book.value?.read_count || book.value?.view_count || 0);
+  const reviews = Number(reviewSummary.value.review_count || 0);
+  return reads >= 1000 || reviews >= 20;
 });
 
 const formatCoinAmount = (value?: number | null) => {
@@ -1659,6 +1813,35 @@ const handleReadAction = () => {
   purchaseBookNow();
 };
 
+const scrollToEbookPreview = () => {
+  document
+    .querySelector(".ebook-preview-section")
+    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+};
+
+const shareBook = async () => {
+  if (!book.value) return;
+
+  const url = window.location.href;
+  const shareData = {
+    title: book.value.title,
+    text: book.value.description || book.value.title,
+    url,
+  };
+
+  try {
+    if (navigator.share) {
+      await navigator.share(shareData);
+      return;
+    }
+
+    await navigator.clipboard?.writeText(url);
+    alert("คัดลอกลิงก์หนังสือแล้ว");
+  } catch {
+    alert("แชร์ไม่สำเร็จ");
+  }
+};
+
 const addToLibrary = async () => {
   try {
     const user = getUser();
@@ -1949,6 +2132,27 @@ onBeforeUnmount(() => {
   color: #ffffff;
 }
 
+.story-hero--serial {
+  background:
+    linear-gradient(
+      90deg,
+      #000 0%,
+      #000 25%,
+      rgba(0, 0, 0, 0.94) 44%,
+      rgba(0, 0, 0, 0.98) 100%
+    );
+}
+
+.story-hero--ebook {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface) 94%, var(--primary-soft)),
+      var(--page-bg)
+    );
+  color: var(--text);
+}
+
 .story-hero__inner {
   display: grid;
   grid-template-columns: 330px minmax(0, 1fr);
@@ -1959,6 +2163,25 @@ onBeforeUnmount(() => {
   padding: 44px 0 34px;
 }
 
+.story-hero--ebook .story-hero__inner {
+  grid-template-columns: minmax(260px, 340px) minmax(0, 520px);
+  justify-content: center;
+  align-items: start;
+  gap: clamp(38px, 6vw, 72px);
+  width: min(100% - calc(var(--page-gutter, 20px) * 2), 980px);
+  min-height: 0;
+  padding: 54px 0 42px;
+}
+
+.story-hero--serial .story-hero__inner {
+  grid-template-columns: minmax(280px, 380px) minmax(0, 560px);
+  justify-content: center;
+  gap: clamp(30px, 5vw, 72px);
+  width: min(100% - calc(var(--page-gutter, 20px) * 2), 980px);
+  min-height: 384px;
+  padding: 0;
+}
+
 .story-cover {
   width: 330px;
   height: 330px;
@@ -1967,15 +2190,48 @@ onBeforeUnmount(() => {
   background: #111827;
 }
 
+.story-hero--ebook .story-cover {
+  width: min(100%, 340px);
+  height: auto;
+  aspect-ratio: 3 / 4.25;
+  border-radius: 8px;
+  background: var(--surface-raised);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.16);
+}
+
+.story-hero--serial .story-cover {
+  width: 100%;
+  height: min(384px, 56vw);
+  min-height: 320px;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 .story-cover img {
   width: 100%;
   height: 100%;
   display: block;
   object-fit: cover;
+  object-position: top center;
 }
 
 .story-main {
+  position: relative;
   align-self: center;
+}
+
+.story-hero--ebook .story-main {
+  align-self: start;
+  min-height: 0;
+  padding: 18px 0 0;
+}
+
+.story-hero--serial .story-main {
+  display: flex;
+  min-height: 384px;
+  flex-direction: column;
+  justify-content: center;
+  padding: 34px 0;
 }
 
 .story-tags {
@@ -1997,12 +2253,44 @@ onBeforeUnmount(() => {
   padding: 0 12px;
 }
 
+.story-hero--ebook .story-tags span {
+  background: color-mix(in srgb, var(--primary-soft) 78%, #ffffff);
+  color: var(--primary-strong);
+}
+
+.story-hero--serial .story-tags span {
+  min-height: 24px;
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  padding: 0 10px;
+}
+
+.story-hero--serial .story-tags span:first-child {
+  background: transparent;
+  color: #00d3c7;
+  padding-left: 0;
+}
+
 .story-main h1 {
   margin: 0;
   color: #ffffff;
   font-size: clamp(24px, 3.2vw, 36px);
   font-weight: 900;
   line-height: 1.12;
+}
+
+.story-hero--ebook .story-main h1 {
+  max-width: 520px;
+  color: var(--text-strong);
+  font-size: clamp(30px, 4vw, 44px);
+  text-align: center;
+}
+
+.story-hero--serial .story-main h1 {
+  max-width: 560px;
+  font-size: clamp(28px, 3vw, 40px);
+  letter-spacing: 0;
 }
 
 .story-author {
@@ -2026,6 +2314,34 @@ onBeforeUnmount(() => {
   padding: 0 14px;
 }
 
+.story-hero--ebook .story-author {
+  color: var(--text-muted);
+}
+
+.story-hero--ebook .story-author button {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  color: var(--primary-strong);
+}
+
+.story-hero--serial .story-author {
+  margin-top: 12px;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.story-hero--serial .story-author .author-link {
+  color: #fff;
+  font-weight: 900;
+}
+
+.story-hero--serial .story-author button:not(.author-link) {
+  min-height: 28px;
+  border-color: rgba(255, 255, 255, 0.72);
+  color: #fff;
+  font-size: 12px;
+  padding: 0 14px;
+}
+
 .story-author .author-link {
   border: 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.4);
@@ -2039,12 +2355,61 @@ onBeforeUnmount(() => {
   cursor: default;
 }
 
+.ebook-meta-lines {
+  display: grid;
+  gap: 8px;
+  margin-top: 22px;
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.ebook-meta-lines p {
+  margin: 0;
+}
+
+.ebook-meta-lines span,
+.ebook-inline-link {
+  color: var(--primary-strong);
+  font-weight: 900;
+}
+
+.ebook-inline-link {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.ebook-inline-link:disabled {
+  cursor: default;
+}
+
 .story-description {
   max-width: 720px;
   margin: 18px 0 0;
   color: rgba(255, 255, 255, 0.86);
   font-size: 15px;
   line-height: 1.8;
+}
+
+.story-hero--ebook .story-description {
+  max-width: 520px;
+  color: var(--text-muted);
+}
+
+.story-hero--serial .story-description {
+  max-width: 560px;
+  display: -webkit-box;
+  margin-top: 14px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.55;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
 }
 
 .story-stats {
@@ -2057,12 +2422,38 @@ onBeforeUnmount(() => {
   font-weight: 800;
 }
 
+.story-hero--ebook .story-stats {
+  gap: 14px;
+  color: var(--text-muted);
+}
+
+.story-hero--ebook .story-stats span:first-child {
+  color: #e91e63;
+}
+
+.story-hero--serial .story-stats {
+  margin-top: auto;
+  padding-top: 48px;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+}
+
+.story-hero--serial .story-stats span:first-child {
+  color: #ff3b78;
+}
+
 .story-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   margin-top: 22px;
+}
+
+.story-hero--serial .story-actions {
+  gap: 16px;
+  margin-top: 18px;
 }
 
 .outline-action,
@@ -2077,6 +2468,20 @@ onBeforeUnmount(() => {
   padding: 0 22px;
 }
 
+.heart-action {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 999px;
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 28px;
+  line-height: 1;
+}
+
 .story-actions .outline-action {
   display: inline-flex;
   align-items: center;
@@ -2089,10 +2494,35 @@ onBeforeUnmount(() => {
   color: #b8fff7;
 }
 
+.story-hero--serial .outline-action {
+  min-height: 46px;
+  border-color: rgba(255, 255, 255, 0.86);
+  background: transparent;
+  color: #fff;
+  padding: 0 24px;
+}
+
+.story-hero--ebook .outline-action {
+  min-height: 54px;
+  border-color: var(--primary);
+  background: transparent;
+  color: var(--primary-strong);
+  font-size: 17px;
+  padding: 0 28px;
+}
+
 .story-actions .outline-action::before {
   content: "▣";
   font-size: 13px;
   line-height: 1;
+}
+
+.story-hero--ebook .story-actions .outline-action::before {
+  content: "";
+}
+
+.story-hero--serial .story-actions .outline-action::before {
+  content: "▣";
 }
 
 .story-actions .primary-action {
@@ -2108,10 +2538,113 @@ onBeforeUnmount(() => {
   color: #ffffff;
 }
 
+.story-hero--ebook .primary-action {
+  min-width: 200px;
+  min-height: 54px;
+  background: var(--primary);
+  color: var(--on-primary, #ffffff);
+  font-size: 17px;
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--primary) 26%, transparent);
+}
+
+.story-hero--serial .primary-action {
+  min-width: 170px;
+  min-height: 46px;
+  background: #00cfc7;
+  color: #ffffff;
+  box-shadow: 0 12px 28px rgba(0, 207, 199, 0.22);
+}
+
 .story-actions .primary-action::before {
   content: "◉";
   font-size: 11px;
   line-height: 1;
+}
+
+.story-hero--ebook .story-actions .primary-action::before {
+  content: "";
+}
+
+.ebook-ribbon {
+  position: absolute;
+  top: -54px;
+  right: 14px;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 58px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.05;
+  text-align: center;
+  clip-path: polygon(0 0, 100% 0, 100% 82%, 50% 100%, 0 82%);
+}
+
+.ebook-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(72px, 1fr));
+  gap: 16px;
+  max-width: 360px;
+  margin-top: 26px;
+}
+
+.ebook-quick-actions button {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: var(--primary-strong);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.ebook-quick-actions span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 17px;
+}
+
+.ebook-quick-actions small {
+  font-size: 12px;
+}
+
+.ebook-facts {
+  display: grid;
+  gap: 0;
+  max-width: 430px;
+  margin: 26px 0 0;
+}
+
+.ebook-facts div {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+}
+
+.ebook-facts dt,
+.ebook-facts dd {
+  margin: 0;
+}
+
+.ebook-facts dt {
+  color: var(--text-muted);
+  font-weight: 800;
+}
+
+.ebook-facts dd {
+  color: var(--text);
+  font-weight: 800;
+  text-align: right;
 }
 
 .story-content-shell {
@@ -2771,9 +3304,55 @@ onBeforeUnmount(() => {
     padding: 28px 0;
   }
 
+  .story-hero--ebook .story-hero__inner {
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 26px;
+    width: min(100% - 28px, 760px);
+    padding: 34px 0;
+  }
+
+  .story-hero--serial .story-hero__inner {
+    grid-template-columns: 180px minmax(0, 1fr);
+    width: min(100% - 28px, 760px);
+    min-height: 0;
+    padding: 28px 0;
+  }
+
   .story-cover {
     width: 150px;
     height: 210px;
+  }
+
+  .story-hero--ebook .story-cover {
+    width: 220px;
+  }
+
+  .story-hero--ebook .story-main h1 {
+    text-align: left;
+  }
+
+  .story-hero--ebook .primary-action {
+    min-width: 170px;
+  }
+
+  .ebook-ribbon {
+    top: -34px;
+    right: 0;
+  }
+
+  .story-hero--serial .story-cover {
+    height: 250px;
+    min-height: 0;
+  }
+
+  .story-hero--serial .story-main {
+    min-height: 0;
+    padding: 0;
+  }
+
+  .story-hero--serial .story-stats {
+    margin-top: 20px;
+    padding-top: 0;
   }
 
   .story-content-shell {
@@ -2812,9 +3391,35 @@ onBeforeUnmount(() => {
     text-align: center;
   }
 
+  .story-hero--ebook .story-hero__inner {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    width: min(100% - 24px, 420px);
+    padding: 28px 0;
+    text-align: center;
+  }
+
+  .story-hero--serial .story-hero__inner {
+    grid-template-columns: 1fr;
+    width: 100%;
+    gap: 18px;
+    padding: 0 18px 24px;
+  }
+
   .story-cover {
     width: 180px;
     height: 240px;
+  }
+
+  .story-hero--ebook .story-cover {
+    width: min(74vw, 260px);
+    height: auto;
+  }
+
+  .story-hero--serial .story-cover {
+    width: min(100%, 260px);
+    height: 320px;
+    margin-top: 0;
   }
 
   .story-main {
@@ -2825,16 +3430,66 @@ onBeforeUnmount(() => {
     font-size: 28px;
   }
 
+  .story-hero--ebook .story-main {
+    padding-top: 0;
+  }
+
+  .story-hero--ebook .story-main h1,
+  .story-hero--ebook .story-description {
+    margin-right: auto;
+    margin-left: auto;
+    text-align: center;
+  }
+
   .story-author,
   .story-stats,
   .story-actions {
     justify-content: center;
   }
 
+  .ebook-meta-lines {
+    justify-items: center;
+  }
+
+  .ebook-quick-actions,
+  .ebook-facts {
+    max-width: none;
+    width: 100%;
+  }
+
+  .ebook-facts div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .ebook-facts dd {
+    text-align: center;
+  }
+
+  .ebook-ribbon {
+    top: -12px;
+    right: 18px;
+  }
+
+  .story-hero--serial .story-description {
+    margin-right: auto;
+    margin-left: auto;
+    -webkit-line-clamp: 4;
+  }
+
   .story-actions {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
     width: 100%;
+  }
+
+  .story-hero--serial .story-actions {
+    grid-template-columns: 46px 1fr;
+    align-items: center;
+  }
+
+  .story-hero--serial .primary-action {
+    grid-column: 1 / -1;
   }
 
   .serial-prelude-card dd,

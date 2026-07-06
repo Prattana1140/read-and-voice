@@ -328,6 +328,7 @@ onMounted(loadSearchData);
   aspect-ratio: 3 / 4;
   border-radius: 6px;
   object-fit: cover;
+  object-position: top center;
   background: var(--surface-soft);
 }
 

@@ -51,6 +51,20 @@ type OcrQualityReport = {
   needs_manual_review?: boolean;
 };
 
+type UploadTiming = {
+  upload_ms?: number;
+  parse_ms?: number;
+  db_ms?: number;
+  total_ms?: number;
+};
+
+function formatDuration(ms?: number) {
+  const value = Number(ms || 0);
+  if (!Number.isFinite(value) || value <= 0) return "";
+  if (value < 1000) return `${Math.round(value)} ms`;
+  return `${(value / 1000).toFixed(value < 10000 ? 1 : 0)} s`;
+}
+
 const mode = ref<UploadMode>("ebook");
 const activeStudioStep = ref(0);
 
@@ -208,7 +222,7 @@ const ocrReviewItems = computed(() => {
 
 const uploadProgressLabel = computed(() => {
   if (uploadStage.value === "processing") {
-    return "อัปโหลดครบ 100% แล้ว กำลังประมวลผลไฟล์หนังสือ...";
+    return "ส่งไฟล์ครบแล้ว กำลังประมวลผลและบันทึกหนังสือ...";
   }
 
   if (uploadStage.value === "done") {
@@ -220,6 +234,13 @@ const uploadProgressLabel = computed(() => {
   }
 
   return "";
+});
+
+const uploadActionLabel = computed(() => {
+  if (uploadStage.value === "processing") return "กำลังประมวลผลไฟล์...";
+  if (isUploadingEbook.value) return `กำลังอัปโหลด ${uploadProgress.value}%`;
+  if (loading.value) return "กำลังทำงาน...";
+  return "อัปโหลดเล่มเต็ม";
 });
 
 const ocrQualityTitle = computed(() => {
@@ -336,13 +357,18 @@ const uploadEbook = async () => {
           return;
         }
 
-        uploadProgress.value = Math.min(
-          100,
-          Math.round((progressEvent.loaded * 100) / progressEvent.total),
+        const transferPercent = Math.round(
+          (progressEvent.loaded * 100) / progressEvent.total,
         );
 
-        uploadStage.value =
-          uploadProgress.value >= 100 ? "processing" : "uploading";
+        if (transferPercent >= 100) {
+          uploadProgress.value = 95;
+          uploadStage.value = "processing";
+          return;
+        }
+
+        uploadProgress.value = Math.min(90, transferPercent);
+        uploadStage.value = "uploading";
       },
       timeout: 30 * 60 * 1000,
     });
@@ -351,6 +377,9 @@ const uploadEbook = async () => {
     uploadStage.value = "done";
     ocrQuality.value = res.data?.ocr_quality || null;
     message.value = `อัปโหลดเล่มเต็มสำเร็จ: หนังสือ #${res.data.book_id}`;
+    const uploadTiming = (res.data?.upload_timing || null) as UploadTiming | null;
+    const totalDuration = formatDuration(uploadTiming?.total_ms);
+    if (totalDuration) message.value += ` (${totalDuration})`;
     bookFile.value = null;
     coverFile.value = null;
   } catch (err) {
@@ -659,21 +688,18 @@ const publishStudioBook = async () => {
   <div class="writer-page">
     <section class="panel">
       <p class="eyebrow">สตูดิโอนักเขียน</p>
-      <h1>สร้างหนังสือสำหรับระบบอ่าน + ฟังเสียง</h1>
+      <h1>อัปโหลดหนังสือเข้าระบบอ่าน + ฟังเสียง</h1>
       <p class="muted">
-        โหมดใหม่นี้เพิ่มโครงสร้างบท/ตอน ย่อหน้า และประโยค พร้อมเตรียมข้อมูลสำหรับอ่านออกเสียง
-        โดยยังคงโหมดอัปโหลดเดิมไว้ให้ใช้งานได้เหมือนเดิม
+        หนังสือทุกแบบที่อัปโหลดหรือสร้างในหน้านี้จะถูกเตรียมให้อ่านและฟังเสียงได้อัตโนมัติ
+        ไม่ต้องอัปโหลดแยกสำหรับการอ่านออกเสียง
       </p>
 
       <div class="mode-tabs">
-        <button :class="{ active: mode === 'studio' }" @click="mode = 'studio'">
-        สตูดิโออ่านออกเสียง
-        </button>
         <button :class="{ active: mode === 'ebook' }" @click="mode = 'ebook'">
           อัปโหลดเล่มเต็ม
         </button>
         <button :class="{ active: mode === 'serial' }" @click="mode = 'serial'">
-          รายตอนแบบเดิม
+          สร้างรายตอน
         </button>
       </div>
 
@@ -1024,6 +1050,9 @@ const publishStudioBook = async () => {
               @change="onFileChange"
             />
             <small v-if="selectedBookFileLabel" class="file-meta">{{ selectedBookFileLabel }}</small>
+            <small class="file-meta">
+              แนะนำ PDF/TXT/JSON สำหรับอัปโหลดเร็วที่สุด ส่วนไฟล์รูปภาพจะต้อง OCR ก่อนจึงใช้เวลานานกว่า
+            </small>
           </label>
           <label class="full">
             <span>ไฟล์รูปปก</span>
@@ -1079,7 +1108,7 @@ const publishStudioBook = async () => {
           </ul>
         </div>
         <button class="primary-btn" :disabled="!canUploadEbook" @click="uploadEbook">
-          {{ isUploadingEbook ? `กำลังอัปโหลด ${uploadProgress}%` : loading ? "กำลังทำงาน..." : "อัปโหลดเล่มเต็ม" }}
+          {{ uploadActionLabel }}
         </button>
       </div>
 

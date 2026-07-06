@@ -5,7 +5,7 @@ import { api, API_BASE_URL } from "../utils/api";
 import { getAuthHeaders } from "../utils/auth";
 
 type LibraryBook = {
-  library_id: number;
+  library_id: number | null;
   id: number;
   title: string;
   author: string;
@@ -20,6 +20,8 @@ const loading = ref(true);
 const error = ref("");
 const books = ref<LibraryBook[]>([]);
 const search = ref("");
+const pendingRemoveBook = ref<LibraryBook | null>(null);
+const removingBook = ref(false);
 
 const filteredBooks = computed(() => {
   const keyword = search.value.trim().toLowerCase();
@@ -57,17 +59,32 @@ const fetchLibrary = async () => {
   }
 };
 
-const removeFromLibrary = async (bookId: number) => {
-  const confirmed = window.confirm("ต้องการลบหนังสือออกจากชั้นใช่ไหม?");
-  if (!confirmed) return;
+const requestRemoveFromLibrary = (book: LibraryBook) => {
+  pendingRemoveBook.value = book;
+};
+
+const cancelRemoveFromLibrary = () => {
+  if (removingBook.value) return;
+  pendingRemoveBook.value = null;
+};
+
+const confirmRemoveFromLibrary = async () => {
+  const book = pendingRemoveBook.value;
+  if (!book || removingBook.value) return;
 
   try {
-    await api.delete(`/api/library/${bookId}`, {
+    removingBook.value = true;
+    await api.delete(`/api/library/${book.id}`, {
       headers: getAuthHeaders(),
     });
-    books.value = books.value.filter((book) => book.id !== bookId);
+    books.value = books.value.filter(
+      (item) => String(item.id) !== String(book.id),
+    );
+    pendingRemoveBook.value = null;
   } catch (err: any) {
     alert(err.response?.data?.message || "ลบหนังสือไม่สำเร็จ");
+  } finally {
+    removingBook.value = false;
   }
 };
 
@@ -104,7 +121,7 @@ onMounted(fetchLibrary);
     </section>
 
     <section v-else class="book-grid">
-      <article v-for="book in filteredBooks" :key="book.library_id" class="book-card">
+      <article v-for="book in filteredBooks" :key="book.library_id || `book-${book.id}`" class="book-card">
         <img :src="getCoverUrl(book.cover_image)" :alt="book.title" />
         <div class="book-info">
           <span>{{ book.category_name || "หนังสือ" }}</span>
@@ -114,13 +131,54 @@ onMounted(fetchLibrary);
             <button type="button" @click="router.push(`/reader/${book.id}`)">
               อ่านต่อ
             </button>
-            <button class="ghost" type="button" @click="removeFromLibrary(book.id)">
+            <button class="ghost" type="button" @click="requestRemoveFromLibrary(book)">
               ลบออก
             </button>
           </div>
         </div>
       </article>
     </section>
+
+    <div
+      v-if="pendingRemoveBook"
+      class="confirm-backdrop"
+      role="presentation"
+      @click.self="cancelRemoveFromLibrary"
+    >
+      <section
+        class="confirm-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="remove-library-title"
+        aria-describedby="remove-library-message"
+        tabindex="-1"
+        @keydown.esc="cancelRemoveFromLibrary"
+      >
+        <h2 id="remove-library-title">ลบออกจากชั้นหนังสือ</h2>
+        <p id="remove-library-message">
+          ต้องการลบ "{{ pendingRemoveBook.title }}" ออกจากชั้นใช่ไหม?
+        </p>
+
+        <div class="confirm-actions">
+          <button
+            class="confirm-primary"
+            type="button"
+            :disabled="removingBook"
+            @click="confirmRemoveFromLibrary"
+          >
+            {{ removingBook ? "กำลังลบ..." : "ตกลง" }}
+          </button>
+          <button
+            class="confirm-secondary"
+            type="button"
+            :disabled="removingBook"
+            @click="cancelRemoveFromLibrary"
+          >
+            ยกเลิก
+          </button>
+        </div>
+      </section>
+    </div>
   </main>
 </template>
 
@@ -254,6 +312,71 @@ h2 {
   border-color: var(--border);
 }
 
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 6000;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.42);
+  padding: 20px;
+}
+
+.confirm-dialog {
+  width: min(520px, 100%);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.24);
+  color: var(--text);
+  padding: 26px;
+}
+
+.confirm-dialog h2 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 24px;
+}
+
+.confirm-dialog p {
+  margin: 12px 0 0;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.confirm-primary,
+.confirm-secondary {
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 900;
+  padding: 0 24px;
+}
+
+.confirm-primary {
+  background: var(--primary);
+  color: var(--on-primary, #ffffff);
+}
+
+.confirm-secondary {
+  background: var(--surface-soft);
+  color: var(--primary-strong);
+}
+
+.confirm-primary:disabled,
+.confirm-secondary:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 @media (max-width: 680px) {
   .library-page {
     width: min(1180px, calc(100% - 40px));
@@ -268,6 +391,15 @@ h2 {
 
   .primary-btn {
     width: 100%;
+  }
+
+  .confirm-dialog {
+    padding: 22px;
+  }
+
+  .confirm-actions {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 }
 
