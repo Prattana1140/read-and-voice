@@ -312,8 +312,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: "/account/age-verification",
-    name: "AccountAgeVerification",
-    component: () => import("../pages/account/AgeVerification.vue"),
+    redirect: "/profile",
     meta: { requiresAuth: true, allowedRoles: memberRoles },
   },
   {
@@ -422,6 +421,12 @@ const routes: RouteRecordRaw[] = [
     path: "/admin/page-content",
     name: "AdminPageContent",
     component: () => import("../pages/admin/PageContentManager.vue"),
+    meta: { requiresAuth: true, allowedRoles: adminRoles },
+  },
+  {
+    path: "/admin/subscription-plans",
+    name: "AdminSubscriptionPlans",
+    component: () => import("../pages/admin/SubscriptionPlansManager.vue"),
     meta: { requiresAuth: true, allowedRoles: adminRoles },
   },
   {

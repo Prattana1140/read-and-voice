@@ -10,6 +10,7 @@ type Plan = {
   description?: string | null;
   price: number | string;
   duration_days: number | string;
+  sort_order?: number | string | null;
 };
 
 type CurrentPlan = {
@@ -27,10 +28,119 @@ type PageContent = {
     image_url?: string;
     updated_at?: string | null;
   };
+  subscriptionPage?: SubscriptionPage;
 };
 
 type Wallet = {
   balance?: number | string;
+};
+
+type BenefitCard = {
+  title: string;
+  text: string;
+};
+
+type FaqItem = {
+  question: string;
+  answer: string;
+};
+
+type SubscriptionPage = {
+  hero_badge: string;
+  hero_title: string;
+  hero_description: string;
+  primary_cta: string;
+  secondary_cta: string;
+  status_title: string;
+  payment_title: string;
+  payment_note: string;
+  plans_kicker: string;
+  plans_title: string;
+  benefits: BenefitCard[];
+  compare_title: string;
+  compare_general_title: string;
+  compare_general_text: string;
+  compare_general_bullets: string[];
+  compare_vip_title: string;
+  compare_vip_text: string;
+  compare_vip_bullets: string[];
+  faq_title: string;
+  faqs: FaqItem[];
+};
+
+const defaultSubscriptionPage: SubscriptionPage = {
+  hero_badge: "Read and Voice VIP",
+  hero_title: "สมัครสมาชิกพิเศษ อ่านได้คุ้มกว่าเดิม",
+  hero_description:
+    "เลือกแพ็กเกจที่เหมาะกับจังหวะการอ่านของคุณ แล้วชำระด้วยคอยน์จากกระเป๋าได้ทันที",
+  primary_cta: "เลือกแพ็กเกจ",
+  secondary_cta: "เติมคอยน์",
+  status_title: "สถานะสมาชิก",
+  payment_title: "การชำระเงิน",
+  payment_note: "หักคอยน์จริงจากกระเป๋าเมื่อกดยืนยันสมัคร",
+  plans_kicker: "เลือกแพ็กเกจ",
+  plans_title: "จ่ายด้วยคอยน์ เริ่มใช้สิทธิ์ทันที",
+  benefits: [
+    {
+      title: "อ่านเนื้อหาสมาชิก",
+      text:
+        "เมื่อสมัครแพ็กเกจสำเร็จ ผู้ใช้จะเปิดอ่านหนังสือหรือตอนที่ถูกตั้งค่าเป็นเนื้อหาสำหรับสมาชิกได้ทันที สิทธิ์จะใช้งานได้ตามจำนวนวันที่ระบุในแพ็กเกจที่เลือก",
+    },
+    {
+      title: "ต่ออายุแบบทบวัน",
+      text:
+        "ถ้าผู้ใช้ยังมีแพ็กเกจเดิมที่ไม่หมดอายุ ระบบจะนำวันใหม่ไปต่อจากวันหมดอายุเดิม ทำให้วันคงเหลือไม่หายเมื่อสมัครแพ็กเกจเพิ่ม",
+    },
+    {
+      title: "ตรวจสอบได้ในประวัติคอยน์",
+      text:
+        "ทุกครั้งที่สมัคร ระบบจะหักคอยน์จากกระเป๋าและบันทึกรายการไว้ ผู้ใช้จึงตรวจสอบย้อนหลังได้ว่าซื้อแพ็กเกจใด ใช้คอยน์เท่าไร และเริ่มใช้งานเมื่อใด",
+    },
+    {
+      title: "แอดมินแก้ไขได้ไหม?",
+      text: "แอดมินสามารถแก้รูปภาพ ข้อความ และแพ็กเกจสมาชิกได้จากระบบหลังบ้าน โดยไม่ต้องแก้โค้ด",
+    },
+  ],
+  compare_title: "เปรียบเทียบสิทธิ์",
+  compare_general_title: "สมาชิกทั่วไป",
+  compare_general_text:
+    "เหมาะสำหรับผู้ใช้ที่ต้องการอ่านเฉพาะบางเล่มหรือบางตอน สามารถอ่านเนื้อหาฟรีได้ตามปกติ และซื้อหนังสือหรือตอนที่ต้องการด้วยคอยน์เป็นรายการ ๆ",
+  compare_general_bullets: [
+    "อ่านหนังสือหรือตอนที่เปิดให้อ่านฟรีได้ทันที",
+    "ซื้อเนื้อหาแบบรายเล่มหรือรายตอนได้ด้วยคอยน์",
+    "ถ้าเจอเนื้อหาสำหรับสมาชิก จะต้องสมัครแพ็กเกจก่อนจึงเปิดอ่านได้",
+  ],
+  compare_vip_title: "สมาชิกพิเศษ Read and Voice",
+  compare_vip_text:
+    "เหมาะสำหรับผู้ใช้ที่อ่านต่อเนื่องหรืออ่านหลายเรื่องในช่วงเวลาเดียวกัน เมื่อสมัครแล้วจะเปิดอ่านเนื้อหาที่กำหนดไว้สำหรับสมาชิกได้ตลอดอายุแพ็กเกจ",
+  compare_vip_bullets: [
+    "อ่านหนังสือหรือตอนที่ติดป้ายสำหรับสมาชิกได้ตามช่วงวันที่สมัคร",
+    "ยังซื้อหนังสือรายเล่มหรือรายตอนได้ด้วยคอยน์เหมือนสมาชิกทั่วไป",
+    "ถ้าสมัครเพิ่มก่อนหมดอายุ ระบบจะต่อวันให้จากวันหมดอายุเดิม",
+  ],
+  faq_title: "คำถามที่พบบ่อย",
+  faqs: [
+    {
+      question: "สมัครแล้วหักคอยน์จริงไหม?",
+      answer:
+        "หักจริงจากกระเป๋าคอยน์ของผู้ใช้ในขั้นตอนสมัคร ระบบจะตรวจสอบก่อนว่ามีคอยน์เพียงพอหรือไม่ ถ้ายอดพอ ระบบจะหักคอยน์ บันทึกประวัติรายการ และเปิดสิทธิ์สมาชิกให้ใช้งานทันที",
+    },
+    {
+      question: "คอยน์ไม่พอต้องทำอย่างไร?",
+      answer:
+        "ให้กดปุ่มเติมคอยน์ก่อนสมัคร ระบบจะพาไปหน้ากระเป๋าคอยน์เพื่อเติมยอดให้เพียงพอ หลังจากเติมคอยน์เรียบร้อยแล้ว ผู้ใช้สามารถกลับมาเลือกแพ็กเกจเดิมและสมัครใหม่ได้",
+    },
+    {
+      question: "สมัครซ้ำจะทับแพ็กเกจเดิมไหม?",
+      answer:
+        "ไม่ทับวันเดิม ถ้าผู้ใช้ยังมีแพ็กเกจที่ใช้งานอยู่ ระบบจะนำวันคงเหลือเดิมเป็นฐาน แล้วเพิ่มจำนวนวันของแพ็กเกจใหม่ต่อจากวันหมดอายุล่าสุด ช่วยให้สมัครล่วงหน้าได้โดยไม่เสียวันคงเหลือ",
+    },
+    {
+      question: "แอดมินสามารถแก้ไขข้อมูลหน้านี้ได้ไหม?",
+      answer:
+        "แอดมินสามารถแก้รูปภาพ ข้อความประกอบ คำถามที่พบบ่อย และแพ็กเกจสมาชิกได้จากระบบหลังบ้าน โดยไม่ต้องแก้โค้ด",
+    },
+  ],
 };
 
 const router = useRouter();
@@ -47,7 +157,34 @@ const subscribingId = ref<number | null>(null);
 const isLoggedIn = computed(() => !!getToken());
 
 const sortedPlans = computed(() => {
-  return [...plans.value].sort((a, b) => getPlanDays(a) - getPlanDays(b));
+  return [...plans.value].sort(
+    (a, b) =>
+      Number(a.sort_order || 0) - Number(b.sort_order || 0) ||
+      getPlanPrice(a) - getPlanPrice(b) ||
+      a.id - b.id,
+  );
+});
+
+const subscriptionCopy = computed<SubscriptionPage>(() => {
+  const source = (pageContent.value?.subscriptionPage || {}) as Partial<SubscriptionPage>;
+  return {
+    ...defaultSubscriptionPage,
+    ...source,
+    benefits: Array.isArray(source.benefits) && source.benefits.length
+      ? source.benefits
+      : defaultSubscriptionPage.benefits,
+    compare_general_bullets:
+      Array.isArray(source.compare_general_bullets) && source.compare_general_bullets.length
+        ? source.compare_general_bullets
+        : defaultSubscriptionPage.compare_general_bullets,
+    compare_vip_bullets:
+      Array.isArray(source.compare_vip_bullets) && source.compare_vip_bullets.length
+        ? source.compare_vip_bullets
+        : defaultSubscriptionPage.compare_vip_bullets,
+    faqs: Array.isArray(source.faqs) && source.faqs.length
+      ? source.faqs
+      : defaultSubscriptionPage.faqs,
+  };
 });
 
 const featuredPlanId = computed(() => {
@@ -97,6 +234,7 @@ function formatCoins(value: number | string) {
 }
 
 function getPlanTitle(plan: Plan) {
+  if (plan.name?.trim()) return plan.name.trim();
   const days = getPlanDays(plan);
   if (days >= 365) return "รายปี";
   if (days >= 90) return "รายไตรมาส";
@@ -105,6 +243,7 @@ function getPlanTitle(plan: Plan) {
 }
 
 function getPlanSubtitle(plan: Plan) {
+  if (plan.description?.trim()) return plan.description.trim();
   const days = getPlanDays(plan);
   if (days >= 365) return "เหมาะกับนักอ่านประจำ คุ้มที่สุด";
   if (days >= 90) return "ต่อเนื่องยาวขึ้น จ่ายน้อยลง";
@@ -273,14 +412,12 @@ onMounted(async () => {
 
     <section class="vip-hero">
       <div class="hero-copy">
-        <p class="eyebrow">Read and Voice VIP</p>
-        <h1>สมัครสมาชิกพิเศษ อ่านได้คุ้มกว่าเดิม</h1>
-        <span>
-          เลือกแพ็กเกจที่เหมาะกับจังหวะการอ่านของคุณ แล้วชำระด้วยคอยน์จากกระเป๋าได้ทันที
-        </span>
+        <p class="eyebrow">{{ subscriptionCopy.hero_badge }}</p>
+        <h1>{{ subscriptionCopy.hero_title }}</h1>
+        <span>{{ subscriptionCopy.hero_description }}</span>
         <div class="hero-actions">
-          <a href="#plans">เลือกแพ็กเกจ</a>
-          <button type="button" @click="goTopUp">เติมคอยน์</button>
+          <a href="#plans">{{ subscriptionCopy.primary_cta }}</a>
+          <button type="button" @click="goTopUp">{{ subscriptionCopy.secondary_cta }}</button>
         </div>
       </div>
 
@@ -299,19 +436,19 @@ onMounted(async () => {
         <div class="wallet-card">
           <small>คอยน์ของคุณ</small>
           <strong>{{ walletText }}</strong>
-          <button type="button" @click="goTopUp">เติมคอยน์</button>
+          <button type="button" @click="goTopUp">{{ subscriptionCopy.secondary_cta }}</button>
         </div>
       </div>
     </section>
 
     <section class="status-strip" aria-label="สถานะสมาชิกและการชำระเงิน">
       <article>
-        <span>สถานะสมาชิก</span>
+        <span>{{ subscriptionCopy.status_title }}</span>
         <strong>{{ activePlanText || "ยังไม่มีแพ็กเกจที่ใช้งานอยู่" }}</strong>
       </article>
       <article>
-        <span>การชำระเงิน</span>
-        <strong>หักคอยน์จริงจากกระเป๋าเมื่อกดยืนยันสมัคร</strong>
+        <span>{{ subscriptionCopy.payment_title }}</span>
+        <strong>{{ subscriptionCopy.payment_note }}</strong>
       </article>
     </section>
 
@@ -320,8 +457,8 @@ onMounted(async () => {
 
     <section id="plans" class="plans-section">
       <div class="section-head">
-        <p>เลือกแพ็กเกจ</p>
-        <h2>จ่ายด้วยคอยน์ เริ่มใช้สิทธิ์ทันที</h2>
+        <p>{{ subscriptionCopy.plans_kicker }}</p>
+        <h2>{{ subscriptionCopy.plans_title }}</h2>
       </div>
 
       <div v-if="loading" class="state-card">กำลังโหลดแพ็กเกจ...</div>
@@ -381,53 +518,41 @@ onMounted(async () => {
     </section>
 
     <section class="benefits-section" aria-label="สิทธิ์สมาชิก">
-      <article>
-        <span>01</span>
-        <h3>อ่านเนื้อหาสมาชิก</h3>
-        <p>ปลดล็อกหนังสือหรือตอนที่ตั้งค่าสำหรับสมาชิกตามระยะเวลาแพ็กเกจ</p>
-      </article>
-      <article>
-        <span>02</span>
-        <h3>ต่ออายุแบบทบวัน</h3>
-        <p>ถ้ายังมีแพ็กเกจเดิมอยู่ ระบบจะต่อวันจากวันหมดอายุล่าสุด</p>
-      </article>
-      <article>
-        <span>03</span>
-        <h3>ตรวจสอบได้ในประวัติคอยน์</h3>
-        <p>ทุกการสมัครจะถูกบันทึกเป็นรายการใช้คอยน์ในกระเป๋าของผู้ใช้</p>
+      <article v-for="benefit in subscriptionCopy.benefits" :key="`${benefit.title}-${benefit.text}`">
+        <h3>{{ benefit.title }}</h3>
+        <p>{{ benefit.text }}</p>
       </article>
     </section>
 
     <section class="compare-section">
-      <h2>เปรียบเทียบสิทธิ์</h2>
+      <h2>{{ subscriptionCopy.compare_title }}</h2>
       <div class="compare-grid">
         <div>
-          <strong>สมาชิกทั่วไป</strong>
-          <span>อ่านฟรีและซื้อด้วยคอยน์เป็นรายเล่ม</span>
+          <strong>{{ subscriptionCopy.compare_general_title }}</strong>
+          <p>{{ subscriptionCopy.compare_general_text }}</p>
+          <ul>
+            <li v-for="item in subscriptionCopy.compare_general_bullets" :key="item">
+              {{ item }}
+            </li>
+          </ul>
         </div>
         <div>
-          <strong>สมาชิกพิเศษ Read and Voice</strong>
-          <span>อ่านคอนเทนต์สมาชิกตามแพ็กเกจ พร้อมซื้อรายเล่มด้วยคอยน์ได้เหมือนเดิม</span>
+          <strong>{{ subscriptionCopy.compare_vip_title }}</strong>
+          <p>{{ subscriptionCopy.compare_vip_text }}</p>
+          <ul>
+            <li v-for="item in subscriptionCopy.compare_vip_bullets" :key="item">
+              {{ item }}
+            </li>
+          </ul>
         </div>
       </div>
     </section>
 
     <section class="faq-section">
-      <h2>คำถามที่พบบ่อย</h2>
-      <details open>
-        <summary>สมัครแล้วหักคอยน์จริงไหม?</summary>
-        <p>
-          หักจริงผ่าน API <code>/subscriptions/checkout</code> ระบบจะล็อกกระเป๋าคอยน์
-          ตรวจยอด หักยอด และบันทึก transaction ก่อนเปิดสิทธิ์สมาชิก
-        </p>
-      </details>
-      <details>
-        <summary>คอยน์ไม่พอต้องทำอย่างไร?</summary>
-        <p>กดเติมคอยน์ ระบบจะพาไปหน้ากระเป๋าคอยน์ แล้วกลับมาสมัครแพ็กเกจอีกครั้งได้</p>
-      </details>
-      <details>
-        <summary>สมัครซ้ำจะทับแพ็กเกจเดิมไหม?</summary>
-        <p>ระบบจะนำวันคงเหลือเดิมมาเป็นฐาน แล้วต่ออายุแพ็กเกจใหม่จากวันหมดอายุล่าสุด</p>
+      <h2>{{ subscriptionCopy.faq_title }}</h2>
+      <details v-for="(faq, index) in subscriptionCopy.faqs" :key="`${faq.question}-${index}`" :open="index === 0">
+        <summary>{{ faq.question }}</summary>
+        <p>{{ faq.answer }}</p>
       </details>
     </section>
   </main>
@@ -718,21 +843,22 @@ onMounted(async () => {
 .plan-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
   gap: 14px;
 }
 
 .plan-card {
   position: relative;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
-  align-content: start;
+  height: 100%;
   overflow: hidden;
   padding: 24px 20px 20px;
 }
 
 .plan-card.featured {
   border-color: color-mix(in srgb, var(--primary) 44%, var(--border));
-  transform: translateY(-6px);
 }
 
 .plan-card.unaffordable {
@@ -787,6 +913,7 @@ onMounted(async () => {
 .plan-card ul {
   display: grid;
   gap: 8px;
+  flex: 1;
   margin: 0;
   color: var(--text);
   line-height: 1.6;
@@ -807,7 +934,7 @@ onMounted(async () => {
 
 .benefits-section {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -815,14 +942,8 @@ onMounted(async () => {
   padding: 20px;
 }
 
-.benefits-section span {
-  color: var(--accent-strong);
-  font-size: 13px;
-  font-weight: 900;
-}
-
 .benefits-section h3 {
-  margin-top: 8px;
+  margin-top: 0;
   color: var(--text-strong);
   font-size: 20px;
 }
@@ -859,10 +980,22 @@ onMounted(async () => {
   font-size: 18px;
 }
 
-.compare-grid span,
+.compare-grid p,
+.compare-grid li,
 .faq-section p {
   color: var(--text-muted);
   line-height: 1.7;
+}
+
+.compare-grid p,
+.compare-grid ul {
+  margin: 0;
+}
+
+.compare-grid ul {
+  display: grid;
+  gap: 6px;
+  padding-left: 18px;
 }
 
 .faq-section details {
@@ -891,6 +1024,10 @@ onMounted(async () => {
   }
 
   .plan-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .benefits-section {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

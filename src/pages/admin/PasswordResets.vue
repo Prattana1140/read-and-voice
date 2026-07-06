@@ -252,7 +252,7 @@ onMounted(loadItems);
       <article v-for="item in items" :key="item.id" class="request-card">
         <div class="request-main">
           <div>
-            <p class="eyebrow">#{{ item.id }} · {{ statusLabel(item.status) }}</p>
+            <p class="eyebrow">{{ statusLabel(item.status) }}</p>
             <h2>{{ item.name || "ผู้ใช้" }}</h2>
             <span>{{ item.email }}</span>
           </div>

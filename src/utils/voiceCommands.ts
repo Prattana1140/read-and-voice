@@ -219,7 +219,7 @@ export function parseVoiceCommand(rawCommand: string): VoiceCommandAction {
   if (/อุปกรณ์ของฉัน|อุปกรณ์|devices/.test(command)) return { type: "navigate", routeName: "AccountDevices" };
   if (/สิทธิประโยชน์|benefits/.test(command)) return { type: "navigate", routeName: "AccountBenefits" };
   if (/รีวิวของฉัน|รีวิว|reviews/.test(command)) return { type: "navigate", routeName: "AccountReviews" };
-  if (/ยืนยันอายุ|age verification/.test(command)) return { type: "navigate", routeName: "AccountAgeVerification" };
+  if (/ยืนยันอายุ|age verification/.test(command)) return { type: "navigate", routeName: "Profile" };
   if (/กระเป๋า|คอยน์|เหรียญ|เติมเงิน|เติมคอยน์/.test(command)) return { type: "navigate", routeName: "CoinWallet" };
   if (/แดชบอร์ดนักเขียน|หน้านักเขียน|writer dashboard/.test(command)) return { type: "navigate", routeName: "WriterDashboard" };
   if (/โปรไฟล์นักเขียน|ตั้งค่าโปรไฟล์นักเขียน|writer profile/.test(command)) return { type: "navigate", routeName: "WriterProfileSettings" };
@@ -233,6 +233,7 @@ export function parseVoiceCommand(rawCommand: string): VoiceCommandAction {
   if (/เติมคอยน์แอดมิน|coin topups/.test(command)) return { type: "navigate", routeName: "AdminCoinTopups" };
   if (/คำสั่งซื้อแอดมิน|order payments/.test(command)) return { type: "navigate", routeName: "AdminOrderPayments" };
   if (/ชำระแพ็กเกจสมาชิก|subscription payments/.test(command)) return { type: "navigate", routeName: "AdminSubscriptionPayments" };
+  if (/จัดการแพ็กเกจสมาชิก|จัดแพ็กเกจสมาชิก|membership plans admin|manage membership plans/.test(command)) return { type: "navigate", routeName: "AdminSubscriptionPlans" };
   if (/รีเซ็ตรหัสผ่าน|password reset/.test(command)) return { type: "navigate", routeName: "AdminPasswordResets" };
   if (/ซัพพอร์ตทิกเก็ต|support ticket|support tickets/.test(command)) return { type: "navigate", routeName: "AdminSupportTickets" };
   if (/ข้อมูลระบบ|system data/.test(command)) return { type: "navigate", routeName: "AdminSystemData" };

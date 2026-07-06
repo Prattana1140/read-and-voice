@@ -49,7 +49,7 @@ onMounted(loadOrders);
       <div v-else-if="!filteredOrders.length" class="empty-state"><h2>ขออภัยด้วยนะคะ</h2><p>ไม่พบรายการที่คุณค้นหา</p></div>
       <section v-else class="orders-list">
         <article v-for="order in filteredOrders" :key="order.id" class="order-card">
-          <div class="order-head"><div><strong>คำสั่งซื้อ #{{ order.id }}</strong><p>{{ new Date(order.created_at).toLocaleString('th-TH') }}</p></div><span>{{ order.total_amount }} บาท</span></div>
+          <div class="order-head"><div><strong>คำสั่งซื้อ</strong><p>{{ new Date(order.created_at).toLocaleString('th-TH') }}</p></div><span>{{ order.total_amount }} บาท</span></div>
           <div class="status-row"><span>สถานะชำระเงิน: {{ order.payment_status }}</span><span>สถานะรายการ: {{ order.order_status }}</span></div>
           <div v-if="order.items?.length" class="order-items"><div v-for="item in order.items" :key="item.id" class="item-row"><span>{{ item.title }}</span><span>{{ item.price }} บาท</span></div></div>
         </article>

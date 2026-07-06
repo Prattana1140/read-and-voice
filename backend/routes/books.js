@@ -247,6 +247,14 @@ function normalizeSerialStatusForContentType(value, contentType) {
   return contentType === "serial" ? normalizeSerialStatus(value) : "completed";
 }
 
+function normalizeAgeRating(value) {
+  const normalized = String(value || "general").trim().toLowerCase();
+  if (["18", "18+", "adult", "mature", "restricted"].includes(normalized)) return "18+";
+  if (["15", "15+"].includes(normalized)) return "15+";
+  if (["13", "13+"].includes(normalized)) return "13+";
+  return "general";
+}
+
 function normalizePositiveInt(value, fallback) {
   const numberValue = Number(value);
   return Number.isInteger(numberValue) && numberValue > 0
@@ -848,6 +856,7 @@ router.post(
         price = 0,
         access_type,
         content_type,
+        age_rating,
         preview_page_limit,
         preview_char_limit,
       } = req.body;
@@ -886,10 +895,10 @@ router.post(
         `INSERT INTO books
          (title, author, description, category_id, cover_image, source_type, content_type,
           serial_status, access_type, process_status, full_text, total_pages, is_published, created_by, price,
-          preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
+          preview_page_limit, preview_char_limit, age_rating, approval_status, approved_by, approved_at,
           requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
           requested_hall_of_fame, requested_recommended, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
           title,
           author,
@@ -909,6 +918,7 @@ router.post(
           Number(price || 0),
           normalizePositiveInt(preview_page_limit, GUEST_PREVIEW_PAGE_LIMIT),
           normalizePositiveInt(preview_char_limit, GUEST_PREVIEW_CHAR_LIMIT),
+          normalizeAgeRating(age_rating),
           autoApprove ? "approved" : "pending",
           autoApprove ? req.user.id : null,
           autoApprove ? new Date() : null,
@@ -992,6 +1002,7 @@ router.post(
         cover_image = "",
         price = 0,
         access_type,
+        age_rating,
         preview_page_limit,
         preview_char_limit,
       } = req.body;
@@ -1009,10 +1020,10 @@ router.post(
         `INSERT INTO books
          (title, author, description, category_id, cover_image, source_type, content_type,
           serial_status, access_type, process_status, full_text, total_pages, is_published, created_by, price,
-          preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
+          preview_page_limit, preview_char_limit, age_rating, approval_status, approved_by, approved_at,
           requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
           requested_hall_of_fame, requested_recommended, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'manual', 'serial', 'ongoing', ?, 'completed', '', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+         VALUES (?, ?, ?, ?, ?, 'manual', 'serial', 'ongoing', ?, 'completed', '', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
           title,
           author,
@@ -1025,6 +1036,7 @@ router.post(
           Number(price || 0),
           normalizePositiveInt(preview_page_limit, GUEST_PREVIEW_PAGE_LIMIT),
           normalizePositiveInt(preview_char_limit, GUEST_PREVIEW_CHAR_LIMIT),
+          normalizeAgeRating(age_rating),
           autoApprove ? "approved" : "pending",
           autoApprove ? req.user.id : null,
           autoApprove ? new Date() : null,

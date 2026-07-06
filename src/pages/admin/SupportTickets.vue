@@ -167,7 +167,7 @@ onMounted(loadItems);
       <article v-for="item in items" :key="item.id" class="ticket-card">
         <div class="ticket-main">
           <div>
-            <p class="eyebrow">#{{ item.id }} · {{ categoryLabel(item.category) }} · {{ statusLabel(item.status) }}</p>
+            <p class="eyebrow">{{ categoryLabel(item.category) }} · {{ statusLabel(item.status) }}</p>
             <h2>{{ item.subject }}</h2>
             <span>{{ item.name }} · {{ item.email }}</span>
           </div>

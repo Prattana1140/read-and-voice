@@ -445,8 +445,8 @@ const menuPages = computed<MenuPage[]>(() => [
       "ตรวจราคาและสิทธิประโยชน์ให้ตรงกับระบบหลังบ้าน",
       "ทดสอบ flow สมัครสมาชิกและสถานะหลังชำระเงิน",
     ],
-    manageTo: "/subscription-plans",
-    manageLabel: "ดูแพ็กเกจ",
+    manageTo: "/admin/subscription-plans",
+    manageLabel: "จัดการแพ็กเกจ",
   }),
 ]);
 

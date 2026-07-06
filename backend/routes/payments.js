@@ -91,6 +91,10 @@ router.post("/topup/webhook", async (req, res) => {
     const topupId = Number(req.body.topup_id || req.body.order_id);
     const status = String(req.body.status || "paid").toLowerCase();
     const providerRef = String(req.body.provider_ref || req.body.transaction_id || "").trim() || null;
+    const paidAmount =
+      req.body.amount === undefined && req.body.price === undefined && req.body.paid_amount === undefined
+        ? null
+        : Number(req.body.amount ?? req.body.price ?? req.body.paid_amount);
 
     if (!Number.isInteger(topupId) || topupId <= 0) {
       return res.status(400).json({ message: "topup_id ไม่ถูกต้อง" });
@@ -103,7 +107,7 @@ router.post("/topup/webhook", async (req, res) => {
     await connection.beginTransaction();
 
     const [topups] = await connection.query(
-      `SELECT id, user_id, coins, status
+      `SELECT id, user_id, coins, price, status
        FROM coin_topup_orders
        WHERE id = ?
        LIMIT 1
@@ -124,6 +128,13 @@ router.post("/topup/webhook", async (req, res) => {
     }
 
     if (status === "paid") {
+      if (paidAmount !== null) {
+        if (!Number.isFinite(paidAmount) || Number(paidAmount.toFixed(2)) !== Number(Number(topup.price).toFixed(2))) {
+          await connection.rollback();
+          return res.status(400).json({ message: "ยอดชำระจาก webhook ไม่ตรงกับรายการเติม coin" });
+        }
+      }
+
       await connection.query(
         "INSERT IGNORE INTO coin_wallets (user_id, balance) VALUES (?, 0)",
         [topup.user_id],

@@ -400,9 +400,9 @@
                 :key="episode.id"
                 class="episode-row"
               >
-                <span class="episode-number"
-                  >#{{ episode.episode_number }}</span
-                >
+                <span class="episode-number">
+                  ตอนที่ {{ episode.episode_number }}
+                </span>
 
                 <div class="episode-title-wrap">
                   <button
@@ -643,6 +643,33 @@
       </template>
 
       <div
+        v-if="ageGateOpen"
+        class="age-gate-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="age-gate-title"
+      >
+        <section class="age-gate-dialog">
+          <div class="age-gate-mark" aria-hidden="true">18+</div>
+          <p class="age-gate-eyebrow">เนื้อหาสำหรับผู้ใหญ่</p>
+          <h2 id="age-gate-title">คุณอายุมากกว่า 18 ปี ใช่หรือไม่?</h2>
+          <p>
+            เนื้อหานี้เหมาะสำหรับผู้ที่มีอายุ 18 ปีขึ้นไปเท่านั้น
+            โปรดยืนยันอายุก่อนอ่านหรือฟังเนื้อหาเรื่องนี้
+          </p>
+
+          <div class="age-gate-actions">
+            <button type="button" class="age-gate-confirm" @click="confirmAgeGate">
+              ใช่ ฉันอายุมากกว่า 18 ปี
+            </button>
+            <button type="button" class="age-gate-decline" @click="declineAgeGate">
+              ไม่ใช่
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <div
         v-if="purchaseDialogMode"
         class="purchase-modal-backdrop"
         role="dialog"
@@ -788,6 +815,7 @@ type Book = {
   writer_page_slug?: string;
   created_at?: string;
   updated_at?: string;
+  age_rating?: string | null;
 };
 
 type Episode = {
@@ -863,6 +891,8 @@ const purchasedEpisode = ref<Episode | null>(null);
 const purchaseSuccessBalance = ref<number | null>(null);
 const purchaseDialogError = ref("");
 const purchaseDialogNeedsTopup = ref(false);
+const ageGateOpen = ref(false);
+const AGE_CONFIRMATION_KEY = "read-and-voice-age-18-confirmed";
 
 const reviews = ref<BookReview[]>([]);
 const reviewsLoading = ref(false);
@@ -880,6 +910,44 @@ const reviewSummary = ref({
 const notifyBookStatus = (message: string) => {
   statusMessage.value = message;
   announceAccessibilityMessage(message);
+};
+
+const isAdultContent = (ageRating?: string | null) => {
+  const value = String(ageRating || "").trim().toLowerCase();
+  return (
+    value.includes("18") ||
+    value.includes("adult") ||
+    value.includes("mature") ||
+    value.includes("restricted")
+  );
+};
+
+const hasConfirmedAdultAge = () => {
+  return localStorage.getItem(AGE_CONFIRMATION_KEY) === "yes";
+};
+
+const checkAgeGate = () => {
+  if (!book.value || !isAdultContent(book.value.age_rating)) {
+    ageGateOpen.value = false;
+    return;
+  }
+
+  ageGateOpen.value = !hasConfirmedAdultAge();
+  if (ageGateOpen.value) {
+    notifyBookStatus("กรุณายืนยันอายุเพื่อเข้าถึงเนื้อหา 18 ปีขึ้นไป");
+  }
+};
+
+const confirmAgeGate = () => {
+  localStorage.setItem(AGE_CONFIRMATION_KEY, "yes");
+  ageGateOpen.value = false;
+  notifyBookStatus("ยืนยันอายุเรียบร้อยแล้ว");
+};
+
+const declineAgeGate = () => {
+  ageGateOpen.value = false;
+  notifyBookStatus("เนื้อหานี้เหมาะสำหรับผู้มีอายุ 18 ปีขึ้นไปเท่านั้น");
+  router.push({ name: "Store" });
 };
 
 const alert = (message?: string) => {
@@ -1475,6 +1543,7 @@ const fetchBook = async () => {
 
     const bookRes = await api.get(`${API_BASE_URL}/api/books/${id}`);
     book.value = bookRes.data;
+    checkAgeGate();
     fetchReviews();
 
     if (book.value?.content_type === "serial") {
@@ -1797,6 +1866,22 @@ const openPrimaryReaderDestination = () => {
   openReaderPage();
 };
 
+const openPurchasedPrimaryReaderDestination = () => {
+  const episode = getPrimaryEpisode();
+  if (episode && book.value) {
+    stopSpeech();
+    markEpisodeRead(episode);
+    router.push({
+      name: "ReaderPage",
+      params: { id: book.value.id },
+      query: { episode: String(episode.id) },
+    });
+    return;
+  }
+
+  openReaderPage();
+};
+
 const handleReadAction = () => {
   if (!book.value) return;
 
@@ -1969,17 +2054,8 @@ const purchaseBookNow = async () => {
       payment_method: "coin",
     });
 
-    const goLibrary = window.confirm(
-      "ซื้อสำเร็จ หนังสือถูกเพิ่มเข้าคลังแล้ว ต้องการไปที่คลังหนังสือเลยไหม?",
-    );
-
-    if (goLibrary) {
-      router.push({ name: "MyLibrary" });
-      return;
-    }
-
-    alert("ซื้อสำเร็จ กำลังเปิดหน้าอ่าน");
-    openPrimaryReaderDestination();
+    notifyBookStatus("ซื้อสำเร็จ กำลังเปิดหน้าอ่าน");
+    openPurchasedPrimaryReaderDestination();
   } catch (error: any) {
     handlePurchaseError(error);
   } finally {
@@ -3292,6 +3368,88 @@ onBeforeUnmount(() => {
 
 .purchase-cancel-btn {
   background: #eef2f3;
+  color: #475569;
+}
+
+.age-gate-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(4px);
+}
+
+.age-gate-dialog {
+  width: min(100%, 460px);
+  padding: 30px 26px 24px;
+  border: 1px solid rgba(248, 113, 113, 0.22);
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 26px 80px rgba(15, 23, 42, 0.28);
+  text-align: center;
+}
+
+.age-gate-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 14px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fff1f2, #fee2e2);
+  color: #dc2626;
+  font-size: 22px;
+  font-weight: 950;
+}
+
+.age-gate-eyebrow {
+  margin: 0 0 6px;
+  color: #0f766e;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.age-gate-dialog h2 {
+  margin: 0;
+  color: #111827;
+  font-size: clamp(24px, 4vw, 32px);
+  line-height: 1.2;
+  font-weight: 950;
+}
+
+.age-gate-dialog p:not(.age-gate-eyebrow) {
+  margin: 14px 0 0;
+  color: #64748b;
+  line-height: 1.7;
+}
+
+.age-gate-actions {
+  display: grid;
+  grid-template-columns: 1fr 0.55fr;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.age-gate-confirm,
+.age-gate-decline {
+  min-height: 46px;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.age-gate-confirm {
+  background: #14b8a6;
+  color: #ffffff;
+  box-shadow: 0 12px 26px rgba(20, 184, 166, 0.24);
+}
+
+.age-gate-decline {
+  background: #f1f5f9;
   color: #475569;
 }
 

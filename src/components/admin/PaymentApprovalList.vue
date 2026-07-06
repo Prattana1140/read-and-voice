@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import api from "../../utils/api";
+import api, { API_BASE_URL } from "../../utils/api";
 
 type PaymentStatus = "pending" | "paid" | "failed" | "cancelled" | "all";
 type PaymentType = "coin_topup" | "order" | "subscription";
@@ -17,6 +17,11 @@ type PaymentItem = {
   payment_status: string;
   item_status?: string;
   provider_ref?: string | null;
+  payer_name?: string | null;
+  transfer_amount?: number | null;
+  transfer_date?: string | null;
+  transfer_time?: string | null;
+  slip_image_url?: string | null;
   paid_at?: string | null;
   created_at?: string;
   updated_at?: string;
@@ -137,6 +142,12 @@ function canApprove(item: PaymentItem) {
   return item.payment_status !== "paid" && item.item_status !== "completed";
 }
 
+function resolveImageUrl(url?: string | null) {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return `${API_BASE_URL}/${url.replace(/^\/+/, "")}`;
+}
+
 onMounted(loadPayments);
 </script>
 
@@ -191,7 +202,7 @@ onMounted(loadPayments);
       <article v-for="item in visibleItems" :key="itemKey(item)" class="approval-card">
         <div class="approval-main">
           <div>
-            <p class="eyebrow">#{{ item.id }} · {{ typeLabel(item.item_type) }}</p>
+            <p class="eyebrow">{{ typeLabel(item.item_type) }}</p>
             <h2>{{ item.title || item.package_id || typeLabel(item.item_type) }}</h2>
             <span>{{ item.name || item.email || `User ${item.user_id}` }}</span>
           </div>
@@ -214,6 +225,32 @@ onMounted(loadPayments);
           <div>
             <dt>อ้างอิง/วิธีชำระ</dt>
             <dd>{{ item.provider_ref || "ยังไม่ได้แจ้ง" }}</dd>
+          </div>
+          <div v-if="item.item_type === 'coin_topup'">
+            <dt>ชื่อผู้โอน</dt>
+            <dd>{{ item.payer_name || "ยังไม่ได้แจ้ง" }}</dd>
+          </div>
+          <div v-if="item.item_type === 'coin_topup'">
+            <dt>ยอดที่แจ้งโอน</dt>
+            <dd>{{ item.transfer_amount ? formatMoney(item.transfer_amount) : "ยังไม่ได้แจ้ง" }}</dd>
+          </div>
+          <div v-if="item.item_type === 'coin_topup'">
+            <dt>วัน/เวลาโอน</dt>
+            <dd>
+              <span v-if="item.transfer_date || item.transfer_time">
+                {{ item.transfer_date || "-" }} {{ item.transfer_time || "" }}
+              </span>
+              <span v-else>ยังไม่ได้แจ้ง</span>
+            </dd>
+          </div>
+          <div v-if="item.item_type === 'coin_topup'">
+            <dt>สลิป</dt>
+            <dd>
+              <a v-if="item.slip_image_url" :href="resolveImageUrl(item.slip_image_url)" target="_blank" rel="noreferrer">
+                เปิดดูสลิป
+              </a>
+              <span v-else>ยังไม่มีสลิป</span>
+            </dd>
           </div>
           <div>
             <dt>สร้างเมื่อ</dt>

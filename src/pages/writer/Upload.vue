@@ -5,6 +5,7 @@ import { api } from "../../utils/api";
 type UploadMode = "ebook" | "serial" | "studio";
 type AccessType = "free" | "paid" | "subscription";
 type StudioUnitType = "chapter" | "episode";
+type AgeRating = "general" | "13+" | "15+" | "18+";
 
 type StudioUnit = {
   id: number;
@@ -74,6 +75,28 @@ const description = ref("");
 const coverImage = ref("");
 const price = ref(0);
 const accessType = ref<AccessType>("paid");
+const ageRatingOptions: Array<{ value: AgeRating; label: string; note: string }> = [
+  {
+    value: "general",
+    label: "ทั่วไป",
+    note: "เหมาะสำหรับผู้อ่านทุกวัย",
+  },
+  {
+    value: "13+",
+    label: "13 ปีขึ้นไป",
+    note: "มีเนื้อหาที่เหมาะกับวัยรุ่นขึ้นไป",
+  },
+  {
+    value: "15+",
+    label: "15 ปีขึ้นไป",
+    note: "มีประเด็นหรือภาษาที่ควรใช้วิจารณญาณ",
+  },
+  {
+    value: "18+",
+    label: "18 ปีขึ้นไป",
+    note: "จะแสดง popup ให้ผู้ใช้งานยืนยันอายุก่อนอ่าน",
+  },
+];
 const requestedPlacements = ref({
   requested_best_seller: false,
   requested_new_release: true,
@@ -104,7 +127,7 @@ const studioPreviewMode = ref<"percentage" | "chapter_count" | "sentence_count">
 const studioPreviewValue = ref(10);
 const studioTags = ref("");
 const studioLanguage = ref("th");
-const studioAgeRating = ref("");
+const studioAgeRating = ref<AgeRating>("general");
 const studioUnits = ref<StudioUnit[]>([]);
 const selectedUnitId = ref<number | null>(null);
 const selectedUnitType = ref<StudioUnitType>("chapter");
@@ -337,6 +360,7 @@ const uploadEbook = async () => {
     }
     formData.append("price", String(price.value || 0));
     formData.append("access_type", accessType.value);
+    formData.append("age_rating", studioAgeRating.value);
     formData.append("preview_page_limit", String(previewPageLimit.value || 1));
     formData.append(
       "preview_char_limit",
@@ -376,7 +400,7 @@ const uploadEbook = async () => {
     uploadProgress.value = 100;
     uploadStage.value = "done";
     ocrQuality.value = res.data?.ocr_quality || null;
-    message.value = `อัปโหลดเล่มเต็มสำเร็จ: หนังสือ #${res.data.book_id}`;
+    message.value = "อัปโหลดเล่มเต็มสำเร็จ";
     const uploadTiming = (res.data?.upload_timing || null) as UploadTiming | null;
     const totalDuration = formatDuration(uploadTiming?.total_ms);
     if (totalDuration) message.value += ` (${totalDuration})`;
@@ -408,11 +432,12 @@ const createSerialBook = async () => {
       cover_image: coverImage.value,
       price: price.value || 0,
       access_type: accessType.value,
+      age_rating: studioAgeRating.value,
       ...requestedPlacements.value,
     });
 
     serialBookId.value = Number(res.data.book_id);
-    message.value = `สร้างเรื่องรายตอนสำเร็จ: หนังสือ #${serialBookId.value}`;
+    message.value = "สร้างเรื่องรายตอนสำเร็จ";
   } catch (err) {
     setError(err, "สร้างเรื่องรายตอนไม่สำเร็จ");
   } finally {
@@ -436,7 +461,7 @@ const addEpisode = async () => {
   loading.value = true;
 
   try {
-    const res = await api.post(`/books/${serialBookId.value}/episodes`, {
+    await api.post(`/books/${serialBookId.value}/episodes`, {
       episode_number: episodeNumber.value,
       title: episodeTitle.value,
       content: episodeContent.value,
@@ -445,7 +470,7 @@ const addEpisode = async () => {
       preview_char_limit: episodePreviewLimit.value || 1500,
     });
 
-    message.value = `เพิ่มตอนสำเร็จ: ตอน #${res.data.episode_id}`;
+    message.value = "เพิ่มตอนสำเร็จ";
     episodeNumber.value += 1;
     episodeTitle.value = "";
     episodeContent.value = "";
@@ -482,7 +507,7 @@ const createStudioBook = async () => {
       coin_price: price.value || 0,
       preview_mode: studioPreviewMode.value,
       preview_value: studioPreviewValue.value || 10,
-      age_rating: studioAgeRating.value || null,
+      age_rating: studioAgeRating.value,
       tags: studioTags.value
         .split(",")
         .map((tag) => tag.trim())
@@ -496,7 +521,7 @@ const createStudioBook = async () => {
     selectedUnitId.value = null;
     contentPreview.value = [];
     advanceStudioStep(1);
-    message.value = `สร้างร่างพร้อมโครงสร้างอ่านออกเสียงสำเร็จ: หนังสือ #${studioBookId.value}`;
+    message.value = "สร้างร่างพร้อมโครงสร้างอ่านออกเสียงสำเร็จ";
   } catch (err) {
     setError(err, "สร้างร่างแบบเตรียมอ่านออกเสียงไม่สำเร็จ");
   } finally {
@@ -815,7 +840,15 @@ const publishStudioBook = async () => {
               </label>
               <label>
                 <span>เรตอายุ</span>
-                <input v-model="studioAgeRating" type="text" placeholder="เช่น 13+" />
+                <select v-model="studioAgeRating">
+                  <option
+                    v-for="option in ageRatingOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }} - {{ option.note }}
+                  </option>
+                </select>
               </label>
               <label class="full">
                 <span>แท็ก</span>
@@ -831,7 +864,7 @@ const publishStudioBook = async () => {
 
         <div v-if="studioBookId" class="status-card">
           <strong>ร่างพร้อมใช้งาน</strong>
-          <span>หนังสือ #{{ studioBookId }}<template v-if="studioBookSlug"> · {{ studioBookSlug }}</template></span>
+          <span>หนังสือที่สร้างแล้ว<template v-if="studioBookSlug"> · {{ studioBookSlug }}</template></span>
         </div>
 
         <div class="wizard-stage">
@@ -928,7 +961,15 @@ const publishStudioBook = async () => {
               </label>
               <label>
                 <span>เรตอายุ</span>
-                <input v-model="studioAgeRating" type="text" placeholder="ทั่วไป / 13+ / 18+" />
+                <select v-model="studioAgeRating">
+                  <option
+                    v-for="option in ageRatingOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }} - {{ option.note }}
+                  </option>
+                </select>
               </label>
             </div>
             <div class="preview-stats">
@@ -970,7 +1011,7 @@ const publishStudioBook = async () => {
             <div class="preview-list">
               <article v-for="block in contentPreview" :key="block.id" class="preview-block">
                 <header>
-                  <strong>#{{ block.block_order }} · {{ formatBlockType(block.block_type) }}</strong>
+                  <strong>ลำดับที่ {{ block.block_order }} · {{ formatBlockType(block.block_type) }}</strong>
                   <span v-if="block.speaker_name">{{ block.speaker_name }}</span>
                 </header>
                 <p>{{ block.display_text }}</p>
@@ -1115,7 +1156,7 @@ const publishStudioBook = async () => {
       <div v-else class="sub-panel">
         <h2>สร้างเรื่องรายตอน</h2>
         <button class="primary-btn" :disabled="loading" @click="createSerialBook">
-          {{ serialBookId ? `กำลังใช้หนังสือ #${serialBookId}` : "สร้างเรื่องรายตอน" }}
+          {{ serialBookId ? "พร้อมเพิ่มตอนในเรื่องนี้" : "สร้างเรื่องรายตอน" }}
         </button>
 
         <div class="episode-form" :class="{ disabled: !serialBookId }">

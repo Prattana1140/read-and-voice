@@ -112,6 +112,14 @@ function normalizeSerialStatusForContentType(value, contentType) {
   return contentType === "serial" ? normalizeSerialStatus(value) : "completed";
 }
 
+function normalizeAgeRating(value) {
+  const normalized = String(value || "general").trim().toLowerCase();
+  if (["18", "18+", "adult", "mature", "restricted"].includes(normalized)) return "18+";
+  if (["15", "15+"].includes(normalized)) return "15+";
+  if (["13", "13+"].includes(normalized)) return "13+";
+  return "general";
+}
+
 function normalizeFlag(value) {
   if (typeof value === "string") {
     return ["1", "true", "yes", "on"].includes(value.toLowerCase()) ? 1 : 0;
@@ -379,7 +387,7 @@ router.post("/", verifyToken, uploadCoverFiles, async (req, res) => {
           ? preview_mode
           : "percentage",
         normalizePositiveInt(preview_value, 10),
-        age_rating || null,
+        normalizeAgeRating(age_rating),
         req.user.id,
         normalizeFlag(requested_best_seller),
         normalizeFlag(requested_new_release),

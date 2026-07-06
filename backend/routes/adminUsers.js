@@ -12,92 +12,133 @@ const allowedAgeVerificationStatuses = ["not_submitted", "pending", "approved", 
 
 let accountAdminTablesReady;
 
+async function trySchemaUpdate(connection, sql, ignoredMessages = ["Duplicate column"]) {
+  try {
+    await connection.query(sql);
+  } catch (error) {
+    const message = String(error.message || "");
+    if (!ignoredMessages.some((ignored) => message.includes(ignored))) {
+      throw error;
+    }
+  }
+}
+
 async function ensureAccountAdminTables() {
   if (!accountAdminTablesReady) {
-    accountAdminTablesReady = Promise.all([
-      db.query(`
-        CREATE TABLE IF NOT EXISTS user_profiles (
-          user_id INT PRIMARY KEY,
-          username VARCHAR(64) NULL,
-          avatar_url TEXT NULL,
-          phone VARCHAR(50) NULL,
-          gender VARCHAR(30) NULL,
-          birth_date DATE NULL,
-          age_verified TINYINT(1) NOT NULL DEFAULT 0,
-          visual_impairment_status VARCHAR(40) NOT NULL DEFAULT 'not_specified',
-          uses_screen_reader TINYINT(1) NOT NULL DEFAULT 0,
-          assistive_technology VARCHAR(255) NULL,
-          preferred_reading_mode VARCHAR(40) NULL,
-          province VARCHAR(100) NULL,
-          bio TEXT NULL,
-          accessibility_mode TINYINT(1) NOT NULL DEFAULT 0,
-          visual_impairment_verified TINYINT(1) NOT NULL DEFAULT 0,
-          terms_accepted_at DATETIME NULL,
-          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          CONSTRAINT fk_admin_user_profiles_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-      `),
-      db.query(`
-        CREATE TABLE IF NOT EXISTS gift_codes (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          user_id INT NOT NULL,
-          code VARCHAR(80) NOT NULL,
-          description VARCHAR(255) NULL,
-          status VARCHAR(30) NOT NULL DEFAULT 'available',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          redeemed_at DATETIME NULL,
-          UNIQUE KEY uq_gift_codes_user_code (user_id, code),
-          INDEX idx_gift_codes_user (user_id),
-          CONSTRAINT fk_gift_codes_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-      `),
-      db.query(`
-        CREATE TABLE IF NOT EXISTS user_benefits (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          user_id INT NOT NULL,
-          title VARCHAR(255) NOT NULL,
-          description TEXT NULL,
-          status VARCHAR(30) NOT NULL DEFAULT 'active',
-          expires_at DATETIME NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          INDEX idx_user_benefits_user (user_id),
-          CONSTRAINT fk_user_benefits_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-      `),
-      db.query(`
-        CREATE TABLE IF NOT EXISTS age_verifications (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          user_id INT NOT NULL,
-          status VARCHAR(30) NOT NULL DEFAULT 'not_submitted',
-          document_type VARCHAR(60) NULL,
-          note TEXT NULL,
-          submitted_at DATETIME NULL,
-          reviewed_at DATETIME NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          UNIQUE KEY uq_age_verifications_user (user_id),
-          CONSTRAINT fk_age_verifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-      `),
-      db.query(`
-        CREATE TABLE IF NOT EXISTS coin_topup_orders (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          user_id INT NOT NULL,
-          package_id VARCHAR(80) NULL,
-          coins INT NOT NULL,
-          price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-          status VARCHAR(30) NOT NULL DEFAULT 'pending',
-          provider_ref VARCHAR(191) NULL,
-          paid_at DATETIME NULL,
-          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          INDEX idx_coin_topup_orders_user (user_id),
-          INDEX idx_coin_topup_orders_status (status),
-          CONSTRAINT fk_admin_coin_topup_orders_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-      `),
-    ]).then(() => true);
+    accountAdminTablesReady = (async () => {
+      await Promise.all([
+        db.query(`
+          CREATE TABLE IF NOT EXISTS user_profiles (
+            user_id INT PRIMARY KEY,
+            username VARCHAR(64) NULL,
+            avatar_url TEXT NULL,
+            phone VARCHAR(50) NULL,
+            gender VARCHAR(30) NULL,
+            birth_date DATE NULL,
+            age_verified TINYINT(1) NOT NULL DEFAULT 0,
+            visual_impairment_status VARCHAR(40) NOT NULL DEFAULT 'not_specified',
+            uses_screen_reader TINYINT(1) NOT NULL DEFAULT 0,
+            assistive_technology VARCHAR(255) NULL,
+            preferred_reading_mode VARCHAR(40) NULL,
+            province VARCHAR(100) NULL,
+            bio TEXT NULL,
+            accessibility_mode TINYINT(1) NOT NULL DEFAULT 0,
+            visual_impairment_verified TINYINT(1) NOT NULL DEFAULT 0,
+            terms_accepted_at DATETIME NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            CONSTRAINT fk_admin_user_profiles_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `),
+        db.query(`
+          CREATE TABLE IF NOT EXISTS gift_codes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            code VARCHAR(80) NOT NULL,
+            description VARCHAR(255) NULL,
+            status VARCHAR(30) NOT NULL DEFAULT 'available',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            redeemed_at DATETIME NULL,
+            UNIQUE KEY uq_gift_codes_user_code (user_id, code),
+            INDEX idx_gift_codes_user (user_id),
+            CONSTRAINT fk_gift_codes_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+          )
+        `),
+        db.query(`
+          CREATE TABLE IF NOT EXISTS user_benefits (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            title VARCHAR(255) NOT NULL,
+            description TEXT NULL,
+            status VARCHAR(30) NOT NULL DEFAULT 'active',
+            expires_at DATETIME NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_user_benefits_user (user_id),
+            CONSTRAINT fk_user_benefits_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+          )
+        `),
+        db.query(`
+          CREATE TABLE IF NOT EXISTS age_verifications (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            status VARCHAR(30) NOT NULL DEFAULT 'not_submitted',
+            document_type VARCHAR(60) NULL,
+            note TEXT NULL,
+            submitted_at DATETIME NULL,
+            reviewed_at DATETIME NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_age_verifications_user (user_id),
+            CONSTRAINT fk_age_verifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+          )
+        `),
+        db.query(`
+          CREATE TABLE IF NOT EXISTS coin_topup_orders (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            package_id VARCHAR(80) NULL,
+            coins INT NOT NULL,
+            price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+            status VARCHAR(30) NOT NULL DEFAULT 'pending',
+            provider_ref VARCHAR(191) NULL,
+            payer_name VARCHAR(191) NULL,
+            transfer_amount DECIMAL(10,2) NULL,
+            transfer_date DATE NULL,
+            transfer_time VARCHAR(10) NULL,
+            slip_image_url TEXT NULL,
+            paid_at DATETIME NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_coin_topup_orders_user (user_id),
+            INDEX idx_coin_topup_orders_status (status),
+            CONSTRAINT fk_admin_coin_topup_orders_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `),
+      ]);
+
+      await trySchemaUpdate(
+        db,
+        "ALTER TABLE coin_topup_orders ADD COLUMN payer_name VARCHAR(191) NULL AFTER provider_ref",
+      );
+      await trySchemaUpdate(
+        db,
+        "ALTER TABLE coin_topup_orders ADD COLUMN transfer_amount DECIMAL(10,2) NULL AFTER payer_name",
+      );
+      await trySchemaUpdate(
+        db,
+        "ALTER TABLE coin_topup_orders ADD COLUMN transfer_date DATE NULL AFTER transfer_amount",
+      );
+      await trySchemaUpdate(
+        db,
+        "ALTER TABLE coin_topup_orders ADD COLUMN transfer_time VARCHAR(10) NULL AFTER transfer_date",
+      );
+      await trySchemaUpdate(
+        db,
+        "ALTER TABLE coin_topup_orders ADD COLUMN slip_image_url TEXT NULL AFTER transfer_time",
+      );
+
+      return true;
+    })();
   }
 
   return accountAdminTablesReady;
@@ -378,6 +419,11 @@ async function listCoinTopups(req, res) {
          cto.price,
          cto.status,
          cto.provider_ref,
+         cto.payer_name,
+         cto.transfer_amount,
+         cto.transfer_date,
+         cto.transfer_time,
+         cto.slip_image_url,
          cto.paid_at,
          cto.created_at,
          cto.updated_at
@@ -539,6 +585,11 @@ async function listPaymentApprovals(req, res) {
          cto.status AS payment_status,
          cto.status AS item_status,
          cto.provider_ref,
+         cto.payer_name,
+         cto.transfer_amount,
+         cto.transfer_date,
+         cto.transfer_time,
+         cto.slip_image_url,
          cto.paid_at,
          cto.created_at,
          cto.updated_at,
@@ -565,6 +616,11 @@ async function listPaymentApprovals(req, res) {
          o.payment_status,
          o.order_status AS item_status,
          o.payment_method AS provider_ref,
+         NULL AS payer_name,
+         NULL AS transfer_amount,
+         NULL AS transfer_date,
+         NULL AS transfer_time,
+         NULL AS slip_image_url,
          NULL AS paid_at,
          o.created_at,
          o.created_at AS updated_at,
@@ -595,6 +651,11 @@ async function listPaymentApprovals(req, res) {
          us.payment_status,
          us.status AS item_status,
          sp.name AS provider_ref,
+         NULL AS payer_name,
+         NULL AS transfer_amount,
+         NULL AS transfer_date,
+         NULL AS transfer_time,
+         NULL AS slip_image_url,
          NULL AS paid_at,
          us.created_at,
          us.updated_at,

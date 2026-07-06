@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../config/db");
 const { verifyToken, optionalVerifyToken } = require("../middleware/auth");
+const { requireAdmin } = require("../middleware/admin");
 
 const router = express.Router();
 
@@ -61,6 +62,11 @@ async function ensureSubscriptionTables(connection = db) {
       "ALTER TABLE subscription_plans ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
     );
 
+    await trySchemaUpdate(
+      connection,
+      "ALTER TABLE subscription_plans ADD COLUMN sort_order INT NOT NULL DEFAULT 0 AFTER is_active"
+    );
+
     await connection.query(`
       INSERT INTO subscription_plans (name, description, price, duration_days)
       SELECT 'Monthly Plus', 'อ่านคอนเทนต์ subscription ได้ 30 วัน', 199.00, 30
@@ -86,20 +92,173 @@ function normalizePlanDuration(value) {
   return Number.isInteger(days) && days > 0 ? days : 30;
 }
 
+function normalizePlanPrice(value) {
+  const price = Number(value);
+  return Number.isFinite(price) && price >= 0 ? price : NaN;
+}
+
+function normalizeSortOrder(value) {
+  const sortOrder = Number(value);
+  return Number.isFinite(sortOrder) ? Math.round(sortOrder) : 0;
+}
+
+function normalizeBoolean(value, defaultValue = true) {
+  if (value === undefined || value === null || value === "") return defaultValue ? 1 : 0;
+  return value === true || value === 1 || value === "1" || value === "true" ? 1 : 0;
+}
+
+function planPayload(body) {
+  const name = String(body.name || "").trim();
+  const description = String(body.description || "").trim() || null;
+  const price = normalizePlanPrice(body.price);
+  const durationDays = Number(body.duration_days || body.durationDays);
+  const sortOrder = normalizeSortOrder(body.sort_order);
+  const isActive = normalizeBoolean(body.is_active, true);
+
+  if (!name) return { error: "กรุณากรอกชื่อแพ็กเกจ" };
+  if (!Number.isFinite(price)) return { error: "กรุณากรอกราคาเป็นตัวเลข 0 หรือมากกว่า" };
+  if (!Number.isInteger(durationDays) || durationDays <= 0) {
+    return { error: "กรุณากรอกจำนวนวันเป็นจำนวนเต็มมากกว่า 0" };
+  }
+
+  return {
+    name,
+    description,
+    price,
+    durationDays,
+    sortOrder,
+    isActive,
+  };
+}
+
 router.get("/plans", async (_req, res) => {
   try {
     await ensureSubscriptionTables();
     const [rows] = await db.query(
-      `SELECT id, name, description, price, duration_days, created_at
+      `SELECT id, name, description, price, duration_days, is_active, sort_order, created_at, updated_at
        FROM subscription_plans
        WHERE COALESCE(is_active, 1) = 1
-       ORDER BY price ASC, id ASC`
+       ORDER BY sort_order ASC, price ASC, id ASC`
     );
 
     return res.json(rows);
   } catch (error) {
     console.error("GET /subscriptions/plans error:", error);
     return res.status(500).json({ message: "โหลดแพ็กเกจไม่สำเร็จ" });
+  }
+});
+
+router.get("/admin/plans", verifyToken, requireAdmin, async (_req, res) => {
+  try {
+    await ensureSubscriptionTables();
+    const [rows] = await db.query(
+      `SELECT id, name, description, price, duration_days, is_active, sort_order, created_at, updated_at
+       FROM subscription_plans
+       ORDER BY sort_order ASC, price ASC, id ASC`
+    );
+
+    return res.json(rows);
+  } catch (error) {
+    console.error("GET /subscriptions/admin/plans error:", error);
+    return res.status(500).json({ message: "โหลดแพ็กเกจสมาชิกไม่สำเร็จ" });
+  }
+});
+
+router.post("/admin/plans", verifyToken, requireAdmin, async (req, res) => {
+  try {
+    await ensureSubscriptionTables();
+    const payload = planPayload(req.body);
+    if (payload.error) return res.status(400).json({ message: payload.error });
+
+    const [result] = await db.query(
+      `INSERT INTO subscription_plans
+       (name, description, price, duration_days, is_active, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        payload.name,
+        payload.description,
+        payload.price,
+        payload.durationDays,
+        payload.isActive,
+        payload.sortOrder,
+      ]
+    );
+
+    return res.json({ message: "สร้างแพ็กเกจสมาชิกสำเร็จ", id: result.insertId });
+  } catch (error) {
+    console.error("POST /subscriptions/admin/plans error:", error);
+    return res.status(500).json({ message: "สร้างแพ็กเกจสมาชิกไม่สำเร็จ" });
+  }
+});
+
+router.put("/admin/plans/:id", verifyToken, requireAdmin, async (req, res) => {
+  try {
+    await ensureSubscriptionTables();
+    const payload = planPayload(req.body);
+    if (payload.error) return res.status(400).json({ message: payload.error });
+
+    const [exists] = await db.query(
+      "SELECT id FROM subscription_plans WHERE id = ? LIMIT 1",
+      [req.params.id]
+    );
+
+    if (exists.length === 0) {
+      return res.status(404).json({ message: "ไม่พบแพ็กเกจสมาชิก" });
+    }
+
+    await db.query(
+      `UPDATE subscription_plans
+       SET name = ?, description = ?, price = ?, duration_days = ?, is_active = ?, sort_order = ?
+       WHERE id = ?`,
+      [
+        payload.name,
+        payload.description,
+        payload.price,
+        payload.durationDays,
+        payload.isActive,
+        payload.sortOrder,
+        req.params.id,
+      ]
+    );
+
+    return res.json({ message: "แก้ไขแพ็กเกจสมาชิกสำเร็จ" });
+  } catch (error) {
+    console.error("PUT /subscriptions/admin/plans/:id error:", error);
+    return res.status(500).json({ message: "แก้ไขแพ็กเกจสมาชิกไม่สำเร็จ" });
+  }
+});
+
+router.delete("/admin/plans/:id", verifyToken, requireAdmin, async (req, res) => {
+  try {
+    await ensureSubscriptionTables();
+    const [exists] = await db.query(
+      "SELECT id FROM subscription_plans WHERE id = ? LIMIT 1",
+      [req.params.id]
+    );
+
+    if (exists.length === 0) {
+      return res.status(404).json({ message: "ไม่พบแพ็กเกจสมาชิก" });
+    }
+
+    const [usage] = await db.query(
+      "SELECT id FROM user_subscriptions WHERE plan_id = ? LIMIT 1",
+      [req.params.id]
+    );
+
+    if (usage.length > 0) {
+      await db.query("UPDATE subscription_plans SET is_active = 0 WHERE id = ?", [
+        req.params.id,
+      ]);
+      return res.json({
+        message: "แพ็กเกจนี้มีประวัติผู้สมัคร ระบบจึงปิดการแสดงผลแทนการลบ",
+      });
+    }
+
+    await db.query("DELETE FROM subscription_plans WHERE id = ?", [req.params.id]);
+    return res.json({ message: "ลบแพ็กเกจสมาชิกสำเร็จ" });
+  } catch (error) {
+    console.error("DELETE /subscriptions/admin/plans/:id error:", error);
+    return res.status(500).json({ message: "ลบแพ็กเกจสมาชิกไม่สำเร็จ" });
   }
 });
 

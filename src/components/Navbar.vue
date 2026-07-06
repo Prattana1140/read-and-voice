@@ -298,70 +298,10 @@ const accountGroups = computed<NavGroup[]>(() => {
     defaultOpen: true,
   };
 
-  const personalGroup: NavGroup = {
+  const accountHomeGroup: NavGroup = {
     title: t("account.myAccount"),
     items: [
       { label: t("account.profile"), to: "/profile", roles: memberRoles },
-      {
-        label: t("account.userDevices"),
-        to: "/account/devices",
-        roles: memberRoles,
-      },
-      {
-        label: t("account.notifications"),
-        to: "/account/notifications",
-        roles: memberRoles,
-      },
-    ],
-    defaultOpen: true,
-  };
-
-  const readingGroup: NavGroup = {
-    title: t("account.readingMember"),
-    items: [
-      { label: t("account.bookshelf"), to: "/my-library", roles: readerRoles },
-      {
-        label: t("account.following"),
-        to: "/account/following",
-        roles: readerRoles,
-      },
-      {
-        label: t("account.package"),
-        to: "/account/buffet",
-        roles: readerRoles,
-      },
-      {
-        label: t("account.benefits"),
-        to: "/account/benefits",
-        roles: readerRoles,
-      },
-      { label: t("account.orders"), to: "/orders/history", roles: readerRoles },
-      {
-        label: t("account.reviews"),
-        to: "/account/reviews",
-        roles: readerRoles,
-      },
-      {
-        label: t("account.ageVerification"),
-        to: "/account/age-verification",
-        roles: readerRoles,
-      },
-    ],
-  };
-
-  const settingsGroup: NavGroup = {
-    title: t("account.settings"),
-    items: [
-      {
-        label: t("account.giftCodes"),
-        to: "/account/gift-codes",
-        roles: memberRoles,
-      },
-      {
-        label: t("notification.settings"),
-        to: "/notification-settings",
-        roles: memberRoles,
-      },
     ],
     defaultOpen: true,
   };
@@ -389,6 +329,11 @@ const accountGroups = computed<NavGroup[]>(() => {
       {
         label: t("account.contentManagement"),
         to: "/admin/page-content",
+        roles: ["admin", "superadmin"],
+      },
+      {
+        label: locale.value === "th" ? "จัดการแพ็กเกจสมาชิก" : "Manage membership plans",
+        to: "/admin/subscription-plans",
         roles: ["admin", "superadmin"],
       },
       {
@@ -456,8 +401,8 @@ const accountGroups = computed<NavGroup[]>(() => {
 
   const roleGroups: Record<UserRole, NavGroup[]> = {
     guest: [],
-    user: [personalGroup, readingGroup, settingsGroup, writerGroup],
-    writer: [personalGroup, readingGroup, settingsGroup, writerGroup],
+    user: [accountHomeGroup, writerGroup],
+    writer: [accountHomeGroup, writerGroup],
     admin: [adminAccountGroup, adminGroup, adminUtilityGroup],
     superadmin: [
       adminAccountGroup,
@@ -1284,9 +1229,6 @@ watch(isCompactNav, (compact) => {
                     {{ membershipLabel }}
                   </small>
                 </div>
-                <button class="logout-chip" type="button" @click="logout">
-                  {{ t("account.logout") }}
-                </button>
               </div>
 
               <div v-if="isReaderRole" class="wallet-row">
@@ -1342,6 +1284,12 @@ watch(isCompactNav, (compact) => {
                   </router-link>
                 </div>
               </details>
+
+              <div class="account-logout-row">
+                <button class="logout-chip" type="button" @click="logout">
+                  {{ t("account.logout") }}
+                </button>
+              </div>
             </template>
 
             <template v-else>
@@ -2160,7 +2108,7 @@ watch(isCompactNav, (compact) => {
 
 .account-summary-card {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) auto;
+  grid-template-columns: 52px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
   padding-bottom: 10px;
@@ -2243,6 +2191,7 @@ watch(isCompactNav, (compact) => {
 }
 
 .logout-chip {
+  width: 100%;
   min-height: 36px;
   border: 1px solid #ef4444;
   border-radius: 999px;
@@ -2252,6 +2201,11 @@ watch(isCompactNav, (compact) => {
   font-size: 12px;
   font-weight: 800;
   padding: 0 12px;
+}
+
+.account-logout-row {
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
 }
 
 .wallet-row {
@@ -3422,11 +3376,13 @@ watch(isCompactNav, (compact) => {
   }
 
   .logout-chip {
-    grid-column: 1 / -1;
-    min-height: 28px;
-    margin-top: 3px;
+    min-height: 30px;
     font-size: 10px;
     padding: 0 8px;
+  }
+
+  .account-logout-row {
+    padding-top: 8px;
   }
 
   .wallet-row {

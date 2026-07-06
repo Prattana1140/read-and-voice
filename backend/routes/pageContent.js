@@ -18,6 +18,81 @@ const defaultConfig = {
     image_url: "",
     updated_at: null,
   },
+  subscriptionPage: {
+    hero_badge: "Read and Voice VIP",
+    hero_title: "สมัครสมาชิกพิเศษ อ่านได้คุ้มกว่าเดิม",
+    hero_description:
+      "เลือกแพ็กเกจที่เหมาะกับจังหวะการอ่านของคุณ แล้วชำระด้วยคอยน์จากกระเป๋าได้ทันที",
+    primary_cta: "เลือกแพ็กเกจ",
+    secondary_cta: "เติมคอยน์",
+    status_title: "สถานะสมาชิก",
+    payment_title: "การชำระเงิน",
+    payment_note: "หักคอยน์จริงจากกระเป๋าเมื่อกดยืนยันสมัคร",
+    plans_kicker: "เลือกแพ็กเกจ",
+    plans_title: "จ่ายด้วยคอยน์ เริ่มใช้สิทธิ์ทันที",
+    benefits: [
+      {
+        title: "อ่านเนื้อหาสมาชิก",
+        text:
+          "เมื่อสมัครแพ็กเกจสำเร็จ ผู้ใช้จะเปิดอ่านหนังสือหรือตอนที่ถูกตั้งค่าเป็นเนื้อหาสำหรับสมาชิกได้ทันที สิทธิ์จะใช้งานได้ตามจำนวนวันที่ระบุในแพ็กเกจที่เลือก",
+      },
+      {
+        title: "ต่ออายุแบบทบวัน",
+        text:
+          "ถ้าผู้ใช้ยังมีแพ็กเกจเดิมที่ไม่หมดอายุ ระบบจะนำวันใหม่ไปต่อจากวันหมดอายุเดิม ทำให้วันคงเหลือไม่หายเมื่อสมัครแพ็กเกจเพิ่ม",
+      },
+      {
+        title: "ตรวจสอบได้ในประวัติคอยน์",
+        text:
+          "ทุกครั้งที่สมัคร ระบบจะหักคอยน์จากกระเป๋าและบันทึกรายการไว้ ผู้ใช้จึงตรวจสอบย้อนหลังได้ว่าซื้อแพ็กเกจใด ใช้คอยน์เท่าไร และเริ่มใช้งานเมื่อใด",
+      },
+      {
+        title: "แอดมินแก้ไขได้ไหม?",
+        text:
+          "แอดมินสามารถแก้รูปภาพ ข้อความ และแพ็กเกจสมาชิกได้จากระบบหลังบ้าน โดยไม่ต้องแก้โค้ด",
+      },
+    ],
+    compare_title: "เปรียบเทียบสิทธิ์",
+    compare_general_title: "สมาชิกทั่วไป",
+    compare_general_text:
+      "เหมาะสำหรับผู้ใช้ที่ต้องการอ่านเฉพาะบางเล่มหรือบางตอน สามารถอ่านเนื้อหาฟรีได้ตามปกติ และซื้อหนังสือหรือตอนที่ต้องการด้วยคอยน์เป็นรายการ ๆ",
+    compare_general_bullets: [
+      "อ่านหนังสือหรือตอนที่เปิดให้อ่านฟรีได้ทันที",
+      "ซื้อเนื้อหาแบบรายเล่มหรือรายตอนได้ด้วยคอยน์",
+      "ถ้าเจอเนื้อหาสำหรับสมาชิก จะต้องสมัครแพ็กเกจก่อนจึงเปิดอ่านได้",
+    ],
+    compare_vip_title: "สมาชิกพิเศษ Read and Voice",
+    compare_vip_text:
+      "เหมาะสำหรับผู้ใช้ที่อ่านต่อเนื่องหรืออ่านหลายเรื่องในช่วงเวลาเดียวกัน เมื่อสมัครแล้วจะเปิดอ่านเนื้อหาที่กำหนดไว้สำหรับสมาชิกได้ตลอดอายุแพ็กเกจ",
+    compare_vip_bullets: [
+      "อ่านหนังสือหรือตอนที่ติดป้ายสำหรับสมาชิกได้ตามช่วงวันที่สมัคร",
+      "ยังซื้อหนังสือรายเล่มหรือรายตอนได้ด้วยคอยน์เหมือนสมาชิกทั่วไป",
+      "ถ้าสมัครเพิ่มก่อนหมดอายุ ระบบจะต่อวันให้จากวันหมดอายุเดิม",
+    ],
+    faq_title: "คำถามที่พบบ่อย",
+    faqs: [
+      {
+        question: "สมัครแล้วหักคอยน์จริงไหม?",
+        answer:
+          "หักจริงจากกระเป๋าคอยน์ของผู้ใช้ในขั้นตอนสมัคร ระบบจะตรวจสอบก่อนว่ามีคอยน์เพียงพอหรือไม่ ถ้ายอดพอ ระบบจะหักคอยน์ บันทึกประวัติรายการ และเปิดสิทธิ์สมาชิกให้ใช้งานทันที",
+      },
+      {
+        question: "คอยน์ไม่พอต้องทำอย่างไร?",
+        answer:
+          "ให้กดปุ่มเติมคอยน์ก่อนสมัคร ระบบจะพาไปหน้ากระเป๋าคอยน์เพื่อเติมยอดให้เพียงพอ หลังจากเติมคอยน์เรียบร้อยแล้ว ผู้ใช้สามารถกลับมาเลือกแพ็กเกจเดิมและสมัครใหม่ได้",
+      },
+      {
+        question: "สมัครซ้ำจะทับแพ็กเกจเดิมไหม?",
+        answer:
+          "ไม่ทับวันเดิม ถ้าผู้ใช้ยังมีแพ็กเกจที่ใช้งานอยู่ ระบบจะนำวันคงเหลือเดิมเป็นฐาน แล้วเพิ่มจำนวนวันของแพ็กเกจใหม่ต่อจากวันหมดอายุล่าสุด ช่วยให้สมัครล่วงหน้าได้โดยไม่เสียวันคงเหลือ",
+      },
+      {
+        question: "แอดมินสามารถแก้ไขข้อมูลหน้านี้ได้ไหม?",
+        answer:
+          "แอดมินสามารถแก้รูปภาพ ข้อความประกอบ คำถามที่พบบ่อย และแพ็กเกจสมาชิกได้จากระบบหลังบ้าน โดยไม่ต้องแก้โค้ด",
+      },
+    ],
+  },
   homeBanners: [],
   posterRequests: [],
 };
@@ -61,6 +136,7 @@ function readConfig() {
         ...defaultConfig.subscriptionHero,
         ...(parsed.subscriptionHero || {}),
       },
+      subscriptionPage: normalizeSubscriptionPage(parsed.subscriptionPage),
       homeBanners: Array.isArray(parsed.homeBanners) ? parsed.homeBanners : [],
       posterRequests: Array.isArray(parsed.posterRequests)
         ? parsed.posterRequests
@@ -70,6 +146,68 @@ function readConfig() {
     console.error("read page content config error:", error);
     return defaultConfig;
   }
+}
+
+function normalizeText(value, fallback = "") {
+  const text = String(value ?? "").trim();
+  return text || fallback;
+}
+
+function normalizeTextList(value, fallback = []) {
+  if (Array.isArray(value)) {
+    const items = value.map((item) => String(item || "").trim()).filter(Boolean);
+    return items.length ? items : fallback;
+  }
+
+  const items = String(value || "")
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return items.length ? items : fallback;
+}
+
+function normalizeCards(value, fallback = [], titleKey = "title", textKey = "text") {
+  const source = Array.isArray(value) ? value : [];
+  const cards = source
+    .map((item) => ({
+      [titleKey]: normalizeText(item?.[titleKey]),
+      [textKey]: normalizeText(item?.[textKey]),
+    }))
+    .filter((item) => item[titleKey] && item[textKey]);
+
+  return cards.length ? cards : fallback;
+}
+
+function normalizeSubscriptionPage(source = {}) {
+  const base = defaultConfig.subscriptionPage;
+  return {
+    ...base,
+    ...source,
+    hero_badge: normalizeText(source.hero_badge, base.hero_badge),
+    hero_title: normalizeText(source.hero_title, base.hero_title),
+    hero_description: normalizeText(source.hero_description, base.hero_description),
+    primary_cta: normalizeText(source.primary_cta, base.primary_cta),
+    secondary_cta: normalizeText(source.secondary_cta, base.secondary_cta),
+    status_title: normalizeText(source.status_title, base.status_title),
+    payment_title: normalizeText(source.payment_title, base.payment_title),
+    payment_note: normalizeText(source.payment_note, base.payment_note),
+    plans_kicker: normalizeText(source.plans_kicker, base.plans_kicker),
+    plans_title: normalizeText(source.plans_title, base.plans_title),
+    benefits: normalizeCards(source.benefits, base.benefits),
+    compare_title: normalizeText(source.compare_title, base.compare_title),
+    compare_general_title: normalizeText(source.compare_general_title, base.compare_general_title),
+    compare_general_text: normalizeText(source.compare_general_text, base.compare_general_text),
+    compare_general_bullets: normalizeTextList(
+      source.compare_general_bullets,
+      base.compare_general_bullets,
+    ),
+    compare_vip_title: normalizeText(source.compare_vip_title, base.compare_vip_title),
+    compare_vip_text: normalizeText(source.compare_vip_text, base.compare_vip_text),
+    compare_vip_bullets: normalizeTextList(source.compare_vip_bullets, base.compare_vip_bullets),
+    faq_title: normalizeText(source.faq_title, base.faq_title),
+    faqs: normalizeCards(source.faqs, base.faqs, "question", "answer"),
+  };
 }
 
 function createBannerPayload(source = {}, file = null) {
@@ -145,8 +283,27 @@ router.get("/", (_req, res) => {
   const config = readConfig();
   return res.json({
     subscriptionHero: config.subscriptionHero,
+    subscriptionPage: config.subscriptionPage,
     homeBanners: config.homeBanners,
   });
+});
+
+router.post("/subscription-page", verifyToken, requireAdmin, (req, res) => {
+  try {
+    const config = readConfig();
+    config.subscriptionPage = normalizeSubscriptionPage(req.body || {});
+    writeConfig(config);
+
+    return res.json({
+      message: "บันทึกข้อความหน้าสมัครสมาชิกสำเร็จ",
+      subscriptionPage: config.subscriptionPage,
+    });
+  } catch (error) {
+    console.error("POST /page-content/subscription-page error:", error);
+    return res.status(500).json({
+      message: "บันทึกข้อความหน้าสมัครสมาชิกไม่สำเร็จ",
+    });
+  }
 });
 
 router.post(

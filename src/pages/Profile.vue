@@ -100,7 +100,6 @@ const accountCards = [
   { title: "อุปกรณ์ของฉัน", text: "ดูอุปกรณ์ที่ผูกกับบัญชี", to: "/account/devices" },
   { title: "สิทธิพิเศษ", text: "ดู benefits และสิทธิประโยชน์", to: "/account/benefits" },
   { title: "รีวิวของฉัน", text: "ดูรีวิวและคะแนนที่เคยให้", to: "/account/reviews" },
-  { title: "ยืนยันอายุ", text: "ส่งคำขอยืนยันอายุสำหรับเนื้อหาที่จำกัด", to: "/account/age-verification" },
 ];
 
 const currentUser = computed(() => getUser());
