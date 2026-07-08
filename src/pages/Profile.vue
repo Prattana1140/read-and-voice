@@ -102,6 +102,9 @@ const accountCards = [
   { title: "รีวิวของฉัน", text: "ดูรีวิวและคะแนนที่เคยให้", to: "/account/reviews" },
 ];
 
+const primaryAccountCards = accountCards.slice(0, 4);
+const secondaryAccountCards = accountCards.slice(4);
+
 const currentUser = computed(() => getUser());
 const displayName = computed(() => form.name || currentUser.value?.name || "Read and Voice User");
 const roleLabel = computed(() => {
@@ -673,11 +676,42 @@ onUnmounted(resetAvatarSelection);
       </form>
     </section>
 
-    <section class="account-grid" :class="{ loading }">
-      <article v-for="card in accountCards" :key="card.to" class="account-card" @click="goTo(card.to)">
-        <strong>{{ card.title }}</strong>
-        <span>{{ card.text }}</span>
-      </article>
+    <section class="account-shortcuts" :class="{ loading }">
+      <div class="shortcut-head">
+        <div>
+          <h2>เมนูที่ใช้บ่อย</h2>
+          <p>เข้าถึงงานหลักของบัญชีได้เร็วขึ้น</p>
+        </div>
+      </div>
+
+      <div class="account-grid">
+        <article v-for="card in primaryAccountCards" :key="card.to" class="account-card" @click="goTo(card.to)">
+          <strong>{{ card.title }}</strong>
+          <span>{{ card.text }}</span>
+        </article>
+      </div>
+
+      <details class="account-more-menu">
+        <summary>
+          <span>เมนูบัญชีเพิ่มเติม</span>
+          <small>{{ secondaryAccountCards.length }} รายการ</small>
+        </summary>
+
+        <div class="account-more-list">
+          <button
+            v-for="card in secondaryAccountCards"
+            :key="card.to"
+            type="button"
+            @click="goTo(card.to)"
+          >
+            <span>
+              <strong>{{ card.title }}</strong>
+              <small>{{ card.text }}</small>
+            </span>
+            <b aria-hidden="true">›</b>
+          </button>
+        </div>
+      </details>
     </section>
   </main>
 </template>
@@ -1089,15 +1123,42 @@ button:disabled {
   margin-top: 4px;
 }
 
-.account-grid {
+.account-shortcuts {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin-top: 22px;
 }
 
-.account-grid.loading {
+.account-shortcuts.loading {
   opacity: 0.72;
+}
+
+.shortcut-head {
+  align-items: end;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.shortcut-head h2,
+.shortcut-head p {
+  margin: 0;
+}
+
+.shortcut-head h2 {
+  color: var(--text-strong);
+  font-size: 22px;
+}
+
+.shortcut-head p {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.account-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .account-card {
@@ -1126,6 +1187,102 @@ button:disabled {
 .account-card span {
   color: var(--text-muted);
   line-height: 1.55;
+}
+
+.account-more-menu {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.account-more-menu summary {
+  align-items: center;
+  color: var(--text-strong);
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  list-style: none;
+  min-height: 58px;
+  padding: 16px 18px;
+}
+
+.account-more-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.account-more-menu summary span {
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.account-more-menu summary small {
+  color: var(--text-muted);
+  font-weight: 800;
+}
+
+.account-more-menu summary::after {
+  color: var(--primary-strong);
+  content: "⌄";
+  font-size: 18px;
+  font-weight: 900;
+  transition: transform 0.18s ease;
+}
+
+.account-more-menu[open] summary::after {
+  transform: rotate(180deg);
+}
+
+.account-more-list {
+  border-top: 1px solid var(--border);
+  display: grid;
+}
+
+.account-more-list button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-strong);
+  cursor: pointer;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  min-height: 66px;
+  padding: 12px 18px;
+  text-align: left;
+}
+
+.account-more-list button:last-child {
+  border-bottom: 0;
+}
+
+.account-more-list button:hover {
+  background: var(--surface-soft);
+}
+
+.account-more-list button > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.account-more-list strong {
+  color: var(--text-strong);
+  font-size: 15px;
+}
+
+.account-more-list small {
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.account-more-list b {
+  color: var(--primary-strong);
+  font-size: 22px;
+  line-height: 1;
 }
 
 @media (max-width: 920px) {

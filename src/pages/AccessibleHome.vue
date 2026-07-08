@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
-import { announceAccessibilityMessage, enableVisualAssistPreset } from "../utils/accessibility";
+import { announceAccessibilityMessage } from "../utils/accessibility";
 
 const quickActions = [
   {
@@ -60,7 +60,6 @@ const voiceCommandGroups = [
 ];
 
 onMounted(() => {
-  enableVisualAssistPreset();
   announceAccessibilityMessage("เปิดศูนย์การอ่านแบบเข้าถึงได้แล้ว เลือกงานที่ต้องการจากเมนูหลัก");
 });
 </script>

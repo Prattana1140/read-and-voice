@@ -143,35 +143,55 @@
                 aria-label="การทำงานเพิ่มเติม"
               >
                 <button type="button" @click="addToLibrary">
-                  <span aria-hidden="true">♡</span>
-                  <small>อยากได้</small>
+                  <span class="quick-action-icon" aria-hidden="true">♡</span>
+                  <span class="quick-action-copy">
+                    <strong>อยากได้</strong>
+                    <small>เก็บเข้าชั้น</small>
+                  </span>
                 </button>
                 <button type="button" @click="toggleWriterFollow">
-                  <span aria-hidden="true">＋</span>
-                  <small>{{ isFollowingWriter ? "ติดตามแล้ว" : "ติดตาม" }}</small>
+                  <span class="quick-action-icon" aria-hidden="true">＋</span>
+                  <span class="quick-action-copy">
+                    <strong>{{ isFollowingWriter ? "ติดตามแล้ว" : "ติดตาม" }}</strong>
+                    <small>นักเขียน</small>
+                  </span>
                 </button>
                 <button type="button" @click="shareBook">
-                  <span aria-hidden="true">↗</span>
-                  <small>แชร์</small>
+                  <span class="quick-action-icon" aria-hidden="true">↗</span>
+                  <span class="quick-action-copy">
+                    <strong>แชร์</strong>
+                    <small>ส่งลิงก์</small>
+                  </span>
                 </button>
               </div>
 
               <dl v-if="book.content_type !== 'serial'" class="ebook-facts">
                 <div>
+                  <dt>ซีรีส์</dt>
+                  <dd class="ebook-fact-title">{{ ebookSeriesLabel }}</dd>
+                </div>
+                <div>
+                  <dt>นักวาด</dt>
+                  <dd class="ebook-fact-accent">{{ ebookArtistLabel }}</dd>
+                </div>
+                <div>
                   <dt>ประเภทไฟล์</dt>
-                  <dd>{{ ebookFileTypes }}</dd>
+                  <dd>
+                    {{ ebookFileTypes }}
+                    <span class="ebook-fact-accent">(สารบัญ)</span>
+                  </dd>
                 </div>
                 <div>
                   <dt>วันที่วางขาย</dt>
-                  <dd>{{ formatPublishDate(book.created_at) }}</dd>
+                  <dd>{{ formatEbookSaleDate(book.created_at) }}</dd>
                 </div>
                 <div>
                   <dt>ความยาว</dt>
                   <dd>{{ ebookLengthLabel }}</dd>
                 </div>
                 <div>
-                  <dt>ราคา</dt>
-                  <dd>{{ accessPresentation.priceLabel }}</dd>
+                  <dt>ราคาปก</dt>
+                  <dd>{{ bookCoverPriceLabel }}</dd>
                 </div>
               </dl>
             </div>
@@ -248,7 +268,7 @@
               <dl>
                 <div>
                   <dt>ราคา/สิทธิ์อ่าน</dt>
-                  <dd>{{ accessPresentation.priceLabel }}</dd>
+                  <dd>{{ bookPriceLabel }}</dd>
                 </div>
                 <div>
                   <dt>รูปแบบ</dt>
@@ -790,6 +810,8 @@ type Book = {
   id: number;
   title: string;
   author: string;
+  author_name?: string;
+  subtitle?: string;
   description?: string;
   cover?: string;
   cover_url?: string;
@@ -804,7 +826,10 @@ type Book = {
   page_count?: number;
   total_pages?: number;
   word_count?: number;
+  total_words?: number;
   price?: number;
+  promo_discount_percent?: number;
+  active_promo_discount_percent?: number;
   content_type?: "ebook" | "serial";
   access_type?: "paid" | "free" | "subscription";
   episode_count?: number;
@@ -1107,7 +1132,14 @@ const getWriterPagePath = () => {
 };
 
 const bookAccessType = computed(() => {
-  return normalizeBookAccessType(book.value?.access_type);
+  const accessType = normalizeBookAccessType(book.value?.access_type);
+  const price = Number(book.value?.price || 0);
+
+  if (accessType === "paid" && price <= 0) {
+    return "free";
+  }
+
+  return accessType;
 });
 
 const isActiveFlag = (value: unknown) => {
@@ -1171,6 +1203,27 @@ const heroPrimaryActionLabel = computed(() => {
   }
 
   return `ซื้อ ${formatCoinAmount(book.value.price)} คอยน์`;
+});
+
+const bookPriceLabel = computed(() => {
+  return bookAccessType.value === "free" ? "ฟรี" : accessPresentation.value.priceLabel;
+});
+
+const bookCoverPriceLabel = computed(() => {
+  if (bookAccessType.value === "free") return "ฟรี";
+
+  const price = `${formatCoinAmount(book.value?.price)} บาท`;
+  const discount = Number(
+    book.value?.active_promo_discount_percent ||
+      book.value?.promo_discount_percent ||
+      0,
+  );
+
+  if (Number.isFinite(discount) && discount > 0) {
+    return `${price} (ประหยัด ${Math.round(discount)}%)`;
+  }
+
+  return price;
 });
 
 const heroDecision = computed(() => {
@@ -1246,25 +1299,42 @@ const ebookPublisher = computed(() => {
   ).trim();
 });
 
+const ebookSeriesLabel = computed(() => {
+  return String(book.value?.title || "").trim() || "ไม่ระบุ";
+});
+
+const ebookArtistLabel = computed(() => {
+  return String(book.value?.author_name || book.value?.author || "").trim() || "ไม่ระบุ";
+});
+
 const ebookFileTypes = computed(() => {
   const raw = String(book.value?.file_type || book.value?.source_type || "")
     .trim()
     .toLowerCase();
   if (!raw) return "pdf, epub";
-  if (raw.includes("pdf") || raw.includes("epub")) return raw;
+  if (raw.includes("pdf")) return "pdf, epub";
+  if (raw.includes("epub")) return "epub";
+  if (raw.includes("manual") || raw.includes("seed") || raw.includes("text")) {
+    return "pdf, epub";
+  }
   return raw.toUpperCase();
 });
 
 const ebookLengthLabel = computed(() => {
   const pages = Number(book.value?.page_count || book.value?.total_pages || 0);
+  const words = Number(book.value?.word_count || book.value?.total_words || 0);
+
   if (Number.isFinite(pages) && pages > 0) {
-    return `${Math.ceil(pages).toLocaleString()} หน้า`;
+    const pageLabel = `${Math.ceil(pages).toLocaleString()} หน้า`;
+    if (Number.isFinite(words) && words > 0) {
+      return `${pageLabel} (≈ ${Math.ceil(words).toLocaleString()} คำ)`;
+    }
+    return pageLabel;
   }
 
-  const words = Number(book.value?.word_count || 0);
   if (Number.isFinite(words) && words > 0) {
     const estimatedPages = Math.max(1, Math.round(words / 230));
-    return `${estimatedPages.toLocaleString()} หน้า (ประมาณ ${words.toLocaleString()} คำ)`;
+    return `${estimatedPages.toLocaleString()} หน้า (≈ ${Math.ceil(words).toLocaleString()} คำ)`;
   }
 
   return "ไม่ระบุ";
@@ -1318,6 +1388,15 @@ const formatPublishDate = (value?: string) => {
   return new Intl.DateTimeFormat("th-TH", {
     day: "2-digit",
     month: "short",
+    year: "numeric",
+  }).format(new Date(value));
+};
+
+const formatEbookSaleDate = (value?: string) => {
+  if (!value) return "ไม่ระบุ";
+  return new Intl.DateTimeFormat("th-TH", {
+    day: "2-digit",
+    month: "long",
     year: "numeric",
   }).format(new Date(value));
 };
@@ -2660,51 +2739,96 @@ onBeforeUnmount(() => {
 
 .ebook-quick-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(72px, 1fr));
-  gap: 16px;
-  max-width: 360px;
-  margin-top: 26px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 430px;
+  margin-top: 24px;
 }
 
 .ebook-quick-actions button {
-  display: grid;
-  justify-items: center;
-  gap: 5px;
-  border: 0;
-  background: transparent;
+  align-items: center;
+  display: flex;
+  gap: 9px;
+  min-width: 0;
+  min-height: 54px;
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface));
   color: var(--primary-strong);
   cursor: pointer;
   font-weight: 900;
+  padding: 9px 10px;
+  text-align: left;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
 }
 
-.ebook-quick-actions span {
+.ebook-quick-actions button:hover {
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface));
+  border-color: var(--primary);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--primary) 16%, transparent);
+  transform: translateY(-1px);
+}
+
+.quick-action-icon {
+  flex: 0 0 30px;
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid currentColor;
+  width: 30px;
+  height: 30px;
+  border: 1px solid color-mix(in srgb, var(--primary) 45%, currentColor);
   border-radius: 999px;
-  font-size: 17px;
+  background: var(--surface);
+  font-size: 16px;
+  line-height: 1;
 }
 
-.ebook-quick-actions small {
+.quick-action-copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.quick-action-copy strong,
+.quick-action-copy small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-action-copy strong {
+  color: var(--text-strong);
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.quick-action-copy small {
+  color: var(--text-muted);
   font-size: 12px;
+  line-height: 1.25;
 }
 
 .ebook-facts {
   display: grid;
   gap: 0;
+  width: min(100%, 430px);
   max-width: 430px;
-  margin: 26px 0 0;
+  margin: 24px 0 0;
+  text-align: left;
 }
 
 .ebook-facts div {
   display: grid;
-  grid-template-columns: 140px minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 18px;
   align-items: center;
-  border-bottom: 1px solid var(--border);
-  padding: 10px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  min-height: 36px;
+  padding: 7px 0;
 }
 
 .ebook-facts dt,
@@ -2713,14 +2837,28 @@ onBeforeUnmount(() => {
 }
 
 .ebook-facts dt {
-  color: var(--text-muted);
+  color: color-mix(in srgb, var(--text-muted) 72%, var(--surface));
+  font-size: 13px;
   font-weight: 800;
+  text-align: left;
 }
 
 .ebook-facts dd {
-  color: var(--text);
-  font-weight: 800;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.5;
   text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.ebook-fact-title {
+  font-weight: 900;
+}
+
+.ebook-fact-accent {
+  color: var(--primary-strong);
+  font-weight: 900;
 }
 
 .story-content-shell {
@@ -3611,17 +3749,17 @@ onBeforeUnmount(() => {
 
   .ebook-quick-actions,
   .ebook-facts {
-    max-width: none;
-    width: 100%;
+    width: min(100%, 430px);
+    max-width: 430px;
   }
 
   .ebook-facts div {
-    grid-template-columns: 1fr;
-    gap: 4px;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 12px;
   }
 
   .ebook-facts dd {
-    text-align: center;
+    text-align: right;
   }
 
   .ebook-ribbon {
