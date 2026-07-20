@@ -10,12 +10,23 @@ const loading = ref(true);
 const saving = ref(false);
 const error = ref("");
 const categories = ref<{ id: number; name: string; parent_id?: number | null; sort_order?: number | null }[]>([]);
+const existingTags = ref<string[]>([]);
+const ageRatingOptions = [
+  { value: "general", label: "ทั่วไป" },
+  { value: "13+", label: "13+" },
+  { value: "15+", label: "15+" },
+  { value: "18+", label: "18+" },
+];
 
 const form = ref({
   title: "",
+  title_th: "",
+  title_en: "",
   author: "",
   description: "",
   category_id: "",
+  age_rating: "general",
+  tags: "",
   cover_image: "",
   is_published: 1,
 });
@@ -31,9 +42,13 @@ const fetchBook = async () => {
 
     form.value = {
       title: book.title || "",
+      title_th: book.title_th || book.title || "",
+      title_en: book.title_en || "",
       author: book.author || "",
       description: book.description || "",
       category_id: book.category_id ? String(book.category_id) : "",
+      age_rating: book.age_rating || "general",
+      tags: Array.isArray(book.tags) ? book.tags.join(", ") : String(book.tags || ""),
       cover_image: book.cover_image || "",
       is_published: Number(book.is_published ?? 1),
     };
@@ -42,6 +57,18 @@ const fetchBook = async () => {
     error.value = "โหลดข้อมูลหนังสือไม่สำเร็จ";
   } finally {
     loading.value = false;
+  }
+};
+
+const fetchTags = async () => {
+  try {
+    const res = await api.get(`${API_BASE_URL}/api/books/tags`);
+    existingTags.value = (Array.isArray(res.data) ? res.data : [])
+      .map((tag: any) => String(tag?.name || tag || "").trim())
+      .filter(Boolean);
+  } catch (err) {
+    console.error("fetchTags error:", err);
+    existingTags.value = [];
   }
 };
 
@@ -84,7 +111,12 @@ const saveBook = async () => {
 
     await api.put(`${API_BASE_URL}/api/books/${id}`, {
       ...form.value,
+      title: form.value.title_th || form.value.title,
       category_id: form.value.category_id || null,
+      tags: form.value.tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
       is_published: Number(form.value.is_published),
     });
 
@@ -100,6 +132,7 @@ const saveBook = async () => {
 
 onMounted(() => {
   fetchCategories();
+  fetchTags();
   fetchBook();
 });
 </script>
@@ -120,7 +153,12 @@ onMounted(() => {
       <div v-else class="form-card">
         <div class="form-group">
           <label>ชื่อหนังสือ</label>
-          <input v-model="form.title" type="text" />
+          <input v-model="form.title_th" type="text" />
+        </div>
+
+        <div class="form-group">
+          <label>Book title (English)</label>
+          <input v-model="form.title_en" type="text" />
         </div>
 
         <div class="form-group">
@@ -141,6 +179,28 @@ onMounted(() => {
               {{ category.parent_id ? "- " : "" }}{{ category.name }}
             </option>
           </select>
+        </div>
+
+        <div class="form-group">
+          <label>ระดับอายุ</label>
+          <select v-model="form.age_rating">
+            <option v-for="option in ageRatingOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>แท็ก</label>
+          <input
+            v-model="form.tags"
+            type="text"
+            list="admin-book-tag-options"
+            placeholder="โรแมนติก, แฟนเก่า, NC"
+          />
+          <datalist id="admin-book-tag-options">
+            <option v-for="tag in existingTags" :key="tag" :value="tag" />
+          </datalist>
         </div>
 
         <div class="form-group">
@@ -231,7 +291,7 @@ onMounted(() => {
   border-radius: 12px;
   padding: 12px 14px;
   outline: none;
-  font-size: 16px;
+  font-size: 18px;
   box-sizing: border-box;
 }
 
@@ -262,7 +322,7 @@ onMounted(() => {
   }
 
   .header h1 {
-    font-size: 18px;
+    font-size: 20px;
     line-height: 1.2;
   }
 
@@ -275,7 +335,7 @@ onMounted(() => {
   .save-btn {
     min-height: 30px;
     border-radius: 8px;
-    font-size: 10px;
+    font-size: 12px;
     padding: 6px 9px;
   }
 
@@ -287,7 +347,7 @@ onMounted(() => {
   }
 
   .state-box {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .form-group {
@@ -296,7 +356,7 @@ onMounted(() => {
 
   .form-group label {
     margin-bottom: 5px;
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .form-group input,
@@ -304,7 +364,7 @@ onMounted(() => {
   .form-group select {
     border-radius: 8px;
     padding: 8px 9px;
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .form-actions {
@@ -318,13 +378,13 @@ onMounted(() => {
   }
 
   .header h1 {
-    font-size: 16px;
+    font-size: 18px;
   }
 
   .back-btn,
   .save-btn {
     min-height: 28px;
-    font-size: 9px;
+    font-size: 11px;
   }
 }
 </style>

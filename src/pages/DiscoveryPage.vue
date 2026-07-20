@@ -3,6 +3,8 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api, { resolveAssetUrl } from "../utils/api";
 import type { SearchableBook } from "../utils/bookSearch";
+import { useI18n } from "../utils/i18n";
+import { localizedTitle } from "../utils/localizedContent";
 
 type DiscoveryKind = "category" | "tag" | "publisher" | "author";
 type Book = SearchableBook & {
@@ -14,6 +16,7 @@ type Book = SearchableBook & {
 
 const route = useRoute();
 const router = useRouter();
+const { locale } = useI18n();
 
 const books = ref<Book[]>([]);
 const loading = ref(false);
@@ -99,6 +102,10 @@ function getCover(book: Book) {
   return resolveAssetUrl(book.cover_url || book.cover_image);
 }
 
+function getBookTitle(book: Book) {
+  return localizedTitle(book, locale.value) || book.title || "";
+}
+
 function onImgError(event: Event) {
   const image = event.target as HTMLImageElement;
   if (!image.src.endsWith("/no-cover.png")) image.src = "/no-cover.png";
@@ -157,10 +164,10 @@ onMounted(loadBooks);
           @keydown.enter.prevent="openBook(book)"
           @keydown.space.prevent="openBook(book)"
         >
-          <img :src="getCover(book)" :alt="book.title || 'book cover'" @error="onImgError" />
+          <img :src="getCover(book)" :alt="getBookTitle(book) || 'book cover'" @error="onImgError" />
           <div>
             <span>{{ book.category_name || "หนังสือ" }}</span>
-            <h2>{{ book.title || "ไม่มีชื่อหนังสือ" }}</h2>
+            <h2>{{ getBookTitle(book) || "ไม่มีชื่อหนังสือ" }}</h2>
             <p>{{ book.author || book.author_name || "ไม่ระบุผู้เขียน" }}</p>
           </div>
         </article>
@@ -203,7 +210,7 @@ onMounted(loadBooks);
 .discovery-head h1 {
   margin-top: 8px;
   color: var(--text-strong);
-  font-size: 32px;
+  font-size: 34px;
   line-height: 1.2;
 }
 
@@ -261,14 +268,14 @@ onMounted(loadBooks);
 
 .book-card span {
   color: var(--primary);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
 }
 
 .book-card h2 {
   margin: 4px 0;
   color: var(--text-strong);
-  font-size: 17px;
+  font-size: 19px;
   line-height: 1.35;
 }
 

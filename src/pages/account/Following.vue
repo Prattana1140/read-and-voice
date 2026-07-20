@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import api from "../../utils/api";
 import AccountSectionLayout from "../../components/account/AccountSectionLayout.vue";
@@ -14,117 +14,139 @@ type FollowItem = {
 
 const router = useRouter();
 const loading = ref(true);
-const saving = ref(false);
+const refreshing = ref(false);
 const errorMessage = ref("");
 const successMessage = ref("");
 const items = ref<FollowItem[]>([]);
-
-const form = reactive({
-  target_type: "book",
-  target_name: "",
-});
+let refreshTimer: ReturnType<typeof window.setInterval> | undefined;
+const FOLLOWING_CHANGED_EVENT = "read-and-voice-following-changed";
 
 const hasItems = computed(() => items.value.length > 0);
 
-async function loadItems() {
+function getTypeLabel(type: string) {
+  if (type === "writer") return "นักเขียน";
+  if (type === "book") return "หนังสือ";
+  if (type === "category") return "หมวดหมู่";
+  return type || "รายการ";
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString("th-TH");
+}
+
+function getFollowPath(item: FollowItem) {
+  if (item.target_type === "writer" && item.target_id) {
+    return `/writers/user-${item.target_id}`;
+  }
+
+  if (item.target_type === "book" && item.target_id) {
+    return `/book/${item.target_id}`;
+  }
+
+  return "";
+}
+
+async function loadItems(options: { silent?: boolean } = {}) {
   try {
-    loading.value = true;
+    if (options.silent) {
+      refreshing.value = true;
+    } else {
+      loading.value = true;
+    }
+
     errorMessage.value = "";
     const { data } = await api.get("/account/following");
     items.value = Array.isArray(data?.items) ? data.items : [];
   } catch (error: any) {
-    errorMessage.value =
-      error?.response?.data?.message || "โหลดรายการที่ติดตามไม่สำเร็จ";
+    if (!options.silent) {
+      errorMessage.value =
+        error?.response?.data?.message || "โหลดรายการที่ติดตามไม่สำเร็จ";
+    }
   } finally {
     loading.value = false;
+    refreshing.value = false;
   }
 }
 
-async function addFollow() {
-  try {
-    saving.value = true;
-    errorMessage.value = "";
-    successMessage.value = "";
-    await api.post("/account/following", {
-      target_type: form.target_type,
-      target_name: form.target_name.trim(),
-    });
-    form.target_name = "";
-    successMessage.value = "เพิ่มรายการติดตามแล้ว";
-    await loadItems();
-  } catch (error: any) {
-    errorMessage.value = error?.response?.data?.message || "เพิ่มรายการติดตามไม่สำเร็จ";
-  } finally {
-    saving.value = false;
-  }
-}
+async function removeFollow(item: FollowItem) {
+  const confirmed = window.confirm(`เลิกติดตาม "${item.target_name}" ใช่ไหม`);
+  if (!confirmed) return;
 
-async function removeFollow(id: number) {
   try {
     errorMessage.value = "";
     successMessage.value = "";
-    await api.delete(`/account/following/${id}`);
+    await api.delete(`/account/following/${item.id}`);
     successMessage.value = "ลบรายการติดตามแล้ว";
-    await loadItems();
+    await loadItems({ silent: true });
   } catch (error: any) {
     errorMessage.value = error?.response?.data?.message || "ลบรายการติดตามไม่สำเร็จ";
   }
 }
 
-onMounted(loadItems);
+function openFollow(item: FollowItem) {
+  const path = getFollowPath(item);
+  if (path) router.push(path);
+}
+
+function handleWindowFocus() {
+  loadItems({ silent: true });
+}
+
+onMounted(() => {
+  loadItems();
+  refreshTimer = window.setInterval(() => loadItems({ silent: true }), 15000);
+  window.addEventListener("focus", handleWindowFocus);
+  window.addEventListener(FOLLOWING_CHANGED_EVENT, handleWindowFocus);
+});
+
+onUnmounted(() => {
+  if (refreshTimer) window.clearInterval(refreshTimer);
+  window.removeEventListener("focus", handleWindowFocus);
+  window.removeEventListener(FOLLOWING_CHANGED_EVENT, handleWindowFocus);
+});
 </script>
 
 <template>
   <AccountSectionLayout
     title="รายการที่ติดตาม"
-    description="ติดตามหนังสือ ผู้เขียน หรือหมวดหมู่ที่สนใจเพื่อกลับมาดูอัปเดตได้เร็วขึ้น"
+    description="รายการนี้มาจากปุ่มติดตามบนหน้าหนังสือและหน้านักเขียน ระบบจะอัปเดตให้เองเมื่อมีการเปลี่ยนแปลง"
     :loading="loading"
     :error-message="errorMessage"
     :empty="!hasItems"
     empty-title="ยังไม่มีรายการที่ติดตาม"
-    empty-text="เพิ่มรายการแรกของคุณจากฟอร์มด้านล่างได้เลย"
+    empty-text="กดติดตามจากหน้าหนังสือหรือหน้านักเขียน แล้วรายการจะแสดงที่นี่"
     @back="router.push('/profile')"
   >
-    <section class="panel form-panel">
-      <form class="follow-form" @submit.prevent="addFollow">
-        <label>
-          <span>ประเภท</span>
-          <select v-model="form.target_type">
-            <option value="book">หนังสือ</option>
-            <option value="author">ผู้เขียน</option>
-            <option value="category">หมวดหมู่</option>
-          </select>
-        </label>
-
-        <label class="stretch">
-          <span>ชื่อรายการ</span>
-          <input v-model="form.target_name" type="text" required placeholder="เช่น นิยายแฟนตาซี" />
-        </label>
-
-        <button type="submit" :disabled="saving">
-          {{ saving ? "กำลังบันทึก..." : "เพิ่มรายการติดตาม" }}
+    <section class="follow-panel">
+      <div class="panel-head">
+        <p>{{ refreshing ? "กำลังอัปเดต..." : `${items.length} รายการ` }}</p>
+        <button type="button" class="ghost" @click="loadItems({ silent: true })">
+          รีเฟรช
         </button>
-      </form>
+      </div>
 
       <p v-if="successMessage" class="feedback success">{{ successMessage }}</p>
-    </section>
 
-    <section class="card-grid">
-      <article v-for="item in items" :key="item.id" class="item-card">
-        <div>
-          <span class="pill">{{ item.target_type }}</span>
-          <strong>{{ item.target_name }}</strong>
-          <small>ติดตามเมื่อ {{ new Date(item.created_at).toLocaleString() }}</small>
-        </div>
+      <section class="card-grid">
+        <article v-for="item in items" :key="item.id" class="item-card">
+          <button type="button" class="item-main" @click="openFollow(item)">
+            <span class="pill">{{ getTypeLabel(item.target_type) }}</span>
+            <strong>{{ item.target_name }}</strong>
+            <small>ติดตามเมื่อ {{ formatDate(item.created_at) }}</small>
+          </button>
 
-        <button type="button" class="ghost danger" @click="removeFollow(item.id)">เลิกติดตาม</button>
-      </article>
+          <button type="button" class="danger" @click="removeFollow(item)">
+            เลิกติดตาม
+          </button>
+        </article>
+      </section>
     </section>
   </AccountSectionLayout>
 </template>
 
 <style scoped>
-.panel,
+.follow-panel,
 .item-card {
   border: 1px solid var(--border);
   border-radius: 20px;
@@ -132,54 +154,81 @@ onMounted(loadItems);
   box-shadow: var(--shadow);
 }
 
-.form-panel {
+.follow-panel {
+  display: grid;
+  gap: 14px;
   padding: 18px;
 }
 
-.follow-form {
-  display: grid;
-  grid-template-columns: 180px minmax(0, 1fr) auto;
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  align-items: end;
 }
 
-label {
+.panel-head p,
+.feedback {
+  margin: 0;
+}
+
+.panel-head p,
+small {
+  color: var(--text-muted);
+}
+
+.feedback.success {
+  color: #15803d;
+  font-weight: 800;
+}
+
+.card-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.item-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+}
+
+.item-main {
   display: grid;
   gap: 8px;
-}
-
-.stretch {
   min-width: 0;
-}
-
-label span,
-.item-card strong {
-  color: var(--text-strong);
-  font-weight: 900;
-}
-
-input,
-select,
-button {
-  min-height: 46px;
-  border-radius: 12px;
-  font: inherit;
-}
-
-input,
-select {
-  border: 1px solid var(--border);
-  background: var(--surface-soft);
-  color: var(--text-strong);
-  padding: 0 14px;
-}
-
-button {
   border: 0;
-  background: var(--primary);
-  color: var(--on-primary);
+  background: transparent;
+  color: inherit;
   cursor: pointer;
-  font-weight: 900;
+  padding: 0;
+  text-align: left;
+}
+
+.item-main strong {
+  color: var(--text-strong);
+  font-weight: 800;
+}
+
+.pill {
+  width: fit-content;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 5px 10px;
+}
+
+button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
   padding: 0 16px;
 }
 
@@ -193,55 +242,9 @@ button {
   color: #b91c1c;
 }
 
-.feedback {
-  margin: 12px 0 0;
-  font-weight: 800;
-}
-
-.feedback.success {
-  color: #15803d;
-}
-
-.card-grid {
-  display: grid;
-  gap: 14px;
-}
-
-.item-card {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: center;
-  padding: 18px;
-}
-
-.item-card > div {
-  display: grid;
-  gap: 8px;
-}
-
-.pill {
-  width: fit-content;
-  border-radius: 999px;
-  background: var(--primary-soft);
-  color: var(--primary-strong);
-  font-size: 12px;
-  font-weight: 900;
-  padding: 6px 10px;
-  text-transform: uppercase;
-}
-
-small {
-  color: var(--text-muted);
-}
-
 @media (max-width: 760px) {
-  .follow-form,
   .item-card {
     grid-template-columns: 1fr;
-  }
-
-  .item-card {
     align-items: stretch;
   }
 }

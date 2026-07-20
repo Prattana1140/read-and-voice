@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import api from "../utils/api";
 import { useI18n } from "../utils/i18n";
+import { localizedTitle } from "../utils/localizedContent";
 
 type CartItem = {
   id: number;
@@ -10,14 +11,18 @@ type CartItem = {
   episode_id?: number | null;
   quantity?: number;
   title: string;
+  title_th?: string;
+  title_en?: string;
   book_title?: string;
+  book_title_th?: string;
+  book_title_en?: string;
   episode_number?: number;
   price?: number;
   access_type?: string;
 };
 
 const router = useRouter();
-const { t } = useI18n();
+const { locale, t } = useI18n();
 const cart = ref<CartItem[]>([]);
 const balance = ref(0);
 const loading = ref(true);
@@ -106,6 +111,21 @@ function itemKind(item: CartItem) {
   return item.episode_id ? t("cart.episode") : t("cart.ebook");
 }
 
+function itemTitle(item: CartItem) {
+  return localizedTitle(item, locale.value) || item.title;
+}
+
+function parentBookTitle(item: CartItem) {
+  return localizedTitle(
+    {
+      title: item.book_title,
+      title_th: item.book_title_th || item.book_title,
+      title_en: item.book_title_en,
+    },
+    locale.value,
+  ) || item.book_title || "";
+}
+
 function goTopup() {
   router.push({ name: "CoinWallet" });
 }
@@ -142,9 +162,9 @@ onMounted(loadCart);
         <article v-for="item in cart" :key="item.id" class="cart-item">
           <div>
             <span>{{ itemKind(item) }}</span>
-            <h2>{{ item.title }}</h2>
+            <h2>{{ itemTitle(item) }}</h2>
             <p v-if="item.book_title && item.episode_id">
-              {{ item.book_title }} {{ t("cart.episodeNumber") }} {{ item.episode_number || "-" }}
+              {{ parentBookTitle(item) }} {{ t("cart.episodeNumber") }} {{ item.episode_number || "-" }}
             </p>
             <p>{{ item.access_type || "paid" }}</p>
           </div>
@@ -251,7 +271,7 @@ h2 {
 }
 
 .wallet-pill strong {
-  font-size: 34px;
+  font-size: 36px;
 }
 
 .alert,
@@ -312,7 +332,7 @@ h2 {
 }
 
 .cart-item h2 {
-  font-size: 20px;
+  font-size: 22px;
   margin-top: 4px;
 }
 
@@ -326,7 +346,7 @@ h2 {
 .item-side strong,
 .total {
   color: var(--text-strong);
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 900;
 }
 

@@ -299,7 +299,8 @@ onMounted(() => {
 <style scoped>
 .admin-users-page {
   padding: var(--page-block, 24px) var(--page-gutter, 24px);
-  background: #f7f8fc;
+  background: var(--bg);
+  color: var(--text);
   min-height: 100vh;
   min-height: 100dvh;
 }
@@ -314,12 +315,12 @@ onMounted(() => {
 
 .page-header h1 {
   margin: 0 0 6px;
-  color: #1f2430;
+  color: var(--text-strong);
 }
 
 .page-header p {
   margin: 0;
-  color: #667085;
+  color: var(--text-muted);
 }
 
 .header-actions {
@@ -338,13 +339,14 @@ onMounted(() => {
 }
 
 .refresh-btn {
-  background: #6c63ff;
-  color: white;
+  background: var(--primary);
+  color: var(--on-primary);
 }
 
 .back-btn {
-  background: #e8edf7;
-  color: #1f2430;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  color: var(--text-strong);
 }
 
 .refresh-btn:disabled {
@@ -362,12 +364,17 @@ onMounted(() => {
 .search-input,
 .filter-select,
 .role-select {
-  border: 1px solid #d8dfeb;
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 10px 12px;
-  font-size: 14px;
-  background: var(--surface);
+  font-size: 16px;
+  background: var(--input-bg);
   color: var(--text-strong);
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
 }
 
 .search-input {
@@ -387,17 +394,20 @@ onMounted(() => {
 }
 
 .alert.success {
-  background: #e9f8ee;
-  color: #15803d;
+  background: color-mix(in srgb, #16a34a 12%, var(--surface));
+  color: color-mix(in srgb, #16a34a 78%, var(--text-strong));
+  border: 1px solid color-mix(in srgb, #16a34a 22%, var(--border));
 }
 
 .alert.error {
-  background: #fff1f2;
-  color: #b00020;
+  background: color-mix(in srgb, #dc2626 12%, var(--surface));
+  color: color-mix(in srgb, #dc2626 78%, var(--text-strong));
+  border: 1px solid color-mix(in srgb, #dc2626 22%, var(--border));
 }
 
 .table-card {
-  background: var(--surface);
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
   border-radius: 20px;
   box-shadow: var(--shadow);
   overflow: hidden;
@@ -421,44 +431,53 @@ onMounted(() => {
 .users-table th,
 .users-table td {
   padding: 14px 16px;
-  border-bottom: 1px solid #edf1f7;
+  border-bottom: 1px solid var(--border);
   text-align: left;
   vertical-align: middle;
 }
 
+.users-table td {
+  background: var(--surface-raised);
+  color: var(--text-strong);
+}
+
+.users-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--primary) 6%, var(--surface-raised));
+}
+
 .users-table th {
-  background: #fafbff;
-  color: #344054;
-  font-size: 14px;
+  background: var(--surface-soft);
+  color: var(--text-strong);
+  font-size: 16px;
 }
 
 .role-badge {
   display: inline-block;
   border-radius: 999px;
   padding: 6px 10px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   text-transform: lowercase;
 }
 
 .role-badge.user {
-  background: #eef2ff;
-  color: #4f46e5;
+  background: color-mix(in srgb, #4f46e5 16%, var(--surface));
+  color: color-mix(in srgb, #4f46e5 82%, var(--text-strong));
 }
 
 .role-badge.writer {
-  background: #ecfeff;
-  color: #0891b2;
+  background: color-mix(in srgb, #0891b2 16%, var(--surface));
+  color: color-mix(in srgb, #0891b2 82%, var(--text-strong));
 }
 
 .role-badge.admin {
-  background: #fef3c7;
-  color: #b45309;
+  background: color-mix(in srgb, #b45309 18%, var(--surface));
+  color: color-mix(in srgb, #b45309 84%, var(--text-strong));
 }
 
 .role-badge.superadmin {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: color-mix(in srgb, #b91c1c 16%, var(--surface));
+  color: color-mix(in srgb, #b91c1c 84%, var(--text-strong));
 }
 
 .action-group {
@@ -476,13 +495,15 @@ onMounted(() => {
 }
 
 .action-btn.approve {
-  background: #e9f8ee;
-  color: #15803d;
+  background: color-mix(in srgb, #16a34a 14%, var(--surface));
+  color: color-mix(in srgb, #16a34a 78%, var(--text-strong));
+  border: 1px solid color-mix(in srgb, #16a34a 22%, var(--border));
 }
 
 .action-btn.revoke {
-  background: #fff1f2;
-  color: #b00020;
+  background: color-mix(in srgb, #dc2626 12%, var(--surface));
+  color: color-mix(in srgb, #dc2626 78%, var(--text-strong));
+  border: 1px solid color-mix(in srgb, #dc2626 22%, var(--border));
 }
 
 .action-btn:disabled,
@@ -493,8 +514,8 @@ onMounted(() => {
 
 .note {
   margin-top: 16px;
-  color: #667085;
-  font-size: 14px;
+  color: var(--text-muted);
+  font-size: 16px;
 }
 
 @media (max-width: 768px) {
@@ -511,12 +532,12 @@ onMounted(() => {
 
   .page-header h1 {
     margin-bottom: 3px;
-    font-size: 22px;
+    font-size: 24px;
     line-height: 1.15;
   }
 
   .page-header p {
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.35;
   }
 
@@ -532,7 +553,7 @@ onMounted(() => {
     min-height: 36px;
     border-radius: 10px;
     padding: 7px 10px;
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .search-input {
@@ -558,24 +579,24 @@ onMounted(() => {
     min-height: 38px;
     border-radius: 10px;
     padding: 8px 10px;
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .alert {
     margin-bottom: 10px;
     border-radius: 10px;
     padding: 9px 10px;
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .table-card {
     border-radius: 14px;
-    box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
+    box-shadow: var(--shadow);
   }
 
   .state-box {
     padding: 16px;
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .users-table {
@@ -587,20 +608,20 @@ onMounted(() => {
   .users-table td {
     overflow-wrap: anywhere;
     padding: 6px 5px;
-    font-size: 8px;
+    font-size: 10px;
     line-height: 1.25;
     white-space: normal;
     word-break: break-word;
   }
 
   .users-table th {
-    font-size: 7.5px;
+    font-size: 9.5px;
     line-height: 1.2;
   }
 
   .role-badge {
     padding: 3px 5px;
-    font-size: 7.5px;
+    font-size: 9.5px;
     line-height: 1.1;
   }
 
@@ -612,7 +633,7 @@ onMounted(() => {
     max-width: 54px;
     min-height: 22px;
     padding: 2px 16px 2px 4px;
-    font-size: 7px;
+    font-size: 9px;
     line-height: 1.15;
   }
 
@@ -620,13 +641,13 @@ onMounted(() => {
     min-height: 22px;
     border-radius: 8px;
     padding: 3px 4px;
-    font-size: 7px;
+    font-size: 9px;
     line-height: 1.15;
   }
 
   .note {
     margin-top: 10px;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.45;
   }
 }
@@ -642,18 +663,18 @@ onMounted(() => {
   }
 
   .page-header h1 {
-    font-size: 19px;
+    font-size: 21px;
   }
 
   .page-header p {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .refresh-btn,
   .back-btn {
     min-height: 32px;
     border-radius: 9px;
-    font-size: 10px;
+    font-size: 12px;
     padding: 6px 8px;
   }
 
@@ -667,7 +688,7 @@ onMounted(() => {
     min-height: 34px;
     border-radius: 9px;
     padding: 6px 8px;
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .users-table {
@@ -678,12 +699,12 @@ onMounted(() => {
   .users-table th,
   .users-table td {
     padding: 5px 4px;
-    font-size: 7px;
+    font-size: 9px;
   }
 
   .action-btn {
     min-height: 20px;
-    font-size: 6.5px;
+    font-size: 8.5px;
     padding: 2px 3px;
   }
 
@@ -692,11 +713,11 @@ onMounted(() => {
     min-height: 20px;
     border-radius: 7px;
     padding: 1px 14px 1px 3px;
-    font-size: 6.5px;
+    font-size: 8.5px;
   }
 
   .note {
-    font-size: 10px;
+    font-size: 12px;
   }
 }
 </style>

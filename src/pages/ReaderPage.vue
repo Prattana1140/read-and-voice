@@ -3,11 +3,15 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router";
 import api, { resolveAssetUrl } from "../utils/api";
 import { accessibilityState, announceAccessibilityMessage } from "../utils/accessibility";
+import { useI18n } from "../utils/i18n";
+import { localizedTitle } from "../utils/localizedContent";
 
 type ReaderResponse = {
   is_locked?: boolean;
   lock_reason?: string;
   title?: string;
+  title_th?: string;
+  title_en?: string;
   content?: string;
   structured?: StructuredReaderPayload | null;
 };
@@ -44,6 +48,8 @@ type Episode = {
   book_id: number;
   episode_number: number;
   title: string;
+  title_th?: string;
+  title_en?: string;
   price: number;
   is_free?: number;
   access_type?: "paid" | "free" | "subscription";
@@ -66,6 +72,7 @@ type ReadingMode = "continuous" | "focus";
 
 const route = useRoute();
 const router = useRouter();
+const { locale } = useI18n();
 
 const loading = ref(true);
 const episodesLoading = ref(false);
@@ -123,10 +130,14 @@ const readerKey = computed(() => {
   const episodeId = String(route.query.episode || "");
   return episodeId ? `reader-episode-${episodeId}` : `reader-book-${bookId}`;
 });
-const contentRouteKey = computed(() => `${route.params.id || ""}:${route.query.episode || ""}`);
+const contentRouteKey = computed(() => `${route.params.id || ""}:${route.query.episode || ""}:${locale.value}`);
 const activeEpisodeIndex = computed(() => {
   return episodes.value.findIndex((episode) => episode.id === currentEpisodeId.value);
 });
+
+function getEpisodeTitle(episode: Episode) {
+  return localizedTitle(episode, locale.value) || episode.title;
+}
 const previousEpisode = computed(() => {
   const index = activeEpisodeIndex.value;
   return index > 0 ? episodes.value[index - 1] : null;
@@ -340,7 +351,7 @@ async function loadBookTitle() {
 
   try {
     const { data } = await api.get(`/books/${route.params.id}`);
-    bookTitle.value = data?.title || "";
+    bookTitle.value = localizedTitle(data, locale.value) || data?.title || "";
     bookCover.value = data?.cover_url || data?.cover || data?.cover_image || "";
   } catch {
     bookTitle.value = "";
@@ -421,12 +432,13 @@ async function fetchContent() {
   }
 
   try {
+    const params = new URLSearchParams({ locale: locale.value });
     const endpoint = isEpisodeMode.value
       ? `/reader/episodes/${route.query.episode}/content`
       : `/reader/books/${route.params.id}/content`;
 
-    const { data } = await api.get<ReaderResponse>(endpoint);
-    title.value = data.title || (isEpisodeMode.value ? "ตอนนิยาย" : "หนังสือ");
+    const { data } = await api.get<ReaderResponse>(`${endpoint}?${params.toString()}`);
+    title.value = localizedTitle(data, locale.value) || data.title || (isEpisodeMode.value ? "ตอนนิยาย" : "หนังสือ");
 
     if (data.is_locked) {
       lockReason.value = data.lock_reason || "ต้องมีสิทธิ์ก่อนจึงจะอ่านเนื้อหาส่วนนี้ได้";
@@ -838,7 +850,7 @@ onBeforeUnmount(() => {
               type="button"
               @click="openEpisode(episode)"
             >
-              <span>ตอน {{ episode.episode_number }} {{ episode.title }}</span>
+              <span>ตอน {{ episode.episode_number }} {{ getEpisodeTitle(episode) }}</span>
               <small>
                 {{ isEpisodeFree(episode) ? "ฟรี" : `${episode.price || 0} คอยน์` }}
                 <template v-if="episode.comment_count"> · {{ episode.comment_count }} ความคิดเห็น</template>
@@ -1034,7 +1046,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   margin-bottom: 14px;
   color: #7f673f;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
 }
 
@@ -1071,7 +1083,7 @@ onBeforeUnmount(() => {
 
 .reader-titlebar__copy h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: 30px;
 }
 
 .reader-titlebar__copy small {
@@ -1182,7 +1194,7 @@ onBeforeUnmount(() => {
 .comment-state,
 .comment-feedback,
 .reader-titlebar__copy small {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .settings-popover {
@@ -1459,7 +1471,7 @@ onBeforeUnmount(() => {
     border-radius: 999px;
     background: linear-gradient(180deg, #e0b45d, #c48b22);
     color: #ffffff;
-    font-size: 20px;
+    font-size: 22px;
   }
 
   .listen-floating-cta {
@@ -1498,7 +1510,7 @@ onBeforeUnmount(() => {
     background: transparent;
     color: #8a8781;
     font: inherit;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 800;
     padding: 8px 3px;
   }

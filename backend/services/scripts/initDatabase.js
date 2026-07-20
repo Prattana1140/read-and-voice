@@ -1,6 +1,52 @@
 const db = require("../../config/db");
 const { getCategoryScope, seedCategories, serialBookCategories } = require("../serialCategories");
 
+const defaultCategoryNameEnByTh = {
+  "นิยาย": "Fiction",
+  "นิยายรัก": "Romance",
+  "นิยายรักวัยรุ่น": "Teen Romance",
+  "นิยายรักวัยว้าวุ่น": "Coming-of-age Romance",
+  "นิยายโรแมนซ์": "Romance Novel",
+  "นิยายรักผู้ใหญ่": "Adult Romance",
+  "นิยายรักจีนโบราณ": "Historical Chinese Romance",
+  "นิยาย Boy Love Lovely Room": "Boy Love Lovely Room",
+  "นิยาย Boy Love Party Room": "Boy Love Party Room",
+  "นิยาย Boy Love Secret Room": "Boy Love Secret Room",
+  "นิยาย Girl Love Lovely Room": "Girl Love Lovely Room",
+  "นิยาย Girl Love Party Room": "Girl Love Party Room",
+  "นิยาย Girl Love Secret Room": "Girl Love Secret Room",
+  "แฟนตาซี เกมออนไลน์ ต่างโลก": "Fantasy, Online Games, Isekai",
+  "แฟนตาซี": "Fantasy",
+  "Sci-fi": "Sci-fi",
+  "ไซไฟ": "Sci-fi",
+  "ผจญภัย แอคชั่น กำลังภายใน": "Adventure, Action, Martial Arts",
+  "สืบสวน": "Mystery",
+  "ลึกลับ": "Suspense",
+  "สยองขวัญ": "Horror",
+  "สะท้อนสังคม": "Social Issues",
+  "แนวทางเลือก": "Alternative",
+  "สาระความรู้": "Knowledge",
+  "เรื่องนี้ที่อยากเล่า/ไดอารี่": "Diary",
+  "สัพเพเหระ": "Miscellaneous",
+  "วรรณกรรมเยาวชน": "Young Adult",
+  "ความรู้": "Knowledge",
+  "ธุรกิจ": "Business",
+  "เทคโนโลยี": "Technology",
+  "ภาษา": "Language",
+  "สุขภาพ": "Health",
+  "เด็กและเยาวชน": "Children and Young Adult",
+  "วรรณกรรม": "Literature",
+  "โรแมนซ์": "Romance",
+  "ดราม่า": "Drama",
+  "ตราม่า": "Drama",
+  "พัฒนาตนเอง": "Self Improvement",
+  "การศึกษา": "Education",
+  "คอมพิวเตอร์": "Computer",
+  "ไลท์โนเวล": "Light Novel",
+  "ตำราเรียน": "Textbook",
+  "อื่นๆ": "Others",
+};
+
 const statements = [
   `
   CREATE TABLE IF NOT EXISTS users (
@@ -42,6 +88,8 @@ const statements = [
   CREATE TABLE IF NOT EXISTS categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
+    name_th VARCHAR(255) NULL,
+    name_en VARCHAR(255) NULL,
     parent_id INT NULL,
     content_scope VARCHAR(20) NOT NULL DEFAULT 'all',
     display_tone VARCHAR(40) NULL,
@@ -59,7 +107,11 @@ const statements = [
     id INT AUTO_INCREMENT PRIMARY KEY,
     slug VARCHAR(255) NULL,
     title VARCHAR(500) NOT NULL,
+    title_th VARCHAR(500) NULL,
+    title_en VARCHAR(500) NULL,
     subtitle VARCHAR(500) NULL,
+    subtitle_th VARCHAR(500) NULL,
+    subtitle_en VARCHAR(500) NULL,
     author_name VARCHAR(255) NULL,
     author_id BIGINT UNSIGNED NULL,
     author VARCHAR(255) NOT NULL,
@@ -77,6 +129,8 @@ const statements = [
     publishing_status ENUM('processing','ready','failed') NOT NULL DEFAULT 'ready',
     process_status VARCHAR(50) NOT NULL DEFAULT 'pending',
     full_text LONGTEXT NULL,
+    full_text_th LONGTEXT NULL,
+    full_text_en LONGTEXT NULL,
     total_pages INT NOT NULL DEFAULT 0,
     is_published TINYINT(1) NOT NULL DEFAULT 1,
     created_by INT NULL,
@@ -130,7 +184,11 @@ const statements = [
     book_id INT NOT NULL,
     episode_number INT NOT NULL,
     title VARCHAR(500) NOT NULL,
+    title_th VARCHAR(500) NULL,
+    title_en VARCHAR(500) NULL,
     content LONGTEXT NULL,
+    content_th LONGTEXT NULL,
+    content_en LONGTEXT NULL,
     price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     is_free TINYINT(1) NOT NULL DEFAULT 0,
     access_type VARCHAR(20) NOT NULL DEFAULT 'free',
@@ -150,6 +208,8 @@ const statements = [
     book_id INT NOT NULL,
     page_number INT NOT NULL,
     page_text LONGTEXT NULL,
+    page_text_th LONGTEXT NULL,
+    page_text_en LONGTEXT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_book_pages_book_page (book_id, page_number),
     CONSTRAINT fk_book_pages_book FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
@@ -651,6 +711,8 @@ let initializationPromise;
 
 async function ensureCategoryMetadataColumns() {
   const metadataColumns = [
+    ["name_th", "name_th VARCHAR(255) NULL AFTER name"],
+    ["name_en", "name_en VARCHAR(255) NULL AFTER name_th"],
     ["parent_id", "parent_id INT NULL AFTER name"],
     ["content_scope", "content_scope VARCHAR(20) NOT NULL DEFAULT 'all' AFTER parent_id"],
     ["display_tone", "display_tone VARCHAR(40) NULL AFTER content_scope"],
@@ -665,20 +727,67 @@ async function ensureCategoryMetadataColumns() {
       await db.query(`ALTER TABLE categories ADD COLUMN ${definition}`);
     }
   }
+
+  await db.query("UPDATE categories SET name_th = name WHERE name_th IS NULL OR name_th = ''");
+  for (const [nameTh, nameEn] of Object.entries(defaultCategoryNameEnByTh)) {
+    await db.query(
+      "UPDATE categories SET name_en = ? WHERE name = ? AND (name_en IS NULL OR name_en = '')",
+      [nameEn, nameTh],
+    );
+  }
 }
 
 async function ensureBookSerialColumns() {
-  const metadataColumns = [
+  const bookColumns = [
+    ["title_th", "title_th VARCHAR(500) NULL AFTER title"],
+    ["title_en", "title_en VARCHAR(500) NULL AFTER title_th"],
+    ["subtitle_th", "subtitle_th VARCHAR(500) NULL AFTER subtitle"],
+    ["subtitle_en", "subtitle_en VARCHAR(500) NULL AFTER subtitle_th"],
+    ["full_text_th", "full_text_th LONGTEXT NULL AFTER full_text"],
+    ["full_text_en", "full_text_en LONGTEXT NULL AFTER full_text_th"],
     ["serial_status", "serial_status VARCHAR(30) NOT NULL DEFAULT 'completed' AFTER content_type"],
     ["latest_episode_at", "latest_episode_at DATETIME NULL AFTER serial_status"],
   ];
 
-  for (const [columnName, definition] of metadataColumns) {
+  for (const [columnName, definition] of bookColumns) {
     const [columns] = await db.query("SHOW COLUMNS FROM books LIKE ?", [columnName]);
     if (columns.length === 0) {
       await db.query(`ALTER TABLE books ADD COLUMN ${definition}`);
     }
   }
+
+  const episodeColumns = [
+    ["title_th", "title_th VARCHAR(500) NULL AFTER title"],
+    ["title_en", "title_en VARCHAR(500) NULL AFTER title_th"],
+    ["content_th", "content_th LONGTEXT NULL AFTER content"],
+    ["content_en", "content_en LONGTEXT NULL AFTER content_th"],
+  ];
+
+  for (const [columnName, definition] of episodeColumns) {
+    const [columns] = await db.query("SHOW COLUMNS FROM book_episodes LIKE ?", [columnName]);
+    if (columns.length === 0) {
+      await db.query(`ALTER TABLE book_episodes ADD COLUMN ${definition}`);
+    }
+  }
+
+  const pageColumns = [
+    ["page_text_th", "page_text_th LONGTEXT NULL AFTER page_text"],
+    ["page_text_en", "page_text_en LONGTEXT NULL AFTER page_text_th"],
+  ];
+
+  for (const [columnName, definition] of pageColumns) {
+    const [columns] = await db.query("SHOW COLUMNS FROM book_pages LIKE ?", [columnName]);
+    if (columns.length === 0) {
+      await db.query(`ALTER TABLE book_pages ADD COLUMN ${definition}`);
+    }
+  }
+
+  await db.query("UPDATE books SET title_th = title WHERE title_th IS NULL OR title_th = ''");
+  await db.query("UPDATE books SET subtitle_th = subtitle WHERE subtitle IS NOT NULL AND (subtitle_th IS NULL OR subtitle_th = '')");
+  await db.query("UPDATE books SET full_text_th = full_text WHERE full_text IS NOT NULL AND (full_text_th IS NULL OR full_text_th = '')");
+  await db.query("UPDATE book_pages SET page_text_th = page_text WHERE page_text IS NOT NULL AND (page_text_th IS NULL OR page_text_th = '')");
+  await db.query("UPDATE book_episodes SET title_th = title WHERE title_th IS NULL OR title_th = ''");
+  await db.query("UPDATE book_episodes SET content_th = content WHERE content IS NOT NULL AND (content_th IS NULL OR content_th = '')");
 }
 
 async function initializeDatabase() {
@@ -692,9 +801,11 @@ async function initializeDatabase() {
   for (const [index, name] of seedCategories.entries()) {
     const isSerialCategory = serialBookCategories.includes(name);
     await db.query(
-      `INSERT INTO categories (name, content_scope, display_tone, display_art, show_on_home, sort_order)
-       VALUES (?, ?, ?, ?, 1, ?)
+      `INSERT INTO categories (name, name_th, name_en, content_scope, display_tone, display_art, show_on_home, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, 1, ?)
        ON DUPLICATE KEY UPDATE
+         name_th = COALESCE(name_th, VALUES(name_th)),
+         name_en = COALESCE(name_en, VALUES(name_en)),
          content_scope = VALUES(content_scope),
          display_tone = COALESCE(display_tone, VALUES(display_tone)),
          display_art = COALESCE(display_art, VALUES(display_art)),
@@ -702,6 +813,8 @@ async function initializeDatabase() {
          sort_order = VALUES(sort_order)`,
       [
         name,
+        name,
+        defaultCategoryNameEnByTh[name] || name,
         getCategoryScope(name),
         isSerialCategory ? "serial" : "general",
         isSerialCategory ? `serial-${index + 1}` : `general-${index + 1}`,

@@ -15,6 +15,7 @@ import {
   type SearchableBook,
 } from "../utils/bookSearch";
 import { useI18n } from "../utils/i18n";
+import { localizedTitle } from "../utils/localizedContent";
 
 type ThemeMode = "normal" | "dark" | "reading";
 type UserRole = "guest" | "user" | "writer" | "admin" | "superadmin";
@@ -46,14 +47,6 @@ type NotificationItem = {
   action_url?: string | null;
   is_read: number;
   created_at: string;
-};
-
-type BuffetItem = {
-  id: number;
-  title: string | null;
-  status: string | null;
-  payment_status: string | null;
-  end_at: string | null;
 };
 
 const props = defineProps<{ theme: ThemeMode }>();
@@ -177,6 +170,9 @@ const accountQuickLinks = computed<NavItem[]>(() => {
 
   return [
     { label: t("account.bookshelf"), to: "/my-library", roles: readerRoles },
+    { label: t("account.cart"), to: "/cart", roles: readerRoles },
+    { label: t("account.orders"), to: "/orders/history", roles: readerRoles },
+    { label: t("account.coinWallet"), to: "/coin-wallet", roles: readerRoles },
     {
       label: t("account.following"),
       to: "/account/following",
@@ -222,6 +218,8 @@ const searchSuggestions = computed(() => {
   if (!keyword) return [];
   return filterBooks(searchBooks.value, keyword).slice(0, 6);
 });
+
+const getBookTitle = (book: SearchableBook) => localizedTitle(book, locale.value);
 
 const searchCategories = computed(() => {
   const keyword = search.value.trim().toLowerCase();
@@ -302,6 +300,26 @@ const accountGroups = computed<NavGroup[]>(() => {
     title: t("account.myAccount"),
     items: [
       { label: t("account.profile"), to: "/profile", roles: memberRoles },
+      {
+        label: t("account.notifications"),
+        to: "/account/notifications",
+        roles: memberRoles,
+      },
+      {
+        label: t("account.specialMember"),
+        to: "/subscription-plans",
+        roles: memberRoles,
+      },
+      {
+        label: t("account.userDevices"),
+        to: "/account/devices",
+        roles: memberRoles,
+      },
+      {
+        label: t("account.reviews"),
+        to: "/account/reviews",
+        roles: memberRoles,
+      },
     ],
     defaultOpen: true,
   };
@@ -332,7 +350,7 @@ const accountGroups = computed<NavGroup[]>(() => {
         roles: ["admin", "superadmin"],
       },
       {
-        label: locale.value === "th" ? "จัดการแพ็กเกจสมาชิก" : "Manage membership plans",
+        label: t("account.manageMembershipPlans"),
         to: "/admin/subscription-plans",
         roles: ["admin", "superadmin"],
       },
@@ -357,7 +375,7 @@ const accountGroups = computed<NavGroup[]>(() => {
         roles: ["admin", "superadmin"],
       },
       {
-        label: locale.value === "th" ? "ข้อมูลระบบ" : "System Data",
+        label: t("account.systemData"),
         to: "/admin/system-data",
         roles: ["admin", "superadmin"],
       },
@@ -679,7 +697,7 @@ const loadSearchBooks = async () => {
 const openSearchBook = (book: SearchableBook) => {
   closeMenu();
   closeSearch();
-  saveRecentSearch(search.value || book.title || "");
+  saveRecentSearch(search.value || getBookTitle(book) || "");
   search.value = "";
   router.push({ name: "BookDetail", params: { id: book.id } });
 };
@@ -789,25 +807,21 @@ const loadMembershipLabel = async () => {
   }
 
   try {
-    const { data } = await api.get("/account/buffet");
-    const items = Array.isArray(data?.items)
-      ? (data.items as BuffetItem[])
-      : [];
-    const activeItem = items.find(
-      (item) => item.status === "active" || item.payment_status === "paid",
-    );
+    const { data } = await api.get("/subscriptions/me");
+    const subscription = data?.subscription || null;
 
-    if (!activeItem) {
+    if (!data?.isActive || !subscription) {
       membershipLabel.value = t("account.noMembership");
       isMembershipActive.value = false;
       return;
     }
 
-    const planName = activeItem.title?.trim()
-      ? formatMembershipPlanName(activeItem.title)
+    const subscriptionName = subscription.plan_name || subscription.name || "";
+    const planName = subscriptionName.trim()
+      ? formatMembershipPlanName(subscriptionName)
       : t("account.specialMember");
-    const expiry = activeItem.end_at
-      ? `${t("account.untilDate")} ${formatLocaleDate(activeItem.end_at)}`
+    const expiry = subscription.end_at
+      ? `${t("account.untilDate")} ${formatLocaleDate(subscription.end_at)}`
       : t("account.noExpiry");
 
     isMembershipActive.value = true;
@@ -1010,7 +1024,7 @@ watch(isCompactNav, (compact) => {
             :aria-label="t('language.switchToTh')"
             @click="selectLanguage('th')"
           >
-            ไทย
+            {{ t("language.th") }}
           </button>
 
           <button
@@ -1020,7 +1034,7 @@ watch(isCompactNav, (compact) => {
             :aria-label="t('language.switchToEn')"
             @click="selectLanguage('en')"
           >
-            English
+            {{ t("language.en") }}
           </button>
         </div>
 
@@ -1348,13 +1362,13 @@ watch(isCompactNav, (compact) => {
       <section
         v-if="shouldShowSearchResults"
         class="search-results"
-        aria-label="ผลการค้นหาและคำแนะนำ"
+        :aria-label="t('search.ariaResults')"
       >
-        <p v-if="searchLoading">กำลังค้นหา...</p>
+        <p v-if="searchLoading">{{ t("search.loading") }}</p>
 
         <template v-else-if="search.trim()">
           <div v-if="searchSuggestions.length" class="search-section">
-            <h3>หนังสือ</h3>
+            <h3>{{ t("content.book") }}</h3>
             <button
               v-for="book in searchSuggestions"
               :key="book.id"
@@ -1364,21 +1378,21 @@ watch(isCompactNav, (compact) => {
             >
               <img
                 :src="resolveAssetUrl(book.cover_url || book.cover_image)"
-                :alt="book.title || 'book cover'"
+                :alt="getBookTitle(book) || 'book cover'"
               />
               <span>
-                <strong>{{ book.title }}</strong>
+                <strong>{{ getBookTitle(book) }}</strong>
                 <small>
-                  {{ book.author || book.author_name || "ไม่ระบุผู้เขียน" }} ·
-                  {{ book.category_name || "หนังสือ" }}
+                  {{ book.author || book.author_name || t("common.unspecifiedAuthor") }} ·
+                  {{ book.category_name || t("content.book") }}
                 </small>
               </span>
-              <em>{{ book.content_type === "serial" ? "รายตอน" : "อีบุ๊ก" }}</em>
+              <em>{{ book.content_type === "serial" ? t("content.serial") : t("content.ebook") }}</em>
             </button>
           </div>
 
           <div v-if="searchAuthors.length" class="search-section">
-            <h3>นักเขียน</h3>
+            <h3>{{ t("content.author") }}</h3>
             <button
               v-for="author in searchAuthors"
               :key="author"
@@ -1386,13 +1400,13 @@ watch(isCompactNav, (compact) => {
               type="button"
               @click="searchAuthor(author)"
             >
-              <span>นักเขียน</span>
+              <span>{{ t("content.author") }}</span>
               <strong>{{ author }}</strong>
             </button>
           </div>
 
           <div v-if="searchCategories.length" class="search-section">
-            <h3>หมวดหมู่</h3>
+            <h3>{{ t("content.category") }}</h3>
             <button
               v-for="categoryName in searchCategories"
               :key="categoryName"
@@ -1400,7 +1414,7 @@ watch(isCompactNav, (compact) => {
               type="button"
               @click="searchCategory(categoryName)"
             >
-              <span>หมวดหมู่</span>
+              <span>{{ t("content.category") }}</span>
               <strong>{{ categoryName }}</strong>
             </button>
           </div>
@@ -1412,13 +1426,13 @@ watch(isCompactNav, (compact) => {
               searchCategories.length === 0
             "
           >
-            ไม่พบผลลัพธ์ที่เกี่ยวข้อง
+            {{ t("search.noResults") }}
           </p>
         </template>
 
         <template v-else-if="hasSearchDiscovery">
           <div v-if="recentSearches.length" class="search-section">
-            <h3>ค้นหาล่าสุด</h3>
+            <h3>{{ t("search.recent") }}</h3>
             <div class="search-chip-list">
               <button
                 v-for="keyword in recentSearches"
@@ -1433,7 +1447,7 @@ watch(isCompactNav, (compact) => {
           </div>
 
           <div class="search-section">
-            <h3>คำค้นยอดนิยม</h3>
+            <h3>{{ t("search.popular") }}</h3>
             <div class="search-chip-list">
               <button
                 v-for="item in popularSearches"
@@ -1448,7 +1462,7 @@ watch(isCompactNav, (compact) => {
           </div>
 
           <div v-if="searchCategories.length" class="search-section">
-            <h3>หมวดหมู่แนะนำ</h3>
+            <h3>{{ t("search.suggestedCategories") }}</h3>
             <div class="search-chip-list">
               <button
                 v-for="categoryName in searchCategories"
@@ -1499,7 +1513,7 @@ watch(isCompactNav, (compact) => {
       </div>
 
       <section class="mobile-group mobile-card mobile-main-card">
-        <h3>เมนูหลัก</h3>
+        <h3>{{ t("common.mainMenu") }}</h3>
         <router-link
           v-for="item in mainNavItems"
           :key="item.to"
@@ -1516,7 +1530,7 @@ watch(isCompactNav, (compact) => {
           to="/subscription-plans"
           @click="closeMenu"
         >
-          สมัครแพ็กเกจสมาชิก
+          {{ t("nav.subscription") }}
         </router-link>
 
         <router-link
@@ -1531,7 +1545,7 @@ watch(isCompactNav, (compact) => {
               <ellipse cx="9.2" cy="8.4" rx="2.2" ry="1.5" class="coin-shine" />
             </svg>
           </span>
-          เติมคอยน์
+          {{ t("nav.topUp") }}
         </router-link>
       </section>
     </div>
@@ -1608,7 +1622,7 @@ watch(isCompactNav, (compact) => {
   min-width: 260px;
   transform: translate(-50%, -50%);
   overflow: hidden;
-  gap: clamp(12px, 1.1vw, 24px);
+  gap: clamp(12px, 1vw, 22px);
 }
 
 .desktop-public-nav a {
@@ -1616,14 +1630,16 @@ watch(isCompactNav, (compact) => {
   min-width: 0;
   overflow: hidden;
   color: var(--text);
-  font-size: clamp(13px, 0.85vw, 15px);
-  font-weight: 800;
+  font-size: clamp(12px, 0.74vw, 14px);
+  font-weight: 700;
+  line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .desktop-public-nav a.router-link-active {
   color: var(--primary-strong);
+  font-weight: 800;
 }
 
 .subscription-link,
@@ -1636,7 +1652,7 @@ watch(isCompactNav, (compact) => {
   min-height: 30px;
   border-radius: 999px;
   font-size: clamp(12px, 0.68vw, 13px);
-  font-weight: 900;
+  font-weight: 800;
   line-height: 1.15;
   text-align: center;
   white-space: nowrap;
@@ -1870,7 +1886,7 @@ watch(isCompactNav, (compact) => {
   background: #e8f8f6;
   color: #0f766e;
   cursor: pointer;
-  font-weight: 900;
+  font-weight: 800;
 }
 
 .theme-panel button.active {
@@ -1897,8 +1913,8 @@ watch(isCompactNav, (compact) => {
   background: #0f766e;
   color: #fff;
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 900;
+  font-size: 14px;
+  font-weight: 800;
   padding: 0 10px;
 }
 
@@ -1919,8 +1935,8 @@ watch(isCompactNav, (compact) => {
   background: transparent;
   color: #0f766e;
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 900;
+  font-size: 14px;
+  font-weight: 800;
   padding: 0 7px;
 }
 
@@ -1946,7 +1962,7 @@ watch(isCompactNav, (compact) => {
   border-radius: 999px;
   background: #ef4444;
   color: #fff;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 900;
   display: grid;
   place-items: center;
@@ -2039,8 +2055,8 @@ watch(isCompactNav, (compact) => {
   height: 40px;
   border-radius: 12px;
   color: #fff;
-  font-size: 12px;
-  font-weight: 900;
+  font-size: 14px;
+  font-weight: 800;
 }
 
 .tone-sale {
@@ -2064,7 +2080,7 @@ watch(isCompactNav, (compact) => {
 .notification-copy p {
   margin-top: 4px;
   color: #475569;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.5;
 }
 
@@ -2072,7 +2088,7 @@ watch(isCompactNav, (compact) => {
   display: block;
   margin-top: 6px;
   color: #64748b;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .notification-open {
@@ -2124,8 +2140,8 @@ watch(isCompactNav, (compact) => {
   border-radius: 999px;
   background: linear-gradient(135deg, #e5e7eb, #cbd5e1);
   color: #475569;
-  font-size: 20px;
-  font-weight: 900;
+  font-size: 22px;
+  font-weight: 800;
 }
 
 .account-avatar-image {
@@ -2153,7 +2169,7 @@ watch(isCompactNav, (compact) => {
 
 .account-membership {
   color: #0f766e;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -2164,8 +2180,8 @@ watch(isCompactNav, (compact) => {
   border-radius: 999px;
   background: #e0f2fe;
   color: #0369a1;
-  font-size: 11px;
-  font-weight: 900;
+  font-size: 13px;
+  font-weight: 800;
   padding: 3px 8px;
 }
 
@@ -2186,7 +2202,7 @@ watch(isCompactNav, (compact) => {
 
 .account-role-hint {
   color: #64748b;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -2198,7 +2214,7 @@ watch(isCompactNav, (compact) => {
   background: #fff;
   color: #ef4444;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   padding: 0 12px;
 }
@@ -2225,17 +2241,17 @@ watch(isCompactNav, (compact) => {
 
 .wallet-label {
   color: #1f2937;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .wallet-balance strong {
   color: #f59e0b;
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .wallet-link {
   color: #64748b;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   text-decoration: none;
 }
@@ -2269,7 +2285,7 @@ watch(isCompactNav, (compact) => {
   cursor: pointer;
   list-style: none;
   color: #111827;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 800;
 }
 
@@ -2361,7 +2377,7 @@ watch(isCompactNav, (compact) => {
   outline: 0;
   background: transparent;
   color: #0f172a;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   min-width: 0;
 }
@@ -2407,8 +2423,8 @@ watch(isCompactNav, (compact) => {
 .search-section h3 {
   margin: 0;
   color: #0f766e;
-  font-size: 12px;
-  font-weight: 900;
+  font-size: 14px;
+  font-weight: 800;
 }
 
 .search-book-result {
@@ -2458,13 +2474,13 @@ watch(isCompactNav, (compact) => {
 }
 
 .search-book-result strong {
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .search-book-result small,
 .search-book-result em {
   color: #64748b;
-  font-size: 12px;
+  font-size: 14px;
   font-style: normal;
   font-weight: 800;
 }
@@ -2492,8 +2508,8 @@ watch(isCompactNav, (compact) => {
   min-height: 32px;
   border-radius: 999px;
   color: #0f766e;
-  font-size: 12px;
-  font-weight: 900;
+  font-size: 14px;
+  font-weight: 800;
   padding: 0 12px;
 }
 
@@ -2511,15 +2527,15 @@ watch(isCompactNav, (compact) => {
 
 .search-chip-result span {
   color: #64748b;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
 }
 
 .search-chip-result strong {
   overflow: hidden;
   color: #0f172a;
-  font-size: 13px;
-  font-weight: 900;
+  font-size: 15px;
+  font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2617,7 +2633,7 @@ watch(isCompactNav, (compact) => {
 .mobile-group h3 {
   margin: 0 0 2px;
   color: #7b8794;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.01em;
   text-transform: none;
@@ -2627,7 +2643,7 @@ watch(isCompactNav, (compact) => {
   display: block;
   padding: 2px 0;
   color: #111827;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   line-height: 1.35;
   text-decoration: none;
@@ -2653,8 +2669,8 @@ watch(isCompactNav, (compact) => {
   justify-content: center;
   align-items: center;
   border-radius: 999px;
-  font-size: 11px;
-  font-weight: 900;
+  font-size: 13px;
+  font-weight: 800;
   padding: 0 8px;
 }
 
@@ -2879,14 +2895,14 @@ watch(isCompactNav, (compact) => {
   .language-switch button {
     min-width: 26px;
     height: 24px;
-    font-size: 10px;
+    font-size: 12px;
     padding: 0 5px;
   }
 
   .language-switch__single-btn {
     min-width: 38px;
     height: 24px;
-    font-size: 10px;
+    font-size: 12px;
     padding: 0 8px;
   }
 
@@ -2911,7 +2927,7 @@ watch(isCompactNav, (compact) => {
   }
 
   .search-box input {
-    font-size: 13px;
+    font-size: 15px;
     line-height: 1.25;
   }
 
@@ -2943,7 +2959,7 @@ watch(isCompactNav, (compact) => {
   }
 
   .search-section h3 {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .search-book-result {
@@ -2959,12 +2975,12 @@ watch(isCompactNav, (compact) => {
   }
 
   .search-book-result strong {
-    font-size: 11px;
+    font-size: 13px;
   }
 
   .search-book-result small,
   .search-book-result em {
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .search-chip-list {
@@ -2973,7 +2989,7 @@ watch(isCompactNav, (compact) => {
 
   .search-suggestion-chip {
     min-height: 27px;
-    font-size: 10px;
+    font-size: 12px;
     padding: 0 9px;
   }
 
@@ -2986,11 +3002,11 @@ watch(isCompactNav, (compact) => {
   }
 
   .search-chip-result span {
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .search-chip-result strong {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .mobile-backdrop {
@@ -3027,7 +3043,7 @@ watch(isCompactNav, (compact) => {
   }
 
   .mobile-group a {
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .mobile-pill-link,
@@ -3035,7 +3051,7 @@ watch(isCompactNav, (compact) => {
   .mobile-cta-group .coin-link {
     min-height: 34px;
     height: 34px;
-    font-size: 11px;
+    font-size: 13px;
     padding: 0 8px;
   }
 }
@@ -3119,7 +3135,7 @@ watch(isCompactNav, (compact) => {
   .language-switch button {
     min-width: 22px;
     height: 22px;
-    font-size: 8px;
+    font-size: 10px;
     line-height: 1;
     padding: 0 3px;
   }
@@ -3127,7 +3143,7 @@ watch(isCompactNav, (compact) => {
   .language-switch__single-btn {
     min-width: 34px;
     height: 22px;
-    font-size: 9px;
+    font-size: 11px;
     padding: 0 6px;
   }
 
@@ -3151,7 +3167,7 @@ watch(isCompactNav, (compact) => {
   }
 
   .search-box input {
-    font-size: 11px;
+    font-size: 13px;
   }
 
   .search-close {
@@ -3184,7 +3200,7 @@ watch(isCompactNav, (compact) => {
 
   .search-suggestion-chip {
     min-height: 25px;
-    font-size: 9px;
+    font-size: 11px;
     padding: 0 8px;
   }
 
@@ -3221,11 +3237,11 @@ watch(isCompactNav, (compact) => {
   }
 
   .mobile-group h3 {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .mobile-group a {
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.3;
   }
 
@@ -3234,7 +3250,7 @@ watch(isCompactNav, (compact) => {
   .mobile-cta-group .coin-link {
     min-height: 32px;
     height: 32px;
-    font-size: 10px;
+    font-size: 12px;
     padding: 0 7px;
   }
 
@@ -3264,7 +3280,7 @@ watch(isCompactNav, (compact) => {
   .theme-panel button {
     min-height: 32px;
     border-radius: 10px;
-    font-size: 11px;
+    font-size: 13px;
   }
 
   .notification-panel__header {
@@ -3272,7 +3288,7 @@ watch(isCompactNav, (compact) => {
   }
 
   .notification-panel__header h3 {
-    font-size: 14px;
+    font-size: 16px;
     line-height: 1.2;
   }
 
@@ -3307,21 +3323,21 @@ watch(isCompactNav, (compact) => {
     width: 30px;
     height: 30px;
     border-radius: 10px;
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .notification-copy h4 {
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.25;
   }
 
   .notification-copy p {
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.35;
   }
 
   .notification-copy time {
-    font-size: 10px;
+    font-size: 12px;
     margin-top: 4px;
   }
 
@@ -3329,13 +3345,13 @@ watch(isCompactNav, (compact) => {
     grid-column: 1 / -1;
     min-height: 28px;
     border-radius: 9px;
-    font-size: 10px;
+    font-size: 12px;
     padding: 0 8px;
   }
 
   .notification-empty,
   .notification-footer-link {
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .account-panel {
@@ -3354,7 +3370,7 @@ watch(isCompactNav, (compact) => {
   .account-avatar {
     width: 34px;
     height: 34px;
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .account-avatar--member {
@@ -3365,19 +3381,19 @@ watch(isCompactNav, (compact) => {
   }
 
   .role-badge {
-    font-size: 8px;
+    font-size: 10px;
     padding: 2px 6px;
   }
 
   .account-role-hint,
   .account-membership {
-    font-size: 9px;
+    font-size: 11px;
     line-height: 1.2;
   }
 
   .logout-chip {
     min-height: 30px;
-    font-size: 10px;
+    font-size: 12px;
     padding: 0 8px;
   }
 
@@ -3392,11 +3408,11 @@ watch(isCompactNav, (compact) => {
 
   .wallet-label,
   .wallet-link {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .wallet-balance strong {
-    font-size: 11px;
+    font-size: 13px;
   }
 
   .account-shortcuts,
@@ -3413,7 +3429,7 @@ watch(isCompactNav, (compact) => {
   }
 
   .account-accordion summary {
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .account-accordion summary svg {
@@ -3426,7 +3442,7 @@ watch(isCompactNav, (compact) => {
   }
 
   .account-link {
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.25;
   }
 }

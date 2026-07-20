@@ -12,7 +12,8 @@ type Category = {
 
 const router = useRouter();
 
-const title = ref("");
+const titleTh = ref("");
+const titleEn = ref("");
 const author = ref("");
 const description = ref("");
 const categoryId = ref("");
@@ -116,7 +117,8 @@ const handleCoverFileChange = (event: Event) => {
 };
 
 const resetForm = () => {
-  title.value = "";
+  titleTh.value = "";
+  titleEn.value = "";
   author.value = "";
   description.value = "";
   selectedFile.value = null;
@@ -166,7 +168,8 @@ const uploadBook = async () => {
   }
 
   if (
-    !title.value.trim() ||
+    !titleTh.value.trim() ||
+    !titleEn.value.trim() ||
     !author.value.trim() ||
     !selectedFile.value ||
     !categoryId.value
@@ -180,7 +183,9 @@ const uploadBook = async () => {
     loading.value = true;
 
     const formData = new FormData();
-    formData.append("title", title.value.trim());
+    formData.append("title", titleTh.value.trim());
+    formData.append("title_th", titleTh.value.trim());
+    formData.append("title_en", titleEn.value.trim());
     formData.append("author", author.value.trim());
     formData.append("description", description.value.trim());
     formData.append("category_id", categoryId.value);
@@ -250,7 +255,12 @@ onMounted(() => {
 
       <div class="form-group">
         <label>ชื่อหนังสือ</label>
-        <input v-model="title" type="text" placeholder="กรอกชื่อหนังสือ" />
+        <input v-model="titleTh" type="text" placeholder="กรอกชื่อหนังสือภาษาไทย" />
+      </div>
+
+      <div class="form-group">
+        <label>Book title (English)</label>
+        <input v-model="titleEn" type="text" placeholder="Enter English book title" />
       </div>
 
       <div class="form-group">
@@ -380,7 +390,7 @@ h1 {
   border: 1px solid #d8dce7;
   border-radius: 12px;
   padding: 12px 14px;
-  font-size: 16px;
+  font-size: 18px;
   box-sizing: border-box;
   background: var(--surface);
   color: var(--text-strong);
@@ -414,7 +424,7 @@ h1 {
 .helper-text {
   margin-top: 10px;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.6;
 }
 
@@ -425,7 +435,7 @@ h1 {
   padding: 14px;
   background: #6c63ff;
   color: white;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -459,13 +469,13 @@ h1 {
   }
 
   h1 {
-    font-size: 21px;
+    font-size: 23px;
     line-height: 1.15;
   }
 
   .subtitle {
     margin-bottom: 10px;
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.45;
   }
 
@@ -475,7 +485,7 @@ h1 {
 
   .form-group label {
     margin-bottom: 4px;
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .form-group input,
@@ -484,7 +494,7 @@ h1 {
     min-height: 38px;
     border-radius: 8px;
     padding: 7px 9px;
-    font-size: 13px;
+    font-size: 15px;
   }
 
   .form-group textarea {
@@ -500,13 +510,13 @@ h1 {
     min-width: 0;
     border-radius: 8px;
     padding: 7px 8px;
-    font-size: 11px;
+    font-size: 13px;
   }
 
   .helper-text,
   .file-name {
     margin-top: 6px;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.35;
   }
 
@@ -514,7 +524,7 @@ h1 {
     min-height: 38px;
     border-radius: 9px;
     padding: 8px;
-    font-size: 13px;
+    font-size: 15px;
   }
 }
 </style>

@@ -559,14 +559,14 @@ onBeforeUnmount(() => {
 
 .a11y-panel__head strong {
   display: block;
-  font-size: 15px;
+  font-size: 17px;
   line-height: 1.25;
 }
 
 .a11y-panel__head small {
   display: block;
   margin-top: 3px;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.35;
 }
 
@@ -588,7 +588,7 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: #e6fbf7;
   color: #0f766e;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   line-height: 1.1;
   padding: 0 12px;
@@ -653,12 +653,12 @@ onBeforeUnmount(() => {
   }
 
   .a11y-panel__head strong {
-    font-size: 14px;
+    font-size: 16px;
     line-height: 1.25;
   }
 
   .a11y-panel__head small {
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.25;
   }
 
@@ -674,7 +674,7 @@ onBeforeUnmount(() => {
   .a11y-inline button {
     min-height: 30px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: 13px;
     padding: 0 9px;
     white-space: nowrap;
   }
@@ -691,12 +691,12 @@ onBeforeUnmount(() => {
   }
 
   .a11y-card strong {
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.25;
   }
 
   .a11y-card span {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .a11y-control {
@@ -704,11 +704,11 @@ onBeforeUnmount(() => {
   }
 
   .a11y-control > span {
-    font-size: 11px;
+    font-size: 13px;
   }
 
   .a11y-inline strong {
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .a11y-widget.panel-only .a11y-panel {

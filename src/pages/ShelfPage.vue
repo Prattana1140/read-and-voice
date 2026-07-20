@@ -85,12 +85,12 @@
               <div class="cover-wrap">
                 <img
                   :src="getBookCover(book)"
-                  :alt="book.title"
+                  :alt="getBookTitle(book)"
                   @error="handleImgError"
                 />
               </div>
 
-              <h3>{{ book.title }}</h3>
+              <h3>{{ getBookTitle(book) }}</h3>
               <p>{{ book.author || "Read and Voice" }}</p>
 
               <div class="meta-line">
@@ -126,13 +126,13 @@
             >
               <img
                 :src="getBookCover(section.feature)"
-                :alt="section.feature.title"
+                :alt="getBookTitle(section.feature)"
                 @error="handleImgError"
               />
               <div>
                 <span>ลดสูงสุด</span>
                 <strong>{{ getDiscount(section.feature) }}%</strong>
-                <p>{{ section.feature.title }}</p>
+                <p>{{ getBookTitle(section.feature) }}</p>
               </div>
             </article>
 
@@ -146,13 +146,13 @@
                 <div class="cover-wrap">
                   <img
                     :src="getBookCover(book)"
-                    :alt="book.title"
+                    :alt="getBookTitle(book)"
                     @error="handleImgError"
                   />
                   <span v-if="getDiscount(book) > 0" class="discount-ribbon">-{{ getDiscount(book) }}%</span>
                 </div>
 
-                <h3>{{ book.title }}</h3>
+                <h3>{{ getBookTitle(book) }}</h3>
                 <p>{{ book.author || "Read and Voice" }}</p>
 
                 <div class="meta-line">
@@ -181,7 +181,7 @@
           <div class="cover-wrap">
             <img
               :src="getBookCover(book)"
-              :alt="book.title"
+              :alt="getBookTitle(book)"
               @error="handleImgError"
             />
             <span
@@ -193,7 +193,7 @@
             </span>
           </div>
 
-          <h3>{{ book.title }}</h3>
+          <h3>{{ getBookTitle(book) }}</h3>
           <p>{{ book.author || "Read and Voice" }}</p>
 
           <div class="meta-line">
@@ -214,10 +214,14 @@
 import api, { resolveAssetUrl } from "../utils/api";
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useI18n } from "../utils/i18n";
+import { localizedTitle } from "../utils/localizedContent";
 
 type Book = {
   id: number;
   title: string;
+  title_th?: string;
+  title_en?: string;
   author: string;
   cover_url?: string;
   cover_image?: string;
@@ -305,6 +309,7 @@ const shelves: Record<string, ShelfConfig> = {
 
 const route = useRoute();
 const router = useRouter();
+const { locale } = useI18n();
 const books = ref<Book[]>([]);
 const loading = ref(true);
 const search = ref("");
@@ -350,7 +355,8 @@ const displayBooks = computed(() => {
 
   return sortedBooks.value.filter((book) => {
     return (
-      book.title.toLowerCase().includes(keyword) ||
+      (book.title || "").toLowerCase().includes(keyword) ||
+      getBookTitle(book).toLowerCase().includes(keyword) ||
       book.author.toLowerCase().includes(keyword) ||
       (book.category_name || "").toLowerCase().includes(keyword)
     );
@@ -421,7 +427,7 @@ const promoHeroItems = computed(() => {
     return {
       ...campaign,
       book,
-      headline: index % 2 === 0 ? campaign.headline : book.title,
+      headline: index % 2 === 0 ? campaign.headline : getBookTitle(book),
       subtitle: book.author || campaign.subtitle,
       badge: getDiscount(book) > 0 ? `-${getDiscount(book)}%` : "",
       covers,
@@ -449,6 +455,9 @@ const promoSections = computed(() => {
 });
 
 const getBookCover = (book: Book) => resolveAssetUrl(book.cover_url || book.cover_image);
+
+const getBookTitle = (book: Book | null | undefined) =>
+  localizedTitle(book, locale.value) || book?.title || "";
 
 const getRatingText = (book: Book) => {
   const reviewCount = Number(book.review_count || 0);
@@ -545,7 +554,7 @@ watch(
   align-items: center;
   min-height: 34px;
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
   text-decoration: none;
   white-space: nowrap;
@@ -613,7 +622,7 @@ watch(
 .promo-strip-card span {
   display: inline-flex;
   color: rgba(255, 255, 255, 0.94);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 900;
 }
 
@@ -638,7 +647,7 @@ watch(
   margin-top: 8px;
   overflow: hidden;
   color: rgba(255, 255, 255, 0.9);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
   line-clamp: 1;
   -webkit-box-orient: vertical;
@@ -723,7 +732,7 @@ watch(
 .shelf-toolbar h2 {
   margin: 0;
   color: var(--text-strong);
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 900;
 }
 
@@ -732,7 +741,7 @@ watch(
   align-items: center;
   gap: 9px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .pager button {
@@ -745,7 +754,7 @@ watch(
   background: var(--surface);
   color: #00a676;
   cursor: pointer;
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1;
   padding: 0;
 }
@@ -771,7 +780,7 @@ watch(
   border-radius: 4px;
   background: var(--surface);
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: 15px;
   outline: none;
   padding: 0 10px;
 }
@@ -783,7 +792,7 @@ watch(
 
 .search-row span {
   color: #008e72;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
 }
 
@@ -828,21 +837,21 @@ watch(
 .free-section-head h3 {
   margin: 0;
   color: var(--text-strong);
-  font-size: 21px;
+  font-size: 23px;
   font-weight: 900;
 }
 
 .promo-section-head span,
 .countdown {
   color: #e11d48;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
 }
 
 .promo-section-head a,
 .free-section-head a {
   color: #008e72;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
   text-decoration: none;
 }
@@ -888,14 +897,14 @@ watch(
 .promo-feature span {
   display: block;
   color: #ffffff;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 900;
 }
 
 .promo-feature strong {
   display: block;
   color: #fffbeb;
-  font-size: 30px;
+  font-size: 32px;
   font-weight: 900;
   line-height: 1;
 }
@@ -904,7 +913,7 @@ watch(
   display: -webkit-box;
   margin: 8px 0 0;
   overflow: hidden;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 900;
   line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -932,7 +941,7 @@ watch(
   min-width: 34px;
   background: #e50924;
   color: #ffffff;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   padding: 5px 4px;
   text-align: center;
@@ -946,7 +955,7 @@ watch(
   bottom: 0;
   background: rgba(229, 9, 36, 0.18);
   color: #b91c1c;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 900;
   padding: 4px 6px;
   text-align: center;
@@ -987,7 +996,7 @@ watch(
   min-height: 42px;
   background: #e50924;
   color: #ffffff;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 900;
   line-height: 1.1;
   padding: 5px 4px 8px;
@@ -1026,7 +1035,7 @@ watch(
   margin: 12px 0 5px;
   overflow: hidden;
   color: var(--text-strong);
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 900;
   line-height: 1.45;
   line-clamp: 2;
@@ -1042,7 +1051,7 @@ watch(
   margin: 0 0 4px;
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.45;
   line-clamp: 1;
@@ -1060,13 +1069,13 @@ watch(
 
 .meta-line span {
   color: #ef3f7a;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1;
 }
 
 .meta-line small {
   color: #4b5563;
-  font-size: 12px;
+  font-size: 14px;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -1083,7 +1092,7 @@ watch(
   border-radius: 2px;
   background: #00b874;
   color: #ffffff;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   padding: 0 8px;
 }
@@ -1129,7 +1138,7 @@ watch(
     justify-content: center;
     min-width: 0;
     min-height: 30px;
-    font-size: 11px;
+    font-size: 13px;
     text-align: center;
     white-space: normal;
   }
@@ -1167,7 +1176,7 @@ watch(
   .shelf-tabs a {
     flex-basis: calc(25% - 7px);
     min-height: 28px;
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .promo-strip-card {
@@ -1176,7 +1185,7 @@ watch(
   }
 
   .promo-strip-card strong {
-    font-size: 24px;
+    font-size: 26px;
   }
 
   .promo-strip-copy {
@@ -1207,30 +1216,30 @@ watch(
   .book-card h3 {
     min-height: 30px;
     margin-top: 7px;
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.25;
   }
 
   .book-card p,
   .meta-line small {
     min-height: 12px;
-    font-size: 8px;
+    font-size: 10px;
     line-height: 1.25;
   }
 
   .meta-line span {
-    font-size: 8px;
+    font-size: 10px;
   }
 
   .price {
     min-width: 40px;
     min-height: 20px;
-    font-size: 8px;
+    font-size: 10px;
     padding: 0 4px;
   }
 
   .promo-feature strong {
-    font-size: 30px;
+    font-size: 32px;
   }
 }
 </style>

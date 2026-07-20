@@ -3,11 +3,15 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { api, API_BASE_URL } from "../utils/api";
 import { getAuthHeaders } from "../utils/auth";
+import { useI18n } from "../utils/i18n";
+import { localizedTitle } from "../utils/localizedContent";
 
 type LibraryBook = {
   library_id: number | null;
   id: number;
   title: string;
+  title_th?: string;
+  title_en?: string;
   author: string;
   description?: string;
   cover_image?: string;
@@ -16,6 +20,7 @@ type LibraryBook = {
 };
 
 const router = useRouter();
+const { locale } = useI18n();
 const loading = ref(true);
 const error = ref("");
 const books = ref<LibraryBook[]>([]);
@@ -29,12 +34,16 @@ const filteredBooks = computed(() => {
 
   return books.value.filter((book) => {
     return (
-      book.title.toLowerCase().includes(keyword) ||
+      (book.title || "").toLowerCase().includes(keyword) ||
+      getBookTitle(book).toLowerCase().includes(keyword) ||
       book.author.toLowerCase().includes(keyword) ||
       (book.category_name || "").toLowerCase().includes(keyword)
     );
   });
 });
+
+const getBookTitle = (book: LibraryBook | null | undefined) =>
+  localizedTitle(book, locale.value) || book?.title || "";
 
 const getCoverUrl = (cover?: string) => {
   if (!cover) return "/no-cover.png";
@@ -122,10 +131,10 @@ onMounted(fetchLibrary);
 
     <section v-else class="book-grid">
       <article v-for="book in filteredBooks" :key="book.library_id || `book-${book.id}`" class="book-card">
-        <img :src="getCoverUrl(book.cover_image)" :alt="book.title" />
+        <img :src="getCoverUrl(book.cover_image)" :alt="getBookTitle(book)" />
         <div class="book-info">
           <span>{{ book.category_name || "หนังสือ" }}</span>
-          <h2>{{ book.title }}</h2>
+          <h2>{{ getBookTitle(book) }}</h2>
           <p>{{ book.author }}</p>
           <div class="actions">
             <button type="button" @click="router.push(`/reader/${book.id}`)">
@@ -156,7 +165,7 @@ onMounted(fetchLibrary);
       >
         <h2 id="remove-library-title">ลบออกจากชั้นหนังสือ</h2>
         <p id="remove-library-message">
-          ต้องการลบ "{{ pendingRemoveBook.title }}" ออกจากชั้นใช่ไหม?
+          ต้องการลบ "{{ getBookTitle(pendingRemoveBook) }}" ออกจากชั้นใช่ไหม?
         </p>
 
         <div class="confirm-actions">
@@ -296,7 +305,7 @@ h2 {
 
 .book-card h2 {
   margin-top: 6px;
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .actions {
@@ -335,7 +344,7 @@ h2 {
 .confirm-dialog h2 {
   margin: 0;
   color: var(--text-strong);
-  font-size: 24px;
+  font-size: 26px;
 }
 
 .confirm-dialog p {

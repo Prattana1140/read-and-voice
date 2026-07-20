@@ -2,6 +2,8 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import api, { resolveAssetUrl } from "../../utils/api";
+import { useI18n } from "../../utils/i18n";
+import { localizedTitle } from "../../utils/localizedContent";
 
 type WriterProfile = {
   user_id: number;
@@ -18,10 +20,13 @@ type WriterProfile = {
 type WriterBook = {
   id: number;
   title: string;
+  title_th?: string;
+  title_en?: string;
   cover_image?: string;
 };
 
 const router = useRouter();
+const { locale } = useI18n();
 const loading = ref(true);
 const saving = ref(false);
 const message = ref("");
@@ -43,6 +48,8 @@ const form = reactive<WriterProfile>({
 const publicPath = computed(() => `/writers/${form.page_slug || `user-${form.user_id || "me"}`}`);
 const avatarPreview = computed(() => (form.avatar_url ? resolveAssetUrl(form.avatar_url) : ""));
 const bannerPreview = computed(() => (form.banner_url ? resolveAssetUrl(form.banner_url) : ""));
+
+const getBookTitle = (book: WriterBook) => localizedTitle(book, locale.value) || book.title;
 
 function syncProfile(profile?: Partial<WriterProfile> | null) {
   form.user_id = Number(profile?.user_id || 0);
@@ -112,6 +119,8 @@ onMounted(loadProfile);
         </p>
       </div>
       <div class="hero-actions">
+        <button type="button" class="ghost-button" @click="router.push('/writer/upload')">เพิ่มผลงาน</button>
+        <button type="button" class="ghost-button" @click="router.push('/writer/books')">จัดการผลงาน</button>
         <button type="button" class="ghost-button" @click="router.push(publicPath)">ดูหน้าสาธารณะ</button>
         <button type="button" @click="router.push('/writer')">กลับแดชบอร์ด</button>
       </div>
@@ -163,30 +172,55 @@ onMounted(loadProfile);
             <textarea v-model="form.bio" rows="6" maxlength="4000" placeholder="เล่าให้ผู้อ่านรู้จักตัวคุณหรือแนวงานเขียนของคุณ" />
           </label>
 
-          <label class="full-span">
+          <div class="field-with-actions full-span">
+            <label>
             <span>ลิงก์รูปโปรไฟล์</span>
             <input v-model="form.avatar_url" type="url" placeholder="https://example.com/avatar.jpg" />
-          </label>
+            </label>
+            <button v-if="form.avatar_url" type="button" class="danger-ghost" @click="form.avatar_url = ''">
+              ลบรูปโปรไฟล์
+            </button>
+          </div>
 
-          <label class="full-span">
+          <div class="field-with-actions full-span">
+            <label>
             <span>ลิงก์รูปแบนเนอร์</span>
             <input v-model="form.banner_url" type="url" placeholder="https://example.com/banner.jpg" />
-          </label>
+            </label>
+            <button v-if="form.banner_url" type="button" class="danger-ghost" @click="form.banner_url = ''">
+              ลบแบนเนอร์
+            </button>
+          </div>
 
-          <label>
+          <div class="field-with-actions">
+            <label>
             <span>ลิงก์ X / Twitter</span>
             <input v-model="form.x_url" type="url" placeholder="https://x.com/yourhandle" />
-          </label>
+            </label>
+            <button v-if="form.x_url" type="button" class="danger-ghost" @click="form.x_url = ''">
+              ลบลิงก์
+            </button>
+          </div>
 
-          <label class="full-span">
+          <div class="field-with-actions full-span">
+            <label>
             <span>ผลงานเด่นบนหน้าโปรไฟล์</span>
             <select v-model="form.pinned_book_id">
               <option :value="null">ยังไม่เลือก</option>
               <option v-for="book in books" :key="book.id" :value="book.id">
-                {{ book.title }}
+                {{ getBookTitle(book) }}
               </option>
             </select>
-          </label>
+            </label>
+            <button
+              v-if="form.pinned_book_id"
+              type="button"
+              class="danger-ghost"
+              @click="form.pinned_book_id = null"
+            >
+              ลบผลงานเด่น
+            </button>
+          </div>
 
           <div class="form-actions full-span">
             <button type="submit" :disabled="saving">
@@ -224,7 +258,7 @@ onMounted(loadProfile);
 .eyebrow {
   margin: 0 0 10px;
   color: var(--primary-strong);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -344,7 +378,7 @@ button {
   place-items: center;
   background: linear-gradient(135deg, #00a878, #20b8ad);
   color: #fff;
-  font-size: 30px;
+  font-size: 32px;
   font-weight: 900;
   overflow: hidden;
 }
@@ -364,6 +398,16 @@ label {
   font-weight: 900;
 }
 
+.field-with-actions {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.field-with-actions label {
+  min-width: 0;
+}
+
 input,
 textarea,
 select {
@@ -374,7 +418,7 @@ select {
   color: var(--text-strong);
   padding: 12px 14px;
   font: inherit;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 textarea {
@@ -388,6 +432,14 @@ textarea {
 .form-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.danger-ghost {
+  justify-self: start;
+  min-height: 38px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #dc2626;
 }
 
 .state-box {

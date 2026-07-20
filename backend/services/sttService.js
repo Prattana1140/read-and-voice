@@ -3,6 +3,8 @@ const os = require("os");
 const path = require("path");
 const { execFile } = require("child_process");
 
+const backendDir = path.resolve(__dirname, "..");
+
 function readEnv(name) {
   return String(process.env[name] || "").trim();
 }
@@ -39,15 +41,22 @@ function extensionForMime(mimeType = "") {
 
 function parseArgsTemplate(template, inputPath, language) {
   if (!template) return [inputPath];
-  return String(template)
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((arg) =>
-      arg
-        .replaceAll("{input}", inputPath)
-        .replaceAll("{language}", language)
-        .replaceAll("{lang}", language),
-    );
+
+  const args = [];
+  const pattern = /"([^"]*)"|'([^']*)'|(\S+)/g;
+  let match;
+
+  while ((match = pattern.exec(String(template))) !== null) {
+    args.push(match[1] ?? match[2] ?? match[3]);
+  }
+
+  return args.map((arg) =>
+    arg
+      .replaceAll("{backend}", backendDir.replace(/\\/g, "/"))
+      .replaceAll("{input}", inputPath)
+      .replaceAll("{language}", language)
+      .replaceAll("{lang}", language),
+  );
 }
 
 function execFileText(command, args, timeoutMs) {

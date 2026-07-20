@@ -214,10 +214,7 @@ export function parseVoiceCommand(rawCommand: string): VoiceCommandAction {
   if (/ตั้งค่าการแจ้งเตือน|notification settings/.test(command)) return { type: "navigate", routeName: "NotificationSettings" };
   if (/การแจ้งเตือน|แจ้งเตือน|notifications/.test(command)) return { type: "navigate", routeName: "AccountNotifications" };
   if (/กำลังติดตาม|ติดตาม|following/.test(command)) return { type: "navigate", routeName: "AccountFollowing" };
-  if (/กิฟต์โค้ด|gift code|gift codes/.test(command)) return { type: "navigate", routeName: "AccountGiftCodes" };
-  if (/แพ็กเกจของฉัน|แพคเกจของฉัน|บุฟเฟต์|buffet/.test(command)) return { type: "navigate", routeName: "AccountBuffet" };
   if (/อุปกรณ์ของฉัน|อุปกรณ์|devices/.test(command)) return { type: "navigate", routeName: "AccountDevices" };
-  if (/สิทธิประโยชน์|benefits/.test(command)) return { type: "navigate", routeName: "AccountBenefits" };
   if (/รีวิวของฉัน|รีวิว|reviews/.test(command)) return { type: "navigate", routeName: "AccountReviews" };
   if (/ยืนยันอายุ|age verification/.test(command)) return { type: "navigate", routeName: "Profile" };
   if (/กระเป๋า|คอยน์|เหรียญ|เติมเงิน|เติมคอยน์/.test(command)) return { type: "navigate", routeName: "CoinWallet" };

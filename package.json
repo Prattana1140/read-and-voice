@@ -12,6 +12,7 @@
     "type-check": "vue-tsc --noEmit -p tsconfig.app.json",
     "check": "npm run type-check && npm run check:voice-commands && npm --prefix backend run config:check && npm run build",
     "check:category-scopes": "node backend/services/scripts/checkCategoryScopes.js",
+    "check:i18n-hardcoded": "node scripts/auditI18nHardcoded.mjs",
     "check:voice-commands": "node scripts/checkVoiceCommands.mjs",
     "preview": "vite preview"
   },

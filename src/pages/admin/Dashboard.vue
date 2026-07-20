@@ -3,10 +3,14 @@ import api, { API_BASE_URL } from "../../utils/api";
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { getAuthHeaders, getUser } from "../../utils/auth";
+import { useI18n } from "../../utils/i18n";
+import { localizedTitle } from "../../utils/localizedContent";
 
 type Book = {
   id: number;
   title: string;
+  title_th?: string;
+  title_en?: string;
   author: string;
   description?: string;
   cover_image?: string;
@@ -18,6 +22,7 @@ type Book = {
 
 const router = useRouter();
 const currentUser = getUser();
+const { locale } = useI18n();
 
 const loading = ref(true);
 const error = ref("");
@@ -35,6 +40,7 @@ const filteredBooks = computed(() => {
   return books.value.filter((book) => {
     return (
       (book.title || "").toLowerCase().includes(keyword) ||
+      getBookTitle(book).toLowerCase().includes(keyword) ||
       (book.author || "").toLowerCase().includes(keyword) ||
       (book.category_name || "").toLowerCase().includes(keyword)
     );
@@ -91,6 +97,9 @@ const goToAdminUsers = () => {
 const goToApprovals = () => {
   router.push({ name: "AdminApprovals" });
 };
+
+const getBookTitle = (book: Book | null | undefined) =>
+  localizedTitle(book, locale.value) || book?.title || "";
 
 const goToCoinTopups = () => {
   router.push({ name: "AdminPayments" });
@@ -226,7 +235,7 @@ onMounted(() => {
               <td>
                 <img
                   :src="getCoverUrl(book.cover_image)"
-                  :alt="book.title"
+                  :alt="getBookTitle(book)"
                   class="cover-thumb"
                   @error="
                     ($event.target as HTMLImageElement).src = '/no-cover.png'
@@ -236,7 +245,7 @@ onMounted(() => {
 
               <td>
                 <div class="title-cell">
-                  <strong>{{ book.title }}</strong>
+                  <strong>{{ getBookTitle(book) }}</strong>
                   <small v-if="book.description">{{ book.description }}</small>
                 </div>
               </td>
@@ -263,7 +272,7 @@ onMounted(() => {
 
                   <button
                     class="btn danger"
-                    @click="deleteBook(book.id, book.title)"
+                    @click="deleteBook(book.id, getBookTitle(book))"
                   >
                     ลบ
                   </button>
@@ -316,7 +325,7 @@ onMounted(() => {
 
 .page-header h1 {
   margin: 0 0 8px;
-  font-size: 34px;
+  font-size: 36px;
   color: var(--text-strong);
 }
 
@@ -374,7 +383,7 @@ onMounted(() => {
 }
 
 .stat-value {
-  font-size: 34px;
+  font-size: 36px;
   color: var(--text-strong);
 }
 
@@ -477,7 +486,7 @@ onMounted(() => {
   color: var(--text-muted);
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   min-width: 80px;
 }
@@ -530,13 +539,13 @@ onMounted(() => {
 
   .page-header h1 {
     margin-bottom: 3px;
-    font-size: 20px;
+    font-size: 22px;
     line-height: 1.15;
   }
 
   .page-header p {
     max-width: 34rem;
-    font-size: 9.5px;
+    font-size: 11.5px;
     line-height: 1.35;
   }
 
@@ -561,7 +570,7 @@ onMounted(() => {
   .top-btn {
     min-height: 29px;
     border-radius: 8px;
-    font-size: 9px;
+    font-size: 11px;
     line-height: 1.2;
     padding: 4px 7px;
   }
@@ -575,11 +584,11 @@ onMounted(() => {
 
   .stat-label {
     margin-bottom: 2px;
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .stat-value {
-    font-size: 18px;
+    font-size: 20px;
     line-height: 1;
   }
 
@@ -591,7 +600,7 @@ onMounted(() => {
     max-width: none;
     min-height: 32px;
     border-radius: 9px;
-    font-size: 10px;
+    font-size: 12px;
     padding: 6px 9px;
   }
 
@@ -609,13 +618,13 @@ onMounted(() => {
   .book-table td {
     overflow-wrap: anywhere;
     padding: 5px 4px;
-    font-size: 7px;
+    font-size: 9px;
     line-height: 1.25;
     word-break: break-word;
   }
 
   .book-table th {
-    font-size: 6.5px;
+    font-size: 8.5px;
     line-height: 1.15;
   }
 
@@ -632,7 +641,7 @@ onMounted(() => {
   .title-cell strong {
     display: -webkit-box;
     overflow: hidden;
-    font-size: 7px;
+    font-size: 9px;
     line-height: 1.25;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -646,7 +655,7 @@ onMounted(() => {
   .status-badge {
     min-width: 0;
     border-radius: 7px;
-    font-size: 6.5px;
+    font-size: 8.5px;
     padding: 3px 4px;
   }
 
@@ -657,7 +666,7 @@ onMounted(() => {
   .btn {
     min-height: 19px;
     border-radius: 7px;
-    font-size: 6.5px;
+    font-size: 8.5px;
     line-height: 1.15;
     padding: 2px 3px;
   }
@@ -669,11 +678,11 @@ onMounted(() => {
   }
 
   .page-header h1 {
-    font-size: 18px;
+    font-size: 20px;
   }
 
   .page-header p {
-    font-size: 8.5px;
+    font-size: 10.5px;
     line-height: 1.3;
   }
 
@@ -684,7 +693,7 @@ onMounted(() => {
   .top-btn {
     min-height: 27px;
     border-radius: 7px;
-    font-size: 8px;
+    font-size: 10px;
     padding: 3px 5px;
   }
 
@@ -698,7 +707,7 @@ onMounted(() => {
   }
 
   .stat-value {
-    font-size: 17px;
+    font-size: 19px;
   }
 
   .book-table {

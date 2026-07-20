@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { api } from "../utils/api";
 import { saveAuth } from "../utils/auth";
+import { registerCurrentDevice } from "../utils/deviceRegistration";
 import { redirectAfterLogin } from "../utils/loginRedirect";
 
 const router = useRouter();
@@ -31,7 +32,8 @@ const login = async () => {
     const res = await api.post("/api/auth/login", payload);
 
     saveAuth(res.data.token, res.data.user);
-    redirectAfterLogin(router, res.data.user);
+    await registerCurrentDevice();
+    await redirectAfterLogin(router, res.data.user);
   } catch (err) {
     console.error("LOGIN ERROR:", err.response?.data || err);
 
@@ -135,7 +137,7 @@ const goRegister = () => {
 .title {
   margin: 0 0 8px;
   color: var(--text-strong);
-  font-size: 28px;
+  font-size: 30px;
 }
 
 .subtitle {
@@ -164,7 +166,7 @@ const goRegister = () => {
   color: var(--text-strong);
   padding: 12px 14px;
   outline: none;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .login-btn {
@@ -216,13 +218,13 @@ const goRegister = () => {
   }
 
   .title {
-    font-size: 22px;
+    font-size: 24px;
     line-height: 1.18;
   }
 
   .subtitle {
     margin-bottom: 14px;
-    font-size: 13px;
+    font-size: 15px;
     line-height: 1.45;
   }
 
@@ -232,13 +234,13 @@ const goRegister = () => {
 
   .form-group label {
     margin-bottom: 5px;
-    font-size: 13px;
+    font-size: 15px;
   }
 
   .form-group input {
     min-height: 42px;
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 16px;
     padding: 9px 11px;
   }
 

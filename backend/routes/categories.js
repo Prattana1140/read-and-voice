@@ -7,8 +7,64 @@ const router = express.Router();
 
 let schemaReady = false;
 
+const defaultNameEnByTh = {
+  "นิยาย": "Fiction",
+  "นิยายรัก": "Romance",
+  "นิยายรักวัยรุ่น": "Teen Romance",
+  "นิยายรักวัยว้าวุ่น": "Coming-of-age Romance",
+  "นิยายโรแมนซ์": "Romance Novel",
+  "นิยายรักผู้ใหญ่": "Adult Romance",
+  "นิยายรักจีนโบราณ": "Historical Chinese Romance",
+  "นิยาย Boy Love Lovely Room": "Boy Love Lovely Room",
+  "นิยาย Boy Love Party Room": "Boy Love Party Room",
+  "นิยาย Boy Love Secret Room": "Boy Love Secret Room",
+  "นิยาย Girl Love Lovely Room": "Girl Love Lovely Room",
+  "นิยาย Girl Love Party Room": "Girl Love Party Room",
+  "นิยาย Girl Love Secret Room": "Girl Love Secret Room",
+  "แฟนตาซี เกมออนไลน์ ต่างโลก": "Fantasy, Online Games, Isekai",
+  "แฟนตาซี": "Fantasy",
+  "Sci-fi": "Sci-fi",
+  "ไซไฟ": "Sci-fi",
+  "ผจญภัย แอคชั่น กำลังภายใน": "Adventure, Action, Martial Arts",
+  "สืบสวน": "Mystery",
+  "ลึกลับ": "Suspense",
+  "สยองขวัญ": "Horror",
+  "สะท้อนสังคม": "Social Issues",
+  "แนวทางเลือก": "Alternative",
+  "สาระความรู้": "Knowledge",
+  "เรื่องนี้ที่อยากเล่า/ไดอารี่": "Diary",
+  "สัพเพเหระ": "Miscellaneous",
+  "วรรณกรรมเยาวชน": "Young Adult",
+  "ความรู้": "Knowledge",
+  "ธุรกิจ": "Business",
+  "เทคโนโลยี": "Technology",
+  "ภาษา": "Language",
+  "สุขภาพ": "Health",
+  "เด็กและเยาวชน": "Children and Young Adult",
+  "วรรณกรรม": "Literature",
+  "โรแมนซ์": "Romance",
+  "ดราม่า": "Drama",
+  "ตราม่า": "Drama",
+  "พัฒนาตนเอง": "Self Improvement",
+  "การศึกษา": "Education",
+  "คอมพิวเตอร์": "Computer",
+  "ไลท์โนเวล": "Light Novel",
+  "ตำราเรียน": "Textbook",
+  "อื่นๆ": "Others",
+};
+
 async function ensureCategorySchema() {
   if (schemaReady) return;
+
+  const [nameThColumns] = await db.query("SHOW COLUMNS FROM categories LIKE 'name_th'");
+  if (nameThColumns.length === 0) {
+    await db.query("ALTER TABLE categories ADD COLUMN name_th VARCHAR(255) NULL AFTER name");
+  }
+
+  const [nameEnColumns] = await db.query("SHOW COLUMNS FROM categories LIKE 'name_en'");
+  if (nameEnColumns.length === 0) {
+    await db.query("ALTER TABLE categories ADD COLUMN name_en VARCHAR(255) NULL AFTER name_th");
+  }
 
   const [columns] = await db.query("SHOW COLUMNS FROM categories LIKE 'parent_id'");
   if (columns.length === 0) {
@@ -54,6 +110,14 @@ async function ensureCategorySchema() {
   if (sortColumns.length === 0) {
     await db.query("ALTER TABLE categories ADD COLUMN sort_order INT NOT NULL DEFAULT 0 AFTER show_on_home");
     await db.query("ALTER TABLE categories ADD INDEX idx_categories_home_sort (show_on_home, sort_order)");
+  }
+
+  await db.query("UPDATE categories SET name_th = name WHERE name_th IS NULL OR name_th = ''");
+  for (const [nameTh, nameEn] of Object.entries(defaultNameEnByTh)) {
+    await db.query(
+      "UPDATE categories SET name_en = ? WHERE name = ? AND (name_en IS NULL OR name_en = '')",
+      [nameEn, nameTh],
+    );
   }
 
   schemaReady = true;
@@ -128,7 +192,7 @@ router.get("/", async (req, res) => {
     }
 
     const [rows] = await db.query(
-      `SELECT id, name, parent_id, content_scope, display_tone, display_art, show_on_home, sort_order, created_at, NULL AS updated_at
+      `SELECT id, name, COALESCE(name_th, name) AS name_th, name_en, parent_id, content_scope, display_tone, display_art, show_on_home, sort_order, created_at, NULL AS updated_at
        FROM categories
        ${filters.length ? `WHERE ${filters.join(" AND ")}` : ""}
        ORDER BY sort_order ASC, COALESCE(parent_id, id) ASC, parent_id IS NOT NULL ASC, name ASC`,
@@ -146,7 +210,9 @@ router.post("/", verifyToken, requireAdmin, async (req, res) => {
   try {
     await ensureCategorySchema();
 
-    const name = String(req.body.name || "").trim();
+    const nameTh = String(req.body.name_th || req.body.name || "").trim();
+    const nameEn = String(req.body.name_en || "").trim();
+    const name = nameTh;
     const parentId = normalizeParentId(req.body.parent_id);
     const contentScope = normalizeContentScope(req.body.content_scope || req.body.scope);
     const displayTone = normalizeOptionalText(req.body.display_tone);
@@ -154,8 +220,8 @@ router.post("/", verifyToken, requireAdmin, async (req, res) => {
     const showOnHome = normalizeBoolean(req.body.show_on_home, true);
     const sortOrder = normalizeSortOrder(req.body.sort_order);
 
-    if (!name) {
-      return res.status(400).json({ message: "กรุณากรอกชื่อหมวดหมู่" });
+    if (!nameTh || !nameEn) {
+      return res.status(400).json({ message: "กรุณากรอกชื่อหมวดหมู่ทั้งภาษาไทยและอังกฤษ" });
     }
 
     const parentError = await validateParent(parentId);
@@ -171,8 +237,8 @@ router.post("/", verifyToken, requireAdmin, async (req, res) => {
     }
 
     const [result] = await db.query(
-      "INSERT INTO categories (name, parent_id, content_scope, display_tone, display_art, show_on_home, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [name, parentId, contentScope, displayTone, displayArt, showOnHome, sortOrder],
+      "INSERT INTO categories (name, name_th, name_en, parent_id, content_scope, display_tone, display_art, show_on_home, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [name, nameTh, nameEn, parentId, contentScope, displayTone, displayArt, showOnHome, sortOrder],
     );
 
     return res.json({
@@ -189,7 +255,9 @@ router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
   try {
     await ensureCategorySchema();
 
-    const name = String(req.body.name || "").trim();
+    const nameTh = String(req.body.name_th || req.body.name || "").trim();
+    const nameEn = String(req.body.name_en || "").trim();
+    const name = nameTh;
     const parentId = normalizeParentId(req.body.parent_id);
     const displayTone = normalizeOptionalText(req.body.display_tone);
     const displayArt = normalizeOptionalText(req.body.display_art);
@@ -197,8 +265,8 @@ router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
     const sortOrder = normalizeSortOrder(req.body.sort_order);
     const { id } = req.params;
 
-    if (!name) {
-      return res.status(400).json({ message: "กรุณากรอกชื่อหมวดหมู่" });
+    if (!nameTh || !nameEn) {
+      return res.status(400).json({ message: "กรุณากรอกชื่อหมวดหมู่ทั้งภาษาไทยและอังกฤษ" });
     }
 
     const [exists] = await db.query(
@@ -227,8 +295,10 @@ router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
       return res.status(400).json({ message: "หมวดหมู่นี้มีอยู่แล้ว" });
     }
 
-    await db.query("UPDATE categories SET name = ?, parent_id = ?, content_scope = ?, display_tone = ?, display_art = ?, show_on_home = ?, sort_order = ? WHERE id = ?", [
+    await db.query("UPDATE categories SET name = ?, name_th = ?, name_en = ?, parent_id = ?, content_scope = ?, display_tone = ?, display_art = ?, show_on_home = ?, sort_order = ? WHERE id = ?", [
       name,
+      nameTh,
+      nameEn,
       parentId,
       contentScope,
       displayTone,

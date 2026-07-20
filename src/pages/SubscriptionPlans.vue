@@ -587,7 +587,7 @@ onMounted(async () => {
   gap: 8px;
   align-items: center;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
   margin-bottom: 16px;
 }
 
@@ -652,7 +652,7 @@ onMounted(async () => {
 .hero-copy span {
   max-width: 620px;
   color: rgba(255, 255, 255, 0.9);
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
   line-height: 1.7;
 }
@@ -726,7 +726,7 @@ onMounted(async () => {
 
 .vip-token span {
   color: #a16207;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 900;
 }
 
@@ -747,7 +747,7 @@ onMounted(async () => {
 }
 
 .wallet-card strong {
-  font-size: 24px;
+  font-size: 26px;
 }
 
 .wallet-card button {
@@ -781,7 +781,7 @@ onMounted(async () => {
 
 .status-strip span {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
 }
 
@@ -821,7 +821,7 @@ onMounted(async () => {
 
 .section-head p {
   color: var(--accent-strong);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -872,7 +872,7 @@ onMounted(async () => {
   border-radius: 999px;
   background: #ef4444;
   color: #fff;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   padding: 5px 10px;
 }
@@ -884,13 +884,13 @@ onMounted(async () => {
 
 .plan-card p {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
 }
 
 .plan-card h3 {
   color: var(--text-strong);
-  font-size: 24px;
+  font-size: 26px;
 }
 
 .price-line {
@@ -901,7 +901,7 @@ onMounted(async () => {
 }
 
 .price-line strong {
-  font-size: 30px;
+  font-size: 32px;
   line-height: 1;
 }
 
@@ -945,7 +945,7 @@ onMounted(async () => {
 .benefits-section h3 {
   margin-top: 0;
   color: var(--text-strong);
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .benefits-section p {
@@ -977,7 +977,7 @@ onMounted(async () => {
 
 .compare-grid strong {
   color: var(--text-strong);
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .compare-grid p,
@@ -1040,7 +1040,7 @@ onMounted(async () => {
   .crumb {
     gap: 5px;
     margin-bottom: 10px;
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.25;
   }
 
@@ -1049,7 +1049,7 @@ onMounted(async () => {
   }
 
   .hero-copy h1 {
-    font-size: 32px;
+    font-size: 34px;
   }
 
   .status-strip,

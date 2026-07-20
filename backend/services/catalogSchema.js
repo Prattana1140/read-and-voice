@@ -49,6 +49,24 @@ async function ensureIndex(tableName, indexName, definition) {
 async function ensureCatalogAnalyticsSchema() {
   if (!schemaReadyPromise) {
     schemaReadyPromise = (async () => {
+      await ensureColumn("books", "title_th", "title_th VARCHAR(500) NULL AFTER title");
+      await ensureColumn("books", "title_en", "title_en VARCHAR(500) NULL AFTER title_th");
+      await ensureColumn("books", "subtitle_th", "subtitle_th VARCHAR(500) NULL AFTER subtitle");
+      await ensureColumn("books", "subtitle_en", "subtitle_en VARCHAR(500) NULL AFTER subtitle_th");
+      await ensureColumn("books", "full_text_th", "full_text_th LONGTEXT NULL AFTER full_text");
+      await ensureColumn("books", "full_text_en", "full_text_en LONGTEXT NULL AFTER full_text_th");
+      await ensureColumn("book_pages", "page_text_th", "page_text_th LONGTEXT NULL AFTER page_text");
+      await ensureColumn("book_pages", "page_text_en", "page_text_en LONGTEXT NULL AFTER page_text_th");
+      await ensureColumn("book_episodes", "title_th", "title_th VARCHAR(500) NULL AFTER title");
+      await ensureColumn("book_episodes", "title_en", "title_en VARCHAR(500) NULL AFTER title_th");
+      await ensureColumn("book_episodes", "content_th", "content_th LONGTEXT NULL AFTER content");
+      await ensureColumn("book_episodes", "content_en", "content_en LONGTEXT NULL AFTER content_th");
+      await db.query("UPDATE books SET title_th = title WHERE title_th IS NULL OR title_th = ''");
+      await db.query("UPDATE books SET subtitle_th = subtitle WHERE subtitle IS NOT NULL AND (subtitle_th IS NULL OR subtitle_th = '')");
+      await db.query("UPDATE books SET full_text_th = full_text WHERE full_text IS NOT NULL AND (full_text_th IS NULL OR full_text_th = '')");
+      await db.query("UPDATE book_pages SET page_text_th = page_text WHERE page_text IS NOT NULL AND (page_text_th IS NULL OR page_text_th = '')");
+      await db.query("UPDATE book_episodes SET title_th = title WHERE title_th IS NULL OR title_th = ''");
+      await db.query("UPDATE book_episodes SET content_th = content WHERE content IS NOT NULL AND (content_th IS NULL OR content_th = '')");
       await ensureColumn(
         "books",
         "promo_discount_percent",

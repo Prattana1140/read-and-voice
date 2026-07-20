@@ -5,6 +5,8 @@ import api from "../../utils/api";
 type Category = {
   id: number;
   name: string;
+  name_th?: string | null;
+  name_en?: string | null;
   parent_id: number | null;
   content_scope?: string | null;
   display_tone?: string | null;
@@ -15,6 +17,8 @@ type Category = {
 
 type CategoryForm = {
   name: string;
+  name_th: string;
+  name_en: string;
   parent_id: string;
   content_scope: string;
   display_tone: string;
@@ -27,6 +31,7 @@ type CategoryForm = {
 
 type CategoryPreset = {
   name: string;
+  nameEn: string;
   tone: string;
   art: string;
   scope?: string;
@@ -72,16 +77,16 @@ const formNameLimit = 28;
 const homeGridRows = 2;
 
 const quickPresets: CategoryPreset[] = [
-  { name: "นิยายรัก", tone: "romance", art: "romance-books", scope: "serial" },
-  { name: "Boy Love", tone: "romance", art: "romance-books", scope: "serial" },
-  { name: "Girl Love", tone: "romance", art: "romance-family", scope: "serial" },
-  { name: "แฟนตาซีรายตอน", tone: "fantasy", art: "fantasy-wizard", scope: "serial" },
-  { name: "สืบสวนรายตอน", tone: "mystery", art: "mystery-book", scope: "serial" },
-  { name: "เทคโนโลยี", tone: "technology", art: "space-science" },
-  { name: "การศึกษา", tone: "study", art: "education-graduate" },
-  { name: "คอมพิวเตอร์", tone: "technology", art: "space-science" },
-  { name: "ธุรกิจ", tone: "business", art: "finance-book" },
-  { name: "สุขภาพ", tone: "wellness", art: "health-yoga" },
+  { name: "นิยายรัก", nameEn: "Romance", tone: "romance", art: "romance-books", scope: "serial" },
+  { name: "Boy Love", nameEn: "Boy Love", tone: "romance", art: "romance-books", scope: "serial" },
+  { name: "Girl Love", nameEn: "Girl Love", tone: "romance", art: "romance-family", scope: "serial" },
+  { name: "แฟนตาซีรายตอน", nameEn: "Serial Fantasy", tone: "fantasy", art: "fantasy-wizard", scope: "serial" },
+  { name: "สืบสวนรายตอน", nameEn: "Serial Mystery", tone: "mystery", art: "mystery-book", scope: "serial" },
+  { name: "เทคโนโลยี", nameEn: "Technology", tone: "technology", art: "space-science" },
+  { name: "การศึกษา", nameEn: "Education", tone: "study", art: "education-graduate" },
+  { name: "คอมพิวเตอร์", nameEn: "Computer", tone: "technology", art: "space-science" },
+  { name: "ธุรกิจ", nameEn: "Business", tone: "business", art: "finance-book" },
+  { name: "สุขภาพ", nameEn: "Health", tone: "wellness", art: "health-yoga" },
 ];
 
 const artOptions = [
@@ -210,6 +215,8 @@ const defaultArtValue = artOptions[0]?.value || "travel-book";
 
 const emptyForm = (): CategoryForm => ({
   name: "",
+  name_th: "",
+  name_en: "",
   parent_id: "",
   content_scope: "all",
   display_tone: "",
@@ -236,13 +243,13 @@ const savingHomeLayout = ref(false);
 const mainCategories = computed(() =>
   categories.value
     .filter((item) => !item.parent_id)
-    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || a.name.localeCompare(b.name, "th")),
+    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || getCategoryNameTh(a).localeCompare(getCategoryNameTh(b), "th")),
 );
 
 const sortedCategories = computed(() =>
   categories.value
     .slice()
-    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || a.name.localeCompare(b.name, "th")),
+    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || getCategoryNameTh(a).localeCompare(getCategoryNameTh(b), "th")),
 );
 
 const editingCategory = computed(() =>
@@ -256,8 +263,11 @@ const homeVisibleCount = computed(
 const homeLayoutColumns = computed(() => Math.max(1, Math.ceil(homeLayoutItems.value.length / homeGridRows)));
 
 function toPayload(form: CategoryForm) {
+  const nameTh = form.name_th.trim() || form.name.trim();
   return {
-    name: form.name.trim(),
+    name: nameTh,
+    name_th: nameTh,
+    name_en: form.name_en.trim(),
     parent_id: form.parent_id ? Number(form.parent_id) : null,
     content_scope: form.content_scope || "all",
     display_tone: form.display_tone || null,
@@ -269,8 +279,11 @@ function toPayload(form: CategoryForm) {
 
 function formFromCategory(item: Category): CategoryForm {
   const position = sortOrderToHomePosition(item.sort_order);
+  const nameTh = getCategoryNameTh(item);
   return {
-    name: item.name,
+    name: nameTh,
+    name_th: nameTh,
+    name_en: getCategoryNameEn(item),
     parent_id: item.parent_id ? String(item.parent_id) : "",
     content_scope: item.content_scope || "all",
     display_tone: item.display_tone || "",
@@ -342,6 +355,8 @@ async function toggleHomeStatus(item: Category) {
     const nextStatus = item.show_on_home === false || item.show_on_home === 0;
     await api.put(`/categories/${item.id}`, {
       name: item.name,
+      name_th: getCategoryNameTh(item),
+      name_en: getCategoryNameEn(item) || getCategoryNameTh(item),
       parent_id: item.parent_id,
       content_scope: item.content_scope || "all",
       display_tone: item.display_tone || null,
@@ -376,7 +391,20 @@ async function deleteCategory(id: number) {
 
 function getParentName(item: Category) {
   if (!item.parent_id) return "หมวดหลัก";
-  return categories.value.find((parent) => parent.id === item.parent_id)?.name || "หมวดย่อย";
+  const parent = categories.value.find((parent) => parent.id === item.parent_id);
+  return parent ? getCategoryNameTh(parent) : "หมวดย่อย";
+}
+
+function getCategoryNameTh(item: Category) {
+  return String(item.name_th || item.name || "").trim();
+}
+
+function getCategoryNameEn(item: Category) {
+  return String(item.name_en || "").trim();
+}
+
+function getFormNameTh(form: CategoryForm) {
+  return form.name_th.trim() || form.name.trim();
 }
 
 function isHomeVisible(item: Category) {
@@ -529,6 +557,8 @@ async function saveHomeLayout() {
       homeLayoutItems.value.map((item, index) =>
         api.put(`/categories/${item.id}`, {
           name: item.name,
+          name_th: getCategoryNameTh(item),
+          name_en: getCategoryNameEn(item) || getCategoryNameTh(item),
           parent_id: item.parent_id,
           content_scope: item.content_scope || "all",
           display_tone: item.display_tone || null,
@@ -549,6 +579,8 @@ async function saveHomeLayout() {
 
 function applyPreset(form: CategoryForm, preset: CategoryPreset) {
   form.name = preset.name;
+  form.name_th = preset.name;
+  form.name_en = preset.nameEn;
   form.display_tone = preset.tone;
   form.display_art = preset.art;
   form.content_scope = preset.scope || "all";
@@ -601,11 +633,20 @@ onMounted(loadCategories);
         </div>
 
         <label>
-          ชื่อปุ่ม
-          <input v-model="newForm.name" type="text" placeholder="เช่น นิยายรัก" :maxlength="formNameLimit" required />
+          ชื่อปุ่มภาษาไทย
+          <input v-model="newForm.name_th" type="text" placeholder="เช่น นิยายรัก" :maxlength="formNameLimit" required />
           <span class="field-hint-row">
             <small>ชื่อสั้นจะอ่านง่ายบนมือถือ</small>
-            <small>{{ newForm.name.length }}/{{ formNameLimit }}</small>
+            <small>{{ newForm.name_th.length }}/{{ formNameLimit }}</small>
+          </span>
+        </label>
+
+        <label>
+          ชื่อปุ่มภาษาอังกฤษ
+          <input v-model="newForm.name_en" type="text" placeholder="เช่น Romance" :maxlength="formNameLimit" required />
+          <span class="field-hint-row">
+            <small>จะแสดงเมื่อผู้ใช้เลือก English</small>
+            <small>{{ newForm.name_en.length }}/{{ formNameLimit }}</small>
           </span>
         </label>
 
@@ -615,7 +656,7 @@ onMounted(loadCategories);
             <select v-model="newForm.parent_id">
               <option value="">หมวดหลัก</option>
               <option v-for="item in mainCategories" :key="item.id" :value="item.id">
-                {{ item.name }}
+                {{ getCategoryNameTh(item) }}
               </option>
             </select>
           </label>
@@ -744,7 +785,8 @@ onMounted(loadCategories);
               aria-hidden="true"
               @error="hideBrokenImage"
             />
-            <strong>{{ newForm.name || "ชื่อปุ่มหมวด" }}</strong>
+            <strong>{{ getFormNameTh(newForm) || "ชื่อปุ่มหมวด" }}</strong>
+            <small v-if="newForm.name_en">{{ newForm.name_en }}</small>
           </div>
         </div>
 
@@ -762,7 +804,7 @@ onMounted(loadCategories);
       <form v-if="editingCategory" class="panel edit-panel" @submit.prevent="updateCategory">
         <div class="panel-title">
           <div>
-            <h2>แก้ไขปุ่ม: {{ editingCategory.name }}</h2>
+            <h2>แก้ไขปุ่ม: {{ getCategoryNameTh(editingCategory) }}</h2>
             <p>ปรับหน้าตาปุ่มและสถานะการแสดงบนหน้า Home</p>
           </div>
         </div>
@@ -786,11 +828,20 @@ onMounted(loadCategories);
         </div>
 
         <label>
-          ชื่อปุ่ม
-          <input v-model="editForm.name" type="text" :maxlength="formNameLimit" required />
+          ชื่อปุ่มภาษาไทย
+          <input v-model="editForm.name_th" type="text" :maxlength="formNameLimit" required />
           <span class="field-hint-row">
             <small>ชื่อสั้นจะอ่านง่ายบนมือถือ</small>
-            <small>{{ editForm.name.length }}/{{ formNameLimit }}</small>
+            <small>{{ editForm.name_th.length }}/{{ formNameLimit }}</small>
+          </span>
+        </label>
+
+        <label>
+          ชื่อปุ่มภาษาอังกฤษ
+          <input v-model="editForm.name_en" type="text" :maxlength="formNameLimit" required />
+          <span class="field-hint-row">
+            <small>จะแสดงเมื่อผู้ใช้เลือก English</small>
+            <small>{{ editForm.name_en.length }}/{{ formNameLimit }}</small>
           </span>
         </label>
 
@@ -804,7 +855,7 @@ onMounted(loadCategories);
                 :key="item.id"
                 :value="item.id"
               >
-                {{ item.name }}
+                {{ getCategoryNameTh(item) }}
               </option>
             </select>
           </label>
@@ -933,7 +984,8 @@ onMounted(loadCategories);
               aria-hidden="true"
               @error="hideBrokenImage"
             />
-            <strong>{{ editForm.name || "ชื่อปุ่มหมวด" }}</strong>
+            <strong>{{ getFormNameTh(editForm) || "ชื่อปุ่มหมวด" }}</strong>
+            <small v-if="editForm.name_en">{{ editForm.name_en }}</small>
           </div>
         </div>
 
@@ -1003,7 +1055,7 @@ onMounted(loadCategories);
                 aria-hidden="true"
                 @error="hideBrokenImage"
               />
-              <strong>{{ item.name }}</strong>
+              <strong>{{ getCategoryNameTh(item) }}</strong>
             </button>
           </div>
         </div>
@@ -1023,6 +1075,7 @@ onMounted(loadCategories);
           <thead>
             <tr>
               <th>ชื่อปุ่ม</th>
+              <th>English</th>
               <th>ชั้นหมวด</th>
               <th>ใช้กับ</th>
               <th>Home</th>
@@ -1035,8 +1088,9 @@ onMounted(loadCategories);
           <tbody>
             <tr v-for="item in sortedCategories" :key="item.id">
               <td>
-                <strong>{{ item.name }}</strong>
+                <strong>{{ getCategoryNameTh(item) }}</strong>
               </td>
+              <td>{{ getCategoryNameEn(item) || "-" }}</td>
               <td>{{ getParentName(item) }}</td>
               <td>{{ getScopeLabel(item.content_scope) }}</td>
               <td>
@@ -1082,7 +1136,7 @@ onMounted(loadCategories);
 
 .page-head span {
   color: var(--primary-strong);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
 }
 
@@ -1094,7 +1148,7 @@ p {
 
 h1 {
   color: var(--text-strong);
-  font-size: 28px;
+  font-size: 30px;
 }
 
 .page-head p {
@@ -1140,7 +1194,7 @@ h1 {
 .panel-title p {
   margin-top: 5px;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
 }
 
@@ -1152,7 +1206,7 @@ h1 {
   border-radius: 999px;
   background: color-mix(in srgb, var(--primary) 12%, var(--surface-soft));
   color: var(--primary-strong);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   padding: 5px 10px;
 }
@@ -1179,13 +1233,13 @@ h1 {
 
 .preset-panel strong {
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .preset-panel span {
   margin-top: 2px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
 }
 
@@ -1199,7 +1253,7 @@ h1 {
   min-width: 0;
   background: var(--surface);
   color: var(--text-strong);
-  font-size: 12px;
+  font-size: 14px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1229,12 +1283,12 @@ h1 {
 
 .create-preview__head strong {
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .create-preview__head small {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   text-align: right;
 }
@@ -1294,13 +1348,13 @@ h1 {
   gap: 3px;
   min-width: 0;
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
 }
 
 .art-selected-preview small {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
 }
 
@@ -1346,7 +1400,7 @@ h1 {
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.78);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   writing-mode: vertical-rl;
 }
@@ -1399,7 +1453,7 @@ h1 {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   line-height: 1;
 }
@@ -1449,7 +1503,7 @@ label {
   display: grid;
   gap: 6px;
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
 }
 
@@ -1459,7 +1513,7 @@ label {
   align-content: start;
   gap: 8px;
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
 }
 
@@ -1494,7 +1548,7 @@ label {
   top: 18px;
   right: 12px;
   color: var(--text-muted);
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1;
 }
 
@@ -1566,7 +1620,7 @@ label {
   display: grid;
   gap: 6px;
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
 }
 
@@ -1615,7 +1669,7 @@ select {
   top: 18px;
   right: 12px;
   color: var(--text-muted);
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1;
 }
 
@@ -1689,7 +1743,7 @@ select {
 .field-hint,
 .field-hint-row {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
 }
 
@@ -1721,7 +1775,7 @@ select {
 
 .check-row small {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
 }
 
@@ -1764,7 +1818,7 @@ select {
   display: block;
   min-width: 0;
   overflow: hidden;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 900;
   line-height: 1.1;
   text-overflow: ellipsis;
@@ -2894,14 +2948,14 @@ td {
 
 th {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .status-pill {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   padding: 4px 9px;
 }
@@ -2942,7 +2996,7 @@ th {
   border-radius: 999px;
   background: color-mix(in srgb, var(--primary) 10%, var(--surface-soft));
   color: var(--primary-strong);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   padding: 4px 10px;
 }
@@ -3025,13 +3079,13 @@ th {
   }
 
   .page-head h1 {
-    font-size: 24px;
+    font-size: 26px;
     line-height: 1.15;
   }
 
   .page-head p,
   .panel-title p {
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.35;
   }
 
@@ -3055,13 +3109,13 @@ th {
   }
 
   .panel-title h2 {
-    font-size: 17px;
+    font-size: 19px;
     line-height: 1.2;
   }
 
   .home-chip {
     min-height: 24px;
-    font-size: 10px;
+    font-size: 12px;
     padding: 3px 7px;
   }
 
@@ -3074,13 +3128,13 @@ th {
   label,
   .tone-picker-field,
   .art-picker-field {
-    font-size: 11.5px;
+    font-size: 13.5px;
   }
 
   .preset-panel span,
   .field-hint,
   .field-hint-row small {
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.25;
   }
 
@@ -3100,7 +3154,7 @@ th {
     min-height: 36px;
     border-radius: 8px;
     padding: 6px 8px;
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .tone-dropdown summary,
@@ -3114,7 +3168,7 @@ th {
   .art-picker summary::after {
     top: 11px;
     right: 9px;
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .art-selected-preview {
@@ -3145,7 +3199,7 @@ th {
   .ghost-btn {
     min-height: 36px;
     border-radius: 8px;
-    font-size: 12px;
+    font-size: 14px;
     padding: 6px 8px;
   }
 
@@ -3158,13 +3212,13 @@ th {
   td {
     overflow-wrap: anywhere;
     padding: 5px 4px;
-    font-size: 7px;
+    font-size: 9px;
     line-height: 1.25;
     word-break: break-word;
   }
 
   th {
-    font-size: 6.5px;
+    font-size: 8.5px;
     line-height: 1.15;
   }
 
@@ -3172,7 +3226,7 @@ th {
   .position-pill {
     min-height: 16px;
     border-radius: 5px;
-    font-size: 6.5px;
+    font-size: 8.5px;
     line-height: 1.1;
     padding: 2px 3px;
     white-space: normal;
@@ -3185,12 +3239,12 @@ th {
   }
 
   .page-head h1 {
-    font-size: 18px;
+    font-size: 20px;
   }
 
   .page-head p,
   .panel-title p {
-    font-size: 9px;
+    font-size: 11px;
     line-height: 1.3;
   }
 
@@ -3202,12 +3256,12 @@ th {
   }
 
   .panel-title h2 {
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .home-chip {
     min-height: 22px;
-    font-size: 8px;
+    font-size: 10px;
     padding: 2px 6px;
   }
 
@@ -3215,13 +3269,13 @@ th {
   label,
   .tone-picker-field,
   .art-picker-field {
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .preset-panel span,
   .field-hint,
   .field-hint-row small {
-    font-size: 8px;
+    font-size: 10px;
   }
 
   input,
@@ -3229,7 +3283,7 @@ th {
     min-height: 30px;
     border-radius: 7px;
     padding: 5px 7px;
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .tone-dropdown summary,
@@ -3248,20 +3302,20 @@ th {
   .ghost-btn {
     min-height: 29px;
     border-radius: 7px;
-    font-size: 9px;
+    font-size: 11px;
     padding: 5px 7px;
   }
 
   th,
   td {
     padding: 4px 3px;
-    font-size: 6.5px;
+    font-size: 8.5px;
   }
 
   th,
   .status-pill,
   .position-pill {
-    font-size: 6px;
+    font-size: 8px;
   }
 }
 </style>

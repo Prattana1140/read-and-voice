@@ -1,4 +1,5 @@
 import { AUTH_CHANGED_EVENT } from "./auth";
+import { getActiveLocale } from "./i18n";
 
 // Central API helper for the frontend.
 // Supports both Thai and English UI text by keeping this file in UTF-8.
@@ -289,8 +290,40 @@ const GENERIC_SERVER_MESSAGES = new Set([
   "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่",
 ]);
 
+const API_ERROR_TEXT = {
+  th: {
+    badRequest: "ข้อมูลที่ส่งไม่ถูกต้องหรือยังไม่ครบ",
+    conflict: "ข้อมูลซ้ำหรือขัดแย้งกับข้อมูลเดิมในระบบ",
+    fallback: "ทำรายการไม่สำเร็จ",
+    forbidden: "บัญชีนี้ไม่มีสิทธิ์ทำรายการนี้",
+    network: "ติดต่อเซิร์ฟเวอร์ไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือรอสักครู่แล้วลองใหม่",
+    notFound: "ไม่พบข้อมูลที่ต้องการทำรายการ",
+    payloadTooLarge: "ไฟล์หรือข้อมูลที่ส่งมีขนาดใหญ่เกินไป",
+    server: "เซิร์ฟเวอร์ขัดข้องหรือฐานข้อมูลยังไม่พร้อมใช้งาน",
+    status: (status: number) => `เซิร์ฟเวอร์ตอบกลับสถานะ ${status}`,
+    unauthorized: "ยังไม่ได้เข้าสู่ระบบ หรือ session หมดอายุ",
+  },
+  en: {
+    badRequest: "The submitted information is invalid or incomplete",
+    conflict: "The information already exists or conflicts with existing data",
+    fallback: "Action failed",
+    forbidden: "This account does not have permission to perform this action",
+    network: "Could not contact the server. Check your connection and try again",
+    notFound: "The requested information was not found",
+    payloadTooLarge: "The uploaded file or submitted data is too large",
+    server: "The server or database is not ready",
+    status: (status: number) => `The server responded with status ${status}`,
+    unauthorized: "You are not logged in, or your session has expired",
+  },
+};
+
+function apiErrorText() {
+  return API_ERROR_TEXT[getActiveLocale() === "en" ? "en" : "th"];
+}
+
 export function getApiErrorMessage(error: unknown, fallback: string) {
   const err = error as any;
+  const text = apiErrorText();
   const status = err?.response?.status;
   const data = err?.response?.data;
   const serverMessage =
@@ -310,28 +343,28 @@ export function getApiErrorMessage(error: unknown, fallback: string) {
       ? rawReason
       : status
         ? status === 400
-          ? "ข้อมูลที่ส่งไม่ถูกต้องหรือยังไม่ครบ"
+          ? text.badRequest
           : status === 401
-            ? "ยังไม่ได้เข้าสู่ระบบ หรือ session หมดอายุ"
+            ? text.unauthorized
             : status === 403
-              ? "บัญชีนี้ไม่มีสิทธิ์ทำรายการนี้"
+              ? text.forbidden
               : status === 404
-                ? "ไม่พบข้อมูลที่ต้องการทำรายการ"
+                ? text.notFound
                 : status === 409
-                  ? "ข้อมูลซ้ำหรือขัดแย้งกับข้อมูลเดิมในระบบ"
+                  ? text.conflict
                   : status === 413
-                    ? "ไฟล์หรือข้อมูลที่ส่งมีขนาดใหญ่เกินไป"
+                    ? text.payloadTooLarge
                     : status >= 500
-                      ? "เซิร์ฟเวอร์ขัดข้องหรือฐานข้อมูลยังไม่พร้อมใช้งาน"
-                      : `เซิร์ฟเวอร์ตอบกลับสถานะ ${status}`
+                      ? text.server
+                      : text.status(status)
         : err?.request
-          ? "ติดต่อเซิร์ฟเวอร์ไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือรอสักครู่แล้วลองใหม่"
+          ? text.network
           : err?.message
             ? err.message
             : "";
 
   if (!reason) {
-    return fallback;
+    return fallback || text.fallback;
   }
 
   return reason.includes(fallback) ? reason : `${fallback}: ${reason}`;
@@ -344,7 +377,7 @@ function normalizeApiError(error: ApiError) {
     window.dispatchEvent(new CustomEvent(AUTH_CHANGED_EVENT));
   }
 
-  const message = getApiErrorMessage(error, "ทำรายการไม่สำเร็จ");
+  const message = getApiErrorMessage(error, apiErrorText().fallback);
 
   if (error?.response?.data) {
     const currentMessage =

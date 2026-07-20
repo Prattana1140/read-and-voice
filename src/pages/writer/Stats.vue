@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import api from "../../utils/api";
+import { useI18n } from "../../utils/i18n";
+import { localizedTitle } from "../../utils/localizedContent";
 
 type WriterStatsSummary = {
   total_books?: number;
@@ -24,6 +26,8 @@ type WriterStatsSummary = {
 type WriterBookStats = {
   id: number;
   title: string;
+  title_th?: string;
+  title_en?: string;
   content_type?: string;
   lifecycle_status?: string;
   approval_status?: string;
@@ -40,6 +44,7 @@ type WriterBookStats = {
 };
 
 const loading = ref(true);
+const { locale } = useI18n();
 const error = ref("");
 const summary = ref<WriterStatsSummary>({});
 const books = ref<WriterBookStats[]>([]);
@@ -77,6 +82,10 @@ function formatStatus(book: WriterBookStats) {
   if (Number(book.is_published) === 1 || book.lifecycle_status === "published") return "เผยแพร่แล้ว";
   if (book.approval_status === "rejected") return "ถูกปฏิเสธ";
   return "รอตรวจ/ฉบับร่าง";
+}
+
+function getBookTitle(book: WriterBookStats) {
+  return localizedTitle(book, locale.value) || book.title;
 }
 
 async function loadStats() {
@@ -147,7 +156,7 @@ onMounted(loadStats);
           <div v-if="!books.length" class="empty">ยังไม่มีข้อมูลสถิติของผลงาน</div>
           <div v-for="book in books" :key="book.id" class="book-row">
             <div>
-              <strong>{{ book.title }}</strong>
+              <strong>{{ getBookTitle(book) }}</strong>
               <span>{{ book.content_type || "ebook" }} · {{ formatStatus(book) }}</span>
             </div>
             <div class="book-metrics">
@@ -260,7 +269,7 @@ button:disabled {
 
 .stats-grid strong {
   display: block;
-  font-size: 28px;
+  font-size: 30px;
 }
 
 .stats-grid span {
@@ -312,7 +321,7 @@ button:disabled {
 .book-metrics {
   flex-wrap: wrap;
   justify-content: flex-end;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
 }
 

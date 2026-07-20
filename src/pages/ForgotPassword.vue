@@ -190,7 +190,7 @@ async function submitReset() {
 .eyebrow {
   margin: 0 0 8px;
   color: var(--primary-strong, var(--primary));
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -199,7 +199,7 @@ async function submitReset() {
 h1 {
   margin: 0;
   color: var(--text-strong);
-  font-size: 34px;
+  font-size: 36px;
 }
 
 .intro {
@@ -225,7 +225,7 @@ input {
   background: var(--surface-soft);
   color: var(--text-strong);
   padding: 0 14px;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 button {
@@ -297,17 +297,17 @@ button:disabled {
 
   .eyebrow {
     margin-bottom: 4px;
-    font-size: 10px;
+    font-size: 12px;
   }
 
   h1 {
-    font-size: 21px;
+    font-size: 23px;
     line-height: 1.15;
   }
 
   .intro,
   .state-box {
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.45;
   }
 
@@ -317,14 +317,14 @@ button:disabled {
   }
 
   label span {
-    font-size: 12px;
+    font-size: 14px;
   }
 
   input,
   button {
     min-height: 38px;
     border-radius: 8px;
-    font-size: 13px;
+    font-size: 15px;
     padding-inline: 9px;
   }
 

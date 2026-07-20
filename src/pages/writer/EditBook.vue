@@ -2,6 +2,8 @@
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { api, resolveAssetUrl } from "../../utils/api";
+import { useI18n } from "../../utils/i18n";
+import { localizedTitle } from "../../utils/localizedContent";
 
 type Category = {
   id: number;
@@ -11,6 +13,8 @@ type Category = {
 type Episode = {
   id: number;
   title: string;
+  title_th?: string;
+  title_en?: string;
   episode_number: number;
   access_type: string;
   price: number;
@@ -21,6 +25,7 @@ type WizardStep = 1 | 2 | 3 | 4;
 
 const route = useRoute();
 const router = useRouter();
+const { locale } = useI18n();
 
 const loading = ref(true);
 const saving = ref(false);
@@ -30,15 +35,26 @@ const addingEpisode = ref(false);
 const errorMessage = ref("");
 const successMessage = ref("");
 const categories = ref<Category[]>([]);
+const existingTags = ref<string[]>([]);
 const episodes = ref<Episode[]>([]);
 const step = ref<WizardStep>(1);
 const lifecycleStatus = ref("draft");
+const ageRatingOptions = [
+  { value: "general", label: "ทั่วไป" },
+  { value: "13+", label: "13+" },
+  { value: "15+", label: "15+" },
+  { value: "18+", label: "18+" },
+];
 
 const form = ref({
   title: "",
+  title_th: "",
+  title_en: "",
   author: "",
   description: "",
   category_id: "",
+  age_rating: "general",
+  tags: "",
   cover_image: "",
   access_type: "free",
   price: 0,
@@ -47,6 +63,8 @@ const form = ref({
 const episodeForm = ref({
   episode_number: 1,
   title: "",
+  title_th: "",
+  title_en: "",
   content: "",
   is_free: true,
   price: 0,
@@ -55,6 +73,7 @@ const episodeForm = ref({
 
 const bookId = computed(() => Number(route.params.id));
 const coverPreview = computed(() => resolveAssetUrl(form.value.cover_image));
+const displayBookTitle = computed(() => localizedTitle(form.value, locale.value) || form.value.title || "");
 const canGoBack = computed(() => step.value > 1);
 const canGoNext = computed(() => step.value < 4);
 const currentStepTitle = computed(() => {
@@ -82,6 +101,10 @@ function formatLifecycleStatus(value: string) {
   if (value === "published") return "เผยแพร่แล้ว";
   if (value === "pending") return "รอตรวจ";
   return value;
+}
+
+function getEpisodeTitle(episode: Episode) {
+  return localizedTitle(episode, locale.value) || episode.title;
 }
 
 function syncNextEpisodeNumber() {
@@ -129,18 +152,26 @@ async function fetchBook() {
   errorMessage.value = "";
 
   try {
-    const [{ data: book }, { data: categoryRows }] = await Promise.all([
+    const [{ data: book }, { data: categoryRows }, { data: tagRows }] = await Promise.all([
       api.get(`/books/${bookId.value}`),
       api.get("/categories"),
+      api.get("/books/tags").catch(() => ({ data: [] })),
     ]);
 
     categories.value = Array.isArray(categoryRows) ? categoryRows : [];
+    existingTags.value = (Array.isArray(tagRows) ? tagRows : [])
+      .map((tag: any) => String(tag?.name || tag || "").trim())
+      .filter(Boolean);
     lifecycleStatus.value = String(book?.lifecycle_status || "draft");
     form.value = {
       title: String(book?.title || ""),
+      title_th: String(book?.title_th || book?.title || ""),
+      title_en: String(book?.title_en || ""),
       author: String(book?.author_name || book?.author || ""),
       description: String(book?.description || ""),
       category_id: book?.category_id ? String(book.category_id) : "",
+      age_rating: String(book?.age_rating || "general"),
+      tags: Array.isArray(book?.tags) ? book.tags.join(", ") : String(book?.tags || ""),
       cover_image: String(book?.cover_image_url || book?.cover_image || ""),
       access_type: String(book?.access_type || "free"),
       price: Number(book?.price || 0),
@@ -159,13 +190,26 @@ async function saveBook() {
   errorMessage.value = "";
   successMessage.value = "";
 
+  if (!form.value.title_th.trim() || !form.value.title_en.trim()) {
+    errorMessage.value = "กรุณากรอกชื่อหนังสือทั้งภาษาไทยและภาษาอังกฤษ";
+    saving.value = false;
+    return;
+  }
+
   try {
     await api.put(`/writer/books/${bookId.value}`, {
-      title: form.value.title,
+      title: form.value.title_th.trim(),
+      title_th: form.value.title_th.trim(),
+      title_en: form.value.title_en.trim(),
       author: form.value.author,
       author_name: form.value.author,
       description: form.value.description,
       category_id: form.value.category_id ? Number(form.value.category_id) : null,
+      age_rating: form.value.age_rating,
+      tags: form.value.tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
       cover_image: form.value.cover_image,
       cover_image_url: form.value.cover_image,
       access_type: form.value.access_type,
@@ -214,7 +258,7 @@ async function addEpisode() {
   errorMessage.value = "";
   successMessage.value = "";
 
-  if (!episodeForm.value.title.trim() || !episodeForm.value.content.trim()) {
+  if (!episodeForm.value.title_th.trim() || !episodeForm.value.title_en.trim() || !episodeForm.value.content.trim()) {
     errorMessage.value = "กรุณากรอกชื่อตอนและเนื้อหาตอน";
     return;
   }
@@ -224,7 +268,9 @@ async function addEpisode() {
     const price = episodeForm.value.is_free ? 0 : Number(episodeForm.value.price || 0);
     const { data } = await api.post(`/books/${bookId.value}/episodes`, {
       episode_number: episodeForm.value.episode_number,
-      title: episodeForm.value.title.trim(),
+      title: episodeForm.value.title_th.trim(),
+      title_th: episodeForm.value.title_th.trim(),
+      title_en: episodeForm.value.title_en.trim(),
       content: episodeForm.value.content,
       is_free: episodeForm.value.is_free ? 1 : 0,
       price,
@@ -234,6 +280,8 @@ async function addEpisode() {
 
     successMessage.value = data?.message || "เพิ่มตอนใหม่สำเร็จ";
     episodeForm.value.title = "";
+    episodeForm.value.title_th = "";
+    episodeForm.value.title_en = "";
     episodeForm.value.content = "";
     episodeForm.value.price = 0;
     episodeForm.value.is_free = true;
@@ -278,7 +326,7 @@ onMounted(fetchBook);
       <div v-else class="wizard-body">
         <section v-if="step === 1" class="step-card editor-grid">
           <div class="cover-card">
-            <img :src="coverPreview" :alt="form.title || 'ปกหนังสือ'" @error="handleImageError" />
+            <img :src="coverPreview" :alt="displayBookTitle || 'ปกหนังสือ'" @error="handleImageError" />
             <label>
               <span>ลิงก์รูปปก</span>
               <input v-model="form.cover_image" type="text" placeholder="https://..." />
@@ -288,7 +336,12 @@ onMounted(fetchBook);
           <div class="book-fields">
             <label>
               <span>ชื่อเรื่อง</span>
-              <input v-model="form.title" type="text" required />
+              <input v-model="form.title_th" type="text" required />
+            </label>
+
+            <label>
+              <span>Book title (English)</span>
+              <input v-model="form.title_en" type="text" required />
             </label>
 
             <label>
@@ -304,6 +357,28 @@ onMounted(fetchBook);
                   {{ category.name }}
                 </option>
               </select>
+            </label>
+
+            <label>
+              <span>ระดับอายุ</span>
+              <select v-model="form.age_rating">
+                <option v-for="option in ageRatingOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+            </label>
+
+            <label>
+              <span>แท็ก</span>
+              <input
+                v-model="form.tags"
+                type="text"
+                list="writer-book-tag-options"
+                placeholder="โรแมนติก, แฟนเก่า, NC"
+              />
+              <datalist id="writer-book-tag-options">
+                <option v-for="tag in existingTags" :key="tag" :value="tag" />
+              </datalist>
             </label>
 
             <label>
@@ -377,7 +452,11 @@ onMounted(fetchBook);
               </label>
               <label>
                 <span>ชื่อตอน</span>
-                <input v-model="episodeForm.title" type="text" />
+                <input v-model="episodeForm.title_th" type="text" />
+              </label>
+              <label>
+                <span>Episode title (English)</span>
+                <input v-model="episodeForm.title_en" type="text" />
               </label>
               <label>
                 <span>อ่านฟรี</span>
@@ -410,7 +489,7 @@ onMounted(fetchBook);
           <div v-else-if="episodes.length" class="episode-list">
             <article v-for="episode in episodes" :key="episode.id" class="episode-item">
               <div>
-                <strong>ตอนที่ {{ episode.episode_number }} {{ episode.title }}</strong>
+                <strong>ตอนที่ {{ episode.episode_number }} {{ getEpisodeTitle(episode) }}</strong>
             <span>{{ formatAccessType(episode.access_type) }} · {{ episode.price || 0 }} คอยน์</span>
               </div>
               <small>{{ new Date(episode.created_at).toLocaleString() }}</small>
@@ -603,7 +682,7 @@ select {
   background: var(--surface-soft);
   color: var(--text-strong);
   font: inherit;
-  font-size: 16px;
+  font-size: 18px;
   padding: 12px 14px;
 }
 

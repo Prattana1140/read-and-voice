@@ -132,6 +132,8 @@ router.get("/me", verifyToken, async (req, res) => {
         owned.book_id,
         b.id,
         b.title,
+        b.title_th,
+        b.title_en,
         b.author,
         b.description,
         b.cover_image,

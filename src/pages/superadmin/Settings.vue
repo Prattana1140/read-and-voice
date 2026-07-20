@@ -534,7 +534,7 @@ button:disabled {
 
 .summary-grid strong {
   display: block;
-  font-size: 26px;
+  font-size: 28px;
 }
 
 .operations-grid {
@@ -565,7 +565,7 @@ button:disabled {
 }
 
 .operation-card strong {
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .operation-card code {
@@ -573,7 +573,7 @@ button:disabled {
   border-radius: 6px;
   background: var(--surface-soft);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   padding: 8px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -678,7 +678,7 @@ textarea {
   border-radius: 999px;
   background: #dcfce7;
   color: #166534;
-  font-size: 12px;
+  font-size: 14px;
   padding: 5px 9px;
 }
 
@@ -724,17 +724,17 @@ textarea {
   small,
   .readiness-row > strong,
   .operation-card code {
-    font-size: 9px;
+    font-size: 11px;
   }
 
   h1 {
-    font-size: 18px;
+    font-size: 20px;
     line-height: 1.2;
   }
 
   h2,
   .operation-card strong {
-    font-size: 14px;
+    font-size: 16px;
   }
 
   p,
@@ -743,7 +743,7 @@ textarea {
   .toggle-list label,
   input[type="email"],
   textarea {
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.35;
   }
 
@@ -762,14 +762,14 @@ textarea {
   button {
     min-height: 29px;
     border-radius: 7px;
-    font-size: 9px;
+    font-size: 11px;
     padding: 0 9px;
   }
 
   .notice {
     margin-top: 9px;
     border-radius: 8px;
-    font-size: 10px;
+    font-size: 12px;
     padding: 8px 9px;
   }
 
@@ -781,7 +781,7 @@ textarea {
   }
 
   .summary-grid strong {
-    font-size: 18px;
+    font-size: 20px;
   }
 
   .operation-card {

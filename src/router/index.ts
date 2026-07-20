@@ -30,6 +30,7 @@ import SubscriptionPlans from "../pages/SubscriptionPlans.vue";
 import CoinWallet from "../pages/CoinWallet.vue";
 
 import { getAuthUser, isAuthenticated, type AuthUser } from "../utils/auth";
+import { getActiveLocale } from "../utils/i18n";
 
 type UserRole = "user" | "writer" | "admin" | "superadmin";
 
@@ -281,27 +282,9 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, allowedRoles: memberRoles },
   },
   {
-    path: "/account/gift-codes",
-    name: "AccountGiftCodes",
-    component: () => import("../pages/account/GiftCodes.vue"),
-    meta: { requiresAuth: true, allowedRoles: memberRoles },
-  },
-  {
-    path: "/account/buffet",
-    name: "AccountBuffet",
-    component: () => import("../pages/account/Buffet.vue"),
-    meta: { requiresAuth: true, allowedRoles: memberRoles },
-  },
-  {
     path: "/account/devices",
     name: "AccountDevices",
     component: () => import("../pages/account/Devices.vue"),
-    meta: { requiresAuth: true, allowedRoles: memberRoles },
-  },
-  {
-    path: "/account/benefits",
-    name: "AccountBenefits",
-    component: () => import("../pages/account/Benefits.vue"),
     meta: { requiresAuth: true, allowedRoles: memberRoles },
   },
   {
@@ -490,6 +473,10 @@ const router = createRouter({
   routes,
 });
 
+function routeMessage(th: string, en: string) {
+  return getActiveLocale() === "en" ? en : th;
+}
+
 router.beforeEach((to, _from, next) => {
   const isLoggedIn = isAuthenticated();
   const user = getAuthUser() as AuthUser | null;
@@ -504,14 +491,14 @@ router.beforeEach((to, _from, next) => {
 
   if (to.meta.requiresAuth) {
     if (!isLoggedIn || !role) {
-      alert("กรุณาเข้าสู่ระบบก่อน");
+      alert(routeMessage("กรุณาเข้าสู่ระบบก่อน", "Please log in first"));
       return next("/login");
     }
 
     const allowedRoles = to.meta.allowedRoles as UserRole[] | undefined;
 
     if (allowedRoles && !allowedRoles.includes(role)) {
-      alert("คุณไม่มีสิทธิ์เข้าหน้านี้");
+      alert(routeMessage("คุณไม่มีสิทธิ์เข้าหน้านี้", "You do not have permission to access this page"));
 
       if (role === "writer") return next("/writer");
       if (role === "admin") return next("/admin");

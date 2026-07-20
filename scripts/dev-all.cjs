@@ -54,7 +54,7 @@ function startProcess(label, command, args, options) {
       : args;
   const child = spawn(spawnCommand, spawnArgs, {
     ...options,
-    stdio: ["inherit", "pipe", "pipe"],
+    stdio: [process.stdin.isTTY ? "inherit" : "ignore", "pipe", "pipe"],
   });
 
   prefixLines(child.stdout, label);

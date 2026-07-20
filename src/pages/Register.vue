@@ -601,7 +601,7 @@ watch(error, (message) => {
 .register-title {
   margin: 0;
   color: var(--text-strong);
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 900;
   line-height: 1.25;
 }
@@ -609,7 +609,7 @@ watch(error, (message) => {
 .register-subtitle {
   margin: 6px 0 0;
   color: var(--primary-strong, var(--primary));
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
   line-height: 1.45;
 }
@@ -619,7 +619,7 @@ watch(error, (message) => {
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 900;
   line-height: 1;
   padding: 4px;
@@ -632,7 +632,7 @@ watch(error, (message) => {
 
 .section-title {
   color: var(--text-strong);
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 900;
 }
 
@@ -651,7 +651,7 @@ watch(error, (message) => {
 .form-group label,
 .checkbox-field {
   color: var(--text-strong);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
 }
 
@@ -664,7 +664,7 @@ watch(error, (message) => {
   color: var(--text-strong);
   padding: 0 14px;
   box-sizing: border-box;
-  font-size: 16px;
+  font-size: 18px;
   outline: none;
 }
 
@@ -690,7 +690,7 @@ select.input {
 
 .hint {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -732,7 +732,7 @@ select.input {
 
 .field-error {
   color: #b91c1c;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   line-height: 1.45;
 }
@@ -749,7 +749,7 @@ select.input {
   border-radius: 12px;
   background: var(--primary);
   color: var(--on-primary);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 900;
   cursor: pointer;
 }
@@ -763,7 +763,7 @@ select.input {
   margin: 0;
   text-align: center;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .login-text button {
@@ -836,7 +836,7 @@ select.input {
   }
 
   .close-btn {
-    font-size: 20px;
+    font-size: 22px;
     padding: 2px;
   }
 
@@ -862,20 +862,20 @@ select.input {
 
   .form-group label,
   .checkbox-field {
-    font-size: 10.5px;
+    font-size: 12.5px;
     line-height: 1.25;
   }
 
   .input {
     min-height: 36px;
     border-radius: 8px;
-    font-size: 11.5px;
+    font-size: 13.5px;
     padding: 0 7px;
   }
 
   .hint,
   .field-error {
-    font-size: 9.5px;
+    font-size: 11.5px;
     line-height: 1.25;
   }
 
@@ -895,11 +895,11 @@ select.input {
   }
 
   .section-title {
-    font-size: 11.5px;
+    font-size: 13.5px;
   }
 
   .register-title {
-    font-size: 17px;
+    font-size: 19px;
   }
 
   .register-subtitle {
@@ -909,17 +909,17 @@ select.input {
   .submit-btn {
     min-height: 38px;
     border-radius: 9px;
-    font-size: 12.5px;
+    font-size: 14.5px;
   }
 
   .login-text {
-    font-size: 10.5px;
+    font-size: 12.5px;
   }
 
   .error-text,
   .success-text {
     padding: 8px;
-    font-size: 11px;
+    font-size: 13px;
   }
 }
 </style>

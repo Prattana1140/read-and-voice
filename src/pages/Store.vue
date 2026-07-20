@@ -5,10 +5,13 @@ import api, { resolveAssetUrl } from "../utils/api";
 import { announceAccessibilityMessage } from "../utils/accessibility";
 import { filterBooks, uniqueBookCategories } from "../utils/bookSearch";
 import { useI18n } from "../utils/i18n";
+import { localizedTitle } from "../utils/localizedContent";
 
 type Book = {
   id: number;
   title: string;
+  title_th?: string;
+  title_en?: string;
   author: string;
   cover_url?: string;
   cover_image?: string;
@@ -245,6 +248,10 @@ function getBookCover(book: Book) {
   return resolveAssetUrl(book.cover_url || book.cover_image);
 }
 
+function getBookTitle(book: Book) {
+  return localizedTitle(book, locale.value);
+}
+
 function getAccessLabel(book: Book) {
   if (book.access_type === "subscription") return text().package;
   const price = Number(book.coin_price ?? book.price ?? 0);
@@ -427,7 +434,7 @@ onMounted(loadStoreData);
 
       <div v-if="search.trim()" class="suggestion-row" :aria-label="text().suggestions">
         <button v-for="book in suggestedBooks" :key="book.id" type="button" @click="goToBook(book.id)">
-          {{ book.title }}
+          {{ getBookTitle(book) }}
         </button>
       </div>
     </section>
@@ -445,17 +452,17 @@ onMounted(loadStoreData);
           class="book-clickable"
           tabindex="0"
           role="button"
-          :aria-label="`${text().openDetails} ${book.title}`"
+          :aria-label="`${text().openDetails} ${getBookTitle(book)}`"
           @click="goToBook(book.id)"
           @keydown.enter.prevent="goToBook(book.id)"
           @keydown.space.prevent="goToBook(book.id)"
         >
-          <img :src="getBookCover(book)" :alt="book.title" @error="handleImgError" />
+          <img :src="getBookCover(book)" :alt="getBookTitle(book)" @error="handleImgError" />
           <div class="meta-row">
             <span>{{ getTypeLabel(book) }}</span>
             <span>{{ getAccessLabel(book) }}</span>
           </div>
-          <h2>{{ book.title }}</h2>
+          <h2>{{ getBookTitle(book) }}</h2>
           <p>{{ book.author || text().unknownAuthor }}</p>
           <small v-if="book.category_name">{{ book.category_name }}</small>
         </div>
@@ -499,7 +506,7 @@ onMounted(loadStoreData);
 
 .store-header h1 {
   color: var(--text-strong);
-  font-size: 30px;
+  font-size: 32px;
   margin: 0 0 8px;
 }
 
@@ -549,7 +556,7 @@ onMounted(loadStoreData);
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text-strong);
-  font-size: 16px;
+  font-size: 18px;
   max-width: 520px;
   outline: none;
   padding: 12px 16px;
@@ -584,7 +591,7 @@ onMounted(loadStoreData);
   background: var(--surface);
   color: var(--text-strong);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   outline: none;
   padding: 0 38px 0 14px;
@@ -672,7 +679,7 @@ onMounted(loadStoreData);
   background: var(--surface-soft);
   border-radius: 999px;
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   padding: 4px 7px;
 }
@@ -680,7 +687,7 @@ onMounted(loadStoreData);
 .book-card h2 {
   display: -webkit-box;
   color: var(--text-strong);
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
   margin: 0 8px 6px;
   min-height: 38px;
@@ -695,7 +702,7 @@ onMounted(loadStoreData);
 .book-card p {
   display: -webkit-box;
   color: var(--text);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
   margin: 0 8px 2px;
   min-height: 16px;
@@ -709,7 +716,7 @@ onMounted(loadStoreData);
 
 .book-card small {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 13px;
   min-height: 14px;
   margin: 0 8px;
   overflow-wrap: anywhere;
@@ -736,7 +743,7 @@ onMounted(loadStoreData);
   align-items: center;
   gap: 1px;
   color: #d1d5db;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1;
 }
 
@@ -746,7 +753,7 @@ onMounted(loadStoreData);
 
 .rating-box small {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.1;
   margin: 0;
   min-height: 0;
@@ -764,7 +771,7 @@ onMounted(loadStoreData);
   background: #00b874;
   color: #ffffff;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   padding: 0 7px;
 }
@@ -779,7 +786,7 @@ onMounted(loadStoreData);
   }
 
   .store-header h1 {
-    font-size: 30px;
+    font-size: 32px;
   }
 
   .header-actions {
@@ -805,13 +812,13 @@ onMounted(loadStoreData);
   .category-select {
     width: 100%;
     min-height: 34px;
-    font-size: 11px;
+    font-size: 13px;
     padding: 0 30px 0 10px;
   }
 
   .suggestion-row button {
     min-height: 28px;
-    font-size: 11px;
+    font-size: 13px;
     padding: 0 9px;
   }
 
@@ -829,13 +836,13 @@ onMounted(loadStoreData);
   }
 
   .meta-row span {
-    font-size: 11px;
+    font-size: 13px;
     padding: 4px 7px;
   }
 
   .book-card h2 {
     display: block;
-    font-size: 14px;
+    font-size: 16px;
     line-height: 1.5;
     margin: 0 8px 6px;
     min-height: 0;
@@ -846,7 +853,7 @@ onMounted(loadStoreData);
   .book-card p,
   .book-card small {
     display: block;
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.45;
     margin-inline: 8px;
     min-height: 0;
@@ -860,17 +867,17 @@ onMounted(loadStoreData);
   }
 
   .heart-row {
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .rating-box small {
-    font-size: 11px;
+    font-size: 13px;
   }
 
   .price-pill {
     min-width: 46px;
     min-height: 28px;
-    font-size: 12px;
+    font-size: 14px;
     padding: 0 7px;
   }
 }
@@ -882,12 +889,12 @@ onMounted(loadStoreData);
 
   .category-select {
     min-height: 32px;
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .suggestion-row button {
     min-height: 26px;
-    font-size: 10px;
+    font-size: 12px;
     padding-inline: 8px;
   }
 
@@ -901,19 +908,19 @@ onMounted(loadStoreData);
   }
 
   .meta-row span {
-    font-size: 10px;
+    font-size: 12px;
     padding: 4px 6px;
   }
 
   .book-card h2 {
-    font-size: 13px;
+    font-size: 15px;
     line-height: 1.45;
     margin-inline: 7px;
   }
 
   .book-card p,
   .book-card small {
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.45;
     margin-inline: 7px;
   }
@@ -923,17 +930,17 @@ onMounted(loadStoreData);
   }
 
   .heart-row {
-    font-size: 11px;
+    font-size: 13px;
   }
 
   .rating-box small {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .price-pill {
     min-width: 42px;
     min-height: 26px;
-    font-size: 11px;
+    font-size: 13px;
     padding: 0 6px;
   }
 }

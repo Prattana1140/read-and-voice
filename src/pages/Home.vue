@@ -155,7 +155,7 @@
                 alt=""
                 aria-hidden="true"
               />
-              <strong>{{ category.name }}</strong>
+              <strong>{{ category.label }}</strong>
             </router-link>
           </div>
         </div>
@@ -206,7 +206,7 @@
             >
               <img
                 :src="getBookCover(book)"
-                :alt="book.title"
+                :alt="getBookTitle(book)"
                 @error="handleImgError"
               />
               <div class="book-info">
@@ -216,7 +216,7 @@
                 >
                   {{ getContentLabel(book) }}
                 </span>
-                <p>{{ book.title }}</p>
+                <p>{{ getBookTitle(book) }}</p>
                 <small
                   class="book-category"
                   :class="{ 'book-category--empty': !book.category_name }"
@@ -273,7 +273,7 @@
         <template v-if="supportDialogMode === 'select'">
           <h2 id="support-modal-title">{{ t("home.supportTitle") }}</h2>
           <p>{{ t("home.supportDescription") }}</p>
-          <strong class="support-book-title">{{ supportDialogBook.title }}</strong>
+          <strong class="support-book-title">{{ getBookTitle(supportDialogBook) }}</strong>
 
           <div class="support-options">
             <button
@@ -319,7 +319,7 @@
           <h2 id="support-modal-title" class="support-added-title">
             {{ t("home.addedToCart") }}
           </h2>
-          <strong class="support-book-title">{{ supportDialogBook.title }}</strong>
+          <strong class="support-book-title">{{ getBookTitle(supportDialogBook) }}</strong>
 
           <div class="support-next-actions">
             <button class="support-outline-wide" type="button" @click="continueShopping">
@@ -349,10 +349,13 @@ import { computed, ref, onMounted, onUnmounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { getUser, isAuthenticated } from "../utils/auth";
 import { useI18n } from "../utils/i18n";
+import { localizedTitle } from "../utils/localizedContent";
 
 type Book = {
   id: number;
   title: string;
+  title_th?: string;
+  title_en?: string;
   author: string;
   author_name?: string;
   cover_url?: string;
@@ -410,6 +413,8 @@ type PageContentResponse = {
 type CategoryResponseItem = {
   id?: number;
   name?: string;
+  name_th?: string | null;
+  name_en?: string | null;
   parent_id?: number | null;
   display_tone?: string | null;
   display_art?: string | null;
@@ -419,6 +424,8 @@ type CategoryResponseItem = {
 
 type HomeCategoryButton = {
   name: string;
+  nameTh: string;
+  nameEn: string;
   tone?: string | null;
   art?: string | null;
 };
@@ -586,11 +593,11 @@ const bannerItems = computed(() => {
         id: `book-${book.id}`,
         kind: "fallback" as const,
         image_url: book.cover_url || book.cover_image_url || book.cover_image || "",
-        title: book.title,
+        title: getBookTitle(book),
         link_url: `/book/${book.id}`,
         is_active: true,
         label: campaign.label,
-        headline: index % 2 === 0 ? campaign.headline : book.title,
+        headline: index % 2 === 0 ? campaign.headline : getBookTitle(book),
         subtitle: book.author || campaign.subtitle,
         badge: campaign.badge,
         theme: campaign.theme,
@@ -704,8 +711,9 @@ const visibleCategoryItems = computed<HomeCategoryButton[]>(() => adminCategoryI
 const categoryLinks = computed(() =>
   visibleCategoryItems.value.map((category, index) => ({
     name: category.name,
-    art: category.art || getCategoryArt(category.name),
-    tone: category.tone || getCategoryTone(category.name, index),
+    label: locale.value === "en" ? category.nameEn || category.nameTh || category.name : category.nameTh || category.name,
+    art: category.art || getCategoryArt(category.nameTh || category.name),
+    tone: category.tone || getCategoryTone(category.nameTh || category.name, index),
   })),
 );
 
@@ -717,6 +725,8 @@ const supportAmountOptions = computed(() => {
 const getBookCover = (book: Book) => {
   return resolveAssetUrl(book.cover_url || book.cover_image_url || book.cover_image);
 };
+
+const getBookTitle = (book: Book | null | undefined) => localizedTitle(book, locale.value);
 
 const getSellerName = (book: Book) => {
   return book.author || book.author_name || "Read and Voice";
@@ -824,7 +834,7 @@ const addFreeBookToLibrary = async (book: Book) => {
 
   try {
     await api.post("/library", { book_id: book.id });
-    const goLibrary = window.confirm(`${t("home.addedConfirmPrefix")} "${book.title}" ${t("home.addedConfirmSuffix")}`);
+    const goLibrary = window.confirm(`${t("home.addedConfirmPrefix")} "${getBookTitle(book)}" ${t("home.addedConfirmSuffix")}`);
     if (goLibrary) router.push({ name: "MyLibrary" });
   } catch (error: any) {
     window.alert(error?.response?.data?.message || t("home.addLibraryFailed"));
@@ -957,6 +967,8 @@ async function fetchHomeCategories() {
     .sort((a, b) => Number(a?.sort_order || 0) - Number(b?.sort_order || 0) || Number(a?.id || 0) - Number(b?.id || 0))
     .map((item) => ({
       name: String(item?.name || "").trim(),
+      nameTh: String(item?.name_th || item?.name || "").trim(),
+      nameEn: String(item?.name_en || "").trim(),
       tone: String(item?.display_tone || "").trim() || null,
       art: String(item?.display_art || "").trim() || null,
     }))
@@ -1076,7 +1088,8 @@ watch(locale, () => {
   color: var(--text);
   cursor: pointer;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 800;
+  line-height: 1.2;
   padding: 8px 10px;
 }
 
@@ -1156,7 +1169,7 @@ watch(locale, () => {
 
 .empty-banner .promo-copy span {
   color: #16423d;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 800;
 }
 
@@ -1217,16 +1230,16 @@ watch(locale, () => {
 
 .fallback-copy span {
   color: rgba(255, 255, 255, 0.94);
-  font-size: 13px;
+  font-size: clamp(12px, 0.78vw, 14px);
   font-weight: 900;
 }
 
 .fallback-copy strong {
   margin-top: 8px;
   color: #ffe66d;
-  font-size: clamp(18px, 2.2vw, 38px);
+  font-size: clamp(20px, 1.85vw, 31px);
   font-weight: 900;
-  line-height: 1;
+  line-height: 1.08;
   text-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
 }
 
@@ -1235,9 +1248,9 @@ watch(locale, () => {
   margin: 8px 0 0;
   overflow: hidden;
   color: #ffffff;
-  font-size: clamp(20px, 2.3vw, 34px);
+  font-size: clamp(17px, 1.65vw, 27px);
   font-weight: 900;
-  line-height: 1.06;
+  line-height: 1.14;
   line-clamp: 2;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -1251,7 +1264,7 @@ watch(locale, () => {
   margin: 8px 0 0;
   overflow: hidden;
   color: rgba(255, 255, 255, 0.88);
-  font-size: clamp(11px, 1vw, 15px);
+  font-size: clamp(11px, 0.82vw, 13px);
   font-weight: 800;
   line-clamp: 1;
   -webkit-box-orient: vertical;
@@ -1348,7 +1361,7 @@ watch(locale, () => {
     linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.62));
   color: var(--primary-strong);
   cursor: pointer;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 900;
   line-height: 1;
   transform: translateY(-58%);
@@ -1476,7 +1489,7 @@ watch(locale, () => {
     linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.68));
   color: var(--primary-strong);
   cursor: pointer;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 900;
   line-height: 1;
   box-shadow: 0 12px 30px rgba(15, 118, 110, 0.16);
@@ -1581,9 +1594,9 @@ watch(locale, () => {
   z-index: 2;
   overflow: hidden;
   color: color-mix(in srgb, var(--chip-a) 76%, #101828);
-  font-size: clamp(16px, 1.16vw, 21px);
+  font-size: clamp(14px, 0.95vw, 17px);
   font-weight: 900;
-  line-height: 1.1;
+  line-height: 1.2;
   max-width: 100%;
   text-overflow: ellipsis;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
@@ -2179,12 +2192,13 @@ watch(locale, () => {
   color: var(--text-strong);
   font-size: 17px;
   font-weight: 900;
+  line-height: 1.25;
 }
 
 .section-head p {
   margin: 4px 0 0;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.45;
 }
@@ -2193,15 +2207,16 @@ watch(locale, () => {
   display: inline-flex;
   margin-bottom: 4px;
   color: var(--primary-strong);
-  font-size: 11px;
-  font-weight: 900;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .section-head a,
 .section-link-button {
   color: var(--primary-strong);
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 800;
+  line-height: 1.2;
   text-decoration: none;
 }
 
@@ -2274,7 +2289,7 @@ watch(locale, () => {
     linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.68));
   color: var(--primary-strong);
   cursor: pointer;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 900;
   line-height: 1;
   box-shadow: 0 12px 30px rgba(15, 118, 110, 0.16);
@@ -2365,12 +2380,12 @@ watch(locale, () => {
 
 .book-info {
   display: grid;
-  grid-template-rows: 20px 44px 18px 18px minmax(30px, auto);
+  grid-template-rows: 18px 42px 17px 17px minmax(28px, auto);
   align-content: stretch;
   gap: 6px;
   flex: 1 1 auto;
   min-width: 0;
-  min-height: 158px;
+  min-height: 146px;
   padding: 10px 12px 9px;
 }
 
@@ -2382,7 +2397,7 @@ watch(locale, () => {
   background: color-mix(in srgb, var(--primary-soft) 74%, white);
   color: var(--primary-strong);
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 800;
   line-height: 1;
   padding: 4px 7px;
 }
@@ -2405,13 +2420,13 @@ watch(locale, () => {
 .book-info p {
   grid-row: 2;
   display: -webkit-box;
-  min-height: 44px;
+  min-height: 42px;
   margin: 0;
   overflow: hidden;
   color: var(--text-strong);
   font-size: 14px;
-  font-weight: 900;
-  line-height: 1.45;
+  font-weight: 800;
+  line-height: 1.5;
   overflow-wrap: anywhere;
   word-break: break-word;
   line-clamp: 2;
@@ -2421,10 +2436,10 @@ watch(locale, () => {
 
 .book-info small {
   display: -webkit-box;
-  min-height: 18px;
+  min-height: 17px;
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.45;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -2442,7 +2457,7 @@ watch(locale, () => {
   flex-wrap: wrap;
   gap: 8px;
   color: #8b8f96;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   line-height: 1.2;
 }
@@ -2471,7 +2486,7 @@ watch(locale, () => {
   align-items: center;
   gap: 1px;
   color: #d1d5db;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1;
 }
 
@@ -2493,14 +2508,14 @@ watch(locale, () => {
   justify-content: center;
   flex: 0 0 auto;
   min-width: 48px;
-  min-height: 30px;
+  min-height: 28px;
   border: 0;
   border-radius: 2px;
   background: #0abf6b;
   color: #ffffff;
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 900;
+  font-size: 13px;
+  font-weight: 800;
   line-height: 1;
   padding: 0 8px;
   text-align: center;
@@ -2553,7 +2568,7 @@ watch(locale, () => {
   background: transparent;
   color: #64748b;
   cursor: pointer;
-  font-size: 32px;
+  font-size: 34px;
   line-height: 1;
 }
 
@@ -2565,7 +2580,7 @@ watch(locale, () => {
 .support-modal h2 {
   margin: 0;
   color: #0f172a;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 900;
 }
 
@@ -2573,7 +2588,7 @@ watch(locale, () => {
   width: min(100%, 290px);
   margin: 18px auto 8px;
   color: #475569;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.55;
 }
 
@@ -2583,7 +2598,7 @@ watch(locale, () => {
   max-width: 310px;
   overflow: hidden;
   color: #0f766e;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.35;
   line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -2592,7 +2607,7 @@ watch(locale, () => {
 
 .support-added-title {
   margin-bottom: 18px;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .support-options {
@@ -2612,14 +2627,14 @@ watch(locale, () => {
   background: #ffffff;
   color: #0f172a;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
   padding: 8px;
 }
 
 .support-options button small {
   color: #64748b;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1.1;
 }
@@ -2634,7 +2649,7 @@ watch(locale, () => {
   width: min(100%, 260px);
   margin: -12px auto 16px;
   color: #dc2626;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
 }
 
@@ -2687,7 +2702,7 @@ watch(locale, () => {
   min-height: 34px;
   border-radius: 999px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
   padding: 0 18px;
 }
@@ -2743,7 +2758,7 @@ watch(locale, () => {
   }
 
   .section-head h2 {
-    font-size: 22px;
+    font-size: 18px;
   }
 }
 
@@ -2765,7 +2780,7 @@ watch(locale, () => {
   .category-arrow {
     width: 34px;
     height: 34px;
-    font-size: 18px;
+    font-size: 20px;
     box-shadow: 0 8px 20px rgba(15, 118, 110, 0.14);
   }
 
@@ -2810,8 +2825,8 @@ watch(locale, () => {
   }
 
   .category-chip strong {
-    font-size: 11px;
-    line-height: 1.1;
+    font-size: 12px;
+    line-height: 1.2;
   }
 
   .category-art {
@@ -2843,7 +2858,7 @@ watch(locale, () => {
     max-width: calc(25% - 8px);
     min-height: 38px;
     padding: 6px 2px;
-    font-size: 12px;
+    font-size: 11px;
     line-height: 1.15;
     white-space: normal;
   }
@@ -2867,21 +2882,21 @@ watch(locale, () => {
   }
 
   .book-info {
-    grid-template-rows: 18px 42px 18px 18px minmax(28px, auto);
+    grid-template-rows: 17px 40px 16px 16px minmax(26px, auto);
     gap: 5px;
-    min-height: 148px;
+    min-height: 136px;
     padding: 10px;
   }
 
   .content-badge {
     font-size: 11px;
-    padding: 4px 7px;
+    padding: 3px 6px;
   }
 
   .book-info p {
     display: -webkit-box;
-    min-height: 42px;
-    font-size: 14px;
+    min-height: 40px;
+    font-size: 13px;
     line-height: 1.45;
     line-clamp: 2;
     -webkit-line-clamp: 2;
@@ -2889,8 +2904,8 @@ watch(locale, () => {
 
   .book-info small {
     display: -webkit-box;
-    min-height: 18px;
-    font-size: 12px;
+    min-height: 16px;
+    font-size: 11px;
     line-height: 1.45;
     line-clamp: 1;
     -webkit-line-clamp: 1;
@@ -2902,7 +2917,7 @@ watch(locale, () => {
   }
 
   .heart-row {
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .rating-box small {
@@ -2949,8 +2964,8 @@ watch(locale, () => {
   }
 
   .category-chip strong {
-    font-size: 10px;
-    line-height: 1.1;
+    font-size: 11px;
+    line-height: 1.2;
   }
 
   .category-art-image {
@@ -2963,7 +2978,7 @@ watch(locale, () => {
   .category-arrow {
     width: 30px;
     height: 30px;
-    font-size: 16px;
+    font-size: 18px;
   }
 
   .category-bar {
@@ -2974,7 +2989,7 @@ watch(locale, () => {
     flex-basis: calc(25% - 6px);
     max-width: calc(25% - 6px);
     min-height: 36px;
-    font-size: 11px;
+    font-size: 10.5px;
   }
 
   .book-grid {
@@ -2984,34 +2999,34 @@ watch(locale, () => {
   }
 
   .book-info {
-    grid-template-rows: 17px 40px 17px 17px minmax(27px, auto);
+    grid-template-rows: 16px 38px 16px 16px minmax(26px, auto);
     gap: 5px;
-    min-height: 142px;
+    min-height: 130px;
     padding: 9px;
   }
 
   .content-badge {
-    font-size: 10px;
-    padding: 4px 6px;
+    font-size: 10.5px;
+    padding: 3px 6px;
   }
 
   .book-info p {
-    min-height: 40px;
-    font-size: 13px;
+    min-height: 38px;
+    font-size: 12.5px;
     line-height: 1.45;
   }
 
   .book-info small {
-    min-height: 17px;
-    font-size: 11px;
+    min-height: 16px;
+    font-size: 10.5px;
   }
 
   .heart-row {
-    font-size: 11px;
+    font-size: 13px;
   }
 
   .rating-box small {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .price-pill {

@@ -3,10 +3,14 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api, { resolveAssetUrl } from "../utils/api";
 import { filterBooks, uniqueBookCategories } from "../utils/bookSearch";
+import { useI18n } from "../utils/i18n";
+import { localizedTitle } from "../utils/localizedContent";
 
 type SerialBook = {
   id: number;
   title: string;
+  title_th?: string;
+  title_en?: string;
   author?: string;
   cover_url?: string;
   cover_image?: string;
@@ -61,6 +65,7 @@ type CuratedGroup = {
 
 const route = useRoute();
 const router = useRouter();
+const { locale } = useI18n();
 
 const books = ref<SerialBook[]>([]);
 const progressBooks = ref<SerialBook[]>([]);
@@ -276,6 +281,10 @@ function findCategoryName(names: string[], candidates: string[], usedKeys: Set<s
 
 function getBookCover(book: SerialBook) {
   return resolveAssetUrl(book.cover_url || book.cover_image);
+}
+
+function getBookTitle(book: SerialBook) {
+  return localizedTitle(book, locale.value);
 }
 
 function getEpisodeCount(book: SerialBook) {
@@ -584,9 +593,9 @@ onMounted(() => {
             @keydown.enter.prevent="goToBook(book.id)"
             @keydown.space.prevent="goToBook(book.id)"
           >
-            <img :src="getBookCover(book)" :alt="book.title" @error="handleImgError" />
+            <img :src="getBookCover(book)" :alt="getBookTitle(book)" @error="handleImgError" />
             <div class="continue-all-copy">
-              <h3>{{ book.title }}</h3>
+              <h3>{{ getBookTitle(book) }}</h3>
               <p>{{ book.author || "ไม่ระบุผู้เขียน" }}</p>
               <span>{{ getContinueEpisodeText(book) }}</span>
             </div>
@@ -622,12 +631,12 @@ onMounted(() => {
             @keydown.enter.prevent="goToBook(book.id)"
             @keydown.space.prevent="goToBook(book.id)"
           >
-            <img :src="getBookCover(book)" :alt="book.title" @error="handleImgError" />
+            <img :src="getBookCover(book)" :alt="getBookTitle(book)" @error="handleImgError" />
             <div class="serial-card-badges">
               <span>รายตอน</span>
               <span>{{ getAccessLabel(book) }}</span>
             </div>
-            <h3>{{ book.title }}</h3>
+            <h3>{{ getBookTitle(book) }}</h3>
             <p>{{ book.author || "ไม่ระบุผู้เขียน" }}</p>
             <small v-if="book.category_name">{{ book.category_name }}</small>
           </div>
@@ -695,8 +704,8 @@ onMounted(() => {
                 @keydown.enter.prevent="goToBook(book.id)"
                 @keydown.space.prevent="goToBook(book.id)"
               >
-                <img :src="getBookCover(book)" :alt="book.title" @error="handleImgError" />
-                <h4>{{ book.title }}</h4>
+                <img :src="getBookCover(book)" :alt="getBookTitle(book)" @error="handleImgError" />
+                <h4>{{ getBookTitle(book) }}</h4>
                 <p>{{ book.author || "ไม่ระบุผู้เขียน" }}</p>
                 <div class="curated-meta">
                   <span>{{ getEpisodeCount(book) }} ตอน</span>
@@ -759,7 +768,7 @@ onMounted(() => {
   display: inline-flex;
   margin-bottom: 7px;
   color: var(--primary);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -796,7 +805,7 @@ onMounted(() => {
   background: var(--surface-soft);
   color: var(--text-strong);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   padding: 0 13px;
   white-space: nowrap;
@@ -834,7 +843,7 @@ onMounted(() => {
   border-radius: 6px;
   background: var(--surface-soft);
   color: var(--text-strong);
-  font-size: 16px;
+  font-size: 18px;
   outline: none;
   padding: 12px 16px;
 }
@@ -858,7 +867,7 @@ onMounted(() => {
 
 .filter-row label > span {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 900;
 }
 
@@ -911,7 +920,7 @@ onMounted(() => {
   background: var(--surface-soft);
   color: var(--text-strong);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   padding: 0 13px;
   text-overflow: ellipsis;
@@ -942,7 +951,7 @@ onMounted(() => {
   background: #ffffff;
   color: #00a99d;
   cursor: pointer;
-  font-size: 24px;
+  font-size: 26px;
   line-height: 1;
 }
 
@@ -979,13 +988,13 @@ onMounted(() => {
 }
 
 .curated-group > h2 {
-  font-size: 28px;
+  font-size: 30px;
   line-height: 1.15;
 }
 
 .row-heading h3 {
   min-width: 0;
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1.2;
   overflow-wrap: anywhere;
 }
@@ -996,7 +1005,7 @@ onMounted(() => {
   background: transparent;
   color: #00a99d;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
   padding: 0;
   white-space: nowrap;
@@ -1024,7 +1033,7 @@ onMounted(() => {
 }
 
 .curated-group--standalone .row-heading h3 {
-  font-size: 28px;
+  font-size: 30px;
 }
 
 .curated-row {
@@ -1062,7 +1071,7 @@ onMounted(() => {
   margin: 9px 0 4px;
   overflow: hidden;
   color: #101010;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -1076,7 +1085,7 @@ onMounted(() => {
   overflow: hidden;
   margin: 0 0 6px;
   color: #8b8f96;
-  font-size: 12px;
+  font-size: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1086,7 +1095,7 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 7px;
   color: #8b8f96;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .curated-meta span:nth-child(1)::before {
@@ -1118,7 +1127,7 @@ onMounted(() => {
   background: var(--surface);
   color: var(--primary-strong);
   cursor: pointer;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 900;
   line-height: 1;
   padding: 0 8px;
@@ -1146,7 +1155,7 @@ onMounted(() => {
   background: var(--surface);
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
   color: var(--text-strong);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
   line-height: 1.45;
   padding: 12px 14px;
@@ -1164,7 +1173,7 @@ onMounted(() => {
 
 .curated-actions .library-action,
 .serial-library-btn {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .row-scroll-button {
@@ -1181,7 +1190,7 @@ onMounted(() => {
   background: rgba(112, 118, 124, 0.74);
   color: #ffffff;
   cursor: pointer;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 900;
   line-height: 1;
   transform: translateY(-35%);
@@ -1208,7 +1217,7 @@ onMounted(() => {
 .continue-all-page h2 {
   margin: 0;
   color: #050505;
-  font-size: 34px;
+  font-size: 36px;
   font-weight: 900;
   letter-spacing: 0;
 }
@@ -1250,7 +1259,7 @@ onMounted(() => {
   margin: 0 0 42px;
   overflow: hidden;
   color: #050505;
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 800;
   line-height: 1.45;
   overflow-wrap: anywhere;
@@ -1264,14 +1273,14 @@ onMounted(() => {
   overflow: hidden;
   margin: 0 0 12px;
   color: #8b8f96;
-  font-size: 14px;
+  font-size: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .continue-all-copy span {
   color: #ff2d68;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
 }
 
@@ -1319,7 +1328,7 @@ onMounted(() => {
   border-radius: 999px;
   background: var(--surface-soft);
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 900;
   max-width: 50%;
   padding: 4px 7px;
@@ -1333,7 +1342,7 @@ onMounted(() => {
   margin: 0 0 6px;
   overflow: hidden;
   color: var(--text-strong);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 900;
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -1349,7 +1358,7 @@ onMounted(() => {
   margin: 0 0 2px;
   overflow: hidden;
   color: var(--text);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -1362,7 +1371,7 @@ onMounted(() => {
   min-height: 14px;
   margin: 0;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.45;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -1387,13 +1396,13 @@ onMounted(() => {
 
 .serial-stat strong {
   color: var(--text-strong);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.1;
 }
 
 .serial-stat span {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.35;
 }
 
@@ -1408,7 +1417,7 @@ onMounted(() => {
   background: #00b874;
   color: #ffffff;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 900;
   padding: 0 7px;
 }
@@ -1500,11 +1509,11 @@ onMounted(() => {
   }
 
   .serial-title h1 {
-    font-size: 30px;
+    font-size: 32px;
   }
 
   .serial-title p {
-    font-size: 13px;
+    font-size: 15px;
   }
 
   .search-panel {
@@ -1536,7 +1545,7 @@ onMounted(() => {
   .category-chip {
     max-width: 136px;
     min-height: 28px;
-    font-size: 10px;
+    font-size: 12px;
     padding: 0 9px;
   }
 
@@ -1550,11 +1559,11 @@ onMounted(() => {
   }
 
   .curated-group > h2 {
-    font-size: 18px;
+    font-size: 20px;
   }
 
   .row-heading h3 {
-    font-size: 13px;
+    font-size: 15px;
   }
 
   .row-heading {
@@ -1567,7 +1576,7 @@ onMounted(() => {
   }
 
   .curated-group--standalone .row-heading h3 {
-    font-size: 24px;
+    font-size: 26px;
   }
 
   .curated-rail {
@@ -1578,7 +1587,7 @@ onMounted(() => {
   .serial-card-clickable h3,
   .curated-card h4 {
     min-height: 42px;
-    font-size: 14px;
+    font-size: 16px;
     line-height: 1.45;
   }
 
@@ -1586,7 +1595,7 @@ onMounted(() => {
   .serial-card-clickable small,
   .curated-card p,
   .curated-meta {
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.45;
   }
 
@@ -1596,14 +1605,14 @@ onMounted(() => {
   }
 
   .serial-card-badges span {
-    font-size: 11px;
+    font-size: 13px;
     padding: 4px 7px;
   }
 
   .serial-price-pill,
   .curated-actions button {
     min-height: 30px;
-    font-size: 12px;
+    font-size: 14px;
     padding-inline: 8px;
   }
 
@@ -1612,21 +1621,21 @@ onMounted(() => {
     display: grid;
     width: 26px;
     height: 26px;
-    font-size: 16px;
+    font-size: 18px;
   }
 
   .curated-card h4 {
-    font-size: 14px;
+    font-size: 16px;
     min-height: 42px;
   }
 
   .curated-card p,
   .curated-meta {
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .continue-all-page h2 {
-    font-size: 30px;
+    font-size: 32px;
   }
 
   .continue-all-grid {
@@ -1646,12 +1655,12 @@ onMounted(() => {
   .continue-all-copy h3 {
     min-height: 42px;
     margin-bottom: 28px;
-    font-size: 16px;
+    font-size: 18px;
   }
 
   .continue-all-copy p,
   .continue-all-copy span {
-    font-size: 13px;
+    font-size: 15px;
   }
 }
 </style>

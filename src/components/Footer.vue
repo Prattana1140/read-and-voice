@@ -116,14 +116,14 @@ const walletLink = computed(() =>
 .footer-column h3 {
   margin: 0 0 10px;
   color: var(--text-strong);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 900;
 }
 
 .footer-column a {
   width: fit-content;
   color: var(--text);
-  font-size: 15px;
+  font-size: 17px;
   line-height: 1.75;
   text-decoration: none;
   transition: color 0.18s ease;
@@ -172,7 +172,7 @@ const walletLink = computed(() =>
   gap: 14px;
   padding-bottom: 22px;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
   text-align: center;
 }
 
@@ -188,12 +188,12 @@ const walletLink = computed(() =>
   }
 
   .footer-column h3 {
-    font-size: 14px;
+    font-size: 16px;
     margin-bottom: 8px;
   }
 
   .footer-column a {
-    font-size: 13px;
+    font-size: 15px;
     line-height: 1.65;
   }
 
@@ -208,7 +208,7 @@ const walletLink = computed(() =>
   }
 
   .footer-bottom {
-    font-size: 12px;
+    font-size: 14px;
     gap: 12px;
   }
 }
@@ -243,7 +243,7 @@ const walletLink = computed(() =>
     height: auto;
   }
   .footer-bottom {
-    font-size: 11px;
+    font-size: 13px;
     gap: 8px;
   }
 }
@@ -270,12 +270,12 @@ const walletLink = computed(() =>
   }
 
   .footer-column h3 {
-    font-size: 11px;
+    font-size: 13px;
     margin-bottom: 6px;
   }
 
   .footer-column a {
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.45;
   }
 
@@ -294,7 +294,7 @@ const walletLink = computed(() =>
   }
 
   .footer-bottom {
-    font-size: 10px;
+    font-size: 12px;
     gap: 6px;
     padding-inline: var(--page-gutter, 16px);
   }

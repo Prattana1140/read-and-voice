@@ -48,14 +48,14 @@ const router = useRouter();
 
 .not-found-panel p {
   color: var(--primary);
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 900;
 }
 
 .not-found-panel h1 {
   margin-top: 8px;
   color: var(--text-strong);
-  font-size: 30px;
+  font-size: 32px;
   line-height: 1.2;
 }
 

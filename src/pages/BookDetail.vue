@@ -19,7 +19,7 @@
         >
           <div class="story-hero__inner">
             <figure class="story-cover">
-              <img :src="bookCover" :alt="book.title" @error="handleImgError" />
+              <img :src="bookCover" :alt="displayBookTitle" @error="handleImgError" />
             </figure>
 
             <div class="story-main">
@@ -31,18 +31,30 @@
               </span>
 
               <div class="story-tags">
-                <span>{{ book.category_name || "นิยาย" }}</span>
-                <span>
+                <span class="category-chip" :class="{ 'age-tag': isAdultContent(book.age_rating) }">
+                  {{ storyCategoryAgeLabel }}
+                </span>
+                <span class="meta-chip">
                   {{
                     book.content_type === "serial"
                       ? `${episodes.length || book.episode_count || 0} ตอน`
                       : "แบบเล่ม"
                   }}
                 </span>
-                <span>{{ accessPresentation.label }}</span>
+                <span class="meta-chip">{{ accessPresentation.label }}</span>
+                <span v-if="visibleBookTags.length" class="tag-marker" aria-hidden="true">◇</span>
+                <button
+                  v-for="tag in visibleBookTags"
+                  :key="tag"
+                  type="button"
+                  class="tag-chip"
+                  @click="openTag(tag)"
+                >
+                  {{ tag }}
+                </button>
               </div>
 
-              <h1>{{ book.title }}</h1>
+              <h1>{{ displayBookTitle }}</h1>
 
               <p v-if="book.content_type === 'serial'" class="story-author">
                 <button
@@ -203,12 +215,12 @@
             <h2>แนะนำตัวละคร</h2>
             <div class="character-list">
               <article>
-                <span>{{ getInitial(book.author || book.title) }}</span>
+                <span>{{ getInitial(book.author || displayBookTitle) }}</span>
                 <strong>{{ book.author || "นักเขียน" }}</strong>
               </article>
               <article>
-                <span>{{ getInitial(book.title) }}</span>
-                <strong>{{ book.title }}</strong>
+                <span>{{ getInitial(displayBookTitle) }}</span>
+                <strong>{{ displayBookTitle }}</strong>
               </article>
             </div>
           </section>
@@ -335,14 +347,14 @@
               <div class="ebook-promo-cover">
                 <img
                   :src="bookCover"
-                  :alt="book.title"
+                  :alt="displayBookTitle"
                   @error="handleImgError"
                 />
               </div>
 
               <div class="ebook-promo-copy">
                 <p class="ebook-promo-eyebrow">ซื้อ e-book ได้ที่นี่</p>
-                <h3>{{ book.title }}</h3>
+                <h3>{{ displayBookTitle }}</h3>
                 <p>
                   {{
                     book.description ||
@@ -430,7 +442,7 @@
                     class="episode-title"
                     @click="handleEpisodeReadAction(episode)"
                   >
-                    {{ episode.title }}
+                    {{ getEpisodeTitle(episode) }}
                   </button>
                   <span class="episode-access">{{
                     getEpisodeAccessLabel(episode)
@@ -677,12 +689,23 @@
             เนื้อหานี้เหมาะสำหรับผู้ที่มีอายุ 18 ปีขึ้นไปเท่านั้น
             โปรดยืนยันอายุก่อนอ่านหรือฟังเนื้อหาเรื่องนี้
           </p>
+          <p v-if="ageGateError" class="age-gate-error">{{ ageGateError }}</p>
 
           <div class="age-gate-actions">
-            <button type="button" class="age-gate-confirm" @click="confirmAgeGate">
-              ใช่ ฉันอายุมากกว่า 18 ปี
+            <button
+              type="button"
+              class="age-gate-confirm"
+              :disabled="ageGateSaving"
+              @click="confirmAgeGate"
+            >
+              {{ ageGateSaving ? "กำลังบันทึก..." : "ใช่ ฉันอายุมากกว่า 18 ปี" }}
             </button>
-            <button type="button" class="age-gate-decline" @click="declineAgeGate">
+            <button
+              type="button"
+              class="age-gate-decline"
+              :disabled="ageGateSaving"
+              @click="declineAgeGate"
+            >
               ไม่ใช่
             </button>
           </div>
@@ -720,7 +743,7 @@
           </h2>
 
           <p class="purchase-modal-title">
-            {{ pendingPurchaseEpisode?.title || purchasedEpisode?.title }}
+            {{ getEpisodeTitle(pendingPurchaseEpisode || purchasedEpisode) }}
           </p>
 
           <p
@@ -799,6 +822,8 @@ import { useRoute, useRouter } from "vue-router";
 import { getAuthHeaders, getUser } from "../utils/auth";
 import api from "../utils/api";
 import { announceAccessibilityMessage } from "../utils/accessibility";
+import { useI18n } from "../utils/i18n";
+import { localizedTitle } from "../utils/localizedContent";
 import {
   canOpenBookNow,
   getBookAccessPresentation,
@@ -809,6 +834,8 @@ import {
 type Book = {
   id: number;
   title: string;
+  title_th?: string;
+  title_en?: string;
   author: string;
   author_name?: string;
   subtitle?: string;
@@ -819,6 +846,7 @@ type Book = {
   content?: string;
   full_text?: string;
   category_name?: string;
+  tags?: string[] | string;
   publisher?: string;
   publisher_name?: string;
   file_type?: string;
@@ -848,6 +876,8 @@ type Episode = {
   book_id: number;
   episode_number: number;
   title: string;
+  title_th?: string;
+  title_en?: string;
   price: number;
   is_free?: number;
   access_type?: "paid" | "free" | "subscription";
@@ -880,6 +910,7 @@ const PREVIEW_LIMIT = 12;
 
 const route = useRoute();
 const router = useRouter();
+const { locale } = useI18n();
 const isAuthenticated = computed(() => Boolean(localStorage.getItem("token")));
 
 const book = ref<Book | null>(null);
@@ -918,6 +949,8 @@ const purchaseDialogError = ref("");
 const purchaseDialogNeedsTopup = ref(false);
 const ageGateOpen = ref(false);
 const AGE_CONFIRMATION_KEY = "read-and-voice-age-18-confirmed";
+const ageGateSaving = ref(false);
+const ageGateError = ref("");
 
 const reviews = ref<BookReview[]>([]);
 const reviewsLoading = ref(false);
@@ -947,26 +980,84 @@ const isAdultContent = (ageRating?: string | null) => {
   );
 };
 
-const hasConfirmedAdultAge = () => {
-  return localStorage.getItem(AGE_CONFIRMATION_KEY) === "yes";
+const ageRatingLabel = computed(() => {
+  const value = String(book.value?.age_rating || "").trim();
+  if (isAdultContent(value)) return "18+";
+  if (["13", "13+"].includes(value)) return "13+";
+  if (["15", "15+"].includes(value)) return "15+";
+  return "";
+});
+
+const storyCategoryAgeLabel = computed(() => {
+  const category = book.value?.category_name || "นิยาย";
+  return ageRatingLabel.value ? `${category} (${ageRatingLabel.value})` : category;
+});
+
+const visibleBookTags = computed(() => {
+  const tags = book.value?.tags;
+  const values = Array.isArray(tags)
+    ? tags
+    : String(tags || "")
+        .split(",")
+        .map((tag) => tag.trim());
+
+  return [...new Set(values.filter(Boolean))].slice(0, 12);
+});
+
+const openTag = (tag: string) => {
+  router.push({ name: "TagDetail", params: { name: tag } });
 };
 
-const checkAgeGate = () => {
+const hasConfirmedAdultAge = async () => {
+  if (localStorage.getItem(AGE_CONFIRMATION_KEY) === "yes") return true;
+
+  if (!isAuthenticated.value) return false;
+
+  try {
+    const { data } = await api.get("/profile/me");
+    if (data?.age_verified) {
+      localStorage.setItem(AGE_CONFIRMATION_KEY, "yes");
+      return true;
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
+};
+
+const checkAgeGate = async () => {
   if (!book.value || !isAdultContent(book.value.age_rating)) {
     ageGateOpen.value = false;
     return;
   }
 
-  ageGateOpen.value = !hasConfirmedAdultAge();
+  ageGateOpen.value = !(await hasConfirmedAdultAge());
   if (ageGateOpen.value) {
     notifyBookStatus("กรุณายืนยันอายุเพื่อเข้าถึงเนื้อหา 18 ปีขึ้นไป");
   }
 };
 
-const confirmAgeGate = () => {
-  localStorage.setItem(AGE_CONFIRMATION_KEY, "yes");
-  ageGateOpen.value = false;
-  notifyBookStatus("ยืนยันอายุเรียบร้อยแล้ว");
+const confirmAgeGate = async () => {
+  if (ageGateSaving.value) return;
+
+  try {
+    ageGateSaving.value = true;
+    ageGateError.value = "";
+
+    if (isAuthenticated.value) {
+      await api.post("/profile/me/verify-age", { confirmed_over_18: true });
+    }
+
+    localStorage.setItem(AGE_CONFIRMATION_KEY, "yes");
+    ageGateOpen.value = false;
+    notifyBookStatus("ยืนยันอายุเรียบร้อยแล้ว");
+  } catch (error: any) {
+    ageGateError.value = error?.response?.data?.message || "ยืนยันอายุไม่สำเร็จ";
+    notifyBookStatus(ageGateError.value);
+  } finally {
+    ageGateSaving.value = false;
+  }
 };
 
 const declineAgeGate = () => {
@@ -991,6 +1082,10 @@ const bookCover = computed(() => {
   if (cover.startsWith("http://") || cover.startsWith("https://")) return cover;
 
   return `${API_BASE_URL}/${cover.replace(/^\/+/, "")}`;
+});
+
+const displayBookTitle = computed(() => {
+  return localizedTitle(book.value, locale.value) || book.value?.title || "";
 });
 
 const progressKey = computed(() => {
@@ -1149,6 +1244,10 @@ const isActiveFlag = (value: unknown) => {
   );
 };
 
+function getEpisodeTitle(episode?: Episode | null) {
+  return localizedTitle(episode, locale.value) || episode?.title || "";
+}
+
 const hasActiveSubscription = computed(() => {
   const info = subscriptionInfo.value;
   const subscription = info?.subscription || info;
@@ -1300,7 +1399,7 @@ const ebookPublisher = computed(() => {
 });
 
 const ebookSeriesLabel = computed(() => {
-  return String(book.value?.title || "").trim() || "ไม่ระบุ";
+  return displayBookTitle.value || "ไม่ระบุ";
 });
 
 const ebookArtistLabel = computed(() => {
@@ -1622,8 +1721,15 @@ const fetchBook = async () => {
 
     const bookRes = await api.get(`${API_BASE_URL}/api/books/${id}`);
     book.value = bookRes.data;
-    checkAgeGate();
+    await checkAgeGate();
     fetchReviews();
+
+    if (ageGateOpen.value) {
+      previewNotice.value = "ต้องยืนยันว่าอายุมากกว่า 18 ปีก่อนอ่านหรือฟังเนื้อหานี้";
+      sentences.value = [];
+      episodes.value = [];
+      return;
+    }
 
     if (book.value?.content_type === "serial") {
       const episodeRes = await api.get(
@@ -1988,8 +2094,8 @@ const shareBook = async () => {
 
   const url = window.location.href;
   const shareData = {
-    title: book.value.title,
-    text: book.value.description || book.value.title,
+    title: displayBookTitle.value,
+    text: book.value.description || displayBookTitle.value,
     url,
   };
 
@@ -2067,6 +2173,7 @@ const toggleWriterFollow = async () => {
       await api.delete(`/account/following/${followingId.value}`);
       followingId.value = null;
       isFollowingWriter.value = false;
+      window.dispatchEvent(new CustomEvent("read-and-voice-following-changed"));
       alert("ยกเลิกติดตามนักเขียนแล้ว");
       return;
     }
@@ -2074,6 +2181,7 @@ const toggleWriterFollow = async () => {
     const { data } = await api.post("/account/following", followPayload);
     followingId.value = Number(data?.id || 0) || null;
     isFollowingWriter.value = true;
+    window.dispatchEvent(new CustomEvent("read-and-voice-following-changed"));
     alert("ติดตามนักเขียนแล้ว");
   } catch (error: any) {
     alert(error?.response?.data?.message || "อัปเดตการติดตามไม่สำเร็จ");
@@ -2396,35 +2504,68 @@ onBeforeUnmount(() => {
   margin-bottom: 12px;
 }
 
-.story-tags span {
+.story-tags span,
+.story-tags .tag-chip {
   display: inline-flex;
   align-items: center;
   min-height: 28px;
+  border: 1px solid currentColor;
   border-radius: 999px;
-  background: rgba(85, 198, 189, 0.18);
-  color: #9ff0e7;
-  font-size: 13px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  font-size: 15px;
   font-weight: 900;
   padding: 0 12px;
 }
 
-.story-hero--ebook .story-tags span {
-  background: color-mix(in srgb, var(--primary-soft) 78%, #ffffff);
-  color: var(--primary-strong);
+.story-tags span {
+  cursor: default;
 }
 
-.story-hero--serial .story-tags span {
+.story-tags .category-chip {
+  border-color: #f4a300;
+  color: #f4a300;
+}
+
+.story-tags .age-tag {
+  color: #66f7df;
+}
+
+.story-tags .tag-marker {
+  min-width: 28px;
+  border: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 22px;
+  padding: 0 2px;
+}
+
+.story-hero--ebook .story-tags .category-chip {
+  border-color: #f4a300;
+  color: #d89100;
+}
+
+.story-hero--ebook .story-tags .meta-chip,
+.story-hero--ebook .story-tags .tag-chip {
+  color: var(--text-strong);
+}
+
+.story-hero--ebook .story-tags .tag-marker {
+  color: var(--text-muted);
+}
+
+.story-hero--serial .story-tags span,
+.story-hero--serial .story-tags .tag-chip {
   min-height: 24px;
-  background: rgba(255, 255, 255, 0.14);
+  background: transparent;
   color: rgba(255, 255, 255, 0.92);
-  font-size: 12px;
+  font-size: 14px;
   padding: 0 10px;
 }
 
-.story-hero--serial .story-tags span:first-child {
-  background: transparent;
-  color: #00d3c7;
-  padding-left: 0;
+.story-hero--serial .story-tags .category-chip {
+  border-color: #f4a300;
+  color: #f4a300;
 }
 
 .story-main h1 {
@@ -2481,7 +2622,7 @@ onBeforeUnmount(() => {
 .story-hero--serial .story-author {
   margin-top: 12px;
   gap: 10px;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .story-hero--serial .story-author .author-link {
@@ -2493,7 +2634,7 @@ onBeforeUnmount(() => {
   min-height: 28px;
   border-color: rgba(255, 255, 255, 0.72);
   color: #fff;
-  font-size: 12px;
+  font-size: 14px;
   padding: 0 14px;
 }
 
@@ -2515,7 +2656,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   margin-top: 22px;
   color: var(--text);
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1.6;
 }
 
@@ -2545,7 +2686,7 @@ onBeforeUnmount(() => {
   max-width: 720px;
   margin: 18px 0 0;
   color: rgba(255, 255, 255, 0.86);
-  font-size: 15px;
+  font-size: 17px;
   line-height: 1.8;
 }
 
@@ -2560,7 +2701,7 @@ onBeforeUnmount(() => {
   margin-top: 14px;
   overflow: hidden;
   color: rgba(255, 255, 255, 0.94);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.55;
   -webkit-line-clamp: 3;
@@ -2573,7 +2714,7 @@ onBeforeUnmount(() => {
   gap: 18px;
   margin-top: 28px;
   color: rgba(255, 255, 255, 0.74);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
 }
 
@@ -2591,7 +2732,7 @@ onBeforeUnmount(() => {
   padding-top: 48px;
   gap: 12px;
   color: rgba(255, 255, 255, 0.68);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .story-hero--serial .story-stats span:first-child {
@@ -2633,7 +2774,7 @@ onBeforeUnmount(() => {
   background: transparent;
   color: #ffffff;
   cursor: pointer;
-  font-size: 28px;
+  font-size: 30px;
   line-height: 1;
 }
 
@@ -2662,13 +2803,13 @@ onBeforeUnmount(() => {
   border-color: var(--primary);
   background: transparent;
   color: var(--primary-strong);
-  font-size: 17px;
+  font-size: 19px;
   padding: 0 28px;
 }
 
 .story-actions .outline-action::before {
   content: "▣";
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1;
 }
 
@@ -2698,7 +2839,7 @@ onBeforeUnmount(() => {
   min-height: 54px;
   background: var(--primary);
   color: var(--on-primary, #ffffff);
-  font-size: 17px;
+  font-size: 19px;
   box-shadow: 0 12px 28px color-mix(in srgb, var(--primary) 26%, transparent);
 }
 
@@ -2712,7 +2853,7 @@ onBeforeUnmount(() => {
 
 .story-actions .primary-action::before {
   content: "◉";
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1;
 }
 
@@ -2730,7 +2871,7 @@ onBeforeUnmount(() => {
   height: 58px;
   background: #dc2626;
   color: #ffffff;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 900;
   line-height: 1.05;
   text-align: center;
@@ -2782,7 +2923,7 @@ onBeforeUnmount(() => {
   border: 1px solid color-mix(in srgb, var(--primary) 45%, currentColor);
   border-radius: 999px;
   background: var(--surface);
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1;
 }
 
@@ -2802,13 +2943,13 @@ onBeforeUnmount(() => {
 
 .quick-action-copy strong {
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.25;
 }
 
 .quick-action-copy small {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.25;
 }
 
@@ -2838,14 +2979,14 @@ onBeforeUnmount(() => {
 
 .ebook-facts dt {
   color: color-mix(in srgb, var(--text-muted) 72%, var(--surface));
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
   text-align: left;
 }
 
 .ebook-facts dd {
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 850;
   line-height: 1.5;
   text-align: right;
@@ -2876,7 +3017,7 @@ onBeforeUnmount(() => {
 .story-section h2 {
   margin: 0 0 20px;
   color: #202324;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 900;
 }
 
@@ -2901,13 +3042,13 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: #dff7f4;
   color: #118478;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 900;
 }
 
 .character-list strong {
   color: #384044;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .note-section {
@@ -2918,7 +3059,7 @@ onBeforeUnmount(() => {
   max-width: 720px;
   margin: 0 auto;
   color: #3c4448;
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1.9;
 }
 
@@ -3014,14 +3155,14 @@ onBeforeUnmount(() => {
 .ebook-promo-eyebrow {
   margin: 0 0 8px;
   color: #202324;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 900;
 }
 
 .ebook-promo-copy h3 {
   margin: 0;
   color: #202324;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 900;
 }
 
@@ -3105,7 +3246,7 @@ onBeforeUnmount(() => {
 .episode-number,
 .episode-meta {
   color: #667477;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
   justify-self: center;
   text-align: center;
@@ -3113,7 +3254,7 @@ onBeforeUnmount(() => {
 
 .episode-number {
   color: #18a699;
-  font-size: 24px;
+  font-size: 26px;
 }
 
 .episode-title-wrap {
@@ -3142,7 +3283,7 @@ onBeforeUnmount(() => {
 
 .episode-access {
   color: #647174;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
 }
 
@@ -3155,13 +3296,13 @@ onBeforeUnmount(() => {
 .episode-meta-stack strong,
 .episode-stat {
   color: #505b5f;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
 }
 
 .episode-meta-stack small {
   color: #7a878b;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -3188,7 +3329,7 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: #ffb21a;
   color: #ffffff;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1;
   padding: 0 12px 0 6px;
 }
@@ -3206,7 +3347,7 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: #ffd463;
   color: #ffffff;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 900;
   line-height: 1;
   box-shadow: inset 0 0 0 1px rgba(255, 165, 0, 0.22);
@@ -3230,7 +3371,7 @@ onBeforeUnmount(() => {
 .preview-paragraph {
   margin: 0 0 1.15em;
   color: #374151;
-  font-size: 15px;
+  font-size: 17px;
   line-height: 1.95;
 }
 
@@ -3267,14 +3408,14 @@ onBeforeUnmount(() => {
 
 .reviews-eyebrow {
   color: #008e68;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
   margin: 0 0 4px;
 }
 
 .reviews-head h3 {
   color: var(--text-strong);
-  font-size: 18px;
+  font-size: 20px;
   margin: 0;
 }
 
@@ -3351,7 +3492,7 @@ onBeforeUnmount(() => {
 
 .review-footer {
   color: #6b7280;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .review-manage button {
@@ -3368,7 +3509,7 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 10px;
-  font-size: 26px;
+  font-size: 28px;
 }
 
 .coin-icon {
@@ -3441,21 +3582,21 @@ onBeforeUnmount(() => {
 .purchase-modal-icon--success {
   background: #22c55e;
   color: #ffffff;
-  font-size: 30px;
+  font-size: 32px;
   font-weight: 900;
 }
 
 .purchase-modal h2 {
   margin: 0 0 8px;
   color: #111827;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 900;
 }
 
 .purchase-modal-title {
   margin: 0;
   color: #334155;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 800;
   overflow-wrap: anywhere;
 }
@@ -3463,7 +3604,7 @@ onBeforeUnmount(() => {
 .purchase-modal-price {
   margin: 12px 0 0;
   color: #0f766e;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 900;
 }
 
@@ -3473,7 +3614,7 @@ onBeforeUnmount(() => {
   border-radius: 10px;
   background: #fff1f2;
   color: #be123c;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
 }
 
@@ -3539,14 +3680,14 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: linear-gradient(135deg, #fff1f2, #fee2e2);
   color: #dc2626;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 950;
 }
 
 .age-gate-eyebrow {
   margin: 0 0 6px;
   color: #0f766e;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
 }
 
@@ -3564,6 +3705,14 @@ onBeforeUnmount(() => {
   line-height: 1.7;
 }
 
+.age-gate-error {
+  border-radius: 12px;
+  background: #fee2e2;
+  color: #b91c1c !important;
+  font-weight: 800;
+  padding: 10px 12px;
+}
+
 .age-gate-actions {
   display: grid;
   grid-template-columns: 1fr 0.55fr;
@@ -3578,6 +3727,12 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   cursor: pointer;
   font-weight: 900;
+}
+
+.age-gate-confirm:disabled,
+.age-gate-decline:disabled {
+  cursor: wait;
+  opacity: 0.68;
 }
 
 .age-gate-confirm {
@@ -3723,7 +3878,7 @@ onBeforeUnmount(() => {
   }
 
   .story-main h1 {
-    font-size: 28px;
+    font-size: 30px;
   }
 
   .story-hero--ebook .story-main {

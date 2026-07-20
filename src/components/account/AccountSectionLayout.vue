@@ -44,7 +44,7 @@ const emit = defineEmits<{
 .account-shell { display: grid; gap: 20px; }
 .account-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border: 1px solid var(--border); border-radius: 24px; background: var(--surface); box-shadow: var(--shadow); padding: 26px; }
 .eyebrow,h1,.description { margin: 0; }
-.eyebrow { color: var(--primary-strong); font-size: 12px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+.eyebrow { color: var(--primary-strong); font-size: 14px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
 h1 { color: var(--text-strong); font-size: clamp(24px, 3.6vw, 34px); }
 .description { max-width: 760px; color: var(--text-muted); line-height: 1.8; margin-top: 10px; }
 .back-btn { min-height: 44px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-soft); color: var(--text-strong); cursor: pointer; font-weight: 900; padding: 0 16px; }

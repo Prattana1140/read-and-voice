@@ -152,12 +152,12 @@ button {
 
   h1 {
     margin: 0 0 8px;
-    font-size: 18px;
+    font-size: 20px;
     line-height: 1.2;
   }
 
   p {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   table {
@@ -169,13 +169,13 @@ button {
   td {
     overflow-wrap: anywhere;
     padding: 5px 4px;
-    font-size: 7px;
+    font-size: 9px;
     line-height: 1.25;
     word-break: break-word;
   }
 
   th {
-    font-size: 6.5px;
+    font-size: 8.5px;
     line-height: 1.15;
   }
 
@@ -187,7 +187,7 @@ button {
   button {
     min-height: 19px;
     border-radius: 7px;
-    font-size: 6.5px;
+    font-size: 8.5px;
     line-height: 1.15;
     padding: 2px 3px;
   }

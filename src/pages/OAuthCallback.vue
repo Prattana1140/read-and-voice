@@ -2,6 +2,7 @@
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { saveAuth, type AuthUser } from "../utils/auth";
+import { registerCurrentDevice } from "../utils/deviceRegistration";
 import { redirectAfterLogin } from "../utils/loginRedirect";
 
 const router = useRouter();
@@ -48,6 +49,7 @@ onMounted(async () => {
   try {
     const user = decodeUser(userPayload);
     saveAuth(token, user);
+    await registerCurrentDevice();
     await redirectAfterLogin(router, user);
   } catch {
     error.value = "อ่านข้อมูลเข้าสู่ระบบไม่สำเร็จ";
@@ -103,7 +105,7 @@ onMounted(async () => {
   margin: 0 auto 14px;
   background: #e8faf6;
   color: #0f766e;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 900;
 }
 
@@ -115,7 +117,7 @@ onMounted(async () => {
 .eyebrow {
   margin: 0 0 8px;
   color: var(--primary-strong, var(--primary));
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;

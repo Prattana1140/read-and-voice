@@ -108,13 +108,10 @@
 - `GET /api/account/following`
 - `POST /api/account/following`
 - `DELETE /api/account/following/:id`
-- `GET /api/account/gift-codes`
-- `GET /api/account/buffet`
 - `GET /api/account/devices`
 - `POST /api/account/devices`
 - `PUT /api/account/devices/:id`
 - `DELETE /api/account/devices/:id`
-- `GET /api/account/benefits`
 - `GET /api/account/reviews`
 - `POST /api/account/reviews`
 - `GET /api/account/age-verification`
@@ -258,10 +255,7 @@
 | `/orders/history` | OrderHistory | ประวัติคำสั่งซื้อ | ไม่มี | `GET /api/orders/history` | พร้อมใช้งาน |
 | `/profile` | Profile | ดูและแก้ไขโปรไฟล์, ลิงก์ไปหน้าบัญชีย่อย | แก้ไขโปรไฟล์ | `GET /api/profile/me`, `PUT /api/profile/me` | พร้อมใช้งาน |
 | `/account/following` | AccountPlaceholder | ดูรายการติดตาม | ไม่มีฟอร์มเฉพาะ | `GET/POST/DELETE /api/account/following` | Placeholder |
-| `/account/gift-codes` | AccountPlaceholder | ดู gift code | ไม่มีฟอร์มเฉพาะ | `GET /api/account/gift-codes` | Placeholder |
-| `/account/buffet` | AccountPlaceholder | ดูสถานะ buffet/subscription | ไม่มีฟอร์มเฉพาะ | `GET /api/account/buffet` | Placeholder |
 | `/account/devices` | AccountPlaceholder | ดูอุปกรณ์ที่ผูก | ไม่มีฟอร์มเฉพาะ | `GET/POST /api/account/devices` | Placeholder |
-| `/account/benefits` | AccountPlaceholder | ดู benefits | ไม่มีฟอร์มเฉพาะ | `GET /api/account/benefits` | Placeholder |
 | `/account/reviews` | AccountPlaceholder | ดูรีวิวของฉัน | ไม่มีฟอร์มเฉพาะ | `GET/POST /api/account/reviews` | Placeholder |
 | `/account/age-verification` | AccountPlaceholder | ดู/ส่งคำขอยืนยันอายุ | ปุ่มส่งคำขอ | `GET/POST /api/account/age-verification` | Placeholder |
 | `/writer` | WriterDashboard | dashboard นักเขียน | ไม่มีฟอร์มหลัก | `GET /api/books` | พร้อมใช้งาน |
@@ -304,10 +298,7 @@
 | หน้า | สถานะ |
 |---|---|
 | AccountFollowing | ใช้ `AccountPlaceholder.vue` |
-| AccountGiftCodes | ใช้ `AccountPlaceholder.vue` |
-| AccountBuffet | ใช้ `AccountPlaceholder.vue` |
 | AccountDevices | ใช้ `AccountPlaceholder.vue` |
-| AccountBenefits | ใช้ `AccountPlaceholder.vue` |
 | AccountReviews | ใช้ `AccountPlaceholder.vue` |
 | AccountAgeVerification | ใช้ `AccountPlaceholder.vue` พร้อมปุ่มส่งคำขอ |
 | SuperAdminSettings | ผูก API settings/readiness/operations แล้ว |

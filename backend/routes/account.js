@@ -102,10 +102,13 @@ async function ensureTables() {
           id INT AUTO_INCREMENT PRIMARY KEY,
           user_id INT NOT NULL,
           device_name VARCHAR(255) NOT NULL,
+          client_device_id VARCHAR(120) NULL,
           platform VARCHAR(80) NULL,
+          user_agent VARCHAR(500) NULL,
           last_used_at DATETIME NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           INDEX idx_user_devices_user (user_id),
+          UNIQUE KEY uq_user_devices_client (user_id, client_device_id),
           CONSTRAINT fk_user_devices_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
       `),
@@ -191,7 +194,22 @@ async function ensureTables() {
           CONSTRAINT fk_user_preferences_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
       `),
-    ]).then(() => true);
+    ]).then(async () => {
+      await Promise.all([
+        ensureColumn("user_devices", "client_device_id", "VARCHAR(120) NULL"),
+        ensureColumn("user_devices", "user_agent", "VARCHAR(500) NULL"),
+      ]);
+
+      try {
+        await db.query(
+          "ALTER TABLE user_devices ADD UNIQUE KEY uq_user_devices_client (user_id, client_device_id)",
+        );
+      } catch (error) {
+        if (error && error.code !== "ER_DUP_KEYNAME") throw error;
+      }
+
+      return true;
+    });
   }
 
   await tablesReady;
@@ -291,6 +309,23 @@ router.post("/following", async (req, res) => {
       return res.status(400).json({ message: "กรุณาระบุชื่อรายการที่ต้องการติดตาม" });
     }
 
+    const [existingRows] = await db.query(
+      `SELECT id
+       FROM account_follows
+       WHERE user_id = ?
+         AND target_type = ?
+         AND (
+           (? IS NOT NULL AND target_id = ?)
+           OR (? IS NULL AND target_id IS NULL AND target_name = ?)
+         )
+       LIMIT 1`,
+      [req.user.id, targetType, targetId, targetId, targetId, targetName],
+    );
+
+    if (existingRows.length > 0) {
+      return res.json({ message: "ติดตามอยู่แล้ว", id: existingRows[0].id });
+    }
+
     const [result] = await db.query(
       `INSERT INTO account_follows (user_id, target_type, target_id, target_name)
        VALUES (?, ?, ?, ?)`,
@@ -319,61 +354,11 @@ router.delete("/following/:id", async (req, res) => {
   }
 });
 
-router.get("/gift-codes", async (req, res) => {
-  try {
-    await ensureTables();
-    const [rows] = await db.query(
-      `SELECT id, code, description, status, created_at, redeemed_at
-       FROM gift_codes
-       WHERE user_id = ?
-       ORDER BY created_at DESC`,
-      [req.user.id],
-    );
-
-    return res.json({ items: rows });
-  } catch (error) {
-    console.error("GET /account/gift-codes error:", error);
-    return res.status(500).json({ message: "โหลด Gift Code ไม่สำเร็จ" });
-  }
-});
-
-router.get("/buffet", async (req, res) => {
-  try {
-    const [rows] = await db.query(
-      `SELECT
-         us.id,
-         us.plan_id,
-         us.status,
-         us.payment_status,
-         us.start_at,
-         us.end_at,
-         sp.name AS title,
-         sp.description,
-         sp.price,
-         sp.duration_days
-       FROM user_subscriptions us
-       LEFT JOIN subscription_plans sp ON sp.id = us.plan_id
-       WHERE us.user_id = ?
-       ORDER BY us.end_at DESC, us.id DESC
-       LIMIT 10`,
-      [req.user.id],
-    );
-
-    return res.json({ items: rows });
-  } catch (error) {
-    console.error("GET /account/buffet error:", error);
-    return res.json({
-      items: [],
-      message: "ยังไม่มีข้อมูลบุฟเฟต์ หรือยังไม่ได้รัน migration ระบบสมาชิก",
-    });
-  }
-});
-
 router.get("/devices", async (req, res) => {
   try {
     await ensureTables();
     const [rows] = await db.query(
-      `SELECT id, device_name, platform, last_used_at, created_at
+      `SELECT id, device_name, client_device_id, platform, user_agent, last_used_at, created_at
        FROM user_devices
        WHERE user_id = ?
        ORDER BY COALESCE(last_used_at, created_at) DESC`,
@@ -392,15 +377,35 @@ router.post("/devices", async (req, res) => {
     await ensureTables();
     const deviceName = String(req.body.device_name || "").trim();
     const platform = String(req.body.platform || "").trim() || null;
+    const clientDeviceId = String(req.body.client_device_id || "").trim() || null;
+    const userAgent = String(req.body.user_agent || "").trim().slice(0, 500) || null;
 
     if (!deviceName) {
       return res.status(400).json({ message: "กรุณาระบุชื่ออุปกรณ์" });
     }
 
+    if (clientDeviceId) {
+      const [result] = await db.query(
+        `INSERT INTO user_devices (user_id, device_name, client_device_id, platform, user_agent, last_used_at)
+         VALUES (?, ?, ?, ?, ?, NOW())
+         ON DUPLICATE KEY UPDATE
+           device_name = VALUES(device_name),
+           platform = VALUES(platform),
+           user_agent = VALUES(user_agent),
+           last_used_at = NOW()`,
+        [req.user.id, deviceName, clientDeviceId, platform, userAgent],
+      );
+
+      return res.json({
+        message: "บันทึกอุปกรณ์สำเร็จ",
+        id: result.insertId || null,
+      });
+    }
+
     const [result] = await db.query(
-      `INSERT INTO user_devices (user_id, device_name, platform, last_used_at)
-       VALUES (?, ?, ?, NOW())`,
-      [req.user.id, deviceName, platform],
+      `INSERT INTO user_devices (user_id, device_name, platform, user_agent, last_used_at)
+       VALUES (?, ?, ?, ?, NOW())`,
+      [req.user.id, deviceName, platform, userAgent],
     );
 
     return res.json({ message: "เพิ่มอุปกรณ์สำเร็จ", id: result.insertId });
@@ -448,6 +453,7 @@ router.put("/devices/:id", async (req, res) => {
     const deviceId = Number(req.params.id);
     const deviceName = String(req.body.device_name || "").trim();
     const platform = String(req.body.platform || "").trim() || null;
+    const userAgent = String(req.body.user_agent || "").trim().slice(0, 500) || null;
 
     if (!deviceId || Number.isNaN(deviceId)) {
       return res.status(400).json({ message: "id อุปกรณ์ไม่ถูกต้อง" });
@@ -459,9 +465,9 @@ router.put("/devices/:id", async (req, res) => {
 
     const [result] = await db.query(
       `UPDATE user_devices
-       SET device_name = ?, platform = ?, last_used_at = NOW()
+       SET device_name = ?, platform = COALESCE(?, platform), user_agent = COALESCE(?, user_agent), last_used_at = NOW()
        WHERE id = ? AND user_id = ?`,
-      [deviceName, platform, deviceId, req.user.id],
+      [deviceName, platform, userAgent, deviceId, req.user.id],
     );
 
     if (result.affectedRows === 0) {
@@ -666,24 +672,6 @@ router.put("/preferences", async (req, res) => {
   } catch (error) {
     console.error("PUT /account/preferences error:", error);
     return res.status(500).json({ message: "บันทึกการตั้งค่าผู้ใช้ไม่สำเร็จ" });
-  }
-});
-
-router.get("/benefits", async (req, res) => {
-  try {
-    await ensureTables();
-    const [rows] = await db.query(
-      `SELECT id, title, description, status, expires_at, created_at
-       FROM user_benefits
-       WHERE user_id = ?
-       ORDER BY created_at DESC`,
-      [req.user.id],
-    );
-
-    return res.json({ items: rows });
-  } catch (error) {
-    console.error("GET /account/benefits error:", error);
-    return res.status(500).json({ message: "โหลดสิทธิพิเศษไม่สำเร็จ" });
   }
 });
 

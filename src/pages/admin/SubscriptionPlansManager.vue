@@ -631,7 +631,7 @@ onMounted(loadAll);
 .page-hero p,
 .section-head p {
   color: var(--accent-strong);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   margin: 0 0 8px;
   text-transform: uppercase;
@@ -723,7 +723,7 @@ button:disabled {
 
 .summary-grid strong {
   color: var(--text-strong);
-  font-size: 28px;
+  font-size: 30px;
 }
 
 .summary-grid span,
@@ -749,7 +749,7 @@ label {
   color: var(--text-strong);
   display: grid;
   gap: 7px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
 }
 
@@ -806,13 +806,13 @@ textarea {
 
 .plan-row strong {
   color: var(--text-strong);
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .status-pill {
   align-self: start;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   padding: 5px 10px;
 }

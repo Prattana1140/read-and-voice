@@ -74,7 +74,7 @@ async function isBookOwnerOrAdmin(user, bookId) {
 
 async function getBookById(bookId) {
   const [rows] = await db.query(
-    `SELECT id, title, access_type, price, created_by, lifecycle_status
+    `SELECT id, title, access_type, price, created_by, lifecycle_status, age_rating
      FROM books
      WHERE id = ?
      LIMIT 1`,
@@ -82,6 +82,43 @@ async function getBookById(bookId) {
   );
 
   return rows[0] || null;
+}
+
+function isAdultContent(ageRating) {
+  const value = String(ageRating || "").trim().toLowerCase();
+  return (
+    value.includes("18") ||
+    value.includes("adult") ||
+    value.includes("mature") ||
+    value.includes("restricted")
+  );
+}
+
+async function hasVerifiedAdultAge(userId) {
+  if (!userId) return false;
+
+  let rows = [];
+  try {
+    [rows] = await db.query(
+      `SELECT age_verified
+       FROM user_profiles
+       WHERE user_id = ?
+       LIMIT 1`,
+      [userId],
+    );
+  } catch (error) {
+    if (error && error.code === "ER_NO_SUCH_TABLE") return false;
+    throw error;
+  }
+
+  return Number(rows[0]?.age_verified || 0) === 1;
+}
+
+async function canAccessAdultContent(user, book) {
+  if (!isAdultContent(book?.age_rating)) return true;
+  if (!user) return false;
+  if (await isBookOwnerOrAdmin(user, book.id)) return true;
+  return hasVerifiedAdultAge(user.id);
 }
 
 async function canAccessBook(user, book) {
@@ -107,11 +144,22 @@ async function canAccessUnit(user, book, unit) {
   return false;
 }
 
-async function getBookFullText(bookId, fullText) {
-  if (fullText) return sanitizeBookText(fullText);
+function normalizeContentLocale(value) {
+  return String(value || "").trim().toLowerCase().startsWith("en") ? "en" : "th";
+}
+
+function pickLocalizedText(row, baseName, locale) {
+  const th = sanitizeBookText(row?.[`${baseName}_th`] || row?.[baseName] || "");
+  const en = sanitizeBookText(row?.[`${baseName}_en`] || "");
+  return locale === "en" ? en || th : th || en;
+}
+
+async function getBookFullText(bookId, book, locale) {
+  const directText = pickLocalizedText(book, "full_text", locale);
+  if (directText) return directText;
 
   const [pages] = await db.query(
-    `SELECT page_text
+    `SELECT page_text, page_text_th, page_text_en
      FROM book_pages
      WHERE book_id = ?
      ORDER BY page_number ASC`,
@@ -119,7 +167,7 @@ async function getBookFullText(bookId, fullText) {
   );
 
   return sanitizeBookText(
-    pages.map((page) => page.page_text || "").filter(Boolean).join("\n\n"),
+    pages.map((page) => pickLocalizedText(page, "page_text", locale)).filter(Boolean).join("\n\n"),
   );
 }
 
@@ -255,9 +303,11 @@ router.get("/books/:bookId/content", optionalVerifyToken, async (req, res) => {
   try {
     await ensureCatalogAnalyticsSchema();
     const { bookId } = req.params;
+    const contentLocale = normalizeContentLocale(req.query.locale || req.query.lang);
 
     const [books] = await db.query(
-      `SELECT id, title, access_type, price, created_by, full_text
+      `SELECT id, title, title_th, title_en, access_type, price, created_by,
+              full_text, full_text_th, full_text_en, age_rating
        FROM books
        WHERE id = ?
        LIMIT 1`,
@@ -270,6 +320,7 @@ router.get("/books/:bookId/content", optionalVerifyToken, async (req, res) => {
 
     const book = books[0];
     const ownerOrAdmin = await isBookOwnerOrAdmin(req.user, book.id);
+    const adultAllowed = await canAccessAdultContent(req.user, book);
     const subscribed = await hasActiveSubscription(req.user?.id);
     const purchased = await hasPurchasedBook(req.user?.id, book.id);
 
@@ -281,6 +332,20 @@ router.get("/books/:bookId/content", optionalVerifyToken, async (req, res) => {
     else if (book.access_type === "paid" && purchased) allowRead = true;
     else if (book.access_type === "subscription" && subscribed) allowRead = true;
 
+    if (!adultAllowed) {
+      return res.json({
+        is_locked: true,
+        lock_reason: "ต้องยืนยันว่าอายุมากกว่า 18 ปีก่อน",
+        reason: "age_verification_required",
+        title: book.title,
+        title_th: book.title_th || book.title,
+        title_en: book.title_en || "",
+        access_type: book.access_type,
+        age_rating: book.age_rating,
+        content: "",
+      });
+    }
+
     if (!allowRead) {
       if (book.access_type === "paid") lockReason = "ต้องซื้อหนังสือก่อน";
       if (book.access_type === "subscription") {
@@ -291,6 +356,8 @@ router.get("/books/:bookId/content", optionalVerifyToken, async (req, res) => {
         is_locked: true,
         lock_reason: lockReason,
         title: book.title,
+        title_th: book.title_th || book.title,
+        title_en: book.title_en || "",
         access_type: book.access_type,
         content: "",
       });
@@ -302,8 +369,11 @@ router.get("/books/:bookId/content", optionalVerifyToken, async (req, res) => {
       [book.id, req.user?.id || null],
     );
 
-    const structured = await getStructuredBookContent(book.id);
-    const legacyText = structured ? "" : await getBookFullText(book.id, book.full_text);
+    let structured = contentLocale === "th" ? await getStructuredBookContent(book.id) : null;
+    let legacyText = structured ? "" : await getBookFullText(book.id, book, contentLocale);
+    if (!structured && !legacyText && contentLocale === "en") {
+      structured = await getStructuredBookContent(book.id);
+    }
     const fallbackStructured = structured || buildLegacyStructuredContent({
       bookId: book.id,
       title: book.title,
@@ -314,6 +384,8 @@ router.get("/books/:bookId/content", optionalVerifyToken, async (req, res) => {
     return res.json({
       is_locked: false,
       title: book.title,
+      title_th: book.title_th || book.title,
+      title_en: book.title_en || "",
       access_type: book.access_type,
       content: fallbackStructured?.plain_text || legacyText,
       structured: fallbackStructured,
@@ -328,17 +400,23 @@ router.get("/episodes/:episodeId/content", optionalVerifyToken, async (req, res)
   try {
     await ensureCatalogAnalyticsSchema();
     const { episodeId } = req.params;
+    const contentLocale = normalizeContentLocale(req.query.locale || req.query.lang);
 
     const [episodes] = await db.query(
       `SELECT
          e.id,
          e.book_id,
          e.title,
+         e.title_th,
+         e.title_en,
          e.content,
+         e.content_th,
+         e.content_en,
          e.access_type,
          e.price,
          e.is_free,
          b.created_by
+         , b.age_rating
        FROM book_episodes e
        JOIN books b ON b.id = e.book_id
        WHERE e.id = ?
@@ -352,6 +430,10 @@ router.get("/episodes/:episodeId/content", optionalVerifyToken, async (req, res)
 
     const episode = episodes[0];
     const ownerOrAdmin = await isBookOwnerOrAdmin(req.user, episode.book_id);
+    const adultAllowed = await canAccessAdultContent(req.user, {
+      id: episode.book_id,
+      age_rating: episode.age_rating,
+    });
     const subscribed = await hasActiveSubscription(req.user?.id);
     const purchased = await hasPurchasedEpisode(req.user?.id, episode.id);
 
@@ -367,6 +449,20 @@ router.get("/episodes/:episodeId/content", optionalVerifyToken, async (req, res)
       allowRead = true;
     }
 
+    if (!adultAllowed) {
+      return res.json({
+        is_locked: true,
+        lock_reason: "ต้องยืนยันว่าอายุมากกว่า 18 ปีก่อน",
+        reason: "age_verification_required",
+        title: episode.title,
+        title_th: episode.title_th || episode.title,
+        title_en: episode.title_en || "",
+        access_type: episode.access_type,
+        age_rating: episode.age_rating,
+        content: "",
+      });
+    }
+
     if (!allowRead) {
       if (episode.access_type === "paid") lockReason = "ต้องซื้อตอนนี้ก่อน";
       if (episode.access_type === "subscription") {
@@ -377,6 +473,8 @@ router.get("/episodes/:episodeId/content", optionalVerifyToken, async (req, res)
         is_locked: true,
         lock_reason: lockReason,
         title: episode.title,
+        title_th: episode.title_th || episode.title,
+        title_en: episode.title_en || "",
         access_type: episode.access_type,
         content: "",
       });
@@ -388,10 +486,12 @@ router.get("/episodes/:episodeId/content", optionalVerifyToken, async (req, res)
       [episode.id, req.user?.id || null],
     );
 
-    const content = sanitizeBookText(episode.content || "");
+    const content = pickLocalizedText(episode, "content", contentLocale);
     return res.json({
       is_locked: false,
       title: episode.title,
+      title_th: episode.title_th || episode.title,
+      title_en: episode.title_en || "",
       access_type: episode.access_type,
       content,
       structured: buildLegacyStructuredContent({
@@ -417,6 +517,7 @@ router.get("/books/:bookId/access", optionalVerifyToken, async (req, res) => {
     }
 
     const canReadFull = await canAccessBook(req.user, book);
+    const adultAllowed = await canAccessAdultContent(req.user, book);
     const [unitRows] = await db.query(
       `SELECT id, title, unit_number, access_type, is_preview
        FROM book_units
@@ -438,8 +539,14 @@ router.get("/books/:bookId/access", optionalVerifyToken, async (req, res) => {
 
     return res.json({
       can_read_full: canReadFull,
-      can_preview: units.some((unit) => !unit.is_locked),
-      reason: canReadFull ? null : book.access_type === "subscription" ? "subscription_required" : "purchase_required",
+      age_rating: book.age_rating,
+      age_verified: adultAllowed,
+      can_preview: adultAllowed && units.some((unit) => !unit.is_locked),
+      reason: !adultAllowed
+        ? "age_verification_required"
+        : canReadFull
+          ? null
+          : book.access_type === "subscription" ? "subscription_required" : "purchase_required",
       units,
     });
   } catch (error) {
@@ -471,6 +578,16 @@ router.get("/books/:bookId/units/:unitId", optionalVerifyToken, async (req, res)
     }
 
     const unit = unitRows[0];
+    const adultAllowed = await canAccessAdultContent(req.user, book);
+
+    if (!adultAllowed) {
+      return res.status(403).json({
+        message: "ต้องยืนยันว่าอายุมากกว่า 18 ปีก่อน",
+        is_locked: true,
+        reason: "age_verification_required",
+      });
+    }
+
     const allowed = await canAccessUnit(req.user, book, unit);
 
     if (!allowed) {

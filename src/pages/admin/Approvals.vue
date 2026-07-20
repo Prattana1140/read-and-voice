@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { API_BASE_URL, api } from "../../utils/api";
+import { useI18n } from "../../utils/i18n";
+import { localizedTitle } from "../../utils/localizedContent";
 
 type BookApproval = {
   id: number;
   title: string;
+  title_th?: string;
+  title_en?: string;
   author?: string;
   description?: string;
   cover_image?: string;
@@ -40,6 +44,7 @@ const shelfOptions = [
 ] as const;
 
 const loading = ref(true);
+const { locale } = useI18n();
 const saving = ref(false);
 const error = ref("");
 const success = ref("");
@@ -64,6 +69,9 @@ const promotionForm = ref({
 const selectedBook = computed(() => {
   return books.value.find((book) => book.id === selectedBookId.value) || null;
 });
+
+const getBookTitle = (book: BookApproval | null | undefined) =>
+  localizedTitle(book, locale.value) || book?.title || "";
 
 const getCoverUrl = (cover?: string) => {
   if (!cover) return "/no-cover.png";
@@ -211,9 +219,9 @@ onMounted(fetchPendingBooks);
           :class="{ active: book.id === selectedBookId }"
           @click="selectBook(book)"
         >
-          <img :src="getCoverUrl(book.cover_image)" :alt="book.title" />
+          <img :src="getCoverUrl(book.cover_image)" :alt="getBookTitle(book)" />
           <div>
-            <strong>{{ book.title }}</strong>
+            <strong>{{ getBookTitle(book) }}</strong>
             <span>{{ book.author || "ไม่ระบุผู้เขียน" }}</span>
             <small>{{ book.content_type === "serial" ? "รายตอน" : "e-book" }}</small>
           </div>
@@ -227,12 +235,12 @@ onMounted(fetchPendingBooks);
 
         <template v-else>
           <div class="book-head">
-            <img :src="getCoverUrl(selectedBook.cover_image)" :alt="selectedBook.title" />
+            <img :src="getCoverUrl(selectedBook.cover_image)" :alt="getBookTitle(selectedBook)" />
             <div>
               <p class="book-type">
                 {{ selectedBook.content_type === "serial" ? "รายตอน" : "อีบุ๊ก" }}
               </p>
-              <h2>{{ selectedBook.title }}</h2>
+              <h2>{{ getBookTitle(selectedBook) }}</h2>
               <span>{{ selectedBook.author || "ไม่ระบุผู้เขียน" }}</span>
               <p class="description">{{ selectedBook.description || "ไม่มีคำอธิบาย" }}</p>
             </div>
@@ -351,7 +359,7 @@ onMounted(fetchPendingBooks);
 
 .hero p {
   color: #0f766e;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -692,12 +700,12 @@ textarea {
   label,
   .placement-item small,
   .promotion-fields small {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .hero h1 {
     margin-top: 3px;
-    font-size: 18px;
+    font-size: 20px;
     line-height: 1.2;
   }
 
@@ -705,7 +713,7 @@ textarea {
   .description,
   .queue-item span,
   .queue-item small {
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.35;
   }
 
@@ -718,7 +726,7 @@ textarea {
   .mini-btn {
     min-height: 32px;
     border-radius: 8px;
-    font-size: 10px;
+    font-size: 12px;
     padding: 0 9px;
   }
 
@@ -733,7 +741,7 @@ textarea {
   .section-head h2,
   .section-head h3,
   .book-head h2 {
-    font-size: 15px;
+    font-size: 17px;
   }
 
   .queue-item {
@@ -795,7 +803,7 @@ textarea {
   }
 
   .hero h1 {
-    font-size: 16px;
+    font-size: 18px;
   }
 
   .hero-actions a,
@@ -806,7 +814,7 @@ textarea {
   .primary-btn,
   .mini-btn {
     min-height: 29px;
-    font-size: 9px;
+    font-size: 11px;
   }
 }
 </style>

@@ -107,6 +107,10 @@ function calculateAge(birthDate) {
   return age;
 }
 
+function isAdultAge(age) {
+  return Number.isInteger(age) && age >= 18 && age <= 120;
+}
+
 function toAvatarUrl(file) {
   if (!file) return null;
   return `uploads/profile-images/${file.filename}`;
@@ -346,10 +350,11 @@ router.put("/me", verifyToken, handleProfileUpload, async (req, res) => {
 
     const [users] = await db.query(
       `SELECT
-         u.id,
-         u.email,
-         u.password,
-         p.avatar_url
+       u.id,
+       u.email,
+       u.password,
+         p.avatar_url,
+         p.age_verified
        FROM users u
        LEFT JOIN user_profiles p ON p.user_id = u.id
        WHERE u.id = ?
@@ -516,7 +521,7 @@ router.put("/me", verifyToken, handleProfileUpload, async (req, res) => {
         phone,
         gender,
         birthDate,
-        birthDate ? 1 : 0,
+        Number(currentUser.age_verified || 0) === 1 ? 1 : 0,
         visualImpairmentStatus,
         usesScreenReader ? 1 : 0,
         assistiveTechnology,
@@ -551,6 +556,94 @@ router.put("/me", verifyToken, handleProfileUpload, async (req, res) => {
     }
     console.error("PUT /profile/me error:", error);
     return res.status(500).json({ message: "อัปเดตโปรไฟล์ไม่สำเร็จ" });
+  }
+});
+
+router.post("/me/verify-age", verifyToken, async (req, res) => {
+  try {
+    await ensureUserProfilesTable();
+
+    const confirmedOver18 = normalizeBoolean(
+      req.body.confirmed_over_18 ?? req.body.confirmedOver18,
+    );
+    const declaredAgeRaw = req.body.age ?? req.body.declared_age ?? req.body.declaredAge;
+    const declaredAge =
+      declaredAgeRaw === undefined || declaredAgeRaw === null || declaredAgeRaw === ""
+        ? null
+        : Number(declaredAgeRaw);
+
+    const [rows] = await db.query(
+      `SELECT
+         u.name,
+         u.email,
+         p.birth_date,
+         p.age_verified
+       FROM users u
+       LEFT JOIN user_profiles p ON p.user_id = u.id
+       WHERE u.id = ?
+       LIMIT 1`,
+      [req.user.id],
+    );
+
+    const current = rows[0];
+    if (!current) {
+      return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
+    }
+
+    if (Number(current.age_verified || 0) === 1) {
+      const profile = await fetchProfile(req.user.id);
+      return res.json({ message: "บัญชีนี้ยืนยันอายุแล้ว", profile });
+    }
+
+    let canVerify = false;
+    const calculatedAge = calculateAge(current.birth_date);
+
+    if (calculatedAge !== null && !isAdultAge(calculatedAge)) {
+      return res.status(403).json({
+        message: "บัญชีนี้ยังมีอายุไม่ถึง 18 ปี จึงไม่สามารถเข้าถึงเนื้อหา 18+ ได้",
+      });
+    }
+
+    if (confirmedOver18) {
+      canVerify = true;
+    } else if (declaredAge !== null) {
+      if (!Number.isInteger(declaredAge) || declaredAge < 0 || declaredAge > 120) {
+        return res.status(400).json({ message: "กรุณากรอกอายุเป็นตัวเลขที่ถูกต้อง" });
+      }
+
+      if (calculatedAge === null) {
+        return res.status(400).json({
+          message: "กรุณาบันทึกวันเกิดในโปรไฟล์ก่อนยืนยันอายุ",
+        });
+      }
+
+      if (declaredAge !== calculatedAge) {
+        return res.status(400).json({
+          message: "อายุที่กรอกไม่ตรงกับวันเกิดในโปรไฟล์",
+        });
+      }
+
+      canVerify = isAdultAge(calculatedAge);
+    }
+
+    if (!canVerify) {
+      return res.status(400).json({
+        message: "บัญชีนี้ยังไม่ผ่านเงื่อนไขอายุ 18 ปีขึ้นไป",
+      });
+    }
+
+    await db.query(
+      `INSERT INTO user_profiles (user_id, age_verified)
+       VALUES (?, 1)
+       ON DUPLICATE KEY UPDATE age_verified = 1, updated_at = NOW()`,
+      [req.user.id],
+    );
+
+    const profile = await fetchProfile(req.user.id);
+    return res.json({ message: "ยืนยันอายุสำเร็จ", profile });
+  } catch (error) {
+    console.error("POST /profile/me/verify-age error:", error);
+    return res.status(500).json({ message: "ยืนยันอายุไม่สำเร็จ" });
   }
 });
 

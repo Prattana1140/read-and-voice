@@ -53,6 +53,8 @@ router.get("/pending", verifyToken, requireAdmin, async (_req, res) => {
       `SELECT
          b.id,
          b.title,
+         b.title_th,
+         b.title_en,
          COALESCE(b.author_name, b.author) AS author,
          b.content_type,
          b.description,

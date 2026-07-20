@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import AccessibilityWidget from "./components/AccessibilityWidget.vue";
 import Footer from "./components/Footer.vue";
+import ListenMiniPlayer from "./components/ListenMiniPlayer.vue";
 import Navbar from "./components/Navbar.vue";
 import NavigationTrail from "./components/NavigationTrail.vue";
 import VoiceCommandButton from "./components/VoiceCommandButton.vue";
@@ -135,6 +136,7 @@ watch(theme, (mode) => {
       <router-view />
     </main>
     <Footer v-if="!isReaderPage" />
+    <ListenMiniPlayer />
     <VoiceCommandButton />
     <AccessibilityWidget />
     <div class="sr-live" aria-live="polite" aria-atomic="true">{{ liveAnnouncement }}</div>

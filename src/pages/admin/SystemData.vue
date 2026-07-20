@@ -672,7 +672,7 @@ onMounted(() => loadSection());
 
 .eyebrow {
   color: var(--primary-strong);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -686,7 +686,7 @@ onMounted(() => loadSection());
 .page-head p,
 .section-intro p {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.55;
 }
 
@@ -705,7 +705,7 @@ onMounted(() => loadSection());
   color: var(--text-strong);
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
   min-height: 34px;
   padding: 0 12px;
@@ -749,14 +749,14 @@ onMounted(() => loadSection());
 
 .summary-card span {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   text-transform: uppercase;
 }
 
 .summary-card strong {
   color: var(--text-strong);
-  font-size: 24px;
+  font-size: 26px;
 }
 
 .stack {
@@ -797,7 +797,7 @@ td {
 
 th {
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .pill {
@@ -805,7 +805,7 @@ th {
   border-radius: 999px;
   background: var(--surface-soft);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   padding: 5px 9px;
   white-space: nowrap;
@@ -876,18 +876,18 @@ th {
   .summary-card span,
   th,
   .pill {
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .page-head h1 {
-    font-size: 18px;
+    font-size: 20px;
     line-height: 1.2;
   }
 
   .page-head p,
   .section-intro p,
   td {
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.35;
   }
 
@@ -903,7 +903,7 @@ th {
   .section-intro button {
     min-height: 25px;
     border-radius: 999px;
-    font-size: 7.5px;
+    font-size: 9.5px;
     line-height: 1.15;
     padding: 0 7px;
   }
@@ -922,7 +922,7 @@ th {
 
   .section-intro h2,
   .table-card h3 {
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .summary-card {
@@ -932,7 +932,7 @@ th {
   }
 
   .summary-card strong {
-    font-size: 18px;
+    font-size: 20px;
   }
 
   .stack {
@@ -961,12 +961,12 @@ th {
   }
 
   th {
-    font-size: 7px;
+    font-size: 9px;
     line-height: 1.2;
   }
 
   td {
-    font-size: 7px;
+    font-size: 9px;
     line-height: 1.25;
   }
 
@@ -975,7 +975,7 @@ th {
     min-height: 14px;
     justify-content: center;
     border-radius: 5px;
-    font-size: 6px;
+    font-size: 8px;
     line-height: 1.1;
     padding: 1px 3px;
     white-space: normal;
@@ -985,7 +985,7 @@ th {
     margin-top: 9px;
     border-radius: 10px;
     padding: 10px;
-    font-size: 10px;
+    font-size: 12px;
   }
 }
 </style>

@@ -2,10 +2,14 @@
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import api from "../../utils/api";
+import { useI18n } from "../../utils/i18n";
+import { localizedTitle } from "../../utils/localizedContent";
 
 type Book = {
   id: number;
   title: string;
+  title_th?: string;
+  title_en?: string;
   author?: string;
   description?: string;
   category_name?: string;
@@ -15,6 +19,7 @@ type Book = {
 };
 
 const router = useRouter();
+const { locale } = useI18n();
 const books = ref<Book[]>([]);
 const loading = ref(true);
 const errorMessage = ref("");
@@ -40,6 +45,10 @@ function editBook(bookId: number) {
 
 function uploadBook() {
   router.push("/writer/upload");
+}
+
+function getBookTitle(book: Book) {
+  return localizedTitle(book, locale.value) || book.title;
 }
 
 onMounted(loadBooks);
@@ -72,7 +81,7 @@ onMounted(loadBooks);
       <div v-else class="book-list">
         <article v-for="book in books" :key="book.id" class="book-item">
           <div>
-            <h2>{{ book.title }}</h2>
+            <h2>{{ getBookTitle(book) }}</h2>
             <p>
               <span v-if="book.author">{{ book.author }}</span>
               <span v-if="book.category_name"> / {{ book.category_name }}</span>
@@ -177,7 +186,7 @@ h1 {
 
 .book-item h2 {
   margin: 0 0 6px;
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .meta {

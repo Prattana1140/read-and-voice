@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import api, { resolveAssetUrl } from "../utils/api";
+import api, { API_BASE_URL, resolveAssetUrl } from "../utils/api";
+import { useI18n } from "../utils/i18n";
+import { localizedTitle } from "../utils/localizedContent";
 
 type ReaderResponse = {
   is_locked?: boolean;
   lock_reason?: string;
   title?: string;
+  title_th?: string;
+  title_en?: string;
   content?: string;
   structured?: StructuredReaderPayload | null;
 };
@@ -39,6 +43,8 @@ type Episode = {
   book_id: number;
   episode_number: number;
   title: string;
+  title_th?: string;
+  title_en?: string;
   price: number;
   is_free?: number;
   access_type?: "paid" | "free" | "subscription";
@@ -46,6 +52,7 @@ type Episode = {
 
 const route = useRoute();
 const router = useRouter();
+const { locale } = useI18n();
 
 const loading = ref(true);
 const episodesLoading = ref(false);
@@ -69,12 +76,18 @@ const currentIndex = ref(0);
 const isSpeaking = ref(false);
 const isPaused = ref(false);
 const hasAudioSession = ref(false);
+const serverTtsAvailable = ref(false);
+const currentAudio = ref<HTMLAudioElement | null>(null);
+const currentAudioUrl = ref("");
 const shareStatus = ref("");
+const autoPlayNextEpisode = ref(localStorage.getItem("listen-autoplay-next") !== "false");
+const isClosingListenMode = ref(false);
+const LISTEN_SESSION_KEY = "read-voice-listen-session";
 
 const currentEpisodeId = computed(() => Number(route.query.episode || 0));
 const isEpisodeMode = computed(() => !!currentEpisodeId.value);
 const isAuthenticated = computed(() => Boolean(localStorage.getItem("token")));
-const contentRouteKey = computed(() => `${route.params.id || ""}:${route.query.episode || ""}`);
+const contentRouteKey = computed(() => `${route.params.id || ""}:${route.query.episode || ""}:${locale.value}`);
 const readerKey = computed(() => {
   const bookId = String(route.params.id || "");
   const episodeId = String(route.query.episode || "");
@@ -96,6 +109,10 @@ const nextEpisode = computed(() => {
   const index = activeEpisodeIndex.value;
   return index >= 0 && index < episodes.value.length - 1 ? episodes.value[index + 1] : null;
 });
+
+function getEpisodeTitle(episode: Episode) {
+  return localizedTitle(episode, locale.value) || episode.title;
+}
 const listenSubtitle = computed(() => {
   const index = activeEpisodeIndex.value >= 0 ? activeEpisodeIndex.value + 1 : 1;
   return isEpisodeMode.value ? String(index) : "1";
@@ -196,6 +213,15 @@ async function loadVoiceSettings() {
   }
 }
 
+async function loadServerTtsStatus() {
+  try {
+    const { data } = await api.get("/tts/status");
+    serverTtsAvailable.value = Boolean(data?.enabled && data?.configured);
+  } catch {
+    serverTtsAvailable.value = false;
+  }
+}
+
 function saveVoiceSettings() {
   localStorage.setItem("reader-rate", String(rate.value));
   localStorage.setItem("reader-pitch", String(pitch.value));
@@ -229,12 +255,60 @@ function saveVoiceSettings() {
   });
 }
 
+function saveListenSettings() {
+  localStorage.setItem("listen-autoplay-next", autoPlayNextEpisode.value ? "true" : "false");
+}
+
+function publishListenSession(active = true) {
+  const session = {
+    active,
+    bookId: String(route.params.id || ""),
+    episodeId: String(route.query.episode || ""),
+    title: listenTrackTitle.value,
+    bookTitle: pageTitle.value,
+    description: listenDescription.value,
+    coverUrl: coverUrl.value,
+    route: router.resolve({
+      name: "ReaderListenPage",
+      params: { id: route.params.id },
+      query: { ...route.query },
+    }).fullPath,
+    isSpeaking: window.speechSynthesis.speaking && !window.speechSynthesis.paused,
+    isPaused: window.speechSynthesis.paused,
+    currentIndex: currentIndex.value,
+    total: sentences.value.length,
+    updatedAt: Date.now(),
+  };
+
+  localStorage.setItem(LISTEN_SESSION_KEY, JSON.stringify(session));
+  window.dispatchEvent(new CustomEvent("read-voice:listen-session", { detail: session }));
+}
+
+function clearListenSession() {
+  const raw = localStorage.getItem(LISTEN_SESSION_KEY);
+  if (raw) {
+    try {
+      const session = JSON.parse(raw);
+      localStorage.setItem(
+        LISTEN_SESSION_KEY,
+        JSON.stringify({ ...session, active: false, isSpeaking: false, isPaused: false }),
+      );
+    } catch {
+      localStorage.removeItem(LISTEN_SESSION_KEY);
+    }
+  }
+
+  window.dispatchEvent(new CustomEvent("read-voice:listen-session", {
+    detail: { active: false },
+  }));
+}
+
 async function loadBookTitle() {
   if (!route.params.id) return;
 
   try {
     const { data } = await api.get(`/books/${route.params.id}`);
-    bookTitle.value = data?.title || "";
+    bookTitle.value = localizedTitle(data, locale.value) || data?.title || "";
     bookCover.value = data?.cover_url || data?.cover || data?.cover_image || "";
   } catch {
     bookTitle.value = "";
@@ -304,6 +378,15 @@ function saveProgress() {
   });
 }
 
+function finishCurrentContent() {
+  isSpeaking.value = false;
+  isPaused.value = false;
+
+  if (isEpisodeMode.value && autoPlayNextEpisode.value && nextEpisode.value) {
+    openEpisode(nextEpisode.value);
+  }
+}
+
 async function fetchContent() {
   loading.value = true;
   error.value = "";
@@ -314,12 +397,13 @@ async function fetchContent() {
   currentIndex.value = 0;
 
   try {
+    const params = new URLSearchParams({ locale: locale.value });
     const endpoint = isEpisodeMode.value
       ? `/reader/episodes/${route.query.episode}/content`
       : `/reader/books/${route.params.id}/content`;
 
-    const { data } = await api.get<ReaderResponse>(endpoint);
-    title.value = data.title || (isEpisodeMode.value ? "ตอนนิยาย" : "หนังสือ");
+    const { data } = await api.get<ReaderResponse>(`${endpoint}?${params.toString()}`);
+    title.value = localizedTitle(data, locale.value) || data.title || (isEpisodeMode.value ? "ตอนนิยาย" : "หนังสือ");
 
     if (data.is_locked) {
       lockReason.value = data.lock_reason || "ต้องมีสิทธิ์ก่อนจึงจะฟังได้";
@@ -354,21 +438,22 @@ async function fetchContent() {
 
 function stopSpeech() {
   window.speechSynthesis.cancel();
+  if (currentAudio.value) {
+    currentAudio.value.pause();
+    currentAudio.value.src = "";
+    currentAudio.value = null;
+  }
+  if (currentAudioUrl.value) {
+    URL.revokeObjectURL(currentAudioUrl.value);
+    currentAudioUrl.value = "";
+  }
   isSpeaking.value = false;
   isPaused.value = false;
   hasAudioSession.value = false;
+  if (isClosingListenMode.value) clearListenSession();
 }
 
-function speakFrom(index: number) {
-  if (!sentences.value.length || index < 0 || index >= sentences.value.length) return;
-
-  window.speechSynthesis.cancel();
-  currentIndex.value = index;
-  hasAudioSession.value = true;
-  isSpeaking.value = false;
-  isPaused.value = false;
-  saveProgress();
-
+function speakWithBrowser(index: number) {
   const utterance = new SpeechSynthesisUtterance(sentences.value[index]);
   utterance.lang = selectedVoiceObject.value?.lang || "th-TH";
   utterance.voice = selectedVoiceObject.value;
@@ -379,18 +464,19 @@ function speakFrom(index: number) {
   utterance.onstart = () => {
     isSpeaking.value = true;
     isPaused.value = false;
+    publishListenSession(true);
   };
 
   utterance.onend = () => {
     saveProgress();
+    publishListenSession(true);
     const nextIndex = currentIndex.value + 1;
     if (nextIndex < sentences.value.length) {
       speakFrom(nextIndex);
       return;
     }
 
-    isSpeaking.value = false;
-    isPaused.value = false;
+    finishCurrentContent();
   };
 
   utterance.onerror = () => {
@@ -401,28 +487,126 @@ function speakFrom(index: number) {
   window.speechSynthesis.speak(utterance);
 }
 
+async function playServerTts(index: number) {
+  const token = localStorage.getItem("token");
+  const response = await fetch(`${API_BASE_URL}/api/tts/synthesize`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      text: sentences.value[index],
+      rate: rate.value,
+      pitch: pitch.value,
+      volume: volume.value,
+    }),
+  });
+
+  if (!response.ok) throw new Error(`Server TTS failed: ${response.status}`);
+
+  const blob = await response.blob();
+  if (currentAudioUrl.value) URL.revokeObjectURL(currentAudioUrl.value);
+  currentAudioUrl.value = URL.createObjectURL(blob);
+
+  const audio = new Audio(currentAudioUrl.value);
+  audio.volume = Math.max(0, Math.min(1, volume.value));
+  currentAudio.value = audio;
+
+  audio.onplay = () => {
+    isSpeaking.value = true;
+    isPaused.value = false;
+    publishListenSession(true);
+  };
+
+  audio.onended = () => {
+    saveProgress();
+    publishListenSession(true);
+    const nextIndex = currentIndex.value + 1;
+    if (nextIndex < sentences.value.length) {
+      void speakFrom(nextIndex);
+      return;
+    }
+
+    finishCurrentContent();
+  };
+
+  audio.onerror = () => {
+    isSpeaking.value = false;
+    isPaused.value = false;
+    serverTtsAvailable.value = false;
+    speakWithBrowser(index);
+  };
+
+  await audio.play();
+}
+
+async function speakFrom(index: number) {
+  if (!sentences.value.length || index < 0 || index >= sentences.value.length) return;
+
+  stopSpeech();
+  currentIndex.value = index;
+  hasAudioSession.value = true;
+  isSpeaking.value = false;
+  isPaused.value = false;
+  saveProgress();
+  publishListenSession(true);
+
+  if (serverTtsAvailable.value) {
+    try {
+      await playServerTts(index);
+      return;
+    } catch {
+      serverTtsAvailable.value = false;
+    }
+  }
+
+  speakWithBrowser(index);
+}
+
 function pause() {
+  if (currentAudio.value && !currentAudio.value.paused) {
+    currentAudio.value.pause();
+    hasAudioSession.value = true;
+    isPaused.value = true;
+    isSpeaking.value = false;
+    saveProgress();
+    publishListenSession(true);
+    return;
+  }
+
   if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
     window.speechSynthesis.pause();
     hasAudioSession.value = true;
     isPaused.value = true;
     isSpeaking.value = false;
     saveProgress();
+    publishListenSession(true);
   }
 }
 
 function resume() {
   if (!sentences.value.length) return;
 
+  if (currentAudio.value && currentAudio.value.paused) {
+    void currentAudio.value.play();
+    hasAudioSession.value = true;
+    isPaused.value = false;
+    isSpeaking.value = true;
+    publishListenSession(true);
+    return;
+  }
+
   if (window.speechSynthesis.paused) {
     window.speechSynthesis.resume();
     hasAudioSession.value = true;
     isPaused.value = false;
     isSpeaking.value = true;
+    publishListenSession(true);
     return;
   }
 
-  speakFrom(currentIndex.value);
+  void speakFrom(currentIndex.value);
 }
 
 function toggleAudio() {
@@ -463,11 +647,11 @@ function handleVoiceReaderCommand(event: Event) {
 }
 
 function previousSentence() {
-  if (currentIndex.value > 0) speakFrom(currentIndex.value - 1);
+  if (currentIndex.value > 0) void speakFrom(currentIndex.value - 1);
 }
 
 function nextSentence() {
-  if (currentIndex.value < sentences.value.length - 1) speakFrom(currentIndex.value + 1);
+  if (currentIndex.value < sentences.value.length - 1) void speakFrom(currentIndex.value + 1);
 }
 
 function adjustRate(amount: number) {
@@ -475,6 +659,19 @@ function adjustRate(amount: number) {
 }
 
 function goBackToReader() {
+  saveProgress();
+  hasAudioSession.value = window.speechSynthesis.speaking || window.speechSynthesis.paused;
+  publishListenSession(true);
+  router.replace({
+    name: "ReaderPage",
+    params: { id: route.params.id },
+    query: { ...route.query },
+  });
+}
+
+function closeListenMode() {
+  isClosingListenMode.value = true;
+  stopSpeech();
   router.replace({
     name: "ReaderPage",
     params: { id: route.params.id },
@@ -489,6 +686,14 @@ function openEpisode(episode: Episode) {
     params: { id: route.params.id },
     query: { episode: String(episode.id) },
   });
+}
+
+function selectEpisode(event: Event) {
+  const episodeId = Number((event.target as HTMLSelectElement).value || 0);
+  const episode = episodes.value.find((item) => item.id === episodeId);
+  if (episode && episode.id !== currentEpisodeId.value) {
+    openEpisode(episode);
+  }
 }
 
 function goPreviousEpisode() {
@@ -521,6 +726,7 @@ async function shareReader() {
 }
 
 watch([selectedVoice, rate, pitch, volume], saveVoiceSettings);
+watch(autoPlayNextEpisode, saveListenSettings);
 
 watch(contentRouteKey, async () => {
   stopSpeech();
@@ -530,6 +736,7 @@ watch(contentRouteKey, async () => {
 
 onMounted(async () => {
   await loadVoiceSettings();
+  await loadServerTtsStatus();
   loadVoices();
   window.speechSynthesis.onvoiceschanged = loadVoices;
   await Promise.all([loadBookTitle(), loadEpisodes()]);
@@ -540,7 +747,12 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   saveProgress();
   saveVoiceSettings();
-  stopSpeech();
+  if (isClosingListenMode.value) {
+    stopSpeech();
+  } else {
+    hasAudioSession.value = window.speechSynthesis.speaking || window.speechSynthesis.paused;
+    publishListenSession(true);
+  }
   window.speechSynthesis.onvoiceschanged = null;
   window.removeEventListener("read-voice:reader-command", handleVoiceReaderCommand as EventListener);
 });
@@ -603,6 +815,26 @@ onBeforeUnmount(() => {
         <button type="button" :disabled="!nextEpisode" @click="goNextEpisode">ตอนถัดไป</button>
       </section>
 
+      <section v-if="isEpisodeMode && episodes.length" class="listen-page__episode-picker">
+        <label>
+          <span>เลือกตอน</span>
+          <select :value="currentEpisodeId" @change="selectEpisode">
+            <option
+              v-for="episode in episodes"
+              :key="episode.id"
+              :value="episode.id"
+            >
+              ตอนที่ {{ episode.episode_number }} {{ getEpisodeTitle(episode) }}
+            </option>
+          </select>
+        </label>
+
+        <label class="listen-page__autoplay">
+          <input v-model="autoPlayNextEpisode" type="checkbox" />
+          <span>เล่นตอนถัดไปอัตโนมัติ</span>
+        </label>
+      </section>
+
       <section class="listen-page__voice">
         <label>
           <span>เสียง</span>
@@ -622,7 +854,7 @@ onBeforeUnmount(() => {
         </label>
       </section>
 
-      <button class="listen-page__exit" type="button" @click="goBackToReader">
+      <button class="listen-page__exit" type="button" @click="closeListenMode">
         ออกจากโหมดอ่านให้ฟัง
       </button>
     </template>
@@ -665,6 +897,7 @@ onBeforeUnmount(() => {
 .listen-page__content,
 .listen-page__controls,
 .listen-page__episode-nav,
+.listen-page__episode-picker,
 .listen-page__voice,
 .listen-page__exit,
 .listen-page__state {
@@ -689,7 +922,7 @@ onBeforeUnmount(() => {
   color: #ffffff;
   cursor: pointer;
   font: inherit;
-  font-size: 24px;
+  font-size: 26px;
   padding: 0;
 }
 
@@ -707,12 +940,12 @@ onBeforeUnmount(() => {
 }
 
 .listen-page__title-group strong {
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .listen-page__title-group small {
   color: rgba(255, 255, 255, 0.76);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -729,7 +962,7 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: rgba(5, 16, 18, 0.72);
   color: rgba(255, 255, 255, 0.96);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
   margin-bottom: 12px;
   padding: 10px 16px;
@@ -750,7 +983,7 @@ onBeforeUnmount(() => {
 }
 
 .listen-page__index {
-  font-size: 32px;
+  font-size: 34px;
   font-weight: 800;
   line-height: 1;
   margin-top: 18px;
@@ -764,7 +997,7 @@ onBeforeUnmount(() => {
 }
 
 .listen-page__track {
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 800;
   line-height: 1.55;
   margin-top: 10px;
@@ -772,7 +1005,7 @@ onBeforeUnmount(() => {
 
 .listen-page__caption {
   color: rgba(255, 255, 255, 0.66);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.6;
   margin-top: 8px;
@@ -780,7 +1013,7 @@ onBeforeUnmount(() => {
 
 .listen-page__share-status {
   color: #8bf4ea;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   margin-top: 10px;
 }
@@ -807,7 +1040,7 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.36);
   cursor: pointer;
   font: inherit;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 900;
   padding: 0;
 }
@@ -823,11 +1056,12 @@ onBeforeUnmount(() => {
   height: 84px !important;
   background: #55c6bd !important;
   color: #ffffff !important;
-  font-size: 30px !important;
+  font-size: 32px !important;
   box-shadow: 0 14px 24px rgba(85, 198, 189, 0.28);
 }
 
 .listen-page__episode-nav,
+.listen-page__episode-picker,
 .listen-page__voice {
   width: min(360px, calc(100vw - 44px));
   margin: 0 auto;
@@ -849,9 +1083,52 @@ onBeforeUnmount(() => {
   color: #ffffff;
   cursor: pointer;
   font: inherit;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
   padding: 0 16px;
+}
+
+.listen-page__episode-picker {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(10, 10, 10, 0.4);
+  backdrop-filter: blur(10px);
+}
+
+.listen-page__episode-picker label {
+  display: grid;
+  gap: 8px;
+}
+
+.listen-page__episode-picker span {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.listen-page__episode-picker select {
+  width: 100%;
+  min-height: 40px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font: inherit;
+  padding: 0 12px;
+}
+
+.listen-page__autoplay {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.listen-page__autoplay input {
+  width: 18px;
+  height: 18px;
+  accent-color: #55c6bd;
 }
 
 .listen-page__voice {
@@ -869,7 +1146,7 @@ onBeforeUnmount(() => {
 }
 
 .listen-page__voice span {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
 }
 
@@ -904,7 +1181,7 @@ onBeforeUnmount(() => {
   color: #ffffff;
   cursor: pointer;
   font: inherit;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 900;
   padding: 0;
 }
@@ -923,7 +1200,7 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.66);
   cursor: pointer;
   font: inherit;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
   padding: 0 18px;
 }

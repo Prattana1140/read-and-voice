@@ -6,7 +6,7 @@ const router = express.Router();
 
 async function findBookById(bookId) {
   const [rows] = await db.query(
-    `SELECT id, title, price, access_type
+    `SELECT id, title, title_th, title_en, price, access_type
      FROM books
      WHERE id = ?
      LIMIT 1`,
@@ -22,10 +22,14 @@ async function findEpisodeById(episodeId) {
        e.id,
        e.book_id,
        e.title,
+       e.title_th,
+       e.title_en,
        e.price,
        e.is_free,
        e.access_type,
-       b.title AS book_title
+       b.title AS book_title,
+       b.title_th AS book_title_th,
+       b.title_en AS book_title_en
      FROM book_episodes e
      JOIN books b ON b.id = e.book_id
      WHERE e.id = ?
@@ -117,7 +121,11 @@ router.get("/", verifyToken, async (req, res) => {
          c.episode_id,
          c.quantity,
          COALESCE(e.title, b.title) AS title,
+         COALESCE(e.title_th, e.title, b.title_th, b.title) AS title_th,
+         COALESCE(e.title_en, b.title_en, '') AS title_en,
          b.title AS book_title,
+         b.title_th AS book_title_th,
+         b.title_en AS book_title_en,
          e.episode_number,
          COALESCE(e.price, b.price, 0) AS price,
          COALESCE(e.access_type, b.access_type, 'free') AS access_type

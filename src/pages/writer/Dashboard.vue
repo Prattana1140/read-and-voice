@@ -3,6 +3,8 @@ import { API_BASE_URL } from "../../utils/api";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import api from "../../utils/api";
+import { useI18n } from "../../utils/i18n";
+import { localizedTitle } from "../../utils/localizedContent";
 
 type StoredUser = {
   id?: number;
@@ -12,6 +14,8 @@ type StoredUser = {
 type Book = {
   id: number;
   title: string;
+  title_th?: string;
+  title_en?: string;
   author?: string;
   category_name?: string;
   cover_image?: string;
@@ -21,6 +25,7 @@ type Book = {
 };
 
 const router = useRouter();
+const { locale } = useI18n();
 const loading = ref(true);
 const books = ref<Book[]>([]);
 
@@ -47,7 +52,7 @@ const draftBooks = computed(() => {
 });
 
 const bestBook = computed(() => {
-  return publishedBooks.value[0]?.title || "ยังไม่มีข้อมูล";
+  return getBookTitle(publishedBooks.value[0]) || "ยังไม่มีข้อมูล";
 });
 
 const getCoverUrl = (cover?: string) => {
@@ -55,6 +60,9 @@ const getCoverUrl = (cover?: string) => {
   if (cover.startsWith("http://") || cover.startsWith("https://")) return cover;
   return `${API_BASE_URL}/${cover.replace(/^\/+/, "")}`;
 };
+
+const getBookTitle = (book: Book | null | undefined) =>
+  localizedTitle(book, locale.value) || book?.title || "";
 
 const fetchBooks = async () => {
   loading.value = true;
@@ -129,10 +137,10 @@ onMounted(fetchBooks);
             <tbody>
               <tr v-for="book in myBooks.slice(0, 6)" :key="book.id">
                 <td>
-                  <img :src="getCoverUrl(book.cover_image)" :alt="book.title" />
+                  <img :src="getCoverUrl(book.cover_image)" :alt="getBookTitle(book)" />
                 </td>
                 <td>
-                  <strong>{{ book.title }}</strong>
+                  <strong>{{ getBookTitle(book) }}</strong>
                   <small>{{ book.author || "ไม่ระบุผู้เขียน" }}</small>
                 </td>
                 <td>{{ book.category_name || "-" }}</td>
@@ -229,7 +237,7 @@ small,
   border: 0;
   background: transparent;
   color: var(--primary-strong);
-  font-size: 13px;
+  font-size: 15px;
   padding: 2px 0;
 }
 
@@ -252,11 +260,11 @@ small,
 .stats-grid strong {
   margin-top: 8px;
   color: var(--text-strong);
-  font-size: 34px;
+  font-size: 36px;
 }
 
 .small-value {
-  font-size: 18px !important;
+  font-size: 20px !important;
 }
 
 .content-grid {
@@ -298,7 +306,7 @@ td {
 
 th {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 td img {
@@ -318,7 +326,7 @@ td small {
   border-radius: 999px;
   background: #fff3d8;
   color: #876000;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   padding: 6px 9px;
 }

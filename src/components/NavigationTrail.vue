@@ -35,10 +35,7 @@ const localizedRouteLabels: Record<"th" | "en", Record<string, string>> = {
     OrderHistory: "ประวัติการสั่งซื้อของฉัน",
     Profile: "ข้อมูลของฉัน",
     AccountFollowing: "รายการที่ติดตาม",
-    AccountGiftCodes: "โค้ดของขวัญ",
-    AccountBuffet: "สถานะสมาชิก",
     AccountDevices: "อุปกรณ์ของฉัน",
-    AccountBenefits: "สิทธิพิเศษของฉัน",
     AccountReviews: "รีวิวของฉัน",
     Terms: "เงื่อนไขในการใช้บริการ",
     PrivacyPolicy: "นโยบายความเป็นส่วนตัว",
@@ -48,6 +45,7 @@ const localizedRouteLabels: Record<"th" | "en", Record<string, string>> = {
     WriterBooks: "หนังสือของฉัน",
     WriterUpload: "อัปโหลดผลงาน",
     WriterEditBook: "แก้ไขหนังสือ",
+    WriterPublicProfile: "หน้านักเขียน",
     WriterStats: "สถิตินักเขียน",
     AdminDashboard: "จัดการระบบ",
     AdminBooks: "จัดการหนังสือ",
@@ -82,10 +80,7 @@ const localizedRouteLabels: Record<"th" | "en", Record<string, string>> = {
     OrderHistory: "My order history",
     Profile: "My profile",
     AccountFollowing: "Following",
-    AccountGiftCodes: "Gift codes",
-    AccountBuffet: "Membership status",
     AccountDevices: "My devices",
-    AccountBenefits: "My benefits",
     AccountReviews: "My reviews",
     Terms: "Terms of service",
     PrivacyPolicy: "Privacy policy",
@@ -95,6 +90,7 @@ const localizedRouteLabels: Record<"th" | "en", Record<string, string>> = {
     WriterBooks: "My books",
     WriterUpload: "Upload work",
     WriterEditBook: "Edit book",
+    WriterPublicProfile: "Writer page",
     WriterStats: "Writer stats",
     AdminDashboard: "System management",
     AdminBooks: "Manage books",
@@ -115,10 +111,7 @@ const routeLabels = computed(() => localizedRouteLabels[locale.value]);
 
 const parentRoutes: Record<string, { fullPath: string; routeName: string }> = {
   AccountFollowing: { fullPath: "/profile", routeName: "Profile" },
-  AccountGiftCodes: { fullPath: "/profile", routeName: "Profile" },
-  AccountBuffet: { fullPath: "/profile", routeName: "Profile" },
   AccountDevices: { fullPath: "/profile", routeName: "Profile" },
-  AccountBenefits: { fullPath: "/profile", routeName: "Profile" },
   AccountReviews: { fullPath: "/profile", routeName: "Profile" },
   OrderHistory: { fullPath: "/profile", routeName: "Profile" },
   MyLibrary: { fullPath: "/profile", routeName: "Profile" },
@@ -199,6 +192,10 @@ const visibleTrail = computed(() => {
 
 const shouldShowTrail = computed(() => route.path !== "/" && visibleTrail.value.length > 1);
 
+function isWriterDashboardPath(path: string) {
+  return path === "/writer" || path.startsWith("/writer/");
+}
+
 const dashboardBackTarget = computed<TrailItem | null>(() => {
   if (route.path === "/admin") return null;
   if (route.path.startsWith("/admin")) {
@@ -211,7 +208,7 @@ const dashboardBackTarget = computed<TrailItem | null>(() => {
   }
 
   if (route.path === "/writer") return null;
-  if (route.path.startsWith("/writer")) {
+  if (isWriterDashboardPath(route.path)) {
     return { fullPath: "/writer", label: locale.value === "th" ? "กลับ Dashboard" : "Back to Dashboard" };
   }
 
@@ -298,7 +295,7 @@ function goTo(item: TrailItem) {
   color: var(--text-strong);
   cursor: pointer;
   font: inherit;
-  font-size: 0.86rem;
+  font-size: 0.985rem;
   font-weight: 900;
   padding: 0 14px;
   white-space: nowrap;
@@ -324,7 +321,7 @@ function goTo(item: TrailItem) {
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 0.78rem;
+  font-size: 0.905rem;
   font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
@@ -346,7 +343,7 @@ function goTo(item: TrailItem) {
 
 .navigation-trail__separator {
   color: var(--text-muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 
 @media (max-width: 640px) {
@@ -370,12 +367,12 @@ function goTo(item: TrailItem) {
 
   .navigation-trail__link {
     max-width: 132px;
-    font-size: 0.66rem;
+    font-size: 0.785rem;
     padding: 1px 0;
   }
 
   .navigation-trail__separator {
-    font-size: 0.62rem;
+    font-size: 0.745rem;
   }
 
   .navigation-trail__item {
@@ -385,7 +382,7 @@ function goTo(item: TrailItem) {
   .navigation-trail__dashboard {
     min-height: 26px;
     border-radius: 6px;
-    font-size: 0.68rem;
+    font-size: 0.805rem;
     padding: 0 9px;
   }
 }

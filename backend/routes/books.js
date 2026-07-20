@@ -1,4 +1,4 @@
-const express = require("express");
+﻿const express = require("express");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
@@ -39,7 +39,23 @@ const coverUploadDir = path.join(__dirname, "../uploads/book-covers");
 fs.mkdirSync(uploadDir, { recursive: true });
 fs.mkdirSync(coverUploadDir, { recursive: true });
 
-const bookFileFields = new Set(["book_file", "file", "book", "ebook", "pdf"]);
+const bookFileFields = new Set([
+  "book_file",
+  "book_file_th",
+  "book_file_en",
+  "file",
+  "file_th",
+  "file_en",
+  "book",
+  "book_th",
+  "book_en",
+  "ebook",
+  "ebook_th",
+  "ebook_en",
+  "pdf",
+  "pdf_th",
+  "pdf_en",
+]);
 const bookFileExtensions = new Set([
   ".pdf",
   ".txt",
@@ -78,13 +94,13 @@ const upload = multer({
     if (coverFileFields.has(file.fieldname)) {
       if ([".jpg", ".jpeg", ".png", ".webp"].includes(ext))
         return cb(null, true);
-      return cb(new Error("รองรับรูปปกเฉพาะ .jpg .jpeg .png และ .webp"));
+      return cb(new Error("à¸£à¸­à¸‡à¸£à¸±à¸šà¸£à¸¹à¸›à¸›à¸à¹€à¸‰à¸žà¸²à¸° .jpg .jpeg .png à¹à¸¥à¸° .webp"));
     }
     if (bookFileFields.has(file.fieldname)) {
       if (bookFileExtensions.has(ext)) return cb(null, true);
-      return cb(new Error("รองรับเฉพาะไฟล์ .pdf .txt .json และไฟล์ภาพสแกน"));
+      return cb(new Error("à¸£à¸­à¸‡à¸£à¸±à¸šà¹€à¸‰à¸žà¸²à¸°à¹„à¸Ÿà¸¥à¹Œ .pdf .txt .json à¹à¸¥à¸°à¹„à¸Ÿà¸¥à¹Œà¸ à¸²à¸žà¸ªà¹à¸à¸™"));
     }
-    return cb(null, false); // ← field อื่นๆ skip แทน error
+    return cb(null, false); // â† field à¸­à¸·à¹ˆà¸™à¹† skip à¹à¸—à¸™ error
   },
 });
 
@@ -213,8 +229,8 @@ function uploadBookFiles(req, res, next) {
 
     const message =
       error.code === "LIMIT_FILE_SIZE"
-        ? "ไฟล์ใหญ่เกินไป"
-        : error.message || "อัปโหลดไฟล์ไม่สำเร็จ";
+        ? "à¹„à¸Ÿà¸¥à¹Œà¹ƒà¸«à¸à¹ˆà¹€à¸à¸´à¸™à¹„à¸›"
+        : error.message || "à¸­à¸±à¸›à¹‚à¸«à¸¥à¸”à¹„à¸Ÿà¸¥à¹Œà¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ";
 
     return res.status(400).json({ message });
   });
@@ -238,6 +254,16 @@ function normalizeContentType(value) {
   return value === "serial" ? "serial" : "ebook";
 }
 
+function pickLocalizedText(row, baseName, locale = "th") {
+  const th = sanitizeBookText(row?.[`${baseName}_th`] || row?.[baseName] || "");
+  const en = sanitizeBookText(row?.[`${baseName}_en`] || "");
+  return locale === "en" ? en || th : th || en;
+}
+
+function normalizeContentLocale(value) {
+  return String(value || "").trim().toLowerCase().startsWith("en") ? "en" : "th";
+}
+
 function normalizeSerialStatus(value, fallback = "ongoing") {
   const status = String(value || fallback).trim().toLowerCase();
   return ["ongoing", "completed", "hiatus"].includes(status) ? status : fallback;
@@ -253,6 +279,80 @@ function normalizeAgeRating(value) {
   if (["15", "15+"].includes(normalized)) return "15+";
   if (["13", "13+"].includes(normalized)) return "13+";
   return "general";
+}
+
+function normalizeBookTags(tags = []) {
+  const values = Array.isArray(tags)
+    ? tags
+    : String(tags || "")
+        .split(",")
+        .map((tag) => tag.trim());
+
+  return [...new Set(
+    values
+      .map((tag) => String(tag || "").trim())
+      .filter(Boolean)
+      .map((tag) => tag.slice(0, 120)),
+  )].slice(0, 20);
+}
+
+function getRequestTags(req) {
+  return req.body.tags !== undefined ? req.body.tags : req.body["tags[]"];
+}
+
+async function upsertBookTags(bookId, tags = [], connection = db) {
+  const cleanTags = normalizeBookTags(tags);
+
+  await connection.query("DELETE FROM book_tag_maps WHERE book_id = ?", [bookId]);
+
+  for (const tagName of cleanTags) {
+    await connection.query("INSERT IGNORE INTO book_tags (name) VALUES (?)", [tagName]);
+    const [tagRows] = await connection.query(
+      "SELECT id FROM book_tags WHERE name = ? LIMIT 1",
+      [tagName],
+    );
+    if (tagRows.length > 0) {
+      await connection.query(
+        "INSERT IGNORE INTO book_tag_maps (book_id, tag_id) VALUES (?, ?)",
+        [bookId, tagRows[0].id],
+      );
+    }
+  }
+}
+
+async function getBookTags(bookId) {
+  const [tagRows] = await db.query(
+    `SELECT bt.name
+     FROM book_tag_maps btm
+     JOIN book_tags bt ON bt.id = btm.tag_id
+     WHERE btm.book_id = ?
+     ORDER BY bt.name ASC`,
+    [bookId],
+  );
+  return tagRows.map((row) => row.name);
+}
+
+async function getBookTagsMap(bookIds = []) {
+  const cleanIds = [...new Set(bookIds.map(Number).filter(Number.isFinite))];
+  if (cleanIds.length === 0) return new Map();
+
+  const placeholders = cleanIds.map(() => "?").join(",");
+  const [tagRows] = await db.query(
+    `SELECT btm.book_id, bt.name
+     FROM book_tag_maps btm
+     JOIN book_tags bt ON bt.id = btm.tag_id
+     WHERE btm.book_id IN (${placeholders})
+     ORDER BY bt.name ASC`,
+    cleanIds,
+  );
+
+  const tagsMap = new Map();
+  for (const row of tagRows) {
+    const bookId = Number(row.book_id);
+    if (!tagsMap.has(bookId)) tagsMap.set(bookId, []);
+    tagsMap.get(bookId).push(row.name);
+  }
+  return tagsMap;
 }
 
 function normalizePositiveInt(value, fallback) {
@@ -274,12 +374,12 @@ async function validateCategoryForContentType(categoryId, contentType) {
     [categoryId],
   );
 
-  if (rows.length === 0) return "ไม่พบหมวดหมู่ที่เลือก";
+  if (rows.length === 0) return "à¹„à¸¡à¹ˆà¸žà¸šà¸«à¸¡à¸§à¸”à¸«à¸¡à¸¹à¹ˆà¸—à¸µà¹ˆà¹€à¸¥à¸·à¸­à¸";
   const scope = rows[0].content_scope || "all";
   if (scope === "all" || scope === contentType) return null;
   return contentType === "serial"
-    ? "หมวดหมู่นี้ใช้กับหนังสือรายตอนไม่ได้"
-    : "หมวดหมู่นี้ใช้กับหนังสือแบบเล่มไม่ได้";
+    ? "à¸«à¸¡à¸§à¸”à¸«à¸¡à¸¹à¹ˆà¸™à¸µà¹‰à¹ƒà¸Šà¹‰à¸à¸±à¸šà¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¸£à¸²à¸¢à¸•à¸­à¸™à¹„à¸¡à¹ˆà¹„à¸”à¹‰"
+    : "à¸«à¸¡à¸§à¸”à¸«à¸¡à¸¹à¹ˆà¸™à¸µà¹‰à¹ƒà¸Šà¹‰à¸à¸±à¸šà¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¹à¸šà¸šà¹€à¸¥à¹ˆà¸¡à¹„à¸¡à¹ˆà¹„à¸”à¹‰";
 }
 
 function normalizeFlag(value) {
@@ -345,14 +445,14 @@ function normalizeManualChapters(chapters) {
   return source
     .map((chapter, index) => {
       const title = sanitizeBookText(
-        chapter?.title || chapter?.chapter || `บทที่ ${index + 1}`,
+        chapter?.title || chapter?.chapter || `à¸šà¸—à¸—à¸µà¹ˆ ${index + 1}`,
       );
       const content = sanitizeBookText(
         chapter?.content || chapter?.text || chapter?.body || "",
       );
 
       return {
-        title: title || `บทที่ ${index + 1}`,
+        title: title || `à¸šà¸—à¸—à¸µà¹ˆ ${index + 1}`,
         content,
       };
     })
@@ -382,11 +482,29 @@ function buildManualBookContent({ chapters, content }) {
   };
 }
 
+function pairLocalizedPages(thPages = [], enPages = []) {
+  const maxLength = Math.max(thPages.length, enPages.length);
+  return Array.from({ length: maxLength }, (_, index) => {
+    const th = sanitizeBookText(thPages[index] || "");
+    const en = sanitizeBookText(enPages[index] || "");
+    return {
+      page_text: th || en,
+      page_text_th: th || en,
+      page_text_en: en || null,
+    };
+  }).filter((page) => page.page_text || page.page_text_en);
+}
+
 async function createBookFromPayload(payload = {}, user, coverFile = null) {
   await ensureCatalogAnalyticsSchema();
 
   const {
     title,
+    title_th,
+    title_en,
+    subtitle,
+    subtitle_th,
+    subtitle_en,
     author,
     description = "",
     category_id = null,
@@ -399,12 +517,20 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
     preview_char_limit,
     chapters,
     content = "",
+    content_th = "",
+    content_en = "",
   } = payload;
 
-  if (!title || !author) {
+  const titleTh = String(title_th || title || "").trim();
+  const titleEn = String(title_en || "").trim();
+  const subtitleTh = String(subtitle_th || subtitle || "").trim();
+  const subtitleEn = String(subtitle_en || "").trim();
+  const canonicalTitle = titleTh;
+
+  if (!titleTh || !titleEn || !author) {
     return {
       status: 400,
-      body: { message: "กรอกชื่อหนังสือและผู้เขียนให้ครบ" },
+      body: { message: "à¸à¸£à¸­à¸à¸Šà¸·à¹ˆà¸­à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¸ à¸²à¸©à¸²à¹„à¸—à¸¢ à¸ à¸²à¸©à¸²à¸­à¸±à¸‡à¸à¸¤à¸© à¹à¸¥à¸°à¸œà¸¹à¹‰à¹€à¸‚à¸µà¸¢à¸™à¹ƒà¸«à¹‰à¸„à¸£à¸š" },
     };
   }
 
@@ -425,14 +551,19 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
     const initialCoverImage = getCoverImagePath(coverFile, cover_image);
     const [result] = await db.query(
       `INSERT INTO books
-       (title, author, description, category_id, cover_image, source_type, content_type,
+       (title, title_th, title_en, subtitle, subtitle_th, subtitle_en, author, description, category_id, cover_image, source_type, content_type,
         serial_status, access_type, process_status, full_text, total_pages, is_published, created_by, price,
         preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
         requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
         requested_hall_of_fame, requested_recommended, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'manual', 'serial', ?, ?, 'completed', '', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', 'serial', ?, ?, 'completed', '', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
-        title,
+        canonicalTitle,
+        titleTh,
+        titleEn,
+        subtitleTh || null,
+        subtitleTh || null,
+        subtitleEn || null,
         author,
         description,
         category_id || null,
@@ -460,8 +591,8 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
       await ensureBookCover(
         {
           id: result.insertId,
-          title,
-          subtitle: payload.subtitle,
+          title: canonicalTitle,
+          subtitle: subtitleTh,
           author,
           author_name: payload.author_name || author,
           cover_image: initialCoverImage,
@@ -474,7 +605,7 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
     return {
       status: 201,
       body: {
-        message: "สร้างหนังสือแบบรายตอนสำเร็จ",
+        message: "à¸ªà¸£à¹‰à¸²à¸‡à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¹à¸šà¸šà¸£à¸²à¸¢à¸•à¸­à¸™à¸ªà¸³à¹€à¸£à¹‡à¸ˆ",
         book_id: result.insertId,
       },
     };
@@ -482,33 +613,44 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
 
   const { fullText, pages } = buildManualBookContent({
     chapters: parseMaybeJson(chapters, []),
-    content,
+    content: content_th || content,
+  });
+  const englishContent = buildManualBookContent({
+    chapters: [],
+    content: content_en,
   });
 
   if (!fullText) {
     return {
       status: 400,
-      body: { message: "กรอกเนื้อหาหนังสืออย่างน้อย 1 บทหรือ 1 ย่อหน้า" },
+      body: { message: "à¸à¸£à¸­à¸à¹€à¸™à¸·à¹‰à¸­à¸«à¸²à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¸­à¸¢à¹ˆà¸²à¸‡à¸™à¹‰à¸­à¸¢ 1 à¸šà¸—à¸«à¸£à¸·à¸­ 1 à¸¢à¹ˆà¸­à¸«à¸™à¹‰à¸²" },
     };
   }
 
   const initialCoverImage = getCoverImagePath(coverFile, cover_image);
   const [result] = await db.query(
     `INSERT INTO books
-     (title, author, description, category_id, cover_image, source_type, content_type,
-      serial_status, access_type, process_status, full_text, total_pages, is_published, created_by, price,
+     (title, title_th, title_en, subtitle, subtitle_th, subtitle_en, author, description, category_id, cover_image, source_type, content_type,
+      serial_status, access_type, process_status, full_text, full_text_th, full_text_en, total_pages, is_published, created_by, price,
       preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
       requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
       requested_hall_of_fame, requested_recommended, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'manual', 'ebook', 'completed', ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', 'ebook', 'completed', ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
     [
-      title,
+      canonicalTitle,
+      titleTh,
+      titleEn,
+      subtitleTh || null,
+      subtitleTh || null,
+      subtitleEn || null,
       author,
       description,
       category_id || null,
       initialCoverImage,
       normalizeAccessType(access_type, price),
       fullText,
+      fullText,
+      englishContent.fullText || null,
       pages.length,
       autoApprove ? 1 : 0,
       user.id,
@@ -527,13 +669,18 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
     ],
   );
 
-  await replaceBookPages(result.insertId, pages);
+  await replaceBookPages(
+    result.insertId,
+    pages,
+    db,
+    pairLocalizedPages(pages, englishContent.pages),
+  );
   if (isMissingCover(initialCoverImage)) {
     await ensureBookCover(
       {
         id: result.insertId,
-        title,
-        subtitle: payload.subtitle,
+        title: canonicalTitle,
+        subtitle: subtitleTh,
         author,
         author_name: payload.author_name || author,
         cover_image: initialCoverImage,
@@ -546,7 +693,7 @@ async function createBookFromPayload(payload = {}, user, coverFile = null) {
   return {
     status: 201,
     body: {
-      message: "สร้างหนังสือแบบกรอกเนื้อหาสำเร็จ",
+      message: "à¸ªà¸£à¹‰à¸²à¸‡à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¹à¸šà¸šà¸à¸£à¸­à¸à¹€à¸™à¸·à¹‰à¸­à¸«à¸²à¸ªà¸³à¹€à¸£à¹‡à¸ˆ",
       book_id: result.insertId,
       total_pages: pages.length,
     },
@@ -626,14 +773,29 @@ async function saveBookFile(bookId, file, connection = db) {
   );
 }
 
-async function replaceBookPages(bookId, pages = [], connection = db) {
+async function replaceBookPages(bookId, pages = [], connection = db, localizedPages = null) {
   await connection.query("DELETE FROM book_pages WHERE book_id = ?", [bookId]);
 
-  for (let i = 0; i < pages.length; i += 1) {
+  const pageRows = Array.isArray(localizedPages)
+    ? localizedPages
+    : pages.map((page) => ({
+        page_text: page || "",
+        page_text_th: page || "",
+        page_text_en: null,
+      }));
+
+  for (let i = 0; i < pageRows.length; i += 1) {
+    const page = pageRows[i] || {};
     await connection.query(
-      `INSERT INTO book_pages (book_id, page_number, page_text)
-       VALUES (?, ?, ?)`,
-      [bookId, i + 1, pages[i] || ""],
+      `INSERT INTO book_pages (book_id, page_number, page_text, page_text_th, page_text_en)
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        bookId,
+        i + 1,
+        page.page_text || page.page_text_th || "",
+        page.page_text_th || page.page_text || "",
+        page.page_text_en || null,
+      ],
     );
   }
 }
@@ -646,7 +808,11 @@ function toPublicBookSummary(book) {
     id: book.id,
     slug: book.slug,
     title: book.title,
+    title_th: book.title_th || book.title,
+    title_en: book.title_en || "",
     subtitle: book.subtitle,
+    subtitle_th: book.subtitle_th || book.subtitle || "",
+    subtitle_en: book.subtitle_en || "",
     author: book.author,
     author_name: book.author_name,
     author_id: book.author_id,
@@ -696,6 +862,7 @@ function toPublicBookSummary(book) {
     created_at: book.created_at,
     updated_at: book.updated_at,
     episode_count: book.episode_count,
+    tags: Array.isArray(book.tags) ? book.tags : normalizeBookTags(book.tags),
     review_count: Number(book.review_count || 0),
     average_rating: Number(book.average_rating || 0),
     read_count: Number(book.read_count || 0),
@@ -733,7 +900,11 @@ router.get("/", async (_req, res) => {
          b.id,
          ${getBookColumnExpression(columns, "slug", "NULL")} AS slug,
          b.title,
+         ${getBookColumnExpression(columns, "title_th", "b.title")} AS title_th,
+         ${getBookColumnExpression(columns, "title_en", "NULL")} AS title_en,
          ${getBookColumnExpression(columns, "subtitle", "NULL")} AS subtitle,
+         ${getBookColumnExpression(columns, "subtitle_th", getBookColumnExpression(columns, "subtitle", "NULL"))} AS subtitle_th,
+         ${getBookColumnExpression(columns, "subtitle_en", "NULL")} AS subtitle_en,
          b.author,
          ${getBookColumnExpression(columns, "author_name", "NULL")} AS author_name,
          ${getBookColumnExpression(columns, "author_id", "NULL")} AS author_id,
@@ -815,10 +986,18 @@ router.get("/", async (_req, res) => {
     );
 
     await ensureBooksHaveCovers(rows, db);
-    return res.json(rows.map(toPublicBookSummary));
+    const tagsMap = await getBookTagsMap(rows.map((row) => row.id));
+    return res.json(
+      rows.map((row) =>
+        toPublicBookSummary({
+          ...row,
+          tags: tagsMap.get(Number(row.id)) || [],
+        }),
+      ),
+    );
   } catch (error) {
     console.error("GET /books error:", error);
-    return res.status(500).json({ message: "โหลดรายการหนังสือไม่สำเร็จ" });
+    return res.status(500).json({ message: "à¹‚à¸«à¸¥à¸”à¸£à¸²à¸¢à¸à¸²à¸£à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ" });
   }
 });
 
@@ -840,15 +1019,38 @@ router.post(
     try {
       await ensureCatalogAnalyticsSchema();
 
-      const bookFile = getUploadedFile(req, [...bookFileFields]);
+      const bookFile = getUploadedFile(req, [
+        "book_file_th",
+        "book_file",
+        "file_th",
+        "file",
+        "book_th",
+        "book",
+        "ebook_th",
+        "ebook",
+        "pdf_th",
+        "pdf",
+      ]);
+      const englishBookFile = getUploadedFile(req, [
+        "book_file_en",
+        "file_en",
+        "book_en",
+        "ebook_en",
+        "pdf_en",
+      ]);
       const coverFile = getUploadedFile(req, [...coverFileFields]);
 
       if (!bookFile) {
-        return res.status(400).json({ message: "กรุณาอัปโหลดไฟล์หนังสือ" });
+        return res.status(400).json({ message: "à¸à¸£à¸¸à¸“à¸²à¸­à¸±à¸›à¹‚à¸«à¸¥à¸”à¹„à¸Ÿà¸¥à¹Œà¸«à¸™à¸±à¸‡à¸ªà¸·à¸­" });
       }
 
       const {
         title,
+        title_th,
+        title_en,
+        subtitle,
+        subtitle_th,
+        subtitle_en,
         author,
         description = "",
         category_id = null,
@@ -861,10 +1063,16 @@ router.post(
         preview_char_limit,
       } = req.body;
 
-      if (!title || !author) {
+      const titleTh = String(title_th || title || "").trim();
+      const titleEn = String(title_en || "").trim();
+      const subtitleTh = String(subtitle_th || subtitle || "").trim();
+      const subtitleEn = String(subtitle_en || "").trim();
+
+
+      if (!titleTh || !titleEn || !author) {
         return res
           .status(400)
-          .json({ message: "กรอกชื่อหนังสือและผู้แต่งให้ครบ" });
+          .json({ message: "à¸à¸£à¸­à¸à¸Šà¸·à¹ˆà¸­à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¹à¸¥à¸°à¸œà¸¹à¹‰à¹à¸•à¹ˆà¸‡à¹ƒà¸«à¹‰à¸„à¸£à¸š" });
       }
 
       const normalizedContentType = normalizeContentType(content_type);
@@ -879,11 +1087,22 @@ router.post(
         bookFile.mimetype,
         bookFile.originalname,
       );
+      const parsedEnglish = englishBookFile
+        ? await parseBookFile(
+            englishBookFile.path,
+            englishBookFile.mimetype,
+            englishBookFile.originalname,
+          )
+        : null;
       timings.parse_ms = elapsedMs(parseStartedAt);
       const pages = Array.isArray(parsed.pages)
         ? parsed.pages.map(sanitizeBookText).filter(Boolean)
         : [];
+      const englishPages = Array.isArray(parsedEnglish?.pages)
+        ? parsedEnglish.pages.map(sanitizeBookText).filter(Boolean)
+        : [];
       const fullText = sanitizeBookText(parsed.fullText || pages.join("\n\n"));
+      const fullTextEn = sanitizeBookText(parsedEnglish?.fullText || englishPages.join("\n\n"));
       const finalCoverImage = getCoverImagePath(coverFile, cover_image);
       const requestedPlacements = getPlacementRequestValues(req.body);
       const autoApprove = ["admin", "superadmin"].includes(req.user.role);
@@ -893,14 +1112,19 @@ router.post(
 
       const [result] = await connection.query(
         `INSERT INTO books
-         (title, author, description, category_id, cover_image, source_type, content_type,
-          serial_status, access_type, process_status, full_text, total_pages, is_published, created_by, price,
+         (title, title_th, title_en, subtitle, subtitle_th, subtitle_en, author, description, category_id, cover_image, source_type, content_type,
+          serial_status, access_type, process_status, full_text, full_text_th, full_text_en, total_pages, is_published, created_by, price,
           preview_page_limit, preview_char_limit, age_rating, approval_status, approved_by, approved_at,
           requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
           requested_hall_of_fame, requested_recommended, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
-          title,
+          titleTh,
+          titleTh,
+          titleEn,
+          subtitleTh || null,
+          subtitleTh || null,
+          subtitleEn || null,
           author,
           description,
           category_id || null,
@@ -912,6 +1136,8 @@ router.post(
           normalizeSerialStatusForContentType(req.body.serial_status, normalizedContentType),
           normalizeAccessType(access_type, price),
           fullText,
+          fullText,
+          fullTextEn || null,
           pages.length,
           autoApprove ? 1 : 0,
           req.user.id,
@@ -932,13 +1158,19 @@ router.post(
       );
 
       await saveBookFile(result.insertId, bookFile, connection);
-      await replaceBookPages(result.insertId, pages, connection);
+      await replaceBookPages(
+        result.insertId,
+        pages,
+        connection,
+        pairLocalizedPages(pages, englishPages),
+      );
+      await upsertBookTags(result.insertId, getRequestTags(req), connection);
       if (isMissingCover(finalCoverImage)) {
         await ensureBookCover(
           {
             id: result.insertId,
-            title,
-            subtitle: req.body.subtitle,
+            title: titleTh,
+            subtitle: subtitleTh,
             author,
             author_name: req.body.author_name || author,
             cover_image: finalCoverImage,
@@ -961,7 +1193,7 @@ router.post(
       });
 
       return res.json({
-        message: "อัปโหลดหนังสือสำเร็จ",
+        message: "à¸­à¸±à¸›à¹‚à¸«à¸¥à¸”à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¸ªà¸³à¹€à¸£à¹‡à¸ˆ",
         book_id: result.insertId,
         total_pages: pages.length,
         parse_method: parsed.parseMethod || null,
@@ -973,7 +1205,7 @@ router.post(
       console.error("POST /books/upload error:", error);
       const statusCode = Number(error.statusCode || error.status || 500);
       const responseMessage =
-        statusCode === 400 ? error.message : "อัปโหลดหนังสือไม่สำเร็จ";
+        statusCode === 400 ? error.message : "à¸­à¸±à¸›à¹‚à¸«à¸¥à¸”à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ";
       return res.status(statusCode >= 400 && statusCode < 600 ? statusCode : 500).json({
         error: error.message,
         code: error.code,
@@ -996,6 +1228,11 @@ router.post(
       await ensureCatalogAnalyticsSchema();
       const {
         title,
+        title_th,
+        title_en,
+        subtitle,
+        subtitle_th,
+        subtitle_en,
         author,
         description = "",
         category_id = null,
@@ -1005,27 +1242,37 @@ router.post(
         age_rating,
         preview_page_limit,
         preview_char_limit,
+        tags,
       } = req.body;
       const requestedPlacements = getPlacementRequestValues(req.body);
       const autoApprove = ["admin", "superadmin"].includes(req.user.role);
       const initialCoverImage = getCoverImagePath(coverFile, cover_image);
+      const titleTh = String(title_th || title || "").trim();
+      const titleEn = String(title_en || "").trim();
+      const subtitleTh = String(subtitle_th || subtitle || "").trim();
+      const subtitleEn = String(subtitle_en || "").trim();
 
-      if (!title || !author) {
+      if (!titleTh || !titleEn || !author) {
         return res.status(400).json({
-          message: "Title and author are required",
+          message: "Title Thai, title English, and author are required",
         });
       }
 
       const [result] = await db.query(
         `INSERT INTO books
-         (title, author, description, category_id, cover_image, source_type, content_type,
+         (title, title_th, title_en, subtitle, subtitle_th, subtitle_en, author, description, category_id, cover_image, source_type, content_type,
           serial_status, access_type, process_status, full_text, total_pages, is_published, created_by, price,
           preview_page_limit, preview_char_limit, age_rating, approval_status, approved_by, approved_at,
           requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
           requested_hall_of_fame, requested_recommended, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'manual', 'serial', 'ongoing', ?, 'completed', '', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', 'serial', 'ongoing', ?, 'completed', '', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
-          title,
+          titleTh,
+          titleTh,
+          titleEn,
+          subtitleTh || null,
+          subtitleTh || null,
+          subtitleEn || null,
           author,
           description,
           category_id || null,
@@ -1053,8 +1300,8 @@ router.post(
         await ensureBookCover(
           {
             id: result.insertId,
-            title,
-            subtitle: req.body.subtitle,
+            title: titleTh,
+            subtitle: subtitleTh,
             author,
             author_name: req.body.author_name || author,
             cover_image: initialCoverImage,
@@ -1063,6 +1310,8 @@ router.post(
           db,
         );
       }
+
+      await upsertBookTags(result.insertId, tags);
 
       return res.json({
         message: "Serial book created successfully",
@@ -1086,6 +1335,11 @@ router.post(
       await ensureCatalogAnalyticsSchema();
       const {
         title,
+        title_th,
+        title_en,
+        subtitle,
+        subtitle_th,
+        subtitle_en,
         author,
         description = "",
         category_id = null,
@@ -1096,44 +1350,60 @@ router.post(
         preview_char_limit,
         chapters,
         content = "",
+        content_th = "",
+        content_en = "",
       } = req.body;
+      const titleTh = String(title_th || title || "").trim();
+      const titleEn = String(title_en || "").trim();
+      const subtitleTh = String(subtitle_th || subtitle || "").trim();
+      const subtitleEn = String(subtitle_en || subtitle || "").trim();
 
-      if (!title || !author) {
+      if (!titleTh || !titleEn || !author) {
         return res.status(400).json({
-          message: "กรอกชื่อหนังสือและผู้เขียนให้ครบ",
+          message: "à¸à¸£à¸­à¸à¸Šà¸·à¹ˆà¸­à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¹à¸¥à¸°à¸œà¸¹à¹‰à¹€à¸‚à¸µà¸¢à¸™à¹ƒà¸«à¹‰à¸„à¸£à¸š",
         });
       }
 
       const { fullText, pages } = buildManualBookContent({
         chapters: parseMaybeJson(chapters, []),
-        content,
+        content: content_th || content,
+      });
+      const englishContent = buildManualBookContent({
+        chapters: [],
+        content: content_en,
       });
       const requestedPlacements = getPlacementRequestValues(req.body);
       const autoApprove = ["admin", "superadmin"].includes(req.user.role);
       const initialCoverImage = getCoverImagePath(coverFile, cover_image);
-
       if (!fullText) {
         return res.status(400).json({
-          message: "กรอกเนื้อหาหนังสืออย่างน้อย 1 บทหรือ 1 ย่อหน้า",
+          message: "à¸à¸£à¸­à¸à¹€à¸™à¸·à¹‰à¸­à¸«à¸²à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¸­à¸¢à¹ˆà¸²à¸‡à¸™à¹‰à¸­à¸¢ 1 à¸šà¸—à¸«à¸£à¸·à¸­ 1 à¸¢à¹ˆà¸­à¸«à¸™à¹‰à¸²",
         });
       }
 
       const [result] = await db.query(
         `INSERT INTO books
-         (title, author, description, category_id, cover_image, source_type, content_type,
-          serial_status, access_type, process_status, full_text, total_pages, is_published, created_by, price,
+         (title, title_th, title_en, subtitle, subtitle_th, subtitle_en, author, description, category_id, cover_image, source_type, content_type,
+          serial_status, access_type, process_status, full_text, full_text_th, full_text_en, total_pages, is_published, created_by, price,
           preview_page_limit, preview_char_limit, approval_status, approved_by, approved_at,
           requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
           requested_hall_of_fame, requested_recommended, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'manual', 'ebook', 'completed', ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', 'ebook', 'completed', ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
-          title,
+          titleTh,
+          titleTh,
+          titleEn,
+          subtitleTh || null,
+          subtitleTh || null,
+          subtitleEn || null,
           author,
           description,
           category_id || null,
           initialCoverImage,
           normalizeAccessType(access_type, price),
           fullText,
+          fullText,
+          englishContent.fullText || null,
           pages.length,
           autoApprove ? 1 : 0,
           req.user.id,
@@ -1152,7 +1422,12 @@ router.post(
         ],
       );
 
-      await replaceBookPages(result.insertId, pages);
+      await replaceBookPages(
+        result.insertId,
+        pages,
+        db,
+        pairLocalizedPages(pages, englishContent.pages),
+      );
 
       if (isMissingCover(initialCoverImage)) {
         await ensureBookCover(
@@ -1170,18 +1445,46 @@ router.post(
       }
 
       return res.json({
-        message: "สร้างหนังสือแบบกรอกเนื้อหาสำเร็จ",
+        message: "à¸ªà¸£à¹‰à¸²à¸‡à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¹à¸šà¸šà¸à¸£à¸­à¸à¹€à¸™à¸·à¹‰à¸­à¸«à¸²à¸ªà¸³à¹€à¸£à¹‡à¸ˆ",
         book_id: result.insertId,
         total_pages: pages.length,
       });
     } catch (error) {
       console.error("POST /books/manual error:", error);
       return res.status(500).json({
-        message: "สร้างหนังสือแบบกรอกเนื้อหาไม่สำเร็จ",
+        message: "à¸ªà¸£à¹‰à¸²à¸‡à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¹à¸šà¸šà¸à¸£à¸­à¸à¹€à¸™à¸·à¹‰à¸­à¸«à¸²à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ",
       });
     }
   },
 );
+
+router.get("/tags", async (_req, res) => {
+  try {
+    await ensureBooksRouteSchema();
+    const [rows] = await db.query(
+      `SELECT
+         bt.id,
+         bt.name,
+         COUNT(btm.book_id) AS book_count
+       FROM book_tags bt
+       LEFT JOIN book_tag_maps btm ON btm.tag_id = bt.id
+       GROUP BY bt.id, bt.name
+       ORDER BY book_count DESC, bt.name ASC
+       LIMIT 200`,
+    );
+
+    return res.json(
+      rows.map((row) => ({
+        id: Number(row.id),
+        name: row.name,
+        book_count: Number(row.book_count || 0),
+      })),
+    );
+  } catch (error) {
+    console.error("GET /books/tags error:", error);
+    return res.status(500).json({ message: "à¹‚à¸«à¸¥à¸”à¹à¸—à¹‡à¸à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ" });
+  }
+});
 
 router.get("/:id", optionalVerifyToken, async (req, res) => {
   try {
@@ -1194,7 +1497,11 @@ router.get("/:id", optionalVerifyToken, async (req, res) => {
          b.id,
          ${getBookColumnExpression(columns, "slug", "NULL")} AS slug,
          b.title,
+         ${getBookColumnExpression(columns, "title_th", "b.title")} AS title_th,
+         ${getBookColumnExpression(columns, "title_en", "NULL")} AS title_en,
          ${getBookColumnExpression(columns, "subtitle", "NULL")} AS subtitle,
+         ${getBookColumnExpression(columns, "subtitle_th", getBookColumnExpression(columns, "subtitle", "NULL"))} AS subtitle_th,
+         ${getBookColumnExpression(columns, "subtitle_en", "NULL")} AS subtitle_en,
          b.author,
          ${getBookColumnExpression(columns, "author_name", "NULL")} AS author_name,
          ${getBookColumnExpression(columns, "author_id", "NULL")} AS author_id,
@@ -1286,7 +1593,7 @@ router.get("/:id", optionalVerifyToken, async (req, res) => {
     );
 
     if (rows.length === 0) {
-      return res.status(404).json({ message: "ไม่พบหนังสือ" });
+      return res.status(404).json({ message: "à¹„à¸¡à¹ˆà¸žà¸šà¸«à¸™à¸±à¸‡à¸ªà¸·à¸­" });
     }
 
     const book = rows[0];
@@ -1327,7 +1634,7 @@ router.get("/:id", optionalVerifyToken, async (req, res) => {
     );
   } catch (error) {
     console.error("GET /books/:id error:", error);
-    return res.status(500).json({ message: "โหลดข้อมูลหนังสือไม่สำเร็จ" });
+    return res.status(500).json({ message: "à¹‚à¸«à¸¥à¸”à¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ" });
   }
 });
 
@@ -1341,7 +1648,7 @@ router.post(
       return res.status(result.status).json(result.body);
     } catch (error) {
       console.error("POST /books error:", error);
-      return res.status(500).json({ message: "สร้างหนังสือไม่สำเร็จ" });
+      return res.status(500).json({ message: "à¸ªà¸£à¹‰à¸²à¸‡à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ" });
     }
   },
 );
@@ -1377,24 +1684,26 @@ router.get("/:id/toc", optionalVerifyToken, async (req, res) => {
     );
   } catch (error) {
     console.error("GET /books/:id/toc error:", error);
-    return res.status(500).json({ message: "โหลดสารบัญไม่สำเร็จ" });
+    return res.status(500).json({ message: "à¹‚à¸«à¸¥à¸”à¸ªà¸²à¸£à¸šà¸±à¸à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ" });
   }
 });
 
 router.get("/:id/content", optionalVerifyToken, async (req, res) => {
   try {
+    await ensureCatalogAnalyticsSchema();
+    const contentLocale = normalizeContentLocale(req.query.locale || req.query.lang);
     const [books] = await db.query("SELECT * FROM books WHERE id = ? LIMIT 1", [
       req.params.id,
     ]);
     const book = books[0];
 
-    if (!book) return res.status(404).json({ message: "ไม่พบหนังสือ" });
+    if (!book) return res.status(404).json({ message: "à¹„à¸¡à¹ˆà¸žà¸šà¸«à¸™à¸±à¸‡à¸ªà¸·à¸­" });
 
     const canRead = await canReadFullBook(req.user, book);
 
     if (!canRead) {
       const [previewPages] = await db.query(
-        `SELECT id, book_id, page_number, page_text AS content, 1 AS is_preview
+        `SELECT id, book_id, page_number, page_text, page_text_th, page_text_en, 1 AS is_preview
          FROM book_pages
          WHERE book_id = ?
          ORDER BY page_number ASC
@@ -1412,7 +1721,7 @@ router.get("/:id/content", optionalVerifyToken, async (req, res) => {
         return res.json(
           previewPages.map((page) => ({
             ...page,
-            content: sanitizeBookText(page.content),
+            content: pickLocalizedText(page, "page_text", contentLocale),
           })),
         );
       }
@@ -1420,8 +1729,8 @@ router.get("/:id/content", optionalVerifyToken, async (req, res) => {
       return res.json({
         preview: true,
         is_preview: true,
-        message: "ต้องซื้อหนังสือหรือสมัครแพ็กเกจก่อน",
-        content: sanitizeBookText(book.full_text || book.content || "").slice(
+        message: "à¸•à¹‰à¸­à¸‡à¸‹à¸·à¹‰à¸­à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¸«à¸£à¸·à¸­à¸ªà¸¡à¸±à¸„à¸£à¹à¸žà¹‡à¸à¹€à¸à¸ˆà¸à¹ˆà¸­à¸™",
+        content: pickLocalizedText(book, "full_text", contentLocale).slice(
           0,
           normalizePositiveInt(
             book.preview_char_limit,
@@ -1432,7 +1741,7 @@ router.get("/:id/content", optionalVerifyToken, async (req, res) => {
     }
 
     const [pages] = await db.query(
-      `SELECT id, book_id, page_number, page_text AS content
+      `SELECT id, book_id, page_number, page_text, page_text_th, page_text_en
        FROM book_pages
        WHERE book_id = ?
        ORDER BY page_number ASC`,
@@ -1442,12 +1751,12 @@ router.get("/:id/content", optionalVerifyToken, async (req, res) => {
     return res.json(
       pages.map((page) => ({
         ...page,
-        content: sanitizeBookText(page.content),
+        content: pickLocalizedText(page, "page_text", contentLocale),
       })),
     );
   } catch (error) {
     console.error("GET /books/:id/content error:", error);
-    return res.status(500).json({ message: "โหลดเนื้อหาหนังสือไม่สำเร็จ" });
+    return res.status(500).json({ message: "à¹‚à¸«à¸¥à¸”à¹€à¸™à¸·à¹‰à¸­à¸«à¸²à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ" });
   }
 });
 
@@ -1461,6 +1770,8 @@ router.get("/:id/episodes", optionalVerifyToken, async (req, res) => {
          book_id,
          episode_number,
          title,
+         title_th,
+         title_en,
          price,
          is_free,
          is_published,
@@ -1535,7 +1846,7 @@ router.get("/:id/episodes", optionalVerifyToken, async (req, res) => {
     return res.json(rows);
   } catch (error) {
     console.error("GET /books/:id/episodes error:", error);
-    return res.status(500).json({ message: "โหลดรายการตอนไม่สำเร็จ" });
+    return res.status(500).json({ message: "à¹‚à¸«à¸¥à¸”à¸£à¸²à¸¢à¸à¸²à¸£à¸•à¸­à¸™à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ" });
   }
 });
 
@@ -1549,7 +1860,11 @@ router.post(
 
       const {
         title,
+        title_th,
+        title_en,
         content = "",
+        content_th = "",
+        content_en = "",
         episode_number,
         price = 0,
         is_free = 0,
@@ -1557,8 +1872,13 @@ router.post(
         preview_char_limit,
       } = req.body;
 
-      if (!title) {
-        return res.status(400).json({ message: "กรุณากรอกชื่อตอน" });
+      const titleTh = String(title_th || title || "").trim();
+      const titleEn = String(title_en || "").trim();
+      const contentTh = sanitizeBookText(content_th || content);
+      const contentEn = sanitizeBookText(content_en || "");
+
+      if (!titleTh || !titleEn || !contentTh) {
+        return res.status(400).json({ message: "à¸à¸£à¸¸à¸“à¸²à¸à¸£à¸­à¸à¸Šà¸·à¹ˆà¸­à¸•à¸­à¸™à¹à¸¥à¸°à¹€à¸™à¸·à¹‰à¸­à¸«à¸²à¸ à¸²à¸©à¸²à¹„à¸—à¸¢" });
       }
 
       const [bookRows] = await db.query(
@@ -1567,10 +1887,10 @@ router.post(
       );
       const book = bookRows[0];
 
-      if (!book) return res.status(404).json({ message: "ไม่พบหนังสือ" });
+      if (!book) return res.status(404).json({ message: "à¹„à¸¡à¹ˆà¸žà¸šà¸«à¸™à¸±à¸‡à¸ªà¸·à¸­" });
       if (!canManageBook(req.user, book)) {
         return res.status(403).json({
-          message: "แก้ไขได้เฉพาะหนังสือของตัวเอง",
+          message: "à¹à¸à¹‰à¹„à¸‚à¹„à¸”à¹‰à¹€à¸‰à¸žà¸²à¸°à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¸‚à¸­à¸‡à¸•à¸±à¸§à¹€à¸­à¸‡",
         });
       }
 
@@ -1590,13 +1910,17 @@ router.post(
 
       const [result] = await db.query(
         `INSERT INTO book_episodes
-         (book_id, episode_number, title, content, price, is_free, access_type, preview_char_limit, is_published)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+         (book_id, episode_number, title, title_th, title_en, content, content_th, content_en, price, is_free, access_type, preview_char_limit, is_published)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
         [
           book.id,
           episodeNumber,
-          title,
-          content,
+          titleTh,
+          titleTh,
+          titleEn,
+          contentTh,
+          contentTh,
+          contentEn || null,
           Number(price || 0),
           safeIsFree,
           access_type || (safeIsFree ? "free" : "paid"),
@@ -1620,16 +1944,16 @@ router.post(
       await notifyWriterFollowersAboutEpisode({
         bookId: book.id,
         episodeId: result.insertId,
-        episodeTitle: title,
+        episodeTitle: titleTh,
       });
 
       return res.json({
-        message: "เพิ่มตอนสำเร็จ",
+        message: "à¹€à¸žà¸´à¹ˆà¸¡à¸•à¸­à¸™à¸ªà¸³à¹€à¸£à¹‡à¸ˆ",
         episode_id: result.insertId,
       });
     } catch (error) {
       console.error("POST /books/:id/episodes error:", error);
-      return res.status(500).json({ message: "เพิ่มตอนไม่สำเร็จ" });
+      return res.status(500).json({ message: "à¹€à¸žà¸´à¹ˆà¸¡à¸•à¸­à¸™à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ" });
     }
   },
 );
@@ -1642,10 +1966,10 @@ router.put("/:id", verifyToken, async (req, res) => {
     );
     const book = bookRows[0];
 
-    if (!book) return res.status(404).json({ message: "ไม่พบหนังสือ" });
+    if (!book) return res.status(404).json({ message: "à¹„à¸¡à¹ˆà¸žà¸šà¸«à¸™à¸±à¸‡à¸ªà¸·à¸­" });
     if (!canManageBook(req.user, book)) {
       return res.status(403).json({
-        message: "คุณไม่มีสิทธิ์แก้ไขหนังสือนี้",
+        message: "à¸„à¸¸à¸“à¹„à¸¡à¹ˆà¸¡à¸µà¸ªà¸´à¸—à¸˜à¸´à¹Œà¹à¸à¹‰à¹„à¸‚à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¸™à¸µà¹‰",
       });
     }
 
@@ -1659,6 +1983,8 @@ router.put("/:id", verifyToken, async (req, res) => {
       access_type,
       content_type,
       serial_status,
+      age_rating,
+      tags,
       is_published,
       requested_best_seller,
       requested_new_release,
@@ -1690,6 +2016,7 @@ router.put("/:id", verifyToken, async (req, res) => {
            content_type = ?,
            serial_status = ?,
            latest_episode_at = CASE WHEN ? = 'serial' THEN latest_episode_at ELSE NULL END,
+           age_rating = ?,
            is_published = ?,
            requested_best_seller = COALESCE(?, requested_best_seller),
            requested_new_release = COALESCE(?, requested_new_release),
@@ -1715,6 +2042,7 @@ router.put("/:id", verifyToken, async (req, res) => {
         normalizedContentType,
         normalizeSerialStatusForContentType(serial_status, normalizedContentType),
         normalizedContentType,
+        age_rating === undefined ? book.age_rating : normalizeAgeRating(age_rating),
         normalizeOptionalPublished(is_published, book.is_published),
         requested_best_seller === undefined ? null : normalizeFlag(requested_best_seller),
         requested_new_release === undefined ? null : normalizeFlag(requested_new_release),
@@ -1726,20 +2054,24 @@ router.put("/:id", verifyToken, async (req, res) => {
       ],
     );
 
-    return res.json({ message: "บันทึกหนังสือสำเร็จ" });
+    if (tags !== undefined) {
+      await upsertBookTags(book.id, tags);
+    }
+
+    return res.json({ message: "à¸šà¸±à¸™à¸—à¸¶à¸à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¸ªà¸³à¹€à¸£à¹‡à¸ˆ" });
   } catch (error) {
     console.error("PUT /books/:id error:", error);
-    return res.status(500).json({ message: "บันทึกหนังสือไม่สำเร็จ" });
+    return res.status(500).json({ message: "à¸šà¸±à¸™à¸—à¸¶à¸à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ" });
   }
 });
 
 router.delete("/:id", verifyToken, requireAdmin, async (req, res) => {
   try {
     await db.query("DELETE FROM books WHERE id = ?", [req.params.id]);
-    return res.json({ message: "ลบหนังสือสำเร็จ" });
+    return res.json({ message: "à¸¥à¸šà¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¸ªà¸³à¹€à¸£à¹‡à¸ˆ" });
   } catch (error) {
     console.error("DELETE /books/:id error:", error);
-    return res.status(500).json({ message: "ลบหนังสือไม่สำเร็จ" });
+    return res.status(500).json({ message: "à¸¥à¸šà¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ" });
   }
 });
 

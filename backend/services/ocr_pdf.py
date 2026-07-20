@@ -11,6 +11,7 @@ os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
 
 try:
     from pdf2image import convert_from_path
+    from PIL import Image, ImageFilter, ImageOps
     import pytesseract
 except Exception as e:
     print(json.dumps({"text": "", "pages": [], "error": str(e)}), end="")
@@ -27,6 +28,53 @@ def emit(payload):
 
 def normalize_text(text):
     return str(text or "").replace("\r\n", "\n").replace("\x00", "").strip()
+
+
+def score_text(text):
+    clean = normalize_text(text)
+    if not clean:
+        return 0
+
+    thai = sum(1 for ch in clean if "\u0e00" <= ch <= "\u0e7f")
+    latin = sum(1 for ch in clean if ch.isascii() and ch.isalpha())
+    digits = sum(1 for ch in clean if ch.isdigit())
+    replacement = clean.count("�") + clean.count("?")
+    useful = thai + latin + digits
+    return useful * 3 + len(clean) - replacement * 12
+
+
+def preprocessing_enabled():
+    return os.environ.get("OCR_PREPROCESS", "true").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def image_variants(image):
+    if not preprocessing_enabled():
+        return [image]
+
+    base = image.convert("RGB")
+    gray = ImageOps.grayscale(base)
+    variants = [base, gray]
+
+    enhanced = ImageOps.autocontrast(gray)
+    variants.append(enhanced)
+    variants.append(enhanced.filter(ImageFilter.SHARPEN))
+
+    threshold = int(os.environ.get("OCR_THRESHOLD") or "180")
+    binary = enhanced.point(lambda pixel: 255 if pixel > threshold else 0)
+    variants.append(binary)
+
+    if max(base.size) < 1800:
+        scale = 2
+        variants.append(enhanced.resize((base.width * scale, base.height * scale)))
+
+    return variants
+
+
+def best_result(results):
+    candidates = [normalize_text(result) for result in results if normalize_text(result)]
+    if not candidates:
+        return ""
+    return sorted(candidates, key=score_text, reverse=True)[0]
 
 
 def is_pdf(file_path):
@@ -128,23 +176,51 @@ def collect_paddle_items(value):
 def run_paddle_image(image_path):
     ocr = get_paddle_ocr()
 
-    with contextlib.redirect_stdout(sys.stderr):
+    def read_path(path):
+        with contextlib.redirect_stdout(sys.stderr):
+            try:
+                result = ocr.ocr(path, cls=True)
+            except TypeError:
+                result = ocr.ocr(path)
+
+        min_score = float(os.environ.get("PADDLEOCR_MIN_SCORE", "0.35") or 0.35)
+        lines = []
+        seen = set()
+
+        for text, score in collect_paddle_items(result):
+            clean = normalize_text(text)
+            if clean and score >= min_score and clean not in seen:
+                seen.add(clean)
+                lines.append(clean)
+
+        return "\n".join(lines).strip()
+
+    if not preprocessing_enabled():
+        return read_path(image_path)
+
+    with Image.open(image_path) as image:
+        outputs = []
+        temp_paths = []
         try:
-            result = ocr.ocr(image_path, cls=True)
-        except TypeError:
-            result = ocr.ocr(image_path)
+            for index, variant in enumerate(image_variants(image)):
+                temp_file = tempfile.NamedTemporaryFile(
+                    prefix=f"paddle-variant-{os.getpid()}-{index}-",
+                    suffix=".png",
+                    delete=False,
+                )
+                variant_path = temp_file.name
+                temp_file.close()
+                variant.save(variant_path)
+                temp_paths.append(variant_path)
+                outputs.append(read_path(variant_path))
+        finally:
+            for path in temp_paths:
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
 
-    min_score = float(os.environ.get("PADDLEOCR_MIN_SCORE", "0.35") or 0.35)
-    lines = []
-    seen = set()
-
-    for text, score in collect_paddle_items(result):
-        clean = normalize_text(text)
-        if clean and score >= min_score and clean not in seen:
-            seen.add(clean)
-            lines.append(clean)
-
-    return "\n".join(lines).strip()
+    return best_result(outputs)
 
 
 def run_tesseract_image(image):
@@ -155,7 +231,11 @@ def run_tesseract_image(image):
     ocr_lang = os.environ.get("OCR_LANG", "tha+eng")
     psm = os.environ.get("OCR_PSM")
     config = f"--psm {psm}" if psm else ""
-    return normalize_text(pytesseract.image_to_string(image, lang=ocr_lang, config=config))
+    results = [
+        pytesseract.image_to_string(variant, lang=ocr_lang, config=config)
+        for variant in image_variants(image)
+    ]
+    return best_result(results)
 
 
 def render_pdf_pages(pdf_path):

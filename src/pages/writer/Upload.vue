@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { api } from "../../utils/api";
 
 type UploadMode = "ebook" | "serial" | "studio";
@@ -69,7 +69,8 @@ function formatDuration(ms?: number) {
 const mode = ref<UploadMode>("ebook");
 const activeStudioStep = ref(0);
 
-const title = ref("");
+const titleTh = ref("");
+const titleEn = ref("");
 const author = ref("");
 const description = ref("");
 const coverImage = ref("");
@@ -108,12 +109,15 @@ const requestedPlacements = ref({
 const previewPageLimit = ref(1);
 const previewCharLimit = ref(1500);
 const bookFile = ref<File | null>(null);
+const bookFileEn = ref<File | null>(null);
 const coverFile = ref<File | null>(null);
 
 const serialBookId = ref<number | null>(null);
 const episodeNumber = ref(1);
-const episodeTitle = ref("");
-const episodeContent = ref("");
+const episodeTitleTh = ref("");
+const episodeTitleEn = ref("");
+const episodeContentTh = ref("");
+const episodeContentEn = ref("");
 const episodePrice = ref(0);
 const episodeIsFree = ref(true);
 const episodePreviewLimit = ref(1500);
@@ -126,6 +130,7 @@ const studioPreviewMode = ref<"percentage" | "chapter_count" | "sentence_count">
 );
 const studioPreviewValue = ref(10);
 const studioTags = ref("");
+const existingTags = ref<string[]>([]);
 const studioLanguage = ref("th");
 const studioAgeRating = ref<AgeRating>("general");
 const studioUnits = ref<StudioUnit[]>([]);
@@ -191,7 +196,7 @@ const publishReadiness = computed(() => [
   },
   {
     label: "มีชื่อเรื่องและภาษาสำหรับระบบอ่านออกเสียง",
-    ok: Boolean(title.value.trim() && studioLanguage.value.trim()),
+    ok: Boolean(titleTh.value.trim() && titleEn.value.trim() && studioLanguage.value.trim()),
   },
   {
     label: "มีบทหรือตอนอย่างน้อย 1 รายการ",
@@ -216,13 +221,19 @@ const isUploadingEbook = computed(() => {
 });
 
 const canUploadEbook = computed(() => {
-  return Boolean(title.value.trim() && author.value.trim() && bookFile.value && !loading.value);
+  return Boolean(titleTh.value.trim() && titleEn.value.trim() && author.value.trim() && bookFile.value && !loading.value);
 });
 
 const selectedBookFileLabel = computed(() => {
   if (!bookFile.value) return "";
   const sizeMb = bookFile.value.size / (1024 * 1024);
   return `${bookFile.value.name} · ${sizeMb.toFixed(sizeMb >= 10 ? 0 : 1)} MB`;
+});
+
+const selectedEnglishBookFileLabel = computed(() => {
+  if (!bookFileEn.value) return "";
+  const sizeMb = bookFileEn.value.size / (1024 * 1024);
+  return `${bookFileEn.value.name} MB`;
 });
 
 const selectedCoverFileLabel = computed(() => {
@@ -333,16 +344,39 @@ const onFileChange = (event: Event) => {
   resetUploadProgress();
 };
 
+const onEnglishFileChange = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  bookFileEn.value = target.files?.[0] || null;
+  resetUploadProgress();
+};
+
 const onCoverFileChange = (event: Event) => {
   const target = event.target as HTMLInputElement;
   coverFile.value = target.files?.[0] || null;
+};
+
+const parseTags = () =>
+  studioTags.value
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+
+const loadExistingTags = async () => {
+  try {
+    const { data } = await api.get("/books/tags");
+    existingTags.value = (Array.isArray(data) ? data : [])
+      .map((tag: any) => String(tag?.name || tag || "").trim())
+      .filter(Boolean);
+  } catch {
+    existingTags.value = [];
+  }
 };
 
 const uploadEbook = async () => {
   resetStatus();
   resetUploadProgress();
 
-  if (!title.value || !author.value || !bookFile.value) {
+  if (!titleTh.value.trim() || !titleEn.value.trim() || !author.value || !bookFile.value) {
     error.value = "กรุณากรอกชื่อหนังสือ ผู้เขียน และเลือกไฟล์หนังสือ";
     return;
   }
@@ -352,7 +386,9 @@ const uploadEbook = async () => {
 
   try {
     const formData = new FormData();
-    formData.append("title", title.value);
+    formData.append("title", titleTh.value.trim());
+    formData.append("title_th", titleTh.value.trim());
+    formData.append("title_en", titleEn.value.trim());
     formData.append("author", author.value);
     formData.append("description", description.value);
     if (coverImage.value.trim()) {
@@ -361,6 +397,7 @@ const uploadEbook = async () => {
     formData.append("price", String(price.value || 0));
     formData.append("access_type", accessType.value);
     formData.append("age_rating", studioAgeRating.value);
+    parseTags().forEach((tag) => formData.append("tags[]", tag));
     formData.append("preview_page_limit", String(previewPageLimit.value || 1));
     formData.append(
       "preview_char_limit",
@@ -370,6 +407,9 @@ const uploadEbook = async () => {
       formData.append(key, String(value));
     });
     formData.append("book_file", bookFile.value);
+    if (bookFileEn.value) {
+      formData.append("book_file_en", bookFileEn.value);
+    }
     if (coverFile.value) {
       formData.append("cover_file", coverFile.value);
     }
@@ -405,6 +445,7 @@ const uploadEbook = async () => {
     const totalDuration = formatDuration(uploadTiming?.total_ms);
     if (totalDuration) message.value += ` (${totalDuration})`;
     bookFile.value = null;
+    bookFileEn.value = null;
     coverFile.value = null;
   } catch (err) {
     setError(err, "อัปโหลดเล่มเต็มไม่สำเร็จ");
@@ -417,7 +458,7 @@ const uploadEbook = async () => {
 const createSerialBook = async () => {
   resetStatus();
 
-  if (!title.value || !author.value) {
+  if (!titleTh.value.trim() || !titleEn.value.trim() || !author.value) {
     error.value = "กรุณากรอกชื่อเรื่องและผู้เขียนก่อนสร้างเรื่องรายตอน";
     return;
   }
@@ -426,13 +467,16 @@ const createSerialBook = async () => {
 
   try {
     const res = await api.post("/books/serial", {
-      title: title.value,
+      title: titleTh.value.trim(),
+      title_th: titleTh.value.trim(),
+      title_en: titleEn.value.trim(),
       author: author.value,
       description: description.value,
       cover_image: coverImage.value,
       price: price.value || 0,
       access_type: accessType.value,
       age_rating: studioAgeRating.value,
+      tags: parseTags(),
       ...requestedPlacements.value,
     });
 
@@ -453,7 +497,7 @@ const addEpisode = async () => {
     return;
   }
 
-  if (!episodeTitle.value || !episodeContent.value) {
+  if (!episodeTitleTh.value.trim() || !episodeTitleEn.value.trim() || !episodeContentTh.value.trim()) {
     error.value = "กรุณากรอกชื่อตอนและเนื้อหาตอน";
     return;
   }
@@ -463,8 +507,12 @@ const addEpisode = async () => {
   try {
     await api.post(`/books/${serialBookId.value}/episodes`, {
       episode_number: episodeNumber.value,
-      title: episodeTitle.value,
-      content: episodeContent.value,
+      title: episodeTitleTh.value.trim(),
+      title_th: episodeTitleTh.value.trim(),
+      title_en: episodeTitleEn.value.trim(),
+      content: episodeContentTh.value,
+      content_th: episodeContentTh.value,
+      content_en: episodeContentEn.value,
       price: episodeIsFree.value ? 0 : episodePrice.value || 0,
       is_free: episodeIsFree.value,
       preview_char_limit: episodePreviewLimit.value || 1500,
@@ -472,8 +520,10 @@ const addEpisode = async () => {
 
     message.value = "เพิ่มตอนสำเร็จ";
     episodeNumber.value += 1;
-    episodeTitle.value = "";
-    episodeContent.value = "";
+    episodeTitleTh.value = "";
+    episodeTitleEn.value = "";
+    episodeContentTh.value = "";
+    episodeContentEn.value = "";
     episodePrice.value = 0;
     episodeIsFree.value = true;
   } catch (err) {
@@ -486,7 +536,7 @@ const addEpisode = async () => {
 const createStudioBook = async () => {
   resetStatus();
 
-  if (!title.value || !author.value) {
+  if (!titleTh.value.trim() || !titleEn.value.trim() || !author.value) {
     error.value = "กรุณากรอกชื่อหนังสือและผู้เขียนก่อนสร้างร่าง";
     return;
   }
@@ -495,7 +545,9 @@ const createStudioBook = async () => {
 
   try {
     const res = await api.post("/writer/books", {
-      title: title.value,
+      title: titleTh.value.trim(),
+      title_th: titleTh.value.trim(),
+      title_en: titleEn.value.trim(),
       subtitle: null,
       author_name: author.value,
       description: description.value,
@@ -508,10 +560,7 @@ const createStudioBook = async () => {
       preview_mode: studioPreviewMode.value,
       preview_value: studioPreviewValue.value || 10,
       age_rating: studioAgeRating.value,
-      tags: studioTags.value
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter(Boolean),
+      tags: parseTags(),
       ...requestedPlacements.value,
     });
 
@@ -707,6 +756,8 @@ const publishStudioBook = async () => {
     loading.value = false;
   }
 };
+
+onMounted(loadExistingTags);
 </script>
 
 <template>
@@ -731,7 +782,11 @@ const publishStudioBook = async () => {
       <div class="form-grid">
         <label>
           <span>ชื่อหนังสือ</span>
-          <input v-model="title" type="text" />
+          <input v-model="titleTh" type="text" required />
+        </label>
+        <label>
+          <span>Book title (English)</span>
+          <input v-model="titleEn" type="text" required />
         </label>
         <label>
           <span>ผู้เขียน</span>
@@ -756,6 +811,18 @@ const publishStudioBook = async () => {
         <label class="full">
           <span>ลิงก์รูปปก</span>
           <input v-model="coverImage" type="url" placeholder="https://..." />
+        </label>
+        <label class="full">
+          <span>แท็ก</span>
+          <input
+            v-model="studioTags"
+            type="text"
+            list="writer-upload-tag-options"
+            placeholder="โรแมนติก, แฟนเก่า, NC"
+          />
+          <datalist id="writer-upload-tag-options">
+            <option v-for="tag in existingTags" :key="tag" :value="tag" />
+          </datalist>
         </label>
       </div>
 
@@ -855,6 +922,7 @@ const publishStudioBook = async () => {
                 <input
                   v-model="studioTags"
                   type="text"
+                  list="writer-upload-tag-options"
                   placeholder="นิยาย, แฟนตาซี, อบอุ่น"
                 />
               </label>
@@ -1036,7 +1104,7 @@ const publishStudioBook = async () => {
             <div class="publish-summary">
               <article>
                 <span>หนังสือ</span>
-                <strong>{{ title || "-" }}</strong>
+                <strong>{{ titleTh || "-" }}<template v-if="titleEn"> / {{ titleEn }}</template></strong>
               </article>
               <article>
                 <span>จำนวนบท/ตอน</span>
@@ -1168,7 +1236,11 @@ const publishStudioBook = async () => {
             </label>
             <label>
               <span>ชื่อตอน</span>
-              <input v-model="episodeTitle" type="text" />
+              <input v-model="episodeTitleTh" type="text" />
+            </label>
+            <label>
+              <span>Episode title (English)</span>
+              <input v-model="episodeTitleEn" type="text" />
             </label>
             <label>
               <span>อ่านฟรี</span>
@@ -1365,7 +1437,7 @@ textarea {
 .file-meta {
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1472,7 +1544,7 @@ textarea {
 .wizard-step small {
   margin-top: 2px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.35;
 }
 
@@ -1511,7 +1583,7 @@ textarea {
 
 .publish-summary span {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .publish-summary strong {
@@ -1537,7 +1609,7 @@ textarea {
 
 .publish-check strong {
   color: var(--danger, #b42318);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .publish-check.done strong {
@@ -1571,7 +1643,7 @@ textarea {
 
 .unit-item span {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .preview-stats {
@@ -1592,12 +1664,12 @@ textarea {
 
 .preview-stats strong {
   color: var(--text-strong);
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .preview-stats span {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .preview-block {
@@ -1631,7 +1703,7 @@ textarea {
   border-radius: 999px;
   background: rgba(20, 184, 166, 0.12);
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: 15px;
   padding: 6px 10px;
 }
 
@@ -1651,13 +1723,13 @@ textarea {
   justify-content: space-between;
   gap: 12px;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
 }
 
 .upload-progress__meta strong {
   color: var(--text-strong);
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .upload-progress__track {
@@ -1694,7 +1766,7 @@ textarea {
 
 .ocr-quality span {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.5;
 }
@@ -1708,7 +1780,7 @@ textarea {
 
 .ocr-review-list li {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.45;
 }
@@ -1759,7 +1831,7 @@ textarea {
     width: 100%;
     min-height: 38px;
     border-radius: 8px;
-    font-size: 12px;
+    font-size: 14px;
     padding: 7px 8px;
   }
 
@@ -1783,7 +1855,7 @@ textarea {
 
   label,
   .placement-item {
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.25;
   }
 
@@ -1793,7 +1865,7 @@ textarea {
     min-height: 36px;
     border-radius: 8px;
     padding: 7px 8px;
-    font-size: 12px;
+    font-size: 14px;
   }
 
   textarea {
@@ -1802,14 +1874,14 @@ textarea {
 
   .panel-title h2,
   .sub-panel h3 {
-    font-size: 17px;
+    font-size: 19px;
     line-height: 1.2;
   }
 
   .panel-title p,
   .muted,
   .helper-text {
-    font-size: 10.5px;
+    font-size: 12.5px;
     line-height: 1.35;
   }
 

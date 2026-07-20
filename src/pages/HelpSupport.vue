@@ -188,7 +188,7 @@ async function submitSupportRequest() {
 .support-head h1 {
   margin-top: 8px;
   color: var(--text-strong);
-  font-size: 34px;
+  font-size: 36px;
   line-height: 1.2;
 }
 
@@ -239,7 +239,7 @@ async function submitSupportRequest() {
 .faq-panel h3 {
   margin: 0 0 6px;
   color: var(--text-strong);
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .faq-panel p {

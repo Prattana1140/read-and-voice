@@ -12,6 +12,7 @@ const {
 const { ensureBookCover, ensureBooksHaveCovers, generateBookCoverPath } = require("../services/bookCover");
 const { notifyWriterFollowersAboutEpisode } = require("../services/notifications");
 const { isSystemFeatureEnabled } = require("../services/systemSettings");
+const { ensureCatalogAnalyticsSchema } = require("../services/catalogSchema");
 
 const router = express.Router();
 const coverUploadDir = path.join(__dirname, "../uploads/book-covers");
@@ -312,7 +313,11 @@ router.post("/", verifyToken, uploadCoverFiles, async (req, res) => {
 
     const {
       title,
+      title_th,
+      title_en,
       subtitle = null,
+      subtitle_th = null,
+      subtitle_en = null,
       author_name,
       description = "",
       category_id = null,
@@ -336,6 +341,11 @@ router.post("/", verifyToken, uploadCoverFiles, async (req, res) => {
       requested_recommended = false,
     } = req.body;
 
+    await ensureCatalogAnalyticsSchema();
+    const titleTh = String(title_th || title || "").trim();
+    const titleEn = String(title_en || "").trim();
+    const subtitleTh = String(subtitle_th || subtitle || "").trim();
+    const subtitleEn = String(subtitle_en || "").trim();
     const safeAuthorName = String(author_name || req.user.name || "").trim();
     const safeContentType = normalizeContentType(content_type);
     const categoryError = await validateCategoryForContentType(category_id, safeContentType);
@@ -348,12 +358,12 @@ router.post("/", verifyToken, uploadCoverFiles, async (req, res) => {
       getCoverImagePath(uploadedCoverFile, cover_image || cover_image_url) ||
       generateBookCoverPath({
         title,
-        subtitle,
+        subtitle: subtitleTh,
         author: safeAuthorName,
-        seed: `${title || ""}:${safeAuthorName}:${Date.now()}`,
+        seed: `${titleTh || ""}:${safeAuthorName}:${Date.now()}`,
       });
 
-    if (!title || !safeAuthorName) {
+    if (!titleTh || !titleEn || !safeAuthorName) {
       return res.status(400).json({ message: "กรุณากรอกชื่อหนังสือและผู้เขียน" });
     }
 
@@ -361,16 +371,20 @@ router.post("/", verifyToken, uploadCoverFiles, async (req, res) => {
 
     const [result] = await connection.query(
       `INSERT INTO books
-       (slug, title, subtitle, author_name, author, description, cover_image_url, cover_image,
+       (slug, title, title_th, title_en, subtitle, subtitle_th, subtitle_en, author_name, author, description, cover_image_url, cover_image,
         category_id, language_code, content_type, serial_status, access_type, lifecycle_status, publishing_status,
         price, coin_price, preview_mode, preview_value, age_rating, created_by,
         requested_best_seller, requested_new_release, requested_promotion, requested_free_book,
         requested_hall_of_fame, requested_recommended, approval_status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'ready', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'ready', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())`,
       [
-        slugify(title, `book-${Date.now()}`),
-        title,
-        subtitle,
+        slugify(titleTh, `book-${Date.now()}`),
+        titleTh,
+        titleTh,
+        titleEn,
+        subtitleTh || null,
+        subtitleTh || null,
+        subtitleEn || null,
         safeAuthorName,
         safeAuthorName,
         description,
@@ -402,8 +416,8 @@ router.post("/", verifyToken, uploadCoverFiles, async (req, res) => {
     await ensureBookCover(
       {
         id: result.insertId,
-        title,
-        subtitle,
+        title: titleTh,
+        subtitle: subtitleTh,
         author: safeAuthorName,
         author_name: safeAuthorName,
         cover_image: initialCoverImage,
@@ -415,7 +429,7 @@ router.post("/", verifyToken, uploadCoverFiles, async (req, res) => {
 
     return res.status(201).json({
       id: result.insertId,
-      slug: slugify(title, `book-${result.insertId}`),
+      slug: slugify(titleTh, `book-${result.insertId}`),
       lifecycle_status: "draft",
     });
   } catch (error) {
@@ -437,6 +451,11 @@ router.get("/mine", verifyToken, async (req, res) => {
       `SELECT
          b.id,
          b.title,
+         b.title_th,
+         b.title_en,
+         b.subtitle,
+         b.subtitle_th,
+         b.subtitle_en,
          b.author,
          b.description,
          COALESCE(b.cover_image_url, b.cover_image) AS cover_image,
@@ -515,6 +534,8 @@ router.get("/stats", verifyToken, async (req, res) => {
       `SELECT
          b.id,
          b.title,
+         b.title_th,
+         b.title_en,
          b.content_type,
          b.lifecycle_status,
          b.approval_status,
@@ -576,6 +597,11 @@ router.put("/:id", verifyToken, uploadCoverFiles, async (req, res) => {
 
     const {
       title,
+      title_th,
+      title_en,
+      subtitle,
+      subtitle_th,
+      subtitle_en,
       author,
       author_name,
       description,
@@ -584,6 +610,8 @@ router.put("/:id", verifyToken, uploadCoverFiles, async (req, res) => {
       cover_image_url,
       access_type,
       price,
+      age_rating,
+      tags,
       requested_best_seller,
       requested_new_release,
       requested_promotion,
@@ -591,8 +619,13 @@ router.put("/:id", verifyToken, uploadCoverFiles, async (req, res) => {
       requested_hall_of_fame,
       requested_recommended,
     } = req.body;
+    await ensureCatalogAnalyticsSchema();
+    const titleTh = String(title_th || title || "").trim();
+    const titleEn = String(title_en || "").trim();
+    const subtitleTh = String(subtitle_th || subtitle || "").trim();
+    const subtitleEn = String(subtitle_en || "").trim();
     const [bookRows] = await db.query(
-      "SELECT id, content_type, category_id FROM books WHERE id = ? LIMIT 1",
+      "SELECT id, content_type, category_id, age_rating FROM books WHERE id = ? LIMIT 1",
       [bookId],
     );
     const existingBook = bookRows[0] || {};
@@ -614,6 +647,11 @@ router.put("/:id", verifyToken, uploadCoverFiles, async (req, res) => {
     await db.query(
       `UPDATE books
        SET title = ?,
+           title_th = ?,
+           title_en = ?,
+           subtitle = ?,
+           subtitle_th = ?,
+           subtitle_en = ?,
            author = COALESCE(?, author),
            author_name = COALESCE(?, author_name),
            description = ?,
@@ -622,6 +660,7 @@ router.put("/:id", verifyToken, uploadCoverFiles, async (req, res) => {
            cover_image_url = COALESCE(?, cover_image_url),
            access_type = ?,
            price = ?,
+           age_rating = ?,
            requested_best_seller = COALESCE(?, requested_best_seller),
            requested_new_release = COALESCE(?, requested_new_release),
            requested_promotion = COALESCE(?, requested_promotion),
@@ -631,7 +670,12 @@ router.put("/:id", verifyToken, uploadCoverFiles, async (req, res) => {
            updated_at = NOW()
        WHERE id = ?`,
       [
-        title,
+        titleTh,
+        titleTh,
+        titleEn,
+        subtitleTh || null,
+        subtitleTh || null,
+        subtitleEn || null,
         author || null,
         author_name || author || null,
         description || null,
@@ -640,6 +684,7 @@ router.put("/:id", verifyToken, uploadCoverFiles, async (req, res) => {
         nextCoverImage,
         access_type || "free",
         Number(price || 0),
+        age_rating === undefined ? existingBook.age_rating : normalizeAgeRating(age_rating),
         requested_best_seller === undefined ? null : normalizeFlag(requested_best_seller),
         requested_new_release === undefined ? null : normalizeFlag(requested_new_release),
         requested_promotion === undefined ? null : normalizeFlag(requested_promotion),
@@ -651,7 +696,7 @@ router.put("/:id", verifyToken, uploadCoverFiles, async (req, res) => {
     );
 
     const [updatedRows] = await db.query(
-      `SELECT id, title, subtitle, author, author_name, description, cover_image, cover_image_url
+      `SELECT id, title, title_th, title_en, subtitle, subtitle_th, subtitle_en, author, author_name, description, cover_image, cover_image_url
        FROM books
        WHERE id = ?
        LIMIT 1`,
@@ -660,6 +705,10 @@ router.put("/:id", verifyToken, uploadCoverFiles, async (req, res) => {
 
     if (updatedRows.length > 0) {
       await ensureBookCover(updatedRows[0], db);
+    }
+
+    if (tags !== undefined) {
+      await upsertBookTags(bookId, tags);
     }
 
     return res.json({ message: "แก้ไขหนังสือสำเร็จ" });
@@ -706,7 +755,7 @@ router.get("/:bookId/episodes", verifyToken, async (req, res) => {
     }
 
     const [rows] = await db.query(
-      `SELECT id, book_id, title, episode_number, access_type, price, created_at, updated_at
+      `SELECT id, book_id, title, title_th, title_en, episode_number, access_type, price, created_at, updated_at
        FROM book_episodes
        WHERE book_id = ?
        ORDER BY episode_number ASC, id ASC`,
@@ -1082,27 +1131,39 @@ router.post("/:bookId/episodes", verifyToken, async (req, res) => {
 
     const {
       title,
+      title_th,
+      title_en,
       episode_number,
       content_text,
       content,
+      content_th,
+      content_en,
       access_type,
       price,
     } = req.body;
-    const episodeContent = content_text || content || "";
+    const episodeContent = String(content_th || content_text || content || "").trim();
+    const episodeContentEn = String(content_en || "").trim();
+    await ensureCatalogAnalyticsSchema();
+    const titleTh = String(title_th || title || "").trim();
+    const titleEn = String(title_en || "").trim();
 
-    if (!title || !episodeContent) {
+    if (!titleTh || !titleEn || !episodeContent) {
       return res.status(400).json({ message: "กรอกข้อมูลตอนให้ครบ" });
     }
 
     const [result] = await db.query(
       `INSERT INTO book_episodes
-       (book_id, title, episode_number, content, access_type, price, is_free, is_published)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+       (book_id, title, title_th, title_en, episode_number, content, content_th, content_en, access_type, price, is_free, is_published)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       [
         req.params.bookId,
-        title,
+        titleTh,
+        titleTh,
+        titleEn,
         Number(episode_number || 1),
         episodeContent,
+        episodeContent,
+        episodeContentEn || null,
         access_type || "free",
         Number(price || 0),
         access_type === "free" || Number(price || 0) <= 0 ? 1 : 0,
@@ -1112,7 +1173,7 @@ router.post("/:bookId/episodes", verifyToken, async (req, res) => {
     await notifyWriterFollowersAboutEpisode({
       bookId: Number(req.params.bookId),
       episodeId: result.insertId,
-      episodeTitle: title,
+      episodeTitle: titleTh,
     });
 
     return res.json({
@@ -1147,18 +1208,26 @@ router.put("/episodes/:episodeId", verifyToken, async (req, res) => {
       });
     }
 
-    const { title, episode_number, content_text, content, access_type, price } =
+    const { title, title_th, title_en, episode_number, content_text, content, content_th, content_en, access_type, price } =
       req.body;
-    const episodeContent = content_text || content || "";
+    const episodeContent = String(content_th || content_text || content || "").trim();
+    const episodeContentEn = String(content_en || "").trim();
+    await ensureCatalogAnalyticsSchema();
+    const titleTh = String(title_th || title || "").trim();
+    const titleEn = String(title_en || "").trim();
 
     await db.query(
       `UPDATE book_episodes
-       SET title = ?, episode_number = ?, content = ?, access_type = ?, price = ?
+       SET title = ?, title_th = ?, title_en = ?, episode_number = ?, content = ?, content_th = ?, content_en = ?, access_type = ?, price = ?
        WHERE id = ?`,
       [
-        title,
+        titleTh,
+        titleTh,
+        titleEn,
         Number(episode_number || 1),
         episodeContent,
+        episodeContent,
+        episodeContentEn || null,
         access_type || "free",
         Number(price || 0),
         req.params.episodeId,

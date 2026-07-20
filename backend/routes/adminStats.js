@@ -20,12 +20,12 @@ router.get("/summary", verifyToken, requireAdmin, async (_req, res) => {
     );
 
     const [popularBooks] = await db.query(
-      `SELECT b.id, b.title, COUNT(oi.id) AS total_sales
+      `SELECT b.id, b.title, b.title_th, b.title_en, COUNT(oi.id) AS total_sales
        FROM order_items oi
        JOIN books b ON b.id = oi.book_id
        JOIN orders o ON o.id = oi.order_id
        WHERE o.payment_status = 'paid'
-       GROUP BY b.id, b.title
+       GROUP BY b.id, b.title, b.title_th, b.title_en
        ORDER BY total_sales DESC
        LIMIT 5`
     );

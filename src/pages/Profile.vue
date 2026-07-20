@@ -46,27 +46,22 @@ type ProfileResponse = {
   bio?: string;
 };
 
-type BuffetItem = {
-  id: number;
-  title: string | null;
-  status: string | null;
-  payment_status: string | null;
-  end_at: string | null;
-};
-
 const router = useRouter();
-const { t } = useI18n();
+const { formatLocaleDate, t } = useI18n();
 const loading = ref(false);
 const saving = ref(false);
+const verifyingAge = ref(false);
 const message = ref("");
 const errorMessage = ref("");
+const ageVerificationMessage = ref("");
+const ageVerificationError = ref("");
 const isEditOpen = ref(false);
 const selectedAvatarFile = ref<File | null>(null);
 const selectedAvatarPreview = ref("");
 const removeAvatar = ref(false);
 const profileMeta = ref<ProfileResponse | null>(null);
 const isMembershipActive = ref(false);
-const membershipBadgeLabel = ref("สมาชิกพิเศษ");
+const membershipBadgeLabel = ref(t("profile.membershipFallback"));
 
 const form = reactive<ProfileForm>({
   username: "",
@@ -86,24 +81,17 @@ const form = reactive<ProfileForm>({
   newPassword: "",
   confirmPassword: "",
 });
+const declaredAge = ref<number | null>(null);
 
-const accountCards = [
-  { title: "ชั้นหนังสือของฉัน", text: "หนังสือที่ซื้อแล้วหรือมีสิทธิ์อ่าน", to: "/my-library" },
-  { title: "ตะกร้า", text: "รายการหนังสือและตอนที่รอชำระด้วยคอยน์", to: "/cart" },
-  { title: "ประวัติคำสั่งซื้อ", text: "ดูรายการซื้อและสถานะการชำระเงินที่ผ่านมา", to: "/orders/history" },
-  { title: "กระเป๋าคอยน์", text: "เติมคอยน์และดูประวัติธุรกรรม", to: "/coin-wallet" },
-  { title: "สมาชิกพิเศษ", text: "สมัครหรือดูสถานะแพ็กเกจรายเดือน", to: "/subscription-plans" },
-  { title: "การแจ้งเตือน", text: "ดูตอนใหม่จากนักเขียนที่คุณติดตามและอัปเดตสำคัญ", to: "/account/notifications" },
-  { title: "รายการที่ติดตาม", text: "ดูหนังสือ ผู้เขียน หรือหมวดที่ติดตาม", to: "/account/following" },
-  { title: "โค้ดของขวัญ", text: "ตรวจสอบโค้ดของขวัญที่ได้รับ", to: "/account/gift-codes" },
-  { title: "Buffet ของฉัน", text: "ดูประวัติและสถานะ subscription", to: "/account/buffet" },
-  { title: "อุปกรณ์ของฉัน", text: "ดูอุปกรณ์ที่ผูกกับบัญชี", to: "/account/devices" },
-  { title: "สิทธิพิเศษ", text: "ดู benefits และสิทธิประโยชน์", to: "/account/benefits" },
-  { title: "รีวิวของฉัน", text: "ดูรีวิวและคะแนนที่เคยให้", to: "/account/reviews" },
-];
+const accountCards = computed(() => [
+  { title: t("account.bookshelf"), text: t("profile.cardLibraryText"), to: "/my-library" },
+  { title: t("account.cart"), text: t("profile.cardCartText"), to: "/cart" },
+  { title: t("account.orders"), text: t("profile.cardOrderHistoryText"), to: "/orders/history" },
+  { title: t("account.coinWallet"), text: t("profile.cardCoinWalletText"), to: "/coin-wallet" },
+]);
 
-const primaryAccountCards = accountCards.slice(0, 4);
-const secondaryAccountCards = accountCards.slice(4);
+const primaryAccountCards = computed(() => accountCards.value.slice(0, 4));
+const secondaryAccountCards = computed(() => accountCards.value.slice(4));
 
 const currentUser = computed(() => getUser());
 const displayName = computed(() => form.name || currentUser.value?.name || "Read and Voice User");
@@ -119,16 +107,10 @@ const roleLabel = computed(() => {
 });
 const memberSince = computed(() => {
   const raw = profileMeta.value?.created_at;
-  if (!raw) return "ยังไม่มีข้อมูล";
+  if (!raw) return t("profile.noMemberSince");
 
   const date = new Date(raw);
-  return Number.isNaN(date.getTime())
-    ? raw
-    : new Intl.DateTimeFormat("th-TH", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      }).format(date);
+  return Number.isNaN(date.getTime()) ? raw : formatLocaleDate(date);
 });
 const profilePreviewUrl = computed(() => {
   if (removeAvatar.value) return "";
@@ -152,12 +134,16 @@ const calculatedAge = computed(() => {
 
   return age;
 });
+const ageVerified = computed(() => Boolean(profileMeta.value?.age_verified));
+const ageVerificationStatusText = computed(() =>
+  ageVerified.value ? "ยืนยันอายุแล้ว" : "ยังไม่ได้ยืนยันอายุ",
+);
 const accessibilitySummary = computed(() => {
-  if (form.uses_screen_reader) return "เปิดโหมดช่วยอ่านจากการใช้โปรแกรมอ่านหน้าจอ";
+  if (form.uses_screen_reader) return t("profile.accessibilityScreenReaderOn");
   if (["blind", "low_vision", "other"].includes(form.visual_impairment_status)) {
-    return "เหมาะกับโหมดช่วยอ่านและการเข้าถึง";
+    return t("profile.accessibilityRecommended");
   }
-  return "ยังไม่ได้เปิดโหมดช่วยอ่านอัตโนมัติ";
+  return t("profile.accessibilityAutoOff");
 });
 
 function toDateInputValue(value?: string | null) {
@@ -217,7 +203,7 @@ async function loadProfile() {
     profileMeta.value = data || null;
     syncForm(data);
   } catch (error: any) {
-    errorMessage.value = error?.response?.data?.message || "โหลดโปรไฟล์ไม่สำเร็จ";
+    errorMessage.value = error?.response?.data?.message || t("profile.loadFailed");
   } finally {
     loading.value = false;
   }
@@ -225,14 +211,11 @@ async function loadProfile() {
 
 async function loadMembershipStatus() {
   try {
-    const { data } = await api.get("/account/buffet");
-    const items = Array.isArray(data?.items) ? (data.items as BuffetItem[]) : [];
-    const activeItem = items.find(
-      (item) => item.status === "active" || item.payment_status === "paid",
-    );
-
-    isMembershipActive.value = Boolean(activeItem);
-    membershipBadgeLabel.value = activeItem?.title?.trim() || "สมาชิกพิเศษ";
+    const { data } = await api.get("/subscriptions/me");
+    const subscription = data?.subscription || null;
+    isMembershipActive.value = Boolean(data?.isActive);
+    membershipBadgeLabel.value =
+      subscription?.plan_name?.trim() || subscription?.name?.trim() || t("profile.membershipFallback");
   } catch {
     isMembershipActive.value = false;
   }
@@ -266,34 +249,34 @@ function useAvatarUrlInput() {
 
 function validateProfileForm(name: string, email: string) {
   if (!name || !email) {
-    return "กรุณากรอกชื่อและอีเมล";
+    return t("profile.validationNameEmail");
   }
 
   if (form.username.trim() && !/^[A-Za-z0-9._@-]{4,32}$/.test(form.username.trim())) {
-    return "ยูสเซอร์เนมต้องมี 4-32 ตัวอักษร และใช้ได้เฉพาะ A-Z, a-z, 0-9, ., _, @, -";
+    return t("profile.validationUsername");
   }
 
   if (form.birth_date) {
     if (calculatedAge.value === null || calculatedAge.value < 0) {
-      return "กรุณาเลือกวันเกิดที่ถูกต้อง";
+      return t("profile.validationBirthDateInvalid");
     }
 
     if (calculatedAge.value > 120) {
-      return "กรุณาตรวจสอบวันเกิดอีกครั้ง";
+      return t("profile.validationBirthDateTooOld");
     }
   }
 
   if (form.currentPassword || form.newPassword || form.confirmPassword) {
     if (!form.currentPassword || !form.newPassword || !form.confirmPassword) {
-      return "ถ้าต้องการเปลี่ยนรหัสผ่าน กรุณากรอกทั้งรหัสผ่านปัจจุบัน รหัสผ่านใหม่ และยืนยันรหัสผ่าน";
+      return t("profile.validationPasswordIncomplete");
     }
 
     if (form.newPassword.length < 6) {
-      return "รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร";
+      return t("profile.validationPasswordTooShort");
     }
 
     if (form.newPassword !== form.confirmPassword) {
-      return "ยืนยันรหัสผ่านใหม่ไม่ตรงกัน";
+      return t("profile.validationPasswordMismatch");
     }
   }
 
@@ -394,11 +377,53 @@ async function saveProfile() {
     removeAvatar.value = false;
     resetAvatarSelection();
     isEditOpen.value = false;
-    message.value = data?.message || "บันทึกโปรไฟล์สำเร็จ";
+    message.value = data?.message || t("profile.saveSuccess");
   } catch (error: any) {
-    errorMessage.value = error?.response?.data?.message || "บันทึกโปรไฟล์ไม่สำเร็จ";
+    errorMessage.value = error?.response?.data?.message || t("profile.saveFailed");
   } finally {
     saving.value = false;
+  }
+}
+
+async function verifyAgeFromProfile() {
+  try {
+    verifyingAge.value = true;
+    ageVerificationMessage.value = "";
+    ageVerificationError.value = "";
+
+    if (!form.birth_date) {
+      ageVerificationError.value = "กรุณาบันทึกวันเกิดในโปรไฟล์ก่อนยืนยันอายุ";
+      return;
+    }
+
+    if (declaredAge.value === null || !Number.isInteger(Number(declaredAge.value))) {
+      ageVerificationError.value = "กรุณากรอกอายุเป็นตัวเลข";
+      return;
+    }
+
+    const { data } = await api.post("/profile/me/verify-age", {
+      age: Number(declaredAge.value),
+    });
+
+    const profile = data?.profile || null;
+    profileMeta.value = profile;
+    syncForm(profile);
+    ageVerificationMessage.value = data?.message || "ยืนยันอายุสำเร็จ";
+
+    const user = currentUser.value;
+    const token = localStorage.getItem("token");
+    if (token && user && profile) {
+      saveAuth(token, {
+        ...user,
+        age_verified: Boolean(profile.age_verified),
+        birth_date: profile.birth_date || user.birth_date || null,
+      });
+    }
+  } catch (error: any) {
+    ageVerificationError.value =
+      error?.response?.data?.message || "ยืนยันอายุไม่สำเร็จ";
+  } finally {
+    verifyingAge.value = false;
   }
 }
 
@@ -417,25 +442,38 @@ onUnmounted(resetAvatarSelection);
   <main class="profile-page">
     <section class="profile-hero">
       <div class="avatar-shell" :class="{ 'avatar-shell--member': isMembershipActive }">
-        <img v-if="profilePreviewUrl" :src="profilePreviewUrl" alt="รูปโปรไฟล์" class="avatar-image" />
+        <img v-if="profilePreviewUrl" :src="profilePreviewUrl" :alt="t('profile.avatarAlt')" class="avatar-image" />
         <div v-else class="avatar" aria-hidden="true">
           {{ displayName.slice(0, 1).toUpperCase() }}
         </div>
       </div>
       <div class="hero-copy">
         <h1>{{ displayName }}</h1>
-        <span>{{ form.email || "กำลังโหลดอีเมล..." }}</span>
+        <span>{{ form.email || t("common.loading") }}</span>
         <div class="hero-meta">
           <strong class="role-pill">{{ roleLabel }}</strong>
           <strong v-if="isMembershipActive" class="membership-pill">
             {{ membershipBadgeLabel }}
           </strong>
-          <small>สมาชิกตั้งแต่ {{ memberSince }}</small>
+          <small>{{ t("profile.memberSince") }} {{ memberSince }}</small>
         </div>
       </div>
-      <button type="button" @click="isEditOpen = !isEditOpen">
-        {{ isEditOpen ? "ปิดฟอร์ม" : "แก้ไขโปรไฟล์" }}
-      </button>
+      <div class="profile-actions">
+        <button type="button" @click="isEditOpen = !isEditOpen">
+          {{ isEditOpen ? t("profile.closeForm") : t("profile.editInfo") }}
+        </button>
+        <button type="button" class="ghost-button" @click="isEditOpen = true">
+          {{ t("profile.changeAvatar") }}
+        </button>
+        <button
+          v-if="profilePreviewUrl"
+          type="button"
+          class="danger-button"
+          @click="clearAvatar(); isEditOpen = true"
+        >
+          {{ t("profile.removeAvatar") }}
+        </button>
+      </div>
     </section>
 
     <p v-if="message" class="alert success">{{ message }}</p>
@@ -444,8 +482,8 @@ onUnmounted(resetAvatarSelection);
     <section v-if="isEditOpen" class="edit-panel">
       <div class="edit-header">
         <div>
-          <h2>แก้ไขข้อมูลบัญชี</h2>
-          <p>อัปเดตชื่อ รูปโปรไฟล์ ช่องทางติดต่อ และข้อความแนะนำตัวได้ในหน้าเดียว</p>
+          <h2>{{ t("profile.editTitle") }}</h2>
+          <p>{{ t("profile.editDescription") }}</p>
         </div>
       </div>
 
@@ -455,19 +493,19 @@ onUnmounted(resetAvatarSelection);
             class="avatar-preview-card"
             :class="{ 'avatar-preview-card--member': isMembershipActive }"
           >
-            <img v-if="profilePreviewUrl" :src="profilePreviewUrl" alt="ตัวอย่างรูปโปรไฟล์" class="avatar-preview" />
+            <img v-if="profilePreviewUrl" :src="profilePreviewUrl" :alt="t('profile.avatarPreviewAlt')" class="avatar-preview" />
             <div v-else class="avatar-preview fallback-avatar">
               {{ displayName.slice(0, 1).toUpperCase() }}
             </div>
           </div>
 
           <label class="upload-field">
-            <span>อัปโหลดรูปโปรไฟล์</span>
+            <span>{{ t("profile.uploadAvatar") }}</span>
             <input type="file" accept="image/*" @change="handleAvatarChange" />
           </label>
 
           <label class="full-span">
-            <span>หรือใส่ลิงก์รูปภาพ</span>
+            <span>{{ t("profile.avatarUrl") }}</span>
             <input
               v-model="form.avatar_url"
               type="url"
@@ -478,66 +516,66 @@ onUnmounted(resetAvatarSelection);
           </label>
 
           <button type="button" class="ghost-button" @click="clearAvatar">
-            ลบรูปโปรไฟล์
+            {{ t("profile.deleteProfileAvatar") }}
           </button>
         </div>
 
         <div class="form-main">
           <section class="form-section">
             <div class="section-heading">
-              <h3>ข้อมูลบัญชี</h3>
-              <p>ข้อมูลส่วนนี้ใช้แสดงในระบบและใช้ติดต่อกลับเมื่อจำเป็น</p>
+              <h3>{{ t("profile.accountInfoTitle") }}</h3>
+              <p>{{ t("profile.accountInfoDescription") }}</p>
             </div>
 
             <div class="field-grid">
               <label>
-                <span>ยูสเซอร์เนม</span>
-                <input v-model="form.username" type="text" autocomplete="username" placeholder="readvoice_user" />
-                <small>4-32 chars [A-Z, a-z, 0-9, ., _, @, -]</small>
+                <span>{{ t("profile.username") }}</span>
+                <input v-model="form.username" type="text" autocomplete="username" :placeholder="t('profile.usernamePlaceholder')" />
+                <small>{{ t("profile.usernameHint") }}</small>
               </label>
 
               <label>
-                <span>ชื่อที่แสดง</span>
+                <span>{{ t("profile.displayName") }}</span>
                 <input v-model="form.name" type="text" autocomplete="name" />
               </label>
 
               <label>
-                <span>อีเมล</span>
+                <span>{{ t("profile.email") }}</span>
                 <input v-model="form.email" type="email" autocomplete="email" />
               </label>
 
               <label>
-                <span>เบอร์โทร</span>
-                <input v-model="form.phone" type="tel" autocomplete="tel" placeholder="08x-xxx-xxxx" />
+                <span>{{ t("profile.phone") }}</span>
+                <input v-model="form.phone" type="tel" autocomplete="tel" :placeholder="t('profile.phonePlaceholder')" />
               </label>
 
               <label>
-                <span>เพศ</span>
+                <span>{{ t("profile.gender") }}</span>
                 <select v-model="form.gender">
-                  <option value="prefer_not_to_say">ไม่เปิดเผย</option>
-                  <option value="female">หญิง</option>
-                  <option value="male">ชาย</option>
-                  <option value="other">อื่น ๆ</option>
+                  <option value="prefer_not_to_say">{{ t("profile.genderPreferNot") }}</option>
+                  <option value="female">{{ t("profile.genderFemale") }}</option>
+                  <option value="male">{{ t("profile.genderMale") }}</option>
+                  <option value="other">{{ t("profile.genderOther") }}</option>
                 </select>
               </label>
 
               <label>
-                <span>จังหวัด</span>
-                <input v-model="form.province" type="text" autocomplete="address-level1" placeholder="จังหวัดที่อาศัยอยู่" />
+                <span>{{ t("profile.province") }}</span>
+                <input v-model="form.province" type="text" autocomplete="address-level1" :placeholder="t('profile.provincePlaceholder')" />
               </label>
 
               <label>
-                <span>สถานะบัญชี</span>
+                <span>{{ t("profile.status") }}</span>
                 <input :value="profileMeta?.status || 'active'" type="text" disabled />
               </label>
 
               <label class="full-span">
-                <span>แนะนำตัว</span>
+                <span>{{ t("profile.bio") }}</span>
                 <textarea
                   v-model="form.bio"
                   rows="4"
                   maxlength="2000"
-                  placeholder="บอกสั้น ๆ ว่าคุณชอบอ่านหรือฟังแนวไหน"
+                  :placeholder="t('profile.bioPlaceholder')"
                 />
               </label>
             </div>
@@ -545,57 +583,88 @@ onUnmounted(resetAvatarSelection);
 
           <section class="form-section">
             <div class="section-heading">
-              <h3>ข้อมูลอายุและการเข้าถึง</h3>
-              <p>ใช้ช่วยยืนยันอายุและปรับประสบการณ์อ่าน/ฟังให้เหมาะกับผู้ใช้งาน</p>
+              <h3>{{ t("profile.ageAccessTitle") }}</h3>
+              <p>{{ t("profile.ageAccessDescription") }}</p>
             </div>
 
             <div class="field-grid">
               <label>
-                <span>วันเกิด</span>
+                <span>{{ t("profile.birthDate") }}</span>
                 <input v-model="form.birth_date" type="date" autocomplete="bday" />
               </label>
 
               <div class="age-card">
-                <span>อายุปัจจุบัน</span>
-                <strong>{{ calculatedAge !== null ? `${calculatedAge} ปี` : "ยังไม่ได้ระบุ" }}</strong>
+                <span>{{ t("profile.ageCurrent") }}</span>
+                <strong>{{ calculatedAge !== null ? `${calculatedAge} ${t("profile.years")}` : t("profile.noAge") }}</strong>
+              </div>
+
+              <div class="age-verification-card full-span" :class="{ verified: ageVerified }">
+                <div>
+                  <span>สถานะยืนยันอายุ</span>
+                  <strong>{{ ageVerificationStatusText }}</strong>
+                  <small>
+                    {{
+                      ageVerified
+                        ? "บัญชีนี้ผ่านการยืนยันสำหรับเนื้อหา 18+ แล้ว"
+                        : "หากยังไม่ได้ยืนยัน สามารถกรอกอายุเพื่อเทียบกับวันเกิดที่บันทึกไว้"
+                    }}
+                  </small>
+                </div>
+
+                <div v-if="!ageVerified" class="age-verify-form">
+                  <label>
+                    <span>กรอกอายุปัจจุบัน</span>
+                    <input v-model.number="declaredAge" min="0" max="120" type="number" />
+                  </label>
+                  <button type="button" :disabled="verifyingAge" @click="verifyAgeFromProfile">
+                    {{ verifyingAge ? "กำลังตรวจสอบ..." : "ยืนยันอายุ" }}
+                  </button>
+                </div>
+
+                <p v-if="ageVerificationMessage" class="inline-feedback success">
+                  {{ ageVerificationMessage }}
+                </p>
+                <p v-if="ageVerificationError" class="inline-feedback error">
+                  {{ ageVerificationError }}
+                </p>
               </div>
 
               <label>
-                <span>สถานะการมองเห็น</span>
+                <span>{{ t("profile.visualStatus") }}</span>
                 <select v-model="form.visual_impairment_status">
-                  <option value="not_specified">ยังไม่ได้ระบุ</option>
-                  <option value="none">ไม่ได้เป็นผู้พิการทางสายตา</option>
-                  <option value="blind">ตาบอด</option>
-                  <option value="low_vision">สายตาเลือนราง</option>
-                  <option value="other">มีข้อจำกัดด้านการมองเห็นอื่น ๆ</option>
-                  <option value="prefer_not_to_say">ไม่ประสงค์ระบุ</option>
+                  <option value="not_specified">{{ t("profile.visualNotSpecified") }}</option>
+                  <option value="none">{{ t("profile.visualNone") }}</option>
+                  <option value="blind">{{ t("profile.visualBlind") }}</option>
+                  <option value="low_vision">{{ t("profile.visualLowVision") }}</option>
+                  <option value="other">{{ t("profile.visualOther") }}</option>
+                  <option value="prefer_not_to_say">{{ t("profile.visualPreferNot") }}</option>
                 </select>
               </label>
 
               <label>
-                <span>รูปแบบการอ่านที่ต้องการ</span>
+                <span>{{ t("profile.preferredMode") }}</span>
                 <select v-model="form.preferred_reading_mode">
-                  <option value="both">อ่านและฟัง</option>
-                  <option value="ebook">อ่านเป็นหลัก</option>
-                  <option value="audio">ฟังเป็นหลัก</option>
-                  <option value="not_sure">ยังไม่แน่ใจ</option>
+                  <option value="both">{{ t("profile.preferredBoth") }}</option>
+                  <option value="ebook">{{ t("profile.preferredEbook") }}</option>
+                  <option value="audio">{{ t("profile.preferredAudio") }}</option>
+                  <option value="not_sure">{{ t("profile.preferredNotSure") }}</option>
                 </select>
               </label>
 
               <label class="checkbox-card full-span">
                 <input v-model="form.uses_screen_reader" type="checkbox" />
                 <span>
-                  ใช้โปรแกรมอ่านหน้าจอหรือเทคโนโลยีช่วยอ่าน
+                  {{ t("profile.readingModeCheckbox") }}
                   <small>{{ accessibilitySummary }}</small>
                 </span>
               </label>
 
               <label class="full-span">
-                <span>เครื่องมือช่วยอ่านที่ใช้</span>
+                <span>{{ t("profile.assistiveTechnology") }}</span>
                 <input
                   v-model="form.assistive_technology"
                   type="text"
-                  placeholder="เช่น TalkBack, VoiceOver, NVDA"
+                  :placeholder="t('profile.assistiveTechnologyPlaceholder')"
                 />
               </label>
             </div>
@@ -603,23 +672,23 @@ onUnmounted(resetAvatarSelection);
 
           <section class="password-panel">
             <div class="section-heading">
-              <h3>เปลี่ยนรหัสผ่าน</h3>
-              <p>กรอกเฉพาะเมื่อต้องการเปลี่ยนรหัสผ่าน รหัสใหม่ควรมีอย่างน้อย 6 ตัวอักษร</p>
+              <h3>{{ t("profile.passwordTitle") }}</h3>
+              <p>{{ t("profile.passwordDescription") }}</p>
             </div>
 
             <div class="password-grid">
               <label>
-                <span>รหัสผ่านปัจจุบัน</span>
+                <span>{{ t("profile.currentPassword") }}</span>
                 <input v-model="form.currentPassword" type="password" autocomplete="current-password" />
               </label>
 
               <label>
-                <span>รหัสผ่านใหม่</span>
+                <span>{{ t("profile.newPassword") }}</span>
                 <input v-model="form.newPassword" type="password" autocomplete="new-password" />
               </label>
 
               <label>
-                <span>ยืนยันรหัสผ่านใหม่</span>
+                <span>{{ t("profile.confirmPassword") }}</span>
                 <input v-model="form.confirmPassword" type="password" autocomplete="new-password" />
               </label>
             </div>
@@ -628,49 +697,49 @@ onUnmounted(resetAvatarSelection);
 
         <div class="field-grid old-profile-fields" aria-hidden="true">
           <label>
-            <span>ชื่อที่แสดง</span>
+            <span>{{ t("profile.displayName") }}</span>
             <input v-model="form.name" type="text" autocomplete="name" />
           </label>
 
           <label>
-            <span>อีเมล</span>
+            <span>{{ t("profile.email") }}</span>
             <input v-model="form.email" type="email" autocomplete="email" />
           </label>
 
           <label>
-            <span>เบอร์โทร</span>
-            <input v-model="form.phone" type="tel" autocomplete="tel" placeholder="08x-xxx-xxxx" />
+            <span>{{ t("profile.phone") }}</span>
+            <input v-model="form.phone" type="tel" autocomplete="tel" :placeholder="t('profile.phonePlaceholder')" />
           </label>
 
           <label>
-            <span>สถานะบัญชี</span>
+            <span>{{ t("profile.status") }}</span>
             <input :value="profileMeta?.status || 'active'" type="text" disabled />
           </label>
 
           <label class="full-span">
-            <span>แนะนำตัว</span>
+            <span>{{ t("profile.bio") }}</span>
             <textarea
               v-model="form.bio"
               rows="5"
               maxlength="2000"
-              placeholder="บอกคนอื่นสั้น ๆ ว่าคุณชอบอ่านอะไร หรืออยากให้โปรไฟล์ดูเป็นแบบไหน"
+              :placeholder="t('profile.bioPlaceholder')"
             />
           </label>
 
           <label>
-            <span>รหัสผ่านปัจจุบัน</span>
+            <span>{{ t("profile.currentPassword") }}</span>
             <input v-model="form.currentPassword" type="password" autocomplete="current-password" />
           </label>
 
           <label>
-            <span>รหัสผ่านใหม่</span>
+            <span>{{ t("profile.newPassword") }}</span>
             <input v-model="form.newPassword" type="password" autocomplete="new-password" />
           </label>
         </div>
 
         <div class="form-actions">
           <button type="submit" :disabled="saving">
-            {{ saving ? "กำลังบันทึก..." : "บันทึกโปรไฟล์" }}
+            {{ saving ? t("profile.savingProfile") : t("profile.saveProfile") }}
           </button>
         </div>
       </form>
@@ -679,8 +748,8 @@ onUnmounted(resetAvatarSelection);
     <section class="account-shortcuts" :class="{ loading }">
       <div class="shortcut-head">
         <div>
-          <h2>เมนูที่ใช้บ่อย</h2>
-          <p>เข้าถึงงานหลักของบัญชีได้เร็วขึ้น</p>
+          <h2>{{ t("profile.accountShortcutsTitle") }}</h2>
+          <p>{{ t("profile.accountShortcutsDescription") }}</p>
         </div>
       </div>
 
@@ -691,10 +760,10 @@ onUnmounted(resetAvatarSelection);
         </article>
       </div>
 
-      <details class="account-more-menu">
+      <details v-if="secondaryAccountCards.length" class="account-more-menu">
         <summary>
-          <span>เมนูบัญชีเพิ่มเติม</span>
-          <small>{{ secondaryAccountCards.length }} รายการ</small>
+          <span>{{ t("profile.moreMenu") }}</span>
+          <small>{{ secondaryAccountCards.length }} {{ t("home.items") }}</small>
         </summary>
 
         <div class="account-more-list">
@@ -784,7 +853,7 @@ onUnmounted(resetAvatarSelection);
   place-items: center;
   background: linear-gradient(135deg, #00a878, #20b8ad);
   color: #fff;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 900;
 }
 
@@ -809,7 +878,7 @@ h1 {
 
 .eyebrow {
   color: var(--primary-strong, var(--primary));
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -836,7 +905,7 @@ h1 {
 
 .hero-meta small {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .role-pill {
@@ -853,7 +922,7 @@ h1 {
   background: linear-gradient(135deg, #14b8a6, #0f766e 58%, #f59e0b);
   color: #fff;
   box-shadow: 0 8px 18px rgba(15, 118, 110, 0.18);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 button {
@@ -875,6 +944,18 @@ button:disabled {
 .ghost-button {
   background: #e6fffb;
   color: #0f766e;
+}
+
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.danger-button {
+  background: #fef2f2;
+  color: #dc2626;
 }
 
 .alert {
@@ -970,7 +1051,7 @@ button:disabled {
   place-items: center;
   background: linear-gradient(135deg, #00a878, #20b8ad);
   color: #fff;
-  font-size: 30px;
+  font-size: 32px;
   font-weight: 900;
 }
 
@@ -998,12 +1079,12 @@ button:disabled {
 
 .section-heading h3 {
   color: var(--text-strong);
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .section-heading p {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.55;
 }
 
@@ -1032,13 +1113,84 @@ button:disabled {
 .age-card span,
 .profile-form small {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
 }
 
 .age-card strong {
   color: var(--primary-strong, var(--primary));
-  font-size: 22px;
+  font-size: 24px;
+}
+
+.age-verification-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: 12px;
+  background: #fffbeb;
+  padding: 14px;
+}
+
+.age-verification-card.verified {
+  border-color: rgba(16, 185, 129, 0.32);
+  background: #ecfdf5;
+}
+
+.age-verification-card > div:first-child,
+.age-verify-form {
+  display: grid;
+  gap: 6px;
+}
+
+.age-verification-card span,
+.age-verification-card small {
+  color: var(--text-muted);
+  font-weight: 800;
+}
+
+.age-verification-card strong {
+  color: var(--text-strong);
+  font-size: 18px;
+}
+
+.age-verify-form {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.age-verify-form button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--primary);
+  color: var(--on-primary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+  padding: 0 16px;
+}
+
+.age-verify-form button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.inline-feedback {
+  margin: 0;
+  border-radius: 10px;
+  font-weight: 800;
+  line-height: 1.5;
+  padding: 9px 10px;
+}
+
+.inline-feedback.success {
+  background: #dcfce7;
+  color: #047857;
+}
+
+.inline-feedback.error {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 .checkbox-card {
@@ -1147,12 +1299,12 @@ button:disabled {
 
 .shortcut-head h2 {
   color: var(--text-strong);
-  font-size: 22px;
+  font-size: 24px;
 }
 
 .shortcut-head p {
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .account-grid {
@@ -1181,7 +1333,7 @@ button:disabled {
 
 .account-card strong {
   color: var(--text-strong);
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .account-card span {
@@ -1214,7 +1366,7 @@ button:disabled {
 }
 
 .account-more-menu summary span {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 900;
 }
 
@@ -1226,7 +1378,7 @@ button:disabled {
 .account-more-menu summary::after {
   color: var(--primary-strong);
   content: "⌄";
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 900;
   transition: transform 0.18s ease;
 }
@@ -1271,7 +1423,7 @@ button:disabled {
 
 .account-more-list strong {
   color: var(--text-strong);
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .account-more-list small {
@@ -1281,13 +1433,277 @@ button:disabled {
 
 .account-more-list b {
   color: var(--primary-strong);
-  font-size: 22px;
+  font-size: 24px;
   line-height: 1;
+}
+
+.profile-page {
+  max-width: 1240px;
+  padding-top: 22px;
+}
+
+.profile-hero,
+.edit-panel,
+.account-more-menu,
+.account-card {
+  border-color: rgba(15, 118, 110, 0.12);
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+}
+
+.profile-hero {
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 18px 20px;
+}
+
+.avatar,
+.avatar-image {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+}
+
+.avatar-shell--member {
+  width: 72px;
+  height: 72px;
+  border-width: 3px;
+  border-radius: 22px;
+}
+
+.avatar {
+  font-size: 24px;
+}
+
+h1 {
+  font-size: clamp(20px, 2vw, 26px);
+  line-height: 1.18;
+}
+
+.profile-hero span {
+  font-size: 13px;
+}
+
+.hero-meta {
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.hero-meta small,
+.membership-pill {
+  font-size: 12px;
+}
+
+.role-pill,
+.membership-pill {
+  padding: 5px 9px;
+}
+
+button {
+  min-height: 38px;
+  border-radius: 10px;
+  font-size: 13px;
+  padding: 0 14px;
+}
+
+.profile-actions {
+  gap: 8px;
+}
+
+.edit-panel {
+  overflow: hidden;
+  padding: 0;
+}
+
+.edit-header {
+  border-bottom: 1px solid rgba(15, 118, 110, 0.1);
+  background:
+    linear-gradient(135deg, rgba(232, 250, 246, 0.9), rgba(255, 255, 255, 0.95));
+  padding: 18px 22px;
+}
+
+.edit-header h2 {
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.edit-header p {
+  max-width: 760px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.profile-form {
+  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+  gap: 0;
+  margin-top: 0;
+}
+
+.avatar-editor {
+  position: sticky;
+  top: 78px;
+  align-self: start;
+  gap: 12px;
+  min-height: 100%;
+  border: 0;
+  border-right: 1px solid rgba(15, 118, 110, 0.1);
+  border-radius: 0;
+  background: #f7fffc;
+  padding: 24px;
+}
+
+.avatar-preview-card,
+.avatar-preview-card--member {
+  width: 112px;
+  height: 112px;
+  justify-self: center;
+  border-radius: 28px;
+}
+
+.avatar-preview {
+  width: 104px;
+  height: 104px;
+  border-radius: 24px;
+}
+
+.fallback-avatar {
+  font-size: 28px;
+}
+
+.form-main {
+  gap: 16px;
+  padding: 20px 22px 10px;
+}
+
+.form-section,
+.password-panel {
+  gap: 16px;
+  border-color: rgba(15, 118, 110, 0.12);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+}
+
+.section-heading h3 {
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.section-heading p {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.field-grid {
+  gap: 12px 14px;
+}
+
+.password-grid {
+  gap: 12px;
+}
+
+.profile-form label,
+.upload-field {
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.profile-form input,
+.profile-form select,
+.profile-form textarea {
+  min-height: 42px;
+  border-color: rgba(15, 23, 42, 0.12);
+  border-radius: 10px;
+  background: #f8fafc;
+  font-size: 13px;
+  padding: 9px 11px;
+}
+
+.profile-form textarea {
+  min-height: 104px;
+}
+
+.age-card {
+  min-height: 62px;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.age-verify-form {
+  grid-template-columns: 1fr;
+}
+
+.age-card span,
+.profile-form small {
+  font-size: 11px;
+}
+
+.age-card strong {
+  font-size: 18px;
+}
+
+.checkbox-card {
+  gap: 10px;
+  border-radius: 10px;
+  background: #f8fffd;
+  padding: 10px 12px;
+}
+
+.form-actions {
+  grid-column: 2 / -1;
+  margin: 0;
+  padding: 0 22px 20px;
+}
+
+.form-actions button {
+  min-width: 132px;
+  background: #0aa891;
+}
+
+.account-shortcuts {
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.shortcut-head h2 {
+  font-size: 18px;
+}
+
+.shortcut-head p {
+  font-size: 13px;
+}
+
+.account-grid {
+  gap: 12px;
+}
+
+.account-card {
+  min-height: 96px;
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.account-card strong {
+  font-size: 15px;
+}
+
+.account-card span {
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 @media (max-width: 920px) {
   .profile-form {
     grid-template-columns: 1fr;
+  }
+
+  .avatar-editor {
+    position: static;
+    min-height: auto;
+    border-right: 0;
+    border-bottom: 1px solid rgba(15, 118, 110, 0.1);
   }
 
   .form-actions {
@@ -1321,6 +1737,10 @@ button:disabled {
     padding: 18px;
   }
 
+  .edit-panel {
+    padding: 0;
+  }
+
   .avatar-preview {
     width: min(180px, 58vw);
     height: min(180px, 58vw);
@@ -1329,23 +1749,27 @@ button:disabled {
 
 @media (max-width: 640px) {
   .profile-page {
-    padding: 10px 10px 28px;
+    padding: 8px 8px 28px;
   }
 
   .profile-hero,
   .edit-panel {
     border-radius: 12px;
-    padding: 12px 10px;
   }
 
   .profile-hero {
     grid-template-columns: 56px minmax(0, 1fr);
     gap: 10px;
+    padding: 12px;
   }
 
-  .profile-hero > button {
+  .profile-actions {
     grid-column: 1 / -1;
     width: 100%;
+  }
+
+  .profile-actions button {
+    flex: 1 1 120px;
   }
 
   .avatar,
@@ -1357,7 +1781,7 @@ button:disabled {
   }
 
   h1 {
-    font-size: 23px;
+    font-size: 25px;
     line-height: 1.12;
   }
 
@@ -1365,13 +1789,16 @@ button:disabled {
   .edit-header p,
   .section-heading p,
   .profile-form small {
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.35;
   }
 
   .profile-form {
-    gap: 9px;
     margin-top: 10px;
+  }
+
+  .edit-header {
+    padding: 14px;
   }
 
   .avatar-editor,
@@ -1387,12 +1814,13 @@ button:disabled {
   .form-section,
   .password-panel {
     border-radius: 10px;
-    padding: 9px;
+    padding: 12px;
   }
 
   .avatar-editor {
-    grid-template-columns: 66px minmax(0, 1fr);
+    grid-template-columns: 64px minmax(0, 1fr);
     align-items: center;
+    border-bottom: 1px solid rgba(15, 118, 110, 0.1);
   }
 
   .avatar-preview-card--member,
@@ -1404,7 +1832,7 @@ button:disabled {
 
   .field-grid,
   .password-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 
   .full-span,
@@ -1415,27 +1843,35 @@ button:disabled {
   .profile-form label,
   .profile-form .checkbox-card {
     gap: 4px;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.25;
   }
 
   .profile-form input,
   .profile-form textarea,
   .profile-form select {
-    min-height: 36px;
+    min-height: 40px;
     border-radius: 8px;
-    padding: 7px 8px;
-    font-size: 12px;
+    padding: 8px 10px;
+    font-size: 13px;
   }
 
   .profile-form textarea {
-    min-height: 58px;
+    min-height: 84px;
+  }
+
+  .form-main {
+    padding: 12px;
+  }
+
+  .form-actions {
+    padding: 0 12px 14px;
   }
 
   .form-actions button {
     min-height: 38px;
     border-radius: 8px;
-    font-size: 13px;
+    font-size: 14px;
   }
 }
 </style>

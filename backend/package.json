@@ -9,6 +9,7 @@
     "config:check": "node services/scripts/checkProductionReadiness.js",
     "smoke:roles": "node services/scripts/smokeRoles.js",
     "smoke:launch": "node services/scripts/smokeLaunch.js",
+    "smoke:local-flows": "node services/scripts/smokeLocalFlows.js",
     "monitor:check": "node services/scripts/monitorCheck.js",
     "content:audit": "node services/scripts/auditContentQuality.js",
     "content:migrate-legacy": "node services/scripts/migrateLegacyContentToUnits.js",

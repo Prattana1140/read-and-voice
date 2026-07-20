@@ -101,10 +101,7 @@ const voiceRouteAccess: Record<string, VoiceRouteAccess> = {
   NotificationSettings: { label: "ตั้งค่าการแจ้งเตือน", requiresAuth: true, allowedRoles: memberRoles },
   AccountNotifications: { label: "การแจ้งเตือน", requiresAuth: true, allowedRoles: memberRoles },
   AccountFollowing: { label: "กำลังติดตาม", requiresAuth: true, allowedRoles: memberRoles },
-  AccountGiftCodes: { label: "กิฟต์โค้ด", requiresAuth: true, allowedRoles: memberRoles },
-  AccountBuffet: { label: "แพ็กเกจของฉัน", requiresAuth: true, allowedRoles: memberRoles },
   AccountDevices: { label: "อุปกรณ์ของฉัน", requiresAuth: true, allowedRoles: memberRoles },
-  AccountBenefits: { label: "สิทธิประโยชน์", requiresAuth: true, allowedRoles: memberRoles },
   AccountReviews: { label: "รีวิวของฉัน", requiresAuth: true, allowedRoles: memberRoles },
   CoinWallet: { label: "กระเป๋าคอยน์", requiresAuth: true, allowedRoles: memberRoles },
   WriterDashboard: { label: "แดชบอร์ดนักเขียน", requiresAuth: true, allowedRoles: writerRoles },
@@ -1342,7 +1339,7 @@ watch(
   border-color: var(--border);
   background: color-mix(in srgb, var(--surface) 96%, transparent);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   padding: 0 12px;
 }
 
@@ -1393,7 +1390,7 @@ watch(
 
 .voice-command__manual label {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
 }
 
@@ -1434,7 +1431,7 @@ watch(
   border-radius: 14px;
   background: color-mix(in srgb, var(--surface) 94%, transparent);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   padding: 7px 11px;
   white-space: normal;
@@ -1452,7 +1449,7 @@ watch(
 
 .voice-command__status small {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 650;
 }
 
@@ -1482,7 +1479,7 @@ watch(
 
 .voice-help h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 900;
 }
 
@@ -1496,7 +1493,7 @@ watch(
   background: var(--surface-soft);
   color: var(--text-strong);
   cursor: pointer;
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1;
 }
 
@@ -1513,7 +1510,7 @@ watch(
 .voice-help h3 {
   margin: 0;
   color: var(--text-strong);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 900;
 }
 
@@ -1551,7 +1548,7 @@ watch(
 }
 
 .voice-onboarding h2 {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 900;
 }
 
@@ -1601,7 +1598,7 @@ watch(
 
   .voice-command__manual-toggle {
     min-height: 32px;
-    font-size: 11px;
+    font-size: 13px;
     padding: 0 10px;
   }
 

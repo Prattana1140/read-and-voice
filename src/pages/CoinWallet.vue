@@ -718,7 +718,7 @@ h2 {
 }
 
 .balance-card strong {
-  font-size: 34px;
+  font-size: 36px;
 }
 
 .alert,
@@ -815,7 +815,7 @@ h2 {
 .plain-close {
   background: transparent;
   color: #6b7280;
-  font-size: 32px;
+  font-size: 34px;
   font-weight: 400;
   line-height: 1;
   padding: 4px;
@@ -826,7 +826,7 @@ h2 {
 
 .custom-modal h2 {
   color: #4b5563;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
   line-height: 1.5;
   margin: 0;
@@ -834,7 +834,7 @@ h2 {
 
 .custom-modal p {
   color: #f97316;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
   margin: -2px 0 18px;
 }
@@ -848,7 +848,7 @@ h2 {
   border: 2px solid #111827;
   color: #111827;
   font: inherit;
-  font-size: 22px;
+  font-size: 24px;
   height: 38px;
   padding: 0 10px;
   width: 100%;
@@ -910,7 +910,7 @@ h2 {
   background: #15466f;
   color: #fff;
   display: block;
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1.05;
   margin-top: 40px;
   padding: 10px 80px;
@@ -944,7 +944,7 @@ h2 {
   border-radius: 999px;
   color: #15466f;
   display: flex;
-  font-size: 13px;
+  font-size: 15px;
   height: 34px;
   justify-content: center;
   left: 50%;
@@ -968,7 +968,7 @@ h2 {
   border: 1px solid #15466f;
   border-radius: 999px;
   color: #15466f;
-  font-size: 13px;
+  font-size: 15px;
   padding: 5px 18px;
 }
 
@@ -982,7 +982,7 @@ h2 {
   background: #15466f;
   color: #fff;
   display: grid;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 900;
   gap: 4px;
   line-height: 1.35;
@@ -1034,7 +1034,7 @@ h2 {
 }
 
 .modal-head h2 {
-  font-size: 22px;
+  font-size: 24px;
   line-height: 1.25;
 }
 
@@ -1043,7 +1043,7 @@ h2 {
   background: var(--surface-soft);
   color: var(--text-strong);
   display: inline-flex;
-  font-size: 28px;
+  font-size: 30px;
   height: 38px;
   justify-content: center;
   line-height: 1;
@@ -1075,7 +1075,7 @@ h2 {
   border-radius: 8px;
   color: #fff;
   display: flex;
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 900;
   height: 54px;
   justify-content: center;
@@ -1164,7 +1164,7 @@ h2 {
 
 .slip-upload span {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
 }
 
@@ -1233,7 +1233,7 @@ h2 {
 
 .topup-heading p {
   color: #8a94a6;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 900;
   margin: 6px 0 0;
 }
@@ -1279,7 +1279,7 @@ h2 {
 .coin-select small,
 .custom-price {
   color: var(--text-muted);
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 900;
 }
 
@@ -1511,7 +1511,7 @@ button:disabled {
   }
 
   .balance-card strong {
-    font-size: 30px;
+    font-size: 32px;
   }
 
   .package-grid {
@@ -1535,7 +1535,7 @@ button:disabled {
   }
 
   .modal-head h2 {
-    font-size: 20px;
+    font-size: 22px;
   }
 
   .modal-actions {

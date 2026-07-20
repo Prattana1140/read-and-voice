@@ -392,7 +392,7 @@ onMounted(() => {
 .hero p,
 .eyebrow {
   color: #0f766e;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -425,7 +425,7 @@ dt,
 }
 
 .summary-card strong {
-  font-size: 30px;
+  font-size: 32px;
 }
 
 .message {
@@ -535,7 +535,7 @@ button:disabled {
 
 .amount-box strong {
   color: var(--text-strong);
-  font-size: 24px;
+  font-size: 26px;
 }
 
 dl {
@@ -546,7 +546,7 @@ dl {
 }
 
 dt {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
 }
 
@@ -595,13 +595,13 @@ dd {
   .hero p,
   .eyebrow,
   dt {
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .hero h1,
   .payment-card h2 {
     margin: 3px 0;
-    font-size: 18px;
+    font-size: 20px;
     line-height: 1.2;
   }
 
@@ -610,7 +610,7 @@ dd {
   dd,
   .detail,
   label {
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.35;
   }
 
@@ -619,12 +619,12 @@ dd {
   }
 
   .summary-card strong {
-    font-size: 22px;
+    font-size: 24px;
   }
 
   .message {
     border-radius: 8px;
-    font-size: 10px;
+    font-size: 12px;
     padding: 8px 9px;
   }
 
@@ -642,13 +642,13 @@ dd {
   button {
     min-height: 32px;
     border-radius: 7px;
-    font-size: 10px;
+    font-size: 12px;
     padding: 0 9px;
   }
 
   .state-box {
     padding: 14px;
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .payment-list {
@@ -669,7 +669,7 @@ dd {
   }
 
   .amount-box strong {
-    font-size: 17px;
+    font-size: 19px;
   }
 
   dl {
@@ -709,7 +709,7 @@ dd {
     padding: 2px 5px;
     background: var(--surface-soft);
     color: var(--text-strong);
-    font-size: 8px;
+    font-size: 10px;
     line-height: 1.15;
   }
 
@@ -726,14 +726,14 @@ dd {
 
   .hero h1,
   .payment-card h2 {
-    font-size: 16px;
+    font-size: 18px;
   }
 
   select,
   input,
   button {
     min-height: 29px;
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .mobile-tabs {
@@ -742,7 +742,7 @@ dd {
 
   .mobile-tabs button {
     min-height: 24px;
-    font-size: 7.5px;
+    font-size: 9.5px;
     padding: 2px 4px;
   }
 }

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { api } from "../utils/api";
 import { saveAuth } from "../utils/auth";
 import { announceAccessibilityMessage } from "../utils/accessibility";
+import { registerCurrentDevice } from "../utils/deviceRegistration";
 import { redirectAfterLogin } from "../utils/loginRedirect";
 import {
   loginWithSocialProvider,
@@ -75,6 +76,7 @@ const handleLogin = async () => {
 
     const { token, user } = res.data;
     saveAuth(token, user);
+    await registerCurrentDevice();
 
     if (rememberMe.value) {
       localStorage.setItem("rememberedEmail", email.value);
@@ -318,7 +320,7 @@ watch(error, (message) => {
   margin: 0;
   text-align: center;
   color: var(--text-strong);
-  font-size: 30px;
+  font-size: 32px;
   font-weight: 900;
   line-height: 1.1;
 }
@@ -339,7 +341,7 @@ watch(error, (message) => {
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   box-sizing: border-box;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .login-input::placeholder {
@@ -368,7 +370,7 @@ watch(error, (message) => {
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
   min-height: 34px;
   border-radius: 999px;
@@ -381,7 +383,7 @@ watch(error, (message) => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .remember-me {
@@ -413,7 +415,7 @@ watch(error, (message) => {
   background: var(--primary);
   color: var(--on-primary);
   font-weight: 900;
-  font-size: 16px;
+  font-size: 18px;
   cursor: pointer;
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
@@ -433,7 +435,7 @@ watch(error, (message) => {
   position: relative;
   text-align: center;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   margin-top: 2px;
 }
 
@@ -482,7 +484,7 @@ watch(error, (message) => {
 .social-submit strong {
   grid-column: 2;
   text-align: center;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 900;
   line-height: 1.2;
   min-width: 0;
@@ -528,7 +530,7 @@ watch(error, (message) => {
 .login-policy {
   margin: 0;
   text-align: center;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-muted);
   line-height: 1.8;
 }
@@ -545,7 +547,7 @@ watch(error, (message) => {
 .register-text {
   text-align: center;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 16px;
   margin: 0;
 }
 
@@ -563,7 +565,7 @@ watch(error, (message) => {
   text-align: center;
   color: var(--danger);
   font-weight: 800;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 @media (max-width: 640px) {
@@ -594,7 +596,7 @@ watch(error, (message) => {
   }
 
   .login-title {
-    font-size: 23px;
+    font-size: 25px;
     line-height: 1.12;
   }
 
@@ -607,7 +609,7 @@ watch(error, (message) => {
     min-width: 0;
     min-height: 44px;
     border-radius: 11px;
-    font-size: 14px;
+    font-size: 16px;
     padding-inline: 12px;
   }
 
@@ -620,14 +622,14 @@ watch(error, (message) => {
     background: var(--primary-soft);
     color: var(--primary-strong, var(--primary));
     min-height: 28px;
-    font-size: 11px;
+    font-size: 13px;
     padding-inline: 8px;
   }
 
   .login-options {
     align-items: flex-start;
     gap: 8px;
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.35;
   }
 
@@ -646,7 +648,7 @@ watch(error, (message) => {
     min-width: 0;
     min-height: 44px;
     border-radius: 11px;
-    font-size: 13px;
+    font-size: 15px;
   }
 
   .social-divider {
@@ -661,7 +663,7 @@ watch(error, (message) => {
 
   .social-submit strong {
     text-align: left;
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .social-icon {
@@ -670,12 +672,12 @@ watch(error, (message) => {
   }
 
   .login-policy {
-    font-size: 10.5px;
+    font-size: 12.5px;
     line-height: 1.45;
   }
 
   .register-text {
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.35;
   }
 }
@@ -699,13 +701,13 @@ watch(error, (message) => {
   }
 
   .login-title {
-    font-size: 22px;
+    font-size: 24px;
   }
 
   .login-options {
     display: grid;
     gap: 8px;
-    font-size: 12.5px;
+    font-size: 14.5px;
     justify-items: start;
   }
 
@@ -714,7 +716,7 @@ watch(error, (message) => {
   }
 
   .login-submit {
-    font-size: 15px;
+    font-size: 17px;
   }
 
   .social-icon {
@@ -734,7 +736,7 @@ watch(error, (message) => {
   }
 
   .login-title {
-    font-size: 24px;
+    font-size: 26px;
   }
 
   .password-field .login-input {
@@ -742,12 +744,12 @@ watch(error, (message) => {
   }
 
   .toggle-password {
-    font-size: 12px;
+    font-size: 14px;
     padding-inline: 8px;
   }
 
   .social-submit strong {
-    font-size: 13px;
+    font-size: 15px;
   }
 }
 
@@ -771,7 +773,7 @@ watch(error, (message) => {
   }
 
   .login-title {
-    font-size: 24px;
+    font-size: 26px;
   }
 
   .login-form {

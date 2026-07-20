@@ -675,7 +675,7 @@ onUnmounted(() => {
 
 .page-hero p {
   color: #0f766e;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -683,7 +683,7 @@ onUnmounted(() => {
 .page-hero h1 {
   margin-top: 6px;
   color: #063d38;
-  font-size: 34px;
+  font-size: 36px;
   line-height: 1.15;
 }
 
@@ -692,7 +692,7 @@ onUnmounted(() => {
   max-width: 780px;
   margin-top: 10px;
   color: #52716d;
-  font-size: 15px;
+  font-size: 17px;
   line-height: 1.7;
 }
 
@@ -712,7 +712,7 @@ onUnmounted(() => {
   border-radius: 8px;
   background: #20b8ad;
   color: #ffffff;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 900;
   padding: 0 14px;
   text-decoration: none;
@@ -750,14 +750,14 @@ onUnmounted(() => {
 
 .summary-grid strong {
   color: #0f766e;
-  font-size: 30px;
+  font-size: 32px;
 }
 
 .summary-grid span,
 .status-area small,
 .menu-name small {
   color: #66827e;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
 }
 
@@ -769,7 +769,7 @@ onUnmounted(() => {
 .admin-note h2,
 .next-steps h2 {
   color: #073f3a;
-  font-size: 22px;
+  font-size: 24px;
 }
 
 .admin-note p {
@@ -799,7 +799,7 @@ onUnmounted(() => {
 
 .banner-form h2 {
   color: #073f3a;
-  font-size: 22px;
+  font-size: 24px;
 }
 
 .banner-form p {
@@ -811,7 +811,7 @@ onUnmounted(() => {
   display: grid;
   gap: 8px;
   color: #0b5f59;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
 }
 
@@ -820,7 +820,7 @@ onUnmounted(() => {
   border: 1px solid rgba(20, 184, 166, 0.24);
   border-radius: 8px;
   color: #143d39;
-  font-size: 16px;
+  font-size: 18px;
   padding: 0 12px;
 }
 
@@ -830,7 +830,7 @@ onUnmounted(() => {
 
 .image-size-hint {
   color: #dc2626;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   line-height: 1.35;
   margin-top: 4px;
@@ -957,7 +957,7 @@ onUnmounted(() => {
 
 .empty-preview strong {
   color: #0b5f59;
-  font-size: 24px;
+  font-size: 26px;
 }
 
 .content-table {
@@ -976,7 +976,7 @@ onUnmounted(() => {
 .table-head {
   background: #e9fbf7;
   color: #0b5f59;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
 }
 
@@ -991,7 +991,7 @@ onUnmounted(() => {
 
 .menu-name strong {
   color: #073f3a;
-  font-size: 17px;
+  font-size: 19px;
 }
 
 .menu-row ul {
@@ -999,7 +999,7 @@ onUnmounted(() => {
   gap: 6px;
   margin: 0;
   color: #355c58;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.55;
   padding-left: 18px;
 }
@@ -1015,7 +1015,7 @@ onUnmounted(() => {
   min-height: 28px;
   align-items: center;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   padding: 0 10px;
 }
@@ -1102,7 +1102,7 @@ onUnmounted(() => {
   }
 
   .page-hero h1 {
-    font-size: 28px;
+    font-size: 30px;
   }
 
   .hero-actions,
@@ -1135,19 +1135,19 @@ onUnmounted(() => {
   .status,
   .menu-row ul,
   .step-grid p {
-    font-size: 9px;
+    font-size: 11px;
     line-height: 1.3;
   }
 
   .page-hero h1 {
-    font-size: 18px;
+    font-size: 20px;
     line-height: 1.2;
   }
 
   .page-hero span,
   .menu-name strong,
   .step-grid strong {
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.35;
   }
 
@@ -1160,7 +1160,7 @@ onUnmounted(() => {
   .banner-actions button {
     min-height: 29px;
     border-radius: 7px;
-    font-size: 9px;
+    font-size: 11px;
     padding: 0 9px;
   }
 
@@ -1184,7 +1184,7 @@ onUnmounted(() => {
 
   .error-text {
     border-radius: 8px;
-    font-size: 10px;
+    font-size: 12px;
     padding: 8px 9px;
   }
 }

@@ -3,6 +3,8 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import api from "../../utils/api";
 import { getUser, logout } from "../../utils/auth";
+import { useI18n } from "../../utils/i18n";
+import { localizedTitle } from "../../utils/localizedContent";
 
 type SummaryResponse = {
   total_users: number;
@@ -12,6 +14,8 @@ type SummaryResponse = {
   popular_books: Array<{
     id: number;
     title: string;
+    title_th?: string;
+    title_en?: string;
     total_sales: number;
   }>;
 };
@@ -24,6 +28,7 @@ type QuickLink = {
 };
 
 const router = useRouter();
+const { locale } = useI18n();
 const currentUser = computed(() => getUser());
 
 const loading = ref(true);
@@ -35,6 +40,9 @@ const summary = ref<SummaryResponse>({
   active_subscriptions: 0,
   popular_books: [],
 });
+
+const getBookTitle = (book: SummaryResponse["popular_books"][number]) =>
+  localizedTitle(book, locale.value) || book.title;
 
 const stats = computed(() => [
   {
@@ -200,7 +208,7 @@ onMounted(loadSummary);
               class="popular-item"
               @click="openRoute(`/book/${book.id}`)"
             >
-              <strong>{{ book.title }}</strong>
+              <strong>{{ getBookTitle(book) }}</strong>
               <span>{{ book.total_sales }} รายการขาย</span>
             </button>
           </div>
@@ -251,7 +259,7 @@ onMounted(loadSummary);
 
 .eyebrow {
   color: var(--primary-strong);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -280,7 +288,7 @@ onMounted(loadSummary);
   border-radius: 999px;
   background: #ecfdf3;
   color: #15803d;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
   padding: 8px 12px;
 }
@@ -350,7 +358,7 @@ onMounted(loadSummary);
 
 .stat-label {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -394,7 +402,7 @@ onMounted(loadSummary);
   border-radius: 999px;
   background: var(--surface-soft);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   padding: 6px 10px;
 }
@@ -460,18 +468,18 @@ onMounted(loadSummary);
   .identity-pill,
   .shortcut-card span,
   .popular-item span {
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .hero-card h1 {
-    font-size: 18px;
+    font-size: 20px;
     line-height: 1.2;
   }
 
   .hero-text,
   .stat-card p,
   .empty-box {
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.35;
   }
 
@@ -493,7 +501,7 @@ onMounted(loadSummary);
   .ghost-btn {
     min-height: 31px;
     border-radius: 8px;
-    font-size: 9px;
+    font-size: 11px;
     padding: 0 9px;
   }
 
@@ -501,7 +509,7 @@ onMounted(loadSummary);
     margin-top: 9px;
     border-radius: 10px;
     padding: 10px;
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .stats-grid,
@@ -528,7 +536,7 @@ onMounted(loadSummary);
   }
 
   .stat-value {
-    font-size: 20px;
+    font-size: 22px;
   }
 
   .panel-head {
@@ -539,7 +547,7 @@ onMounted(loadSummary);
   .panel h2,
   .shortcut-card strong,
   .popular-item strong {
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .link-grid,
@@ -562,13 +570,13 @@ onMounted(loadSummary);
   }
 
   .hero-card h1 {
-    font-size: 16px;
+    font-size: 18px;
   }
 
   .primary-btn,
   .ghost-btn {
     min-height: 29px;
-    font-size: 8px;
+    font-size: 10px;
   }
 }
 </style>

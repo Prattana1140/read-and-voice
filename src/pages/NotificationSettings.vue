@@ -88,7 +88,7 @@ onMounted(loadSettings);
 .settings-head h1 {
   margin: 0;
   color: var(--text-strong);
-  font-size: 32px;
+  font-size: 34px;
   font-weight: 900;
 }
 
@@ -182,7 +182,7 @@ button:disabled {
   }
 
   .settings-head h1 {
-    font-size: 24px;
+    font-size: 26px;
   }
 
   .actions,

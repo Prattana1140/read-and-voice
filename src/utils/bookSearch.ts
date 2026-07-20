@@ -1,6 +1,8 @@
 export type SearchableBook = {
   id: number;
   title?: string;
+  title_th?: string;
+  title_en?: string;
   author?: string;
   author_name?: string;
   category_name?: string;
@@ -11,6 +13,8 @@ export type SearchableBook = {
   episode_count?: number;
   cover_url?: string;
   cover_image?: string;
+  tags?: string[] | string;
+  tag_names?: string[] | string;
 };
 
 export type BookFilters = {
@@ -29,15 +33,30 @@ const normalizeText = (value: unknown) => {
 
 const compactText = (value: string) => value.replace(/\s+/g, "");
 
+const splitValues = (value: unknown) => {
+  if (Array.isArray(value)) return value.map(String);
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
+const getBookTags = (book: SearchableBook) => {
+  return [...splitValues(book.tags), ...splitValues(book.tag_names)];
+};
+
 const getSearchBlob = (book: SearchableBook) => {
   return [
     book.title,
+    book.title_th,
+    book.title_en,
     book.author,
     book.author_name,
     book.category_name,
     book.description,
     book.content_type,
     book.access_type,
+    ...getBookTags(book),
   ]
     .map(normalizeText)
     .join(" ");
@@ -46,12 +65,15 @@ const getSearchBlob = (book: SearchableBook) => {
 const getSearchFields = (book: SearchableBook) => {
   return [
     book.title,
+    book.title_th,
+    book.title_en,
     book.author,
     book.author_name,
     book.category_name,
     book.description,
     book.content_type,
     book.access_type,
+    ...getBookTags(book),
   ].map(normalizeText);
 };
 
@@ -121,14 +143,17 @@ export const getBookSearchScore = (book: SearchableBook, query = "") => {
   const keyword = normalizeText(query);
   if (!keyword) return 0;
 
-  const title = normalizeText(book.title);
+  const title = normalizeText([book.title, book.title_th, book.title_en].filter(Boolean).join(" "));
   const author = normalizeText(book.author || book.author_name);
   const category = normalizeText(book.category_name);
+  const tags = getBookTags(book).map(normalizeText);
+  const tagBlob = tags.join(" ");
   const blob = getSearchBlob(book);
   const compactKeyword = compactText(keyword);
   const compactTitle = compactText(title);
   const compactAuthor = compactText(author);
   const compactCategory = compactText(category);
+  const compactTagBlob = compactText(tagBlob);
   const compactBlob = compactText(blob);
 
   let score = 0;
@@ -140,6 +165,9 @@ export const getBookSearchScore = (book: SearchableBook, query = "") => {
   if (compactAuthor.includes(compactKeyword)) score += 30;
   if (category.includes(keyword)) score += 25;
   if (compactCategory.includes(compactKeyword)) score += 22;
+  if (tags.some((tag) => tag === keyword)) score += 65;
+  if (tagBlob.includes(keyword)) score += 32;
+  if (compactTagBlob.includes(compactKeyword)) score += 28;
   if (blob.includes(keyword)) score += 10;
   if (compactBlob.includes(compactKeyword)) score += 8;
   if (isSubsequenceMatch(compactTitle, compactKeyword)) score += 18;
@@ -151,6 +179,7 @@ export const getBookSearchScore = (book: SearchableBook, query = "") => {
     if (title.includes(part) || compactTitle.includes(compactPart)) score += 12;
     if (author.includes(part) || compactAuthor.includes(compactPart)) score += 8;
     if (category.includes(part) || compactCategory.includes(compactPart)) score += 6;
+    if (tagBlob.includes(part) || compactTagBlob.includes(compactPart)) score += 10;
     if (isSubsequenceMatch(compactTitle, compactPart)) score += 4;
   }
 

@@ -134,7 +134,7 @@ p {
 
 .status-box strong {
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .status-box code {

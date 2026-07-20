@@ -13,6 +13,10 @@ test("parses STT argument templates", () => {
     parseArgsTemplate("--model base --language {lang} {input}", "audio.wav", "th"),
     ["--model", "base", "--language", "th", "audio.wav"],
   );
+  assert.deepEqual(
+    parseArgsTemplate('"{backend}/services/scripts/stt_faster_whisper.py" {input}', "audio.wav", "th"),
+    [`${require("node:path").resolve(__dirname, "..").replace(/\\/g, "/")}/services/scripts/stt_faster_whisper.py`, "audio.wav"],
+  );
 });
 
 test("parses transcript output formats", () => {

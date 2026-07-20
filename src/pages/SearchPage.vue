@@ -3,6 +3,8 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api, { resolveAssetUrl } from "../utils/api";
 import { filterBooks, uniqueBookCategories, type SearchableBook } from "../utils/bookSearch";
+import { useI18n } from "../utils/i18n";
+import { localizedTitle } from "../utils/localizedContent";
 
 type Book = SearchableBook & {
   average_rating?: number | string;
@@ -18,6 +20,7 @@ type CategoryItem = {
 
 const route = useRoute();
 const router = useRouter();
+const { locale } = useI18n();
 
 const books = ref<Book[]>([]);
 const categoryItems = ref<CategoryItem[]>([]);
@@ -80,6 +83,10 @@ function openBook(book: Book) {
 
 function getCover(book: Book) {
   return resolveAssetUrl(book.cover_url || book.cover_image);
+}
+
+function getBookTitle(book: Book) {
+  return localizedTitle(book, locale.value) || book.title || "";
 }
 
 function getAuthor(book: Book) {
@@ -213,10 +220,10 @@ onMounted(loadSearchData);
         @keydown.enter.prevent="openBook(book)"
         @keydown.space.prevent="openBook(book)"
       >
-        <img :src="getCover(book)" :alt="book.title || 'book cover'" @error="onImgError" />
+        <img :src="getCover(book)" :alt="getBookTitle(book) || 'book cover'" @error="onImgError" />
         <div>
           <span>{{ book.content_type === "serial" ? "รายตอน" : "E-book" }}</span>
-          <h2>{{ book.title || "ไม่มีชื่อหนังสือ" }}</h2>
+          <h2>{{ getBookTitle(book) || "ไม่มีชื่อหนังสือ" }}</h2>
           <p>{{ getAuthor(book) }}</p>
           <small>{{ book.category_name || "ไม่ระบุหมวดหมู่" }} · {{ getAccessLabel(book) }}</small>
         </div>
@@ -260,7 +267,7 @@ onMounted(loadSearchData);
 .search-hero h1 {
   margin-top: 8px;
   color: var(--text-strong);
-  font-size: 34px;
+  font-size: 36px;
   line-height: 1.2;
 }
 
@@ -334,14 +341,14 @@ onMounted(loadSearchData);
 
 .book-card span {
   color: var(--primary);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
 }
 
 .book-card h2 {
   margin: 4px 0;
   color: var(--text-strong);
-  font-size: 17px;
+  font-size: 19px;
   line-height: 1.35;
 }
 
@@ -392,7 +399,7 @@ onMounted(loadSearchData);
   .filters select {
     min-height: 36px;
     border-radius: 6px;
-    font-size: 12px;
+    font-size: 14px;
     padding-inline: 10px;
   }
 
@@ -417,7 +424,7 @@ onMounted(loadSearchData);
   }
 
   .book-card span {
-    font-size: 8px;
+    font-size: 10px;
   }
 
   .book-card h2 {
@@ -425,7 +432,7 @@ onMounted(loadSearchData);
     min-height: 30px;
     margin: 2px 0;
     overflow: hidden;
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.25;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -436,7 +443,7 @@ onMounted(loadSearchData);
   .book-card small {
     display: -webkit-box;
     overflow: hidden;
-    font-size: 8px;
+    font-size: 10px;
     line-height: 1.25;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 1;
