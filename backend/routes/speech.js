@@ -7,7 +7,7 @@ const router = express.Router();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: Number(process.env.STT_MAX_UPLOAD_BYTES || 8 * 1024 * 1024),
+    fileSize: Number(process.env.STT_MAX_UPLOAD_BYTES || 25 * 1024 * 1024),
   },
   fileFilter: (_req, file, cb) => {
     if (/^audio\//i.test(file.mimetype || "")) return cb(null, true);

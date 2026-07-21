@@ -16,6 +16,7 @@ const { ensureCatalogAnalyticsSchema } = require("../services/catalogSchema");
 
 const router = express.Router();
 const coverUploadDir = path.join(__dirname, "../uploads/book-covers");
+const COVER_IMAGE_MAX_BYTES = 15 * 1024 * 1024;
 fs.mkdirSync(coverUploadDir, { recursive: true });
 
 const coverFileFields = new Set([
@@ -33,7 +34,7 @@ const coverUpload = multer({
       cb(null, `writer-cover-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
     },
   }),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: COVER_IMAGE_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (!coverFileFields.has(file.fieldname)) return cb(null, false);
     if (file.mimetype && file.mimetype.startsWith("image/")) return cb(null, true);
@@ -46,7 +47,7 @@ function uploadCoverFiles(req, res, next) {
     if (!error) return next();
     const message =
       error.code === "LIMIT_FILE_SIZE"
-        ? "ไฟล์รูปปกใหญ่เกินไป"
+        ? "ไฟล์รูปปกใหญ่เกินไป กรุณาเลือกไฟล์ไม่เกิน 15 MB"
         : error.message || "อัปโหลดรูปปกไม่สำเร็จ";
     return res.status(400).json({ message });
   });

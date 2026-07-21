@@ -15,7 +15,7 @@ fs.mkdirSync(uploadDir, { recursive: true });
 
 const defaultConfig = {
   subscriptionHero: {
-    image_url: "",
+    image_url: "/page-content/subscription-hero-mint-reading.png",
     updated_at: null,
   },
   subscriptionPage: {
@@ -23,6 +23,8 @@ const defaultConfig = {
     hero_title: "สมัครสมาชิกพิเศษ อ่านได้คุ้มกว่าเดิม",
     hero_description:
       "เลือกแพ็กเกจที่เหมาะกับจังหวะการอ่านของคุณ แล้วชำระด้วยคอยน์จากกระเป๋าได้ทันที",
+    hero_overlay: "dark",
+    hero_card_image_url: "",
     primary_cta: "เลือกแพ็กเกจ",
     secondary_cta: "เติมคอยน์",
     status_title: "สถานะสมาชิก",
@@ -47,9 +49,9 @@ const defaultConfig = {
           "ทุกครั้งที่สมัคร ระบบจะหักคอยน์จากกระเป๋าและบันทึกรายการไว้ ผู้ใช้จึงตรวจสอบย้อนหลังได้ว่าซื้อแพ็กเกจใด ใช้คอยน์เท่าไร และเริ่มใช้งานเมื่อใด",
       },
       {
-        title: "แอดมินแก้ไขได้ไหม?",
+        title: "อ่านและฟังได้ต่อเนื่อง",
         text:
-          "แอดมินสามารถแก้รูปภาพ ข้อความ และแพ็กเกจสมาชิกได้จากระบบหลังบ้าน โดยไม่ต้องแก้โค้ด",
+          "ใช้สิทธิ์สมาชิกเพื่ออ่านเนื้อหาที่กำหนดไว้สำหรับสมาชิก และใช้งานร่วมกับฟีเจอร์เสียงของ Read and Voice ได้ตามเงื่อนไขของแต่ละเรื่อง",
       },
     ],
     compare_title: "เปรียบเทียบสิทธิ์",
@@ -87,15 +89,17 @@ const defaultConfig = {
           "ไม่ทับวันเดิม ถ้าผู้ใช้ยังมีแพ็กเกจที่ใช้งานอยู่ ระบบจะนำวันคงเหลือเดิมเป็นฐาน แล้วเพิ่มจำนวนวันของแพ็กเกจใหม่ต่อจากวันหมดอายุล่าสุด ช่วยให้สมัครล่วงหน้าได้โดยไม่เสียวันคงเหลือ",
       },
       {
-        question: "แอดมินสามารถแก้ไขข้อมูลหน้านี้ได้ไหม?",
+        question: "สิทธิ์สมาชิกใช้กับทุกเรื่องหรือไม่?",
         answer:
-          "แอดมินสามารถแก้รูปภาพ ข้อความประกอบ คำถามที่พบบ่อย และแพ็กเกจสมาชิกได้จากระบบหลังบ้าน โดยไม่ต้องแก้โค้ด",
+          "สิทธิ์สมาชิกใช้กับหนังสือหรือตอนที่ผู้เขียนหรือทีมงานตั้งค่าไว้สำหรับสมาชิก หากเป็นเนื้อหาขายรายเล่มหรือรายตอน ผู้ใช้ยังสามารถซื้อด้วยคอยน์ได้ตามปกติ",
       },
     ],
   },
   homeBanners: [],
   posterRequests: [],
 };
+
+const PAGE_CONTENT_IMAGE_MAX_BYTES = 15 * 1024 * 1024;
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
@@ -106,14 +110,16 @@ const storage = multer.diskStorage({
         ? "home-banner"
         : file.fieldname === "poster"
           ? "writer-poster"
-          : "subscription-hero";
+          : file.fieldname === "card_image"
+            ? "subscription-card"
+            : "subscription-hero";
     cb(null, `${prefix}-${Date.now()}${ext}`);
   },
 });
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: PAGE_CONTENT_IMAGE_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (!file.mimetype || !file.mimetype.startsWith("image/")) {
       cb(new Error("อัปโหลดได้เฉพาะไฟล์รูปภาพเท่านั้น"));
@@ -181,12 +187,17 @@ function normalizeCards(value, fallback = [], titleKey = "title", textKey = "tex
 
 function normalizeSubscriptionPage(source = {}) {
   const base = defaultConfig.subscriptionPage;
+  const overlay = normalizeText(source.hero_overlay, base.hero_overlay);
   return {
     ...base,
     ...source,
     hero_badge: normalizeText(source.hero_badge, base.hero_badge),
     hero_title: normalizeText(source.hero_title, base.hero_title),
     hero_description: normalizeText(source.hero_description, base.hero_description),
+    hero_overlay: ["dark", "warm", "soft", "clear", "none"].includes(overlay)
+      ? overlay
+      : base.hero_overlay,
+    hero_card_image_url: normalizeText(source.hero_card_image_url, base.hero_card_image_url),
     primary_cta: normalizeText(source.primary_cta, base.primary_cta),
     secondary_cta: normalizeText(source.secondary_cta, base.secondary_cta),
     status_title: normalizeText(source.status_title, base.status_title),
@@ -291,7 +302,10 @@ router.get("/", (_req, res) => {
 router.post("/subscription-page", verifyToken, requireAdmin, (req, res) => {
   try {
     const config = readConfig();
-    config.subscriptionPage = normalizeSubscriptionPage(req.body || {});
+    config.subscriptionPage = normalizeSubscriptionPage({
+      ...config.subscriptionPage,
+      ...(req.body || {}),
+    });
     writeConfig(config);
 
     return res.json({
@@ -337,6 +351,44 @@ router.post(
       console.error("POST /page-content/subscription-hero error:", error);
       return res.status(500).json({
         message: "อัปเดตรูปภาพหน้าสมัครรายเดือนไม่สำเร็จ",
+      });
+    }
+  },
+);
+
+router.post(
+  "/subscription-card-image",
+  verifyToken,
+  requireAdmin,
+  upload.single("card_image"),
+  (req, res) => {
+    try {
+      const imageUrl = String(req.body.image_url || "").trim();
+      const config = readConfig();
+
+      if (req.file || imageUrl) {
+        config.subscriptionPage = normalizeSubscriptionPage({
+          ...config.subscriptionPage,
+          hero_card_image_url: req.file
+            ? `/uploads/page-content/${req.file.filename}`
+            : imageUrl,
+        });
+      } else {
+        return res.status(400).json({
+          message: "กรุณาอัปโหลดรูปภาพหรือกรอก URL รูปกล่อง VIP",
+        });
+      }
+
+      writeConfig(config);
+
+      return res.json({
+        message: "อัปเดตรูปกล่อง VIP สำเร็จ",
+        subscriptionPage: config.subscriptionPage,
+      });
+    } catch (error) {
+      console.error("POST /page-content/subscription-card-image error:", error);
+      return res.status(500).json({
+        message: "อัปเดตรูปกล่อง VIP ไม่สำเร็จ",
       });
     }
   },
@@ -406,6 +458,23 @@ router.post(
     }
   },
 );
+
+router.get("/writer-posters/mine", verifyToken, (req, res) => {
+  try {
+    if (!isWriterLike(req.user.role)) {
+      return res.status(403).json({ message: "เฉพาะนักเขียนเท่านั้นที่ดูคำขอโปสเตอร์ได้" });
+    }
+
+    const config = readConfig();
+    const requests = (config.posterRequests || []).filter(
+      (request) => String(request.submitted_by || "") === String(req.user.id || ""),
+    );
+    return res.json(requests);
+  } catch (error) {
+    console.error("GET /page-content/writer-posters/mine error:", error);
+    return res.status(500).json({ message: "โหลดคำขอโปสเตอร์ของคุณไม่สำเร็จ" });
+  }
+});
 
 router.get("/writer-posters", verifyToken, requireAdmin, (_req, res) => {
   try {
@@ -512,6 +581,27 @@ router.delete("/subscription-hero", verifyToken, requireAdmin, (_req, res) => {
     console.error("DELETE /page-content/subscription-hero error:", error);
     return res.status(500).json({
       message: "ลบรูปภาพหน้าสมัครรายเดือนไม่สำเร็จ",
+    });
+  }
+});
+
+router.delete("/subscription-card-image", verifyToken, requireAdmin, (_req, res) => {
+  try {
+    const config = readConfig();
+    config.subscriptionPage = normalizeSubscriptionPage({
+      ...config.subscriptionPage,
+      hero_card_image_url: "",
+    });
+    writeConfig(config);
+
+    return res.json({
+      message: "เปลี่ยนกล่อง VIP กลับไปใช้ fallback สำเร็จ",
+      subscriptionPage: config.subscriptionPage,
+    });
+  } catch (error) {
+    console.error("DELETE /page-content/subscription-card-image error:", error);
+    return res.status(500).json({
+      message: "เปลี่ยนกล่อง VIP กลับไปใช้ fallback ไม่สำเร็จ",
     });
   }
 });

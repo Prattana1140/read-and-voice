@@ -255,6 +255,18 @@ app.use((req, res) => {
 app.use((err, _req, res, _next) => {
   console.error("GLOBAL ERROR:", err);
 
+  if (err?.code === "LIMIT_FILE_SIZE") {
+    return res.status(413).json({
+      message: "ไฟล์รูปภาพมีขนาดใหญ่เกินไป กรุณาเลือกไฟล์ไม่เกิน 15 MB",
+    });
+  }
+
+  if (err?.code === "LIMIT_UNEXPECTED_FILE") {
+    return res.status(400).json({
+      message: "ช่องอัปโหลดไฟล์ไม่ถูกต้อง กรุณาเลือกไฟล์ใหม่อีกครั้ง",
+    });
+  }
+
   return res.status(err.status || 500).json({
     message: err.message || "เกิดข้อผิดพลาดในระบบ",
   });

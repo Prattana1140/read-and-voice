@@ -7,6 +7,7 @@ const { verifyToken } = require("../middleware/auth");
 
 const router = express.Router();
 const slipUploadDir = path.join(__dirname, "../uploads/payment-slips");
+const SLIP_IMAGE_MAX_BYTES = 15 * 1024 * 1024;
 
 fs.mkdirSync(slipUploadDir, { recursive: true });
 
@@ -20,7 +21,7 @@ const slipStorage = multer.diskStorage({
 
 const uploadSlip = multer({
   storage: slipStorage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: SLIP_IMAGE_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (!file.mimetype || !file.mimetype.startsWith("image/")) {
       cb(new Error("อัปโหลดได้เฉพาะไฟล์รูปภาพสลิปเท่านั้น"));

@@ -9,6 +9,7 @@ const { verifyToken } = require("../middleware/auth");
 
 const router = express.Router();
 const uploadDir = path.join(__dirname, "../uploads/profile-images");
+const PROFILE_IMAGE_MAX_BYTES = 15 * 1024 * 1024;
 const USERNAME_PATTERN = /^[A-Za-z0-9._@-]{4,32}$/;
 const GENDER_VALUES = new Set(["male", "female", "other", "prefer_not_to_say"]);
 const VISUAL_IMPAIRMENT_VALUES = new Set([
@@ -33,7 +34,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: PROFILE_IMAGE_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (!file.mimetype || !file.mimetype.startsWith("image/")) {
       return cb(new Error("อัปโหลดได้เฉพาะไฟล์รูปภาพเท่านั้น"));
@@ -260,7 +261,7 @@ function handleProfileUpload(req, res, next) {
 
     const message =
       error.code === "LIMIT_FILE_SIZE"
-        ? "ไฟล์รูปมีขนาดใหญ่เกินไป"
+        ? "ไฟล์รูปมีขนาดใหญ่เกินไป กรุณาเลือกไฟล์ไม่เกิน 15 MB"
         : error.message || "อัปโหลดรูปโปรไฟล์ไม่สำเร็จ";
 
     return res.status(400).json({ message });

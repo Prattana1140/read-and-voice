@@ -35,6 +35,13 @@ type Wallet = {
   balance?: number | string;
 };
 
+type CoinTopupPrompt = {
+  planName: string;
+  balance: number;
+  price: number;
+  shortage: number;
+};
+
 type BenefitCard = {
   title: string;
   text: string;
@@ -49,6 +56,8 @@ type SubscriptionPage = {
   hero_badge: string;
   hero_title: string;
   hero_description: string;
+  hero_overlay: string;
+  hero_card_image_url: string;
   primary_cta: string;
   secondary_cta: string;
   status_title: string;
@@ -73,6 +82,8 @@ const defaultSubscriptionPage: SubscriptionPage = {
   hero_title: "สมัครสมาชิกพิเศษ อ่านได้คุ้มกว่าเดิม",
   hero_description:
     "เลือกแพ็กเกจที่เหมาะกับจังหวะการอ่านของคุณ แล้วชำระด้วยคอยน์จากกระเป๋าได้ทันที",
+  hero_overlay: "dark",
+  hero_card_image_url: "",
   primary_cta: "เลือกแพ็กเกจ",
   secondary_cta: "เติมคอยน์",
   status_title: "สถานะสมาชิก",
@@ -97,8 +108,8 @@ const defaultSubscriptionPage: SubscriptionPage = {
         "ทุกครั้งที่สมัคร ระบบจะหักคอยน์จากกระเป๋าและบันทึกรายการไว้ ผู้ใช้จึงตรวจสอบย้อนหลังได้ว่าซื้อแพ็กเกจใด ใช้คอยน์เท่าไร และเริ่มใช้งานเมื่อใด",
     },
     {
-      title: "แอดมินแก้ไขได้ไหม?",
-      text: "แอดมินสามารถแก้รูปภาพ ข้อความ และแพ็กเกจสมาชิกได้จากระบบหลังบ้าน โดยไม่ต้องแก้โค้ด",
+      title: "อ่านและฟังได้ต่อเนื่อง",
+      text: "ใช้สิทธิ์สมาชิกเพื่ออ่านเนื้อหาที่กำหนดไว้สำหรับสมาชิก และใช้งานร่วมกับฟีเจอร์เสียงของ Read and Voice ได้ตามเงื่อนไขของแต่ละเรื่อง",
     },
   ],
   compare_title: "เปรียบเทียบสิทธิ์",
@@ -136,9 +147,9 @@ const defaultSubscriptionPage: SubscriptionPage = {
         "ไม่ทับวันเดิม ถ้าผู้ใช้ยังมีแพ็กเกจที่ใช้งานอยู่ ระบบจะนำวันคงเหลือเดิมเป็นฐาน แล้วเพิ่มจำนวนวันของแพ็กเกจใหม่ต่อจากวันหมดอายุล่าสุด ช่วยให้สมัครล่วงหน้าได้โดยไม่เสียวันคงเหลือ",
     },
     {
-      question: "แอดมินสามารถแก้ไขข้อมูลหน้านี้ได้ไหม?",
+      question: "สิทธิ์สมาชิกใช้กับทุกเรื่องหรือไม่?",
       answer:
-        "แอดมินสามารถแก้รูปภาพ ข้อความประกอบ คำถามที่พบบ่อย และแพ็กเกจสมาชิกได้จากระบบหลังบ้าน โดยไม่ต้องแก้โค้ด",
+        "สิทธิ์สมาชิกใช้กับหนังสือหรือตอนที่ผู้เขียนหรือทีมงานตั้งค่าไว้สำหรับสมาชิก หากเป็นเนื้อหาขายรายเล่มหรือรายตอน ผู้ใช้ยังสามารถซื้อด้วยคอยน์ได้ตามปกติ",
     },
   ],
 };
@@ -153,6 +164,7 @@ const errorMessage = ref("");
 const loading = ref(true);
 const walletLoading = ref(false);
 const subscribingId = ref<number | null>(null);
+const coinTopupPrompt = ref<CoinTopupPrompt | null>(null);
 
 const isLoggedIn = computed(() => !!getToken());
 
@@ -206,12 +218,30 @@ const activePlanText = computed(() => {
 const resolveImageUrl = (url: string) => {
   if (!url) return "";
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/page-content/")) return url;
   return `${API_BASE_URL}/${url.replace(/^\/+/, "")}`;
 };
 
 const heroImageUrl = computed(() => {
   return resolveImageUrl(pageContent.value?.subscriptionHero?.image_url || "");
 });
+
+const heroBackgroundStyle = computed(() => {
+  return heroImageUrl.value
+    ? { backgroundImage: `url("${heroImageUrl.value}")` }
+    : {};
+});
+
+const heroOverlayClass = computed(() => {
+  const overlay = subscriptionCopy.value.hero_overlay;
+  return ["dark", "warm", "soft", "clear", "none"].includes(overlay)
+    ? `vip-hero--${overlay}`
+    : "vip-hero--dark";
+});
+
+const heroCardImageUrl = computed(() =>
+  resolveImageUrl(subscriptionCopy.value.hero_card_image_url || ""),
+);
 
 const walletText = computed(() => {
   if (!isLoggedIn.value) return "เข้าสู่ระบบเพื่อดูยอดคอยน์";
@@ -285,6 +315,26 @@ function getPlanBenefits(plan: Plan) {
 
 function canAfford(plan: Plan) {
   return walletBalance.value !== null && walletBalance.value >= Math.ceil(getPlanPrice(plan));
+}
+
+function showCoinTopupPrompt(plan: Plan, balance: number) {
+  const price = Math.ceil(getPlanPrice(plan));
+  coinTopupPrompt.value = {
+    planName: getPlanTitle(plan),
+    balance,
+    price,
+    shortage: Math.max(price - balance, 0),
+  };
+  errorMessage.value = `คอยน์ไม่พอ ตอนนี้มี ${formatCoins(balance)} คอยน์ ต้องใช้ ${formatCoins(price)} คอยน์`;
+}
+
+function closeCoinTopupPrompt() {
+  coinTopupPrompt.value = null;
+}
+
+function goTopUpFromPrompt() {
+  closeCoinTopupPrompt();
+  goTopUp();
 }
 
 async function loadWallet() {
@@ -362,9 +412,8 @@ async function subscribe(plan: Plan) {
   } catch (error: any) {
     if (error?.response?.status === 402) {
       const balance = Number(error?.response?.data?.balance ?? walletBalance.value ?? 0);
-      window.alert(`เหรียญไม่พอ ตอนนี้มี ${formatCoins(balance)} เหรียญ ต้องใช้ ${formatCoins(price)} เหรียญ`);
       walletBalance.value = balance;
-      errorMessage.value = `คอยน์ไม่พอ ตอนนี้มี ${formatCoins(balance)} คอยน์ ต้องใช้ ${formatCoins(price)} คอยน์`;
+      showCoinTopupPrompt(plan, balance);
       return;
     }
 
@@ -387,10 +436,7 @@ function goTopUp() {
 
 function handlePlanAction(plan: Plan) {
   if (isLoggedIn.value && walletBalance.value !== null && !canAfford(plan)) {
-    const price = Math.ceil(getPlanPrice(plan));
-    window.alert(
-      `เหรียญไม่พอ ตอนนี้มี ${formatCoins(walletBalance.value)} เหรียญ ต้องใช้ ${formatCoins(price)} เหรียญ`,
-    );
+    showCoinTopupPrompt(plan, walletBalance.value);
     return;
   }
 
@@ -410,33 +456,60 @@ onMounted(async () => {
       <strong>สมาชิกพิเศษ Read and Voice</strong>
     </nav>
 
-    <section class="vip-hero">
-      <div class="hero-copy">
-        <p class="eyebrow">{{ subscriptionCopy.hero_badge }}</p>
-        <h1>{{ subscriptionCopy.hero_title }}</h1>
-        <span>{{ subscriptionCopy.hero_description }}</span>
-        <div class="hero-actions">
-          <a href="#plans">{{ subscriptionCopy.primary_cta }}</a>
-          <button type="button" @click="goTopUp">{{ subscriptionCopy.secondary_cta }}</button>
+    <section
+      class="vip-hero"
+      :class="[
+        heroOverlayClass,
+        { 'vip-hero--image': heroImageUrl },
+      ]"
+      :style="heroBackgroundStyle"
+    >
+      <div class="hero-content">
+        <div class="hero-copy">
+          <p class="eyebrow">{{ subscriptionCopy.hero_badge }}</p>
+          <h1>{{ subscriptionCopy.hero_title }}</h1>
+          <span>{{ subscriptionCopy.hero_description }}</span>
+          <div class="hero-actions">
+            <a href="#plans">{{ subscriptionCopy.primary_cta }}</a>
+            <button type="button" class="coin-topup-button" @click="goTopUp">
+              <span class="coin-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <circle cx="12" cy="12" r="8.5" class="coin-face" />
+                  <circle cx="12" cy="12" r="5.4" class="coin-core" />
+                  <ellipse cx="9.2" cy="8.4" rx="2.2" ry="1.5" class="coin-shine" />
+                </svg>
+              </span>
+              {{ subscriptionCopy.secondary_cta }}
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div class="hero-panel">
-        <img
-          v-if="heroImageUrl"
-          class="hero-image"
-          :src="heroImageUrl"
-          alt="สมาชิกพิเศษ Read and Voice"
-        />
-        <div v-else class="vip-token" aria-hidden="true">
-          <strong>VIP</strong>
-          <span>Read and Voice</span>
-        </div>
+        <div class="hero-panel">
+          <img
+            v-if="heroCardImageUrl"
+            class="hero-card-image"
+            :src="heroCardImageUrl"
+            alt="สมาชิกพิเศษ Read and Voice"
+          />
+          <div v-else class="vip-token" aria-hidden="true">
+            <strong>VIP</strong>
+            <span>Read and Voice</span>
+          </div>
 
-        <div class="wallet-card">
-          <small>คอยน์ของคุณ</small>
-          <strong>{{ walletText }}</strong>
-          <button type="button" @click="goTopUp">{{ subscriptionCopy.secondary_cta }}</button>
+          <div class="wallet-card">
+            <small>คอยน์ของคุณ</small>
+            <strong>{{ walletText }}</strong>
+            <button type="button" class="coin-topup-button" @click="goTopUp">
+              <span class="coin-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <circle cx="12" cy="12" r="8.5" class="coin-face" />
+                  <circle cx="12" cy="12" r="5.4" class="coin-core" />
+                  <ellipse cx="9.2" cy="8.4" rx="2.2" ry="1.5" class="coin-shine" />
+                </svg>
+              </span>
+              {{ subscriptionCopy.secondary_cta }}
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -476,25 +549,28 @@ onMounted(async () => {
             unaffordable: isLoggedIn && walletBalance !== null && !canAfford(plan),
           }"
         >
-          <span v-if="plan.id === featuredPlanId" class="plan-ribbon">แนะนำ</span>
-          <span v-else-if="getDiscount(plan)" class="plan-ribbon quiet">
-            ประหยัด {{ getDiscount(plan) }}%
-          </span>
-
-          <div>
-            <p>{{ getPlanSubtitle(plan) }}</p>
-            <h3>{{ getPlanTitle(plan) }}</h3>
+          <div class="plan-card__head">
+            <div>
+              <p>{{ getPlanSubtitle(plan) }}</p>
+              <h3>{{ getPlanTitle(plan) }}</h3>
+            </div>
+            <span v-if="plan.id === featuredPlanId" class="plan-ribbon">แนะนำ</span>
+            <span v-else-if="getDiscount(plan)" class="plan-ribbon quiet">
+              ประหยัด {{ getDiscount(plan) }}%
+            </span>
           </div>
 
-          <div class="price-line">
-            <strong>{{ formatCoins(getPlanPrice(plan)) }}</strong>
-            <span>คอยน์</span>
+          <div class="plan-card__price">
+            <div class="price-line">
+              <strong>{{ formatCoins(getPlanPrice(plan)) }}</strong>
+              <span>คอยน์</span>
+            </div>
+            <small class="daily-price">
+              เฉลี่ย {{ getDailyPrice(plan).toLocaleString("th-TH", { maximumFractionDigits: 1 }) }} คอยน์/วัน
+            </small>
           </div>
-          <small class="daily-price">
-            เฉลี่ย {{ getDailyPrice(plan).toLocaleString("th-TH", { maximumFractionDigits: 1 }) }} คอยน์/วัน
-          </small>
 
-          <ul>
+          <ul class="plan-card__benefits">
             <li v-for="benefit in getPlanBenefits(plan)" :key="benefit">
               {{ benefit }}
             </li>
@@ -508,9 +584,7 @@ onMounted(async () => {
             {{
               subscribingId === plan.id
                 ? "กำลังชำระ..."
-                : isLoggedIn && walletBalance !== null && !canAfford(plan)
-                  ? "เติมคอยน์ก่อนสมัคร"
-                  : "สมัครด้วยคอยน์"
+                : "สมัคร"
             }}
           </button>
         </article>
@@ -555,6 +629,68 @@ onMounted(async () => {
         <p>{{ faq.answer }}</p>
       </details>
     </section>
+
+    <div
+      v-if="coinTopupPrompt"
+      class="coin-modal-backdrop"
+      role="presentation"
+      @click.self="closeCoinTopupPrompt"
+    >
+      <section class="coin-modal" role="dialog" aria-modal="true" aria-labelledby="coin-modal-title">
+        <button
+          type="button"
+          class="coin-modal__close"
+          aria-label="ปิดแจ้งเตือน"
+          @click="closeCoinTopupPrompt"
+        >
+          ×
+        </button>
+
+        <div class="coin-modal__icon" aria-hidden="true">
+          <span class="coin-mark">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <circle cx="12" cy="12" r="8.5" class="coin-face" />
+              <circle cx="12" cy="12" r="5.4" class="coin-core" />
+              <ellipse cx="9.2" cy="8.4" rx="2.2" ry="1.5" class="coin-shine" />
+            </svg>
+          </span>
+        </div>
+
+        <div class="coin-modal__body">
+          <p class="coin-modal__eyebrow">คอยน์ไม่พอสำหรับแพ็กเกจนี้</p>
+          <h2 id="coin-modal-title">เติมคอยน์ก่อนสมัคร</h2>
+          <p>
+            แพ็กเกจ {{ coinTopupPrompt.planName }} ต้องใช้
+            <strong>{{ formatCoins(coinTopupPrompt.price) }} คอยน์</strong>
+            ตอนนี้คุณมี {{ formatCoins(coinTopupPrompt.balance) }} คอยน์
+            ขาดอีก {{ formatCoins(coinTopupPrompt.shortage) }} คอยน์
+          </p>
+        </div>
+
+        <div class="coin-modal__summary">
+          <span>ยอดคงเหลือ</span>
+          <strong>{{ formatCoins(coinTopupPrompt.balance) }} คอยน์</strong>
+          <span>ต้องใช้</span>
+          <strong>{{ formatCoins(coinTopupPrompt.price) }} คอยน์</strong>
+        </div>
+
+        <div class="coin-modal__actions">
+          <button type="button" class="coin-modal__topup" @click="goTopUpFromPrompt">
+            <span class="coin-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <circle cx="12" cy="12" r="8.5" class="coin-face" />
+                <circle cx="12" cy="12" r="5.4" class="coin-core" />
+                <ellipse cx="9.2" cy="8.4" rx="2.2" ry="1.5" class="coin-shine" />
+              </svg>
+            </span>
+            เติมคอยน์
+          </button>
+          <button type="button" class="coin-modal__secondary" @click="closeCoinTopupPrompt">
+            ปิด
+          </button>
+        </div>
+      </section>
+    </div>
   </main>
 </template>
 
@@ -562,10 +698,7 @@ onMounted(async () => {
 .vip-page {
   min-height: 100vh;
   min-height: 100dvh;
-  background:
-    radial-gradient(circle at 10% 10%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 28%),
-    radial-gradient(circle at 92% 4%, color-mix(in srgb, #f59e0b 14%, transparent), transparent 26%),
-    var(--bg);
+  background: var(--bg);
   color: var(--text);
   padding: var(--page-block, 28px) var(--page-gutter, 20px) 72px;
 }
@@ -598,24 +731,98 @@ onMounted(async () => {
 }
 
 .vip-hero {
+  position: relative;
+  isolation: isolate;
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
-  gap: 26px;
-  align-items: stretch;
+  align-items: end;
+  min-height: clamp(360px, 42vw, 500px);
   border: 1px solid var(--border);
   border-radius: 8px;
   background:
+    radial-gradient(circle at 82% 12%, rgba(255, 255, 255, 0.34), transparent 22%),
     linear-gradient(135deg, color-mix(in srgb, #f43f5e 92%, var(--surface) 8%), #ff7a59 52%, #ffc861);
-  box-shadow: var(--shadow);
+  background-position: center;
+  background-size: cover;
+  box-shadow: 0 18px 36px rgba(251, 146, 60, 0.12);
   overflow: hidden;
-  padding: clamp(26px, 5vw, 54px);
+  padding: clamp(20px, 3.4vw, 40px);
+}
+
+.vip-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.42) 42%, rgba(255, 255, 255, 0.08) 76%),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.36), rgba(255, 255, 255, 0.02) 58%);
+}
+
+.vip-hero--warm::before {
+  background:
+    linear-gradient(90deg, rgba(255, 247, 237, 0.72) 0%, rgba(255, 237, 213, 0.36) 48%, rgba(255, 237, 213, 0.06) 78%),
+    linear-gradient(0deg, rgba(255, 247, 237, 0.28), rgba(255, 247, 237, 0.02) 58%);
+}
+
+.vip-hero--soft::before {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.42) 42%, rgba(255, 255, 255, 0.08) 76%),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0.04) 58%);
+}
+
+.vip-hero--clear::before {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.12) 52%, rgba(255, 255, 255, 0.02) 82%);
+}
+
+.vip-hero--none::before {
+  background: transparent;
+}
+
+.vip-hero .hero-copy,
+.vip-hero .hero-copy h1,
+.vip-hero .hero-copy span {
+  color: #12333a;
+  text-shadow: none;
+}
+
+.vip-hero--soft .hero-copy,
+.vip-hero--soft .hero-copy h1,
+.vip-hero--soft .hero-copy span {
+  color: #17202a;
+  text-shadow: none;
+}
+
+.vip-hero .eyebrow,
+.vip-hero--soft .eyebrow {
+  border-color: rgba(15, 23, 42, 0.16);
+  background: rgba(255, 255, 255, 0.68);
+  color: #12333a;
+}
+
+.vip-hero::after {
+  content: none;
+}
+
+.vip-hero--image {
+  background-color: #0f172a;
+}
+
+.hero-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.62fr);
+  gap: clamp(18px, 4vw, 42px);
+  align-items: end;
+  width: 100%;
 }
 
 .hero-copy {
   display: grid;
-  align-content: center;
+  align-content: end;
   gap: 18px;
   color: #fff;
+  min-height: 0;
+  padding-block: 18px;
 }
 
 .eyebrow,
@@ -636,25 +843,25 @@ onMounted(async () => {
   width: fit-content;
   border: 1px solid rgba(255, 255, 255, 0.42);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.2);
   font-weight: 900;
   padding: 6px 12px;
+  backdrop-filter: blur(12px);
 }
 
 .hero-copy h1 {
   max-width: 660px;
-  font-size: clamp(26px, 3.6vw, 40px);
+  font-size: clamp(30px, 4.2vw, 46px);
   font-weight: 900;
-  line-height: 1;
+  line-height: 1.08;
   text-wrap: balance;
 }
 
 .hero-copy span {
   max-width: 620px;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 800;
-  line-height: 1.7;
+  line-height: 1.6;
 }
 
 .hero-actions {
@@ -675,35 +882,93 @@ onMounted(async () => {
   padding: 0 18px;
 }
 
+.coin-topup-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
 .hero-actions a {
   display: inline-flex;
   align-items: center;
-  background: #fff;
-  color: #e11d48;
+  background: linear-gradient(135deg, var(--primary), #10b981);
+  color: var(--on-primary);
+  font-size: 15px;
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--primary) 28%, transparent);
   text-decoration: none;
 }
 
-.hero-actions button,
-.wallet-card button {
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.44);
+.hero-actions .coin-topup-button,
+.wallet-card .coin-topup-button {
+  width: fit-content;
+  min-height: 30px;
+  min-width: 0;
+  justify-self: start;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ff9d10 0%, #f28a00 100%);
+  color: #ffffff;
+  border: 0;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 4px 10px rgba(200, 112, 0, 0.18);
+  font-size: 14px;
+  line-height: 1.15;
+  padding: 0 14px 0 10px;
+}
+
+.coin-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle at 35% 35%,
+    #ffe48a 0%,
+    #ffc933 45%,
+    #e59a00 100%
+  );
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.42),
+    0 1px 2px rgba(181, 118, 0, 0.3);
+  flex: 0 0 auto;
+}
+
+.coin-mark svg {
+  width: 11px;
+  height: 11px;
+  filter: drop-shadow(0 1px 0 rgba(181, 118, 0, 0.18));
+}
+
+.coin-face {
+  fill: #ffd24d;
+}
+
+.coin-core {
+  fill: #f6b301;
+}
+
+.coin-shine {
+  fill: rgba(255, 245, 186, 0.52);
 }
 
 .hero-panel {
   display: grid;
-  align-content: center;
+  align-content: end;
   gap: 16px;
+  min-width: 0;
 }
 
-.hero-image,
+.hero-card-image,
 .vip-token,
 .wallet-card {
   border-radius: 8px;
   box-shadow: 0 20px 38px rgba(124, 45, 18, 0.18);
 }
 
-.hero-image {
+.hero-card-image {
+  display: block;
   width: 100%;
   aspect-ratio: 16 / 9;
   object-fit: cover;
@@ -712,7 +977,7 @@ onMounted(async () => {
 .vip-token {
   display: grid;
   place-items: center;
-  min-height: 230px;
+  min-height: 180px;
   background:
     radial-gradient(circle at 30% 18%, rgba(255, 255, 255, 0.9), transparent 16%),
     linear-gradient(145deg, #fff7d1, #ffffff);
@@ -720,13 +985,13 @@ onMounted(async () => {
 }
 
 .vip-token strong {
-  font-size: clamp(32px, 5vw, 48px);
+  font-size: clamp(30px, 4vw, 40px);
   line-height: 0.9;
 }
 
 .vip-token span {
   color: #a16207;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 900;
 }
 
@@ -735,23 +1000,28 @@ onMounted(async () => {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px 14px;
   align-items: center;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.36);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  color: #12333a;
   padding: 18px;
+  backdrop-filter: blur(14px);
 }
 
 .wallet-card small {
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(18, 51, 58, 0.72);
   font-weight: 800;
 }
 
 .wallet-card strong {
-  font-size: 26px;
+  font-size: 22px;
 }
 
 .wallet-card button {
   grid-row: span 2;
+}
+
+.wallet-card .coin-topup-button {
+  grid-row: auto;
 }
 
 .status-strip {
@@ -806,6 +1076,152 @@ onMounted(async () => {
   color: color-mix(in srgb, #dc2626 82%, var(--text-strong) 18%);
 }
 
+.coin-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  background: rgba(10, 25, 28, 0.34);
+  padding: 20px;
+}
+
+.coin-modal {
+  position: relative;
+  display: grid;
+  gap: 18px;
+  width: min(100%, 440px);
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+  padding: 28px;
+}
+
+.coin-modal__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-soft) 60%, var(--surface) 40%);
+  color: var(--text-strong);
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.coin-modal__icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ff9d10 0%, #f28a00 100%);
+  box-shadow: 0 10px 24px rgba(200, 112, 0, 0.22);
+}
+
+.coin-modal__icon .coin-mark {
+  width: 26px;
+  height: 26px;
+}
+
+.coin-modal__body {
+  display: grid;
+  gap: 8px;
+}
+
+.coin-modal__eyebrow {
+  margin: 0;
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.coin-modal h2 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 25px;
+  line-height: 1.18;
+}
+
+.coin-modal__body p:not(.coin-modal__eyebrow) {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.coin-modal__body strong {
+  color: var(--text-strong);
+}
+
+.coin-modal__summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 14px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--primary-soft) 48%, var(--surface) 52%);
+  padding: 14px;
+}
+
+.coin-modal__summary span {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.coin-modal__summary strong {
+  color: var(--text-strong);
+  font-size: 15px;
+  text-align: right;
+}
+
+.coin-modal__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.coin-modal__topup,
+.coin-modal__secondary {
+  min-height: 40px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 900;
+  padding: 0 18px;
+}
+
+.coin-modal__topup {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  background: linear-gradient(180deg, #ff9d10 0%, #f28a00 100%);
+  color: #ffffff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 4px 10px rgba(200, 112, 0, 0.18);
+}
+
+.coin-modal__topup .coin-mark {
+  width: 20px;
+  height: 20px;
+}
+
+.coin-modal__secondary {
+  border: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
+  background: var(--surface);
+  color: var(--text-strong);
+}
+
 .plans-section,
 .benefits-section,
 .compare-section,
@@ -830,7 +1246,7 @@ onMounted(async () => {
 .compare-section h2,
 .faq-section h2 {
   color: var(--text-strong);
-  font-size: clamp(22px, 3vw, 30px);
+  font-size: clamp(20px, 2.4vw, 26px);
   line-height: 1.15;
 }
 
@@ -844,37 +1260,82 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: stretch;
-  gap: 14px;
+  gap: 16px;
 }
 
 .plan-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   height: 100%;
   overflow: hidden;
-  padding: 24px 20px 20px;
+  padding: 18px;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.plan-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: color-mix(in srgb, var(--primary) 72%, #10b981);
+  opacity: 0.72;
+}
+
+.plan-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--border));
+  box-shadow: 0 16px 32px rgba(15, 118, 110, 0.12);
+  transform: translateY(-2px);
 }
 
 .plan-card.featured {
   border-color: color-mix(in srgb, var(--primary) 44%, var(--border));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--primary-soft) 42%, transparent), transparent 38%),
+    var(--surface);
+  box-shadow: 0 18px 36px rgba(15, 118, 110, 0.14);
+}
+
+.plan-card.featured::before {
+  opacity: 1;
+  background: linear-gradient(90deg, var(--primary), #10b981);
 }
 
 .plan-card.unaffordable {
   opacity: 0.78;
 }
 
+.plan-card__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+}
+
+.plan-card__head > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
 .plan-ribbon {
-  position: absolute;
-  top: 12px;
-  right: 12px;
+  order: -1;
+  justify-self: start;
+  max-width: 100%;
   border-radius: 999px;
   background: #ef4444;
   color: #fff;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 900;
-  padding: 5px 10px;
+  line-height: 1.2;
+  padding: 5px 9px;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .plan-ribbon.quiet {
@@ -884,13 +1345,25 @@ onMounted(async () => {
 
 .plan-card p {
   color: var(--text-muted);
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 800;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .plan-card h3 {
   color: var(--text-strong);
-  font-size: 26px;
+  font-size: 18px;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.plan-card__price {
+  display: grid;
+  gap: 4px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--primary-soft) 46%, var(--surface) 54%);
+  padding: 10px 12px;
 }
 
 .price-line {
@@ -901,28 +1374,52 @@ onMounted(async () => {
 }
 
 .price-line strong {
-  font-size: 32px;
+  font-size: 26px;
   line-height: 1;
 }
 
 .daily-price {
   color: var(--text-muted);
+  font-size: 11px;
   font-weight: 800;
 }
 
-.plan-card ul {
+.plan-card__benefits {
   display: grid;
-  gap: 8px;
+  grid-auto-rows: minmax(52px, auto);
+  gap: 6px;
+  align-content: start;
   flex: 1;
   margin: 0;
   color: var(--text);
-  line-height: 1.6;
-  padding-left: 18px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  list-style: none;
+  padding: 2px 0 0;
+}
+
+.plan-card__benefits li {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  min-height: 52px;
+}
+
+.plan-card__benefits li::before {
+  content: "";
+  margin-top: 0.35em;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 12%, transparent);
 }
 
 .plan-card button {
   width: 100%;
   margin-top: auto;
+  min-height: 42px;
   background: var(--primary);
   color: var(--on-primary);
 }
@@ -939,19 +1436,21 @@ onMounted(async () => {
 }
 
 .benefits-section article {
-  padding: 20px;
+  padding: 18px;
 }
 
 .benefits-section h3 {
   margin-top: 0;
   color: var(--text-strong);
-  font-size: 22px;
+  font-size: 18px;
+  line-height: 1.25;
 }
 
 .benefits-section p {
   margin-top: 8px;
   color: var(--text-muted);
-  line-height: 1.7;
+  font-size: 14px;
+  line-height: 1.65;
 }
 
 .compare-section,
@@ -962,7 +1461,7 @@ onMounted(async () => {
 .compare-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
   margin-top: 16px;
 }
 
@@ -971,20 +1470,21 @@ onMounted(async () => {
   border-radius: 8px;
   background: var(--surface-soft);
   display: grid;
-  gap: 8px;
-  padding: 16px;
+  gap: 7px;
+  padding: 14px;
 }
 
 .compare-grid strong {
   color: var(--text-strong);
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .compare-grid p,
 .compare-grid li,
 .faq-section p {
   color: var(--text-muted);
-  line-height: 1.7;
+  font-size: 14px;
+  line-height: 1.62;
 }
 
 .compare-grid p,
@@ -994,8 +1494,8 @@ onMounted(async () => {
 
 .compare-grid ul {
   display: grid;
-  gap: 6px;
-  padding-left: 18px;
+  gap: 5px;
+  padding-left: 16px;
 }
 
 .faq-section details {
@@ -1019,8 +1519,12 @@ onMounted(async () => {
 }
 
 @media (max-width: 1040px) {
-  .vip-hero {
+  .hero-content {
     grid-template-columns: 1fr;
+  }
+
+  .vip-hero {
+    min-height: clamp(420px, 64vw, 560px);
   }
 
   .plan-grid {
@@ -1036,6 +1540,17 @@ onMounted(async () => {
   }
 }
 
+@media (max-width: 820px) {
+  .plan-card__head {
+    grid-template-columns: 1fr;
+  }
+
+  .plan-ribbon {
+    justify-self: start;
+    max-width: 100%;
+  }
+}
+
 @media (max-width: 680px) {
   .crumb {
     gap: 5px;
@@ -1045,11 +1560,26 @@ onMounted(async () => {
   }
 
   .vip-hero {
-    padding: 24px 18px;
+    min-height: 460px;
+    padding: 20px 16px;
+  }
+
+  .vip-hero::before {
+    background:
+      linear-gradient(0deg, rgba(255, 255, 255, 0.58) 0%, rgba(255, 255, 255, 0.22) 66%, rgba(255, 255, 255, 0.08)),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.16));
+  }
+
+  .vip-hero--none::before {
+    background: transparent;
   }
 
   .hero-copy h1 {
-    font-size: 34px;
+    font-size: 30px;
+  }
+
+  .hero-copy span {
+    font-size: 15px;
   }
 
   .status-strip,

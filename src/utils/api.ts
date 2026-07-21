@@ -288,6 +288,7 @@ export default api;
 
 const GENERIC_SERVER_MESSAGES = new Set([
   "เกิดข้อผิดพลาดในระบบ",
+  "File too large",
   "Internal Server Error",
   "สมัครสมาชิกไม่สำเร็จ กรุณาลองใหม่",
   "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่",

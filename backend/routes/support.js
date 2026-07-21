@@ -9,6 +9,7 @@ const { isSystemFeatureEnabled } = require("../services/systemSettings");
 
 const router = express.Router();
 const attachmentDir = path.join(__dirname, "../uploads/support-attachments");
+const SUPPORT_ATTACHMENT_MAX_BYTES = 15 * 1024 * 1024;
 
 fs.mkdirSync(attachmentDir, { recursive: true });
 
@@ -20,7 +21,7 @@ const attachmentUpload = multer({
       cb(null, `support-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
     },
   }),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: SUPPORT_ATTACHMENT_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (/^image\/(png|jpe?g|webp|gif)$/i.test(file.mimetype || "")) {
       cb(null, true);
@@ -104,7 +105,7 @@ function uploadAttachment(req, res, next) {
 
     const message =
       error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE"
-        ? "รูปภาพแนบต้องมีขนาดไม่เกิน 5MB"
+        ? "รูปภาพแนบต้องมีขนาดไม่เกิน 15 MB"
         : error.message || "อัปโหลดรูปภาพแนบไม่สำเร็จ";
     res.status(400).json({ message });
   });

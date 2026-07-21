@@ -342,8 +342,27 @@ function saveQrImage() {
 
 function selectSlip(event: Event) {
   const target = event.target as HTMLInputElement;
+  const maxSlipBytes = 15 * 1024 * 1024;
   if (slipPreview.value) URL.revokeObjectURL(slipPreview.value);
+  errorMessage.value = "";
   slipFile.value = target.files?.[0] || null;
+
+  if (slipFile.value && !slipFile.value.type.startsWith("image/")) {
+    errorMessage.value = "กรุณาแนบไฟล์รูปภาพสลิปเท่านั้น";
+    slipFile.value = null;
+    slipPreview.value = "";
+    target.value = "";
+    return;
+  }
+
+  if (slipFile.value && slipFile.value.size > maxSlipBytes) {
+    errorMessage.value = "รูปภาพสลิปต้องมีขนาดไม่เกิน 15 MB";
+    slipFile.value = null;
+    slipPreview.value = "";
+    target.value = "";
+    return;
+  }
+
   slipPreview.value = slipFile.value ? URL.createObjectURL(slipFile.value) : "";
 }
 
@@ -573,7 +592,7 @@ onMounted(loadWallet);
                 required
                 @change="selectSlip"
               />
-              <span>รองรับไฟล์รูปภาพ ขนาดไม่เกิน 5MB</span>
+              <span>รองรับไฟล์รูปภาพ ขนาดไม่เกิน 15 MB</span>
             </label>
 
             <div v-if="slipPreview" class="slip-preview">

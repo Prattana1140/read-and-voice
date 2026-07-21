@@ -79,6 +79,7 @@ function saveLocalTicket(payload: Record<string, unknown>) {
 function onAttachmentChange(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0] || null;
+  const maxAttachmentBytes = 15 * 1024 * 1024;
 
   errorMessage.value = "";
   attachmentFile.value = null;
@@ -92,8 +93,8 @@ function onAttachmentChange(event: Event) {
     return;
   }
 
-  if (file.size > 5 * 1024 * 1024) {
-    errorMessage.value = "รูปภาพแนบต้องมีขนาดไม่เกิน 5MB";
+  if (file.size > maxAttachmentBytes) {
+    errorMessage.value = "รูปภาพแนบต้องมีขนาดไม่เกิน 15 MB";
     input.value = "";
     return;
   }
@@ -264,7 +265,7 @@ async function submitSupportRequest() {
         <label class="attachment-field">
           แนบรูปภาพประกอบ
           <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="onAttachmentChange" />
-          <span>รองรับ PNG, JPG, WEBP, GIF ขนาดไม่เกิน 5MB</span>
+          <span>รองรับ PNG, JPG, WEBP, GIF ขนาดไม่เกิน 15 MB</span>
         </label>
 
         <div v-if="attachmentPreview" class="attachment-preview">

@@ -25,7 +25,7 @@ function getSttStatus() {
     engine: command ? "local-command" : "not-configured",
     command: command ? path.basename(command) : "",
     language: readEnv("STT_LANGUAGE") || "th",
-    max_upload_bytes: Number(readEnv("STT_MAX_UPLOAD_BYTES") || 8 * 1024 * 1024),
+    max_upload_bytes: Number(readEnv("STT_MAX_UPLOAD_BYTES") || 25 * 1024 * 1024),
     timeout_ms: Number(readEnv("STT_TIMEOUT_MS") || 30000),
   };
 }
