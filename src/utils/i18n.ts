@@ -701,62 +701,59 @@ const en: Messages = {
 const messages: Record<Locale, Messages> = { th, en };
 
 function getInitialLocale(): Locale {
-  if (typeof localStorage === "undefined") return "th";
-  return localStorage.getItem(STORAGE_KEY) === "en" ? "en" : "th";
+  return "th";
 }
 
 const locale = ref<Locale>(getInitialLocale());
 
-function applyDocumentLocale(value: Locale) {
+function applyDocumentLocale(_value: Locale = "th") {
   if (typeof document !== "undefined") {
-    document.documentElement.lang = value;
+    document.documentElement.lang = "th";
   }
 }
 
-function setLocale(value: Locale) {
-  locale.value = value;
-  localStorage.setItem(STORAGE_KEY, value);
-  applyDocumentLocale(value);
+function setLocale(_value: Locale) {
+  locale.value = "th";
+  localStorage.removeItem(STORAGE_KEY);
+  applyDocumentLocale("th");
 }
 
 function toggleLocale() {
-  setLocale(locale.value === "th" ? "en" : "th");
+  setLocale("th");
 }
 
 export function getActiveLocale(): Locale {
-  return locale.value;
+  return "th";
 }
 
 function t(key: string) {
-  return messages[locale.value][key] || messages.th[key] || key;
+  return messages.th[key] || key;
 }
 
 function formatLocaleDate(value: string | Date) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString(locale.value === "th" ? "th-TH" : "en-US");
+  return date.toLocaleDateString("th-TH");
 }
 
 function formatLocaleDateTime(value: string | Date) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString(locale.value === "th" ? "th-TH" : "en-US", {
+  return date.toLocaleString("th-TH", {
     dateStyle: "short",
     timeStyle: "short",
   });
 }
 
 export function initLocale() {
-  applyDocumentLocale(locale.value);
+  locale.value = "th";
+  localStorage.removeItem(STORAGE_KEY);
+  applyDocumentLocale("th");
 }
 
 export function useI18n() {
-  const currentLanguageName = computed(() =>
-    locale.value === "th" ? messages.th["language.th"] : messages.en["language.en"],
-  );
-  const nextLanguageLabel = computed(() =>
-    locale.value === "th" ? t("language.switchToEn") : t("language.switchToTh"),
-  );
+  const currentLanguageName = computed(() => messages.th["language.th"]);
+  const nextLanguageLabel = computed(() => "");
 
   return {
     currentLanguageName,

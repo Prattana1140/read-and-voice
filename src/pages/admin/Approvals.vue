@@ -34,6 +34,13 @@ type BookApproval = {
   created_at?: string;
 };
 
+type ApprovalSummary = {
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+};
+
 const shelfOptions = [
   { key: "best_seller", requested: "requested_best_seller", approved: "is_best_seller", label: "ขายดี" },
   { key: "new_release", requested: "requested_new_release", approved: "is_new_release", label: "มาใหม่" },
@@ -49,6 +56,12 @@ const saving = ref(false);
 const error = ref("");
 const success = ref("");
 const books = ref<BookApproval[]>([]);
+const summary = ref<ApprovalSummary>({
+  total: 0,
+  pending: 0,
+  approved: 0,
+  rejected: 0,
+});
 const selectedBookId = ref<number | null>(null);
 const approvalStatus = ref<"pending" | "approved" | "rejected">("approved");
 const approvalNote = ref("");
@@ -69,6 +82,31 @@ const promotionForm = ref({
 const selectedBook = computed(() => {
   return books.value.find((book) => book.id === selectedBookId.value) || null;
 });
+
+const localSummary = computed<ApprovalSummary>(() => {
+  const counts = {
+    total: books.value.length,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+  };
+  books.value.forEach((book) => {
+    const status = book.approval_status || "pending";
+    if (status === "pending" || status === "approved" || status === "rejected") {
+      counts[status] += 1;
+    }
+  });
+  return counts;
+});
+
+const effectiveSummary = computed<ApprovalSummary>(() => ({
+  total: Math.max(summary.value.total, localSummary.value.total),
+  pending: Math.max(summary.value.pending, localSummary.value.pending),
+  approved: Math.max(summary.value.approved, localSummary.value.approved),
+  rejected: Math.max(summary.value.rejected, localSummary.value.rejected),
+}));
+
+const reviewCount = computed(() => effectiveSummary.value.pending + effectiveSummary.value.rejected);
 
 const getBookTitle = (book: BookApproval | null | undefined) =>
   localizedTitle(book, locale.value) || book?.title || "";
@@ -112,7 +150,14 @@ const fetchPendingBooks = async () => {
 
   try {
     const res = await api.get("/admin/books/pending");
-    books.value = Array.isArray(res.data) ? res.data : [];
+    const payload = res.data;
+    books.value = Array.isArray(payload) ? payload : Array.isArray(payload?.items) ? payload.items : [];
+    summary.value = {
+      total: Number(payload?.summary?.total || 0),
+      pending: Number(payload?.summary?.pending || 0),
+      approved: Number(payload?.summary?.approved || 0),
+      rejected: Number(payload?.summary?.rejected || 0),
+    };
     if (!selectedBookId.value && books.value.length > 0) {
       selectedBookId.value = books.value[0].id;
       syncSelectedBook(books.value[0]);
@@ -181,15 +226,28 @@ onMounted(fetchPendingBooks);
   <main class="approvals-page">
     <section class="hero">
       <div>
-        <p>Admin moderation</p>
+        <p>ตรวจสอบงานเผยแพร่</p>
         <h1>อนุมัติอีบุ๊ก / รายตอน</h1>
         <span>
           หน้านี้ใช้ตรวจงานอัปโหลดจากนักเขียน แล้วกำหนดว่าจะให้หนังสือไปอยู่ในเมนู
           ขายดี, มาใหม่, โปรโมชั่น, ฟรีรายวัน, ฮิตขึ้นหิ้ง หรือแนะนำหรือไม่
         </span>
       </div>
-      <div class="hero-actions">
-        <router-link to="/admin">← กลับ Dashboard</router-link>
+      <div class="hero-side">
+        <div class="summary-grid" aria-label="สรุปคิวอนุมัติ">
+          <div class="summary-card total">
+            <strong>{{ effectiveSummary.total }}</strong>
+            <span>ทั้งหมด</span>
+          </div>
+          <div class="summary-card">
+            <strong>{{ reviewCount }}</strong>
+            <span>รอตรวจ</span>
+          </div>
+          <div class="summary-card approved">
+            <strong>{{ effectiveSummary.approved }}</strong>
+            <span>อนุมัติแล้ว</span>
+          </div>
+        </div>
         <button type="button" :disabled="loading" @click="fetchPendingBooks">
           รีเฟรช
         </button>
@@ -199,21 +257,26 @@ onMounted(fetchPendingBooks);
     <p v-if="error" class="message error">{{ error }}</p>
     <p v-if="success" class="message success">{{ success }}</p>
 
-    <div class="layout">
+    <section v-if="loading" class="empty-overview">
+      <strong>กำลังโหลดคิวรออนุมัติ...</strong>
+      <span>ระบบกำลังตรวจสอบรายการหนังสือและรายตอนที่รอแอดมินพิจารณา</span>
+    </section>
+
+    <section v-else-if="books.length === 0" class="empty-overview">
+      <strong>ไม่มีคิวรออนุมัติในขณะนี้</strong>
+      <span>ระบบทำงานปกติ ตอนนี้ยังไม่มีหนังสือหรือรายตอนที่ต้องตรวจสอบ</span>
+      <button type="button" :disabled="loading" @click="fetchPendingBooks">รีเฟรช</button>
+    </section>
+
+    <div v-else class="layout">
       <section class="queue">
         <div class="section-head">
           <h2>คิวรออนุมัติ</h2>
           <span>{{ books.length }} รายการ</span>
         </div>
 
-        <div v-if="loading" class="empty-box">กำลังโหลด...</div>
-        <div v-else-if="books.length === 0" class="empty-box">
-          ยังไม่มีหนังสือที่รออนุมัติ
-        </div>
-
         <button
           v-for="book in books"
-          v-else
           :key="book.id"
           class="queue-item"
           :class="{ active: book.id === selectedBookId }"
@@ -230,7 +293,7 @@ onMounted(fetchPendingBooks);
 
       <section class="approval-card">
         <div v-if="!selectedBook" class="empty-box">
-          เลือกรายการทางซ้ายเพื่ออนุมัติ
+          ยังไม่มีรายการให้ตรวจสอบ
         </div>
 
         <template v-else>
@@ -291,7 +354,7 @@ onMounted(fetchPendingBooks);
 
             <div v-if="approvedPlacements.is_promotion" class="promotion-fields">
               <label>
-                <span>Discount percent</span>
+                <span>เปอร์เซ็นต์ส่วนลด</span>
                 <input
                   v-model.number="promotionForm.discount_percent"
                   type="number"
@@ -301,11 +364,11 @@ onMounted(fetchPendingBooks);
                 />
               </label>
               <label>
-                <span>Starts at</span>
+                <span>เริ่มโปรโมชัน</span>
                 <input v-model="promotionForm.start_at" type="datetime-local" />
               </label>
               <label>
-                <span>Ends at</span>
+                <span>สิ้นสุดโปรโมชัน</span>
                 <input v-model="promotionForm.end_at" type="datetime-local" />
               </label>
               <small>
@@ -329,14 +392,17 @@ onMounted(fetchPendingBooks);
 .approvals-page {
   width: min(1180px, calc(100% - calc(var(--page-gutter, 16px) * 2)));
   margin: 0 auto;
+  min-height: calc(100vh - 180px);
   padding: var(--page-block, 32px) 0 56px;
   display: grid;
+  align-content: start;
   gap: 20px;
 }
 
 .hero,
 .queue,
-.approval-card {
+.approval-card,
+.empty-overview {
   border: 1px solid rgba(20, 184, 166, 0.16);
   border-radius: 12px;
   background: var(--surface);
@@ -376,16 +442,55 @@ onMounted(fetchPendingBooks);
   line-height: 1.7;
 }
 
-.hero-actions {
-  display: flex;
+.hero-side {
+  display: grid;
   flex: 0 0 auto;
-  flex-wrap: wrap;
   gap: 10px;
-  justify-content: flex-end;
+  justify-items: end;
 }
 
-.hero-actions a,
-.hero-actions button {
+.summary-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, 104px);
+}
+
+.summary-card {
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: #047857;
+  padding: 16px 10px;
+  text-align: center;
+}
+
+.summary-card.total {
+  background: var(--surface-soft);
+  color: var(--text-strong);
+}
+
+.summary-card.approved {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.summary-card strong,
+.summary-card span {
+  display: block;
+}
+
+.summary-card strong {
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.summary-card span {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.hero-side button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -398,17 +503,12 @@ onMounted(fetchPendingBooks);
   text-decoration: none;
 }
 
-.hero-actions a {
-  background: #eef2f7;
-  color: #0f172a;
-}
-
-.hero-actions button {
+.hero-side button {
   background: #6557f5;
   color: #ffffff;
 }
 
-.hero-actions button:disabled {
+.hero-side button:disabled {
   cursor: wait;
   opacity: 0.68;
 }
@@ -428,6 +528,42 @@ onMounted(fetchPendingBooks);
 .message.success {
   background: #e8faf6;
   color: #0b5f59;
+}
+
+.empty-overview {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  min-height: 230px;
+  padding: 34px 22px;
+  text-align: center;
+}
+
+.empty-overview strong {
+  color: var(--text-strong);
+  font-size: 24px;
+}
+
+.empty-overview span {
+  max-width: 520px;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.empty-overview button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--primary);
+  color: var(--on-primary);
+  cursor: pointer;
+  font-weight: 900;
+  padding: 0 16px;
+}
+
+.empty-overview button:disabled {
+  cursor: wait;
+  opacity: 0.68;
 }
 
 .layout {
@@ -665,13 +801,30 @@ textarea {
     flex-direction: column;
   }
 
-  .hero-actions {
+  .hero-side {
+    justify-items: stretch;
     justify-content: flex-start;
     width: 100%;
   }
 
-  .hero-actions a,
-  .hero-actions button {
+  .summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .summary-card {
+    padding: 9px;
+  }
+
+  .summary-card strong {
+    font-size: 24px;
+  }
+
+  .summary-card span {
+    font-size: 11px;
+    margin-top: 5px;
+  }
+
+  .hero-side button {
     flex: 1 1 130px;
   }
 
@@ -685,7 +838,8 @@ textarea {
 
   .hero,
   .queue,
-  .approval-card {
+  .approval-card,
+  .empty-overview {
     border-radius: 10px;
     padding: 12px;
     box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
@@ -710,6 +864,7 @@ textarea {
   }
 
   .hero span,
+  .empty-overview span,
   .description,
   .queue-item span,
   .queue-item small {
@@ -717,8 +872,8 @@ textarea {
     line-height: 1.35;
   }
 
-  .hero-actions a,
-  .hero-actions button,
+  .hero-side button,
+  .empty-overview button,
   input,
   select,
   textarea,
@@ -806,8 +961,8 @@ textarea {
     font-size: 18px;
   }
 
-  .hero-actions a,
   .hero-actions button,
+  .empty-overview button,
   input,
   select,
   textarea,

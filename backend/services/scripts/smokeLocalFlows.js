@@ -13,6 +13,9 @@ const webRoutes = [
   "/login",
   "/register",
   "/profile",
+  "/account/notifications",
+  "/account/following",
+  "/account/devices",
   "/writer",
   "/writer/upload",
   "/admin",
@@ -144,6 +147,27 @@ async function checkAgeAndCatalogFlows(apiBaseUrl) {
     headers: authHeaders,
   });
   console.log(`OK reader access #${firstBook.id}`);
+
+  await requestJson(apiBaseUrl, "/api/account/notifications", {
+    headers: authHeaders,
+  });
+  console.log("OK account notifications");
+
+  await requestJson(apiBaseUrl, "/api/account/following", {
+    headers: authHeaders,
+  });
+  console.log("OK account following");
+
+  await requestJson(apiBaseUrl, "/api/account/devices", {
+    headers: authHeaders,
+  });
+  console.log("OK account devices");
+
+  await requestJson(apiBaseUrl, "/api/account/devices/logout-all", {
+    method: "POST",
+    headers: authHeaders,
+  });
+  console.log("OK logout all devices");
 }
 
 async function main() {

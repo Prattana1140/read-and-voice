@@ -230,12 +230,6 @@ const selectedBookFileLabel = computed(() => {
   return `${bookFile.value.name} · ${sizeMb.toFixed(sizeMb >= 10 ? 0 : 1)} MB`;
 });
 
-const selectedEnglishBookFileLabel = computed(() => {
-  if (!bookFileEn.value) return "";
-  const sizeMb = bookFileEn.value.size / (1024 * 1024);
-  return `${bookFileEn.value.name} MB`;
-});
-
 const selectedCoverFileLabel = computed(() => {
   if (!coverFile.value) return "";
   const sizeMb = coverFile.value.size / (1024 * 1024);
@@ -341,12 +335,6 @@ const setError = (err: unknown, fallback: string) => {
 const onFileChange = (event: Event) => {
   const target = event.target as HTMLInputElement;
   bookFile.value = target.files?.[0] || null;
-  resetUploadProgress();
-};
-
-const onEnglishFileChange = (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  bookFileEn.value = target.files?.[0] || null;
   resetUploadProgress();
 };
 
@@ -785,7 +773,7 @@ onMounted(loadExistingTags);
           <input v-model="titleTh" type="text" required />
         </label>
         <label>
-          <span>Book title (English)</span>
+          <span>ชื่อภาษาอังกฤษ (ไม่บังคับ)</span>
           <input v-model="titleEn" type="text" required />
         </label>
         <label>
@@ -1264,7 +1252,7 @@ onMounted(loadExistingTags);
             </label>
             <label class="full">
               <span>เนื้อหาตอน</span>
-              <textarea v-model="episodeContent" rows="10" />
+              <textarea v-model="episodeContentTh" rows="10" />
             </label>
           </div>
           <button class="primary-btn" :disabled="loading || !serialBookId" @click="addEpisode">

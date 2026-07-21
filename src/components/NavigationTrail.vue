@@ -42,6 +42,7 @@ const localizedRouteLabels: Record<"th" | "en", Record<string, string>> = {
     DataPrivacy: "ความเป็นส่วนตัวของข้อมูล",
     NotificationSettings: "ตั้งค่าการแจ้งเตือน",
     WriterDashboard: "ศูนย์นักเขียน",
+    WriterProfileSettings: "ตั้งค่าโปรไฟล์นักเขียน",
     WriterBooks: "หนังสือของฉัน",
     WriterUpload: "อัปโหลดผลงาน",
     WriterEditBook: "แก้ไขหนังสือ",
@@ -55,7 +56,15 @@ const localizedRouteLabels: Record<"th" | "en", Record<string, string>> = {
     UploadBook: "เพิ่มหนังสือ",
     AdminCategories: "จัดการหมวดหมู่",
     AdminMembers: "จัดการสมาชิก",
+    AdminApprovals: "อนุมัติอีบุ๊ก / รายตอน",
+    AdminPayments: "อนุมัติการชำระเงิน",
+    AdminCoinTopups: "อนุมัติเติมเหรียญ",
+    AdminOrderPayments: "อนุมัติคำสั่งซื้อ",
+    AdminSubscriptionPayments: "อนุมัติแพ็กเกจสมาชิก",
+    AdminPasswordResets: "คำขอรีเซ็ตรหัสผ่าน",
+    AdminSupportTickets: "คำขอช่วยเหลือ",
     AdminSystemData: "ข้อมูลระบบ",
+    SuperAdminDashboard: "ศูนย์ผู้ดูแลสูงสุด",
     SuperAdminRoles: "จัดการสิทธิ์ผู้ใช้",
     SuperAdminUsers: "จัดการผู้ใช้",
     SuperAdminSettings: "ตั้งค่าระบบ",
@@ -87,6 +96,7 @@ const localizedRouteLabels: Record<"th" | "en", Record<string, string>> = {
     DataPrivacy: "Data privacy",
     NotificationSettings: "Notification settings",
     WriterDashboard: "Writer center",
+    WriterProfileSettings: "Writer profile settings",
     WriterBooks: "My books",
     WriterUpload: "Upload work",
     WriterEditBook: "Edit book",
@@ -100,7 +110,15 @@ const localizedRouteLabels: Record<"th" | "en", Record<string, string>> = {
     UploadBook: "Add book",
     AdminCategories: "Manage categories",
     AdminMembers: "Manage members",
-    AdminSystemData: "System Data",
+    AdminApprovals: "Book approvals",
+    AdminPayments: "Payment approvals",
+    AdminCoinTopups: "Coin top-up approvals",
+    AdminOrderPayments: "Order payment approvals",
+    AdminSubscriptionPayments: "Membership payment approvals",
+    AdminPasswordResets: "Password reset requests",
+    AdminSupportTickets: "Support requests",
+    AdminSystemData: "ข้อมูลระบบ",
+    SuperAdminDashboard: "Superadmin center",
     SuperAdminRoles: "Manage user roles",
     SuperAdminUsers: "Manage users",
     SuperAdminSettings: "System settings",
@@ -121,10 +139,18 @@ const parentRoutes: Record<string, { fullPath: string; routeName: string }> = {
   DataPrivacy: { fullPath: "/profile", routeName: "Profile" },
   NotificationSettings: { fullPath: "/profile", routeName: "Profile" },
   WriterBooks: { fullPath: "/writer", routeName: "WriterDashboard" },
+  WriterProfileSettings: { fullPath: "/writer", routeName: "WriterDashboard" },
   WriterUpload: { fullPath: "/writer", routeName: "WriterDashboard" },
   WriterEditBook: { fullPath: "/writer/books", routeName: "WriterBooks" },
   WriterStats: { fullPath: "/writer", routeName: "WriterDashboard" },
   AdminBooks: { fullPath: "/admin", routeName: "AdminDashboard" },
+  AdminApprovals: { fullPath: "/admin", routeName: "AdminDashboard" },
+  AdminPayments: { fullPath: "/admin", routeName: "AdminDashboard" },
+  AdminCoinTopups: { fullPath: "/admin", routeName: "AdminDashboard" },
+  AdminOrderPayments: { fullPath: "/admin", routeName: "AdminDashboard" },
+  AdminSubscriptionPayments: { fullPath: "/admin", routeName: "AdminDashboard" },
+  AdminPasswordResets: { fullPath: "/admin", routeName: "AdminDashboard" },
+  AdminSupportTickets: { fullPath: "/admin", routeName: "AdminDashboard" },
   AdminPageContent: { fullPath: "/admin", routeName: "AdminDashboard" },
   AdminSubscriptionPlans: { fullPath: "/admin", routeName: "AdminDashboard" },
   AdminEditBook: { fullPath: "/admin/books", routeName: "AdminBooks" },
@@ -199,17 +225,17 @@ function isWriterDashboardPath(path: string) {
 const dashboardBackTarget = computed<TrailItem | null>(() => {
   if (route.path === "/admin") return null;
   if (route.path.startsWith("/admin")) {
-    return { fullPath: "/admin", label: locale.value === "th" ? "กลับ Dashboard" : "Back to Dashboard" };
+    return { fullPath: "/admin", label: locale.value === "th" ? "กลับแดชบอร์ด" : "Back to Dashboard" };
   }
 
   if (route.path === "/superadmin") return null;
   if (route.path.startsWith("/superadmin")) {
-    return { fullPath: "/superadmin", label: locale.value === "th" ? "กลับ Dashboard" : "Back to Dashboard" };
+    return { fullPath: "/superadmin", label: locale.value === "th" ? "กลับแดชบอร์ด" : "Back to Dashboard" };
   }
 
   if (route.path === "/writer") return null;
   if (isWriterDashboardPath(route.path)) {
-    return { fullPath: "/writer", label: locale.value === "th" ? "กลับ Dashboard" : "Back to Dashboard" };
+    return { fullPath: "/writer", label: locale.value === "th" ? "กลับแดชบอร์ด" : "Back to Dashboard" };
   }
 
   return null;

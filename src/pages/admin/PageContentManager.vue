@@ -2,7 +2,7 @@
   <div class="admin-page-content">
     <header class="page-hero">
       <div>
-        <p>Admin content center</p>
+        <p>ศูนย์จัดการหน้าเว็บ</p>
         <h1>จัดข้อมูลหน้าเมนู</h1>
         <span>
           ตรวจว่าหน้าแรก, อีบุ๊ก, รายตอน, ขายดี, มาใหม่, โปรโมชั่น,
@@ -11,7 +11,6 @@
       </div>
 
       <div class="hero-actions">
-        <router-link to="/admin/upload-book">เพิ่มหนังสือ</router-link>
         <router-link to="/admin/books">จัดการหนังสือ</router-link>
       </div>
     </header>
@@ -158,7 +157,6 @@
       <article v-for="page in menuPages" :key="page.path" class="menu-row">
         <div class="menu-name">
           <strong>{{ page.title }}</strong>
-          <small>{{ page.path }}</small>
         </div>
 
         <ul>
@@ -177,7 +175,43 @@
       </article>
     </section>
 
-    <section class="next-steps">
+    <section class="next-steps next-steps--launch">
+      <div class="next-steps__head">
+        <div>
+          <h2>ตรวจความพร้อมก่อนเปิดขาย</h2>
+          <p>เช็กงานสำคัญจากข้อมูลจริงในระบบ แล้วกดไปจัดการต่อได้ทันที</p>
+        </div>
+        <strong>{{ launchReadyCount }} / {{ launchChecklist.length }} พร้อม</strong>
+      </div>
+
+      <div class="launch-checklist">
+        <article
+          v-for="item in launchChecklist"
+          :key="item.key"
+          class="launch-card"
+          :class="`launch-card--${item.statusClass}`"
+        >
+          <div class="launch-card__top">
+            <span class="status" :class="item.statusClass">{{ item.statusText }}</span>
+            <small>{{ item.current }} / {{ item.target }}</small>
+          </div>
+
+          <strong>{{ item.title }}</strong>
+          <p>{{ item.description }}</p>
+
+          <ul>
+            <li v-for="detail in item.details" :key="detail">{{ detail }}</li>
+          </ul>
+
+          <div class="launch-card__actions">
+            <router-link :to="item.manageTo">{{ item.manageLabel }}</router-link>
+            <router-link class="quiet" :to="item.previewTo">ดูหน้าจริง</router-link>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="next-steps next-steps--legacy" aria-hidden="true">
       <h2>งานที่ควรทำต่อเพื่อให้ขายได้จริง</h2>
       <div class="step-grid">
         <article>
@@ -221,6 +255,20 @@ type MenuPage = {
   tasks: string[];
   manageTo: string;
   manageLabel: string;
+  statusText: string;
+  statusClass: "ready" | "warning" | "danger";
+};
+
+type LaunchChecklistItem = {
+  key: string;
+  title: string;
+  description: string;
+  target: number;
+  current: number;
+  details: string[];
+  manageTo: string;
+  manageLabel: string;
+  previewTo: string;
   statusText: string;
   statusClass: "ready" | "warning" | "danger";
 };
@@ -278,6 +326,10 @@ const serialReadyCount = computed(() => {
   if (serialBooks.value.length > 0) return serialBooks.value.length;
   return books.value.filter((book) => book.content_type === "serial").length;
 });
+const hasSubscriptionHero = computed(() => Boolean(subscriptionHeroUrl.value.trim()));
+const activeHomeBannerCount = computed(() =>
+  homeBannerList.value.filter((banner) => banner.is_active !== false).length,
+);
 const recentBooks = computed(() => {
   return [...books.value].sort((a, b) => {
     return (
@@ -453,6 +505,67 @@ const menuPages = computed<MenuPage[]>(() => [
 const readyPages = computed(() => {
   return menuPages.value.filter((page) => page.statusClass === "ready").length;
 });
+
+const buildLaunchChecklistItem = (
+  item: Omit<LaunchChecklistItem, "statusText" | "statusClass">,
+): LaunchChecklistItem => ({
+  ...item,
+  ...getStatus(item.current, item.target),
+});
+
+const launchChecklist = computed<LaunchChecklistItem[]>(() => [
+  buildLaunchChecklistItem({
+    key: "books",
+    title: "ตั้งค่าหนังสือให้พร้อมขาย",
+    description: "ตรวจว่ามีหนังสือขาย หนังสือฟรี และรายการสำหรับหน้าแนะนำเพียงพอ",
+    target: 20,
+    current: totalBooks.value,
+    details: [
+      `หนังสือทั้งหมด ${totalBooks.value} เล่ม`,
+      `หนังสือขาย ${paidBooks.value.length} เล่ม`,
+      `หนังสือฟรี ${freeBooks.value.length} เล่ม`,
+    ],
+    manageTo: "/admin/books",
+    manageLabel: "ไปจัดการหนังสือ",
+    previewTo: "/store",
+  }),
+  buildLaunchChecklistItem({
+    key: "banners",
+    title: "จัดการ Banner และรูปโปรโมชัน",
+    description: "เติมรูป hero สมัครสมาชิกและ banner หน้าแรกเพื่อให้หน้าเว็บดูพร้อมขาย",
+    target: 3,
+    current: activeHomeBannerCount.value + (hasSubscriptionHero.value ? 1 : 0),
+    details: [
+      `Banner หน้าแรก ${activeHomeBannerCount.value} รูป`,
+      hasSubscriptionHero.value
+        ? "มีรูป hero หน้าสมัครสมาชิกแล้ว"
+        : "ยังไม่มีรูป hero หน้าสมัครสมาชิก",
+      "แนะนำอย่างน้อย 2 banner หน้าแรก + 1 hero สมัครสมาชิก",
+    ],
+    manageTo: "/admin/page-content",
+    manageLabel: "เพิ่ม Banner",
+    previewTo: "/",
+  }),
+  buildLaunchChecklistItem({
+    key: "serials",
+    title: "เติมรายการรายตอน",
+    description: "ตรวจให้มีนิยายรายตอนพอสำหรับหน้า /serials และหมวดรายตอน",
+    target: 6,
+    current: serialReadyCount.value,
+    details: [
+      `นิยายรายตอน ${serialReadyCount.value} เรื่อง`,
+      "ควรมีตอนเผยแพร่และปกครบก่อนโปรโมต",
+      "ใช้หน้าอัปโหลดเพื่อเพิ่มหรือแก้ไข serial",
+    ],
+    manageTo: "/writer/upload",
+    manageLabel: "เพิ่มรายตอน",
+    previewTo: "/serials",
+  }),
+]);
+
+const launchReadyCount = computed(() =>
+  launchChecklist.value.filter((item) => item.statusClass === "ready").length,
+);
 
 const resolveImageUrl = (url: string) => {
   if (!url) return "";
@@ -1056,6 +1169,119 @@ onUnmounted(() => {
   line-height: 1.65;
 }
 
+.next-steps--legacy {
+  display: none;
+}
+
+.next-steps__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.next-steps__head p {
+  margin: 8px 0 0;
+  color: #516f6b;
+  line-height: 1.6;
+}
+
+.next-steps__head > strong {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #e8faf6;
+  color: #0b5f59;
+  font-size: 15px;
+  padding: 8px 12px;
+}
+
+.launch-checklist {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.launch-card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  border: 1px solid rgba(20, 184, 166, 0.16);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 18px;
+}
+
+.launch-card--ready {
+  border-color: rgba(6, 118, 71, 0.28);
+}
+
+.launch-card--warning {
+  border-color: rgba(148, 98, 0, 0.32);
+}
+
+.launch-card--danger {
+  border-color: rgba(180, 35, 24, 0.3);
+}
+
+.launch-card__top,
+.launch-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.launch-card__top small {
+  color: #66827e;
+  font-weight: 900;
+}
+
+.launch-card > strong {
+  color: #073f3a;
+  font-size: 19px;
+}
+
+.launch-card p {
+  margin: 0;
+  color: #516f6b;
+  line-height: 1.6;
+}
+
+.launch-card ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  color: #355c58;
+  font-size: 15px;
+  line-height: 1.5;
+  padding-left: 18px;
+}
+
+.launch-card__actions {
+  justify-content: flex-start;
+  margin-top: 2px;
+}
+
+.launch-card__actions a {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #20b8ad;
+  color: #ffffff;
+  font-weight: 900;
+  padding: 0 12px;
+  text-decoration: none;
+}
+
+.launch-card__actions a.quiet {
+  background: #e8faf6;
+  color: #0f766e;
+}
+
 .error-text {
   margin: 0;
   border-radius: 8px;
@@ -1073,6 +1299,7 @@ onUnmounted(() => {
 
   .summary-grid,
   .step-grid,
+  .launch-checklist,
   .banner-manager {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1093,8 +1320,13 @@ onUnmounted(() => {
 
 @media (max-width: 560px) {
   .summary-grid,
-  .step-grid {
+  .step-grid,
+  .launch-checklist {
     grid-template-columns: 1fr;
+  }
+
+  .next-steps__head {
+    display: grid;
   }
 
   .page-hero {
@@ -1173,13 +1405,36 @@ onUnmounted(() => {
   }
 
   .summary-grid,
-  .step-grid {
+  .step-grid,
+  .launch-checklist {
     gap: 8px;
   }
 
-  .step-grid article {
+  .step-grid article,
+  .launch-card {
     border-radius: 9px;
     padding: 9px;
+  }
+
+  .next-steps__head {
+    gap: 8px;
+  }
+
+  .next-steps__head h2,
+  .launch-card > strong {
+    font-size: 15px;
+  }
+
+  .next-steps__head p,
+  .launch-card p,
+  .launch-card ul,
+  .launch-card__actions a {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .launch-card__actions a {
+    min-height: 30px;
   }
 
   .error-text {

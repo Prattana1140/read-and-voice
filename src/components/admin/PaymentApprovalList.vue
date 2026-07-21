@@ -26,7 +26,16 @@ type PaymentItem = {
   created_at?: string;
   updated_at?: string;
   title?: string | null;
-  detail?: string | null;
+  detail?: string | { type?: string; data?: number[] } | null;
+};
+
+type PaymentSummary = {
+  total: number;
+  pending: number;
+  paid: number;
+  failed: number;
+  cancelled: number;
+  by_type?: Record<string, { total: number; pending: number; paid: number; failed: number; cancelled: number }>;
 };
 
 const props = defineProps<{
@@ -39,6 +48,13 @@ const props = defineProps<{
 const statusFilter = ref<PaymentStatus>("pending");
 const statusOptions: PaymentStatus[] = ["pending", "paid", "failed", "cancelled", "all"];
 const items = ref<PaymentItem[]>([]);
+const summary = ref<PaymentSummary>({
+  total: 0,
+  pending: 0,
+  paid: 0,
+  failed: 0,
+  cancelled: 0,
+});
 const loading = ref(true);
 const savingKey = ref("");
 const message = ref("");
@@ -49,12 +65,104 @@ const visibleItems = computed(() => {
   return items.value.filter((item) => item.item_type === props.typeFilter);
 });
 
+const effectivePaymentSummary = computed(() => mergePaymentSummary(summary.value, items.value));
+
 const pendingCount = computed(() => {
-  return visibleItems.value.filter((item) => item.payment_status === "pending").length;
+  return Number(effectivePaymentSummary.value.by_type?.[props.typeFilter]?.pending || 0);
 });
+
+const typeSummary = computed(() => {
+  return effectivePaymentSummary.value.by_type?.[props.typeFilter] || {
+    total: 0,
+    pending: 0,
+    paid: 0,
+    failed: 0,
+    cancelled: 0,
+  };
+});
+
+const visibleCount = computed(() => visibleItems.value.length);
+const currentFilterLabel = computed(() => statusLabel(statusFilter.value));
 
 function itemKey(item: PaymentItem) {
   return `${item.item_type}:${item.id}`;
+}
+
+function emptyPaymentSummary(): PaymentSummary {
+  return {
+    total: 0,
+    pending: 0,
+    paid: 0,
+    failed: 0,
+    cancelled: 0,
+    by_type: {},
+  };
+}
+
+function normalizePaymentStatus(status?: string | null): Exclude<PaymentStatus, "all"> | "" {
+  const value = String(status || "").trim().toLowerCase();
+  if (value === "pending" || value === "paid" || value === "failed" || value === "cancelled") {
+    return value;
+  }
+  return "";
+}
+
+function summarizePayments(source: PaymentItem[]): PaymentSummary {
+  const result = emptyPaymentSummary();
+  source.forEach((item) => {
+    const status = normalizePaymentStatus(item.payment_status);
+    const type = item.item_type;
+    if (!result.by_type?.[type]) {
+      result.by_type = {
+        ...(result.by_type || {}),
+        [type]: { total: 0, pending: 0, paid: 0, failed: 0, cancelled: 0 },
+      };
+    }
+
+    result.total += 1;
+    result.by_type[type].total += 1;
+    if (!status) return;
+    result[status] += 1;
+    result.by_type[type][status] += 1;
+  });
+  return result;
+}
+
+function mergePaymentSummary(remoteSummary: any, visibleSource: PaymentItem[]): PaymentSummary {
+  const visibleSummary = summarizePayments(visibleSource);
+  const merged: PaymentSummary = {
+    total: Number(remoteSummary?.total || 0),
+    pending: Number(remoteSummary?.pending || 0),
+    paid: Number(remoteSummary?.paid || 0),
+    failed: Number(remoteSummary?.failed || 0),
+    cancelled: Number(remoteSummary?.cancelled || 0),
+    by_type: { ...(remoteSummary?.by_type || {}) },
+  };
+
+  (["pending", "paid", "failed", "cancelled"] as const).forEach((status) => {
+    merged[status] = Math.max(merged[status], visibleSummary[status]);
+  });
+  (["coin_topup", "order", "subscription"] as const).forEach((type) => {
+    const emptyTypeSummary = { total: 0, pending: 0, paid: 0, failed: 0, cancelled: 0 };
+    const remoteType = merged.by_type?.[type] || emptyTypeSummary;
+    const visibleType = visibleSummary.by_type?.[type] || emptyTypeSummary;
+    merged.by_type = {
+      ...(merged.by_type || {}),
+      [type]: {
+        total: Math.max(Number(remoteType.total || 0), Number(visibleType.total || 0)),
+        pending: Math.max(Number(remoteType.pending || 0), Number(visibleType.pending || 0)),
+        paid: Math.max(Number(remoteType.paid || 0), Number(visibleType.paid || 0)),
+        failed: Math.max(Number(remoteType.failed || 0), Number(visibleType.failed || 0)),
+        cancelled: Math.max(Number(remoteType.cancelled || 0), Number(visibleType.cancelled || 0)),
+      },
+    };
+  });
+  merged.total = Math.max(
+    merged.total,
+    visibleSummary.total,
+    merged.pending + merged.paid + merged.failed + merged.cancelled,
+  );
+  return merged;
 }
 
 async function loadPayments() {
@@ -66,6 +174,7 @@ async function loadPayments() {
       params: { status: statusFilter.value },
     });
     items.value = Array.isArray(data?.items) ? data.items : [];
+    summary.value = mergePaymentSummary(data?.summary, items.value);
     adminNotes.value = Object.fromEntries(
       visibleItems.value.map((item) => [itemKey(item), item.provider_ref || ""]),
     );
@@ -138,8 +247,73 @@ function amountLabel(item: PaymentItem) {
   return formatMoney(item.amount);
 }
 
-function canApprove(item: PaymentItem) {
-  return item.payment_status !== "paid" && item.item_status !== "completed";
+function isProcessed(item: PaymentItem) {
+  return item.payment_status === "paid" || item.item_status === "completed";
+}
+
+function canUpdatePayment(item: PaymentItem, status: "paid" | "failed" | "cancelled") {
+  if (isProcessed(item)) return false;
+  if (status === "paid" && item.item_type === "coin_topup") return hasCompleteTransferEvidence(item);
+  return true;
+}
+
+function hasCompleteTransferEvidence(item: PaymentItem) {
+  if (item.item_type !== "coin_topup") return true;
+  return Boolean(
+    item.payer_name &&
+      Number(item.transfer_amount || 0) > 0 &&
+      item.transfer_date &&
+      item.transfer_time &&
+      item.provider_ref &&
+      item.slip_image_url,
+  );
+}
+
+function itemTitle(item: PaymentItem) {
+  if (item.item_type === "coin_topup") return `เติม ${Number(item.coins || 0).toLocaleString("th-TH")} เหรียญ`;
+  return item.title || item.package_id || typeLabel(item.item_type);
+}
+
+function itemStatusLabel(item: PaymentItem) {
+  if (item.item_type === "coin_topup" && item.payment_status === "pending") {
+    return hasCompleteTransferEvidence(item) ? "แจ้งโอนแล้ว / รอตรวจสลิป" : "รอผู้ใช้แจ้งโอน";
+  }
+  return `${statusLabel(item.payment_status as PaymentStatus)} / ${statusLabel((item.item_status || item.payment_status) as PaymentStatus)}`;
+}
+
+function paymentCardStatusClass(item: PaymentItem) {
+  if (item.payment_status === "paid" || item.item_status === "completed") return "approval-card--paid";
+  if (item.payment_status === "failed") return "approval-card--failed";
+  if (item.payment_status === "cancelled" || item.item_status === "cancelled") return "approval-card--cancelled";
+  if (item.item_type === "coin_topup" && item.payment_status === "pending" && !hasCompleteTransferEvidence(item)) {
+    return "approval-card--waiting-transfer";
+  }
+  return "approval-card--pending";
+}
+
+function textFromMaybeBuffer(value?: PaymentItem["detail"]) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (value.type === "Buffer" && Array.isArray(value.data)) {
+    return String.fromCharCode(...value.data);
+  }
+  return "";
+}
+
+function itemDetailLabel(item: PaymentItem) {
+  const text = textFromMaybeBuffer(item.detail).trim();
+  const countMatch = text.match(/^(\d+)\s+item\(s\)$/i);
+  if (countMatch) return `${Number(countMatch[1]).toLocaleString("th-TH")} รายการ`;
+  return text;
+}
+
+function approveDisabledReason(item: PaymentItem) {
+  if (savingKey.value === itemKey(item)) return "กำลังบันทึก";
+  if (item.payment_status === "paid" || item.item_status === "completed") return "รายการนี้อนุมัติแล้ว";
+  if (item.item_type === "coin_topup" && !hasCompleteTransferEvidence(item)) {
+    return "ยังอนุมัติไม่ได้ เพราะผู้ใช้ยังแจ้งข้อมูลโอนเงินและแนบสลิปไม่ครบ";
+  }
+  return "";
 }
 
 function resolveImageUrl(url?: string | null) {
@@ -155,13 +329,23 @@ onMounted(loadPayments);
   <main class="approval-page">
     <section class="hero">
       <div>
-        <p>Admin approval</p>
+        <p>รายการรออนุมัติ</p>
         <h1>{{ title }}</h1>
         <span>{{ description }}</span>
       </div>
-      <div class="summary-card">
-        <strong>{{ pendingCount }}</strong>
-        <span>รายการรอตรวจ</span>
+      <div class="summary-grid">
+        <div class="summary-card total">
+          <strong>{{ typeSummary.total }}</strong>
+          <span>ทั้งหมด</span>
+        </div>
+        <div class="summary-card">
+          <strong>{{ pendingCount }}</strong>
+          <span>รอตรวจ</span>
+        </div>
+        <div class="summary-card paid">
+          <strong>{{ typeSummary.paid }}</strong>
+          <span>อนุมัติแล้ว</span>
+        </div>
       </div>
     </section>
 
@@ -190,26 +374,35 @@ onMounted(loadPayments);
           </button>
         </div>
       </label>
+      <div class="toolbar-meta">
+        <span>กำลังแสดง: {{ currentFilterLabel }}</span>
+        <strong>{{ visibleCount }} รายการ</strong>
+      </div>
       <button type="button" @click="loadPayments">รีเฟรช</button>
     </section>
 
-    <section v-if="loading" class="state-box">กำลังโหลดรายการ...</section>
-    <section v-else-if="visibleItems.length === 0" class="state-box">
-      {{ emptyText || "ยังไม่มีรายการที่ตรงกับตัวกรองนี้" }}
+    <section v-if="loading" class="state-box empty-state">
+      <strong>กำลังโหลดรายการอนุมัติ...</strong>
+      <span>ระบบกำลังตรวจสอบรายการตามสถานะที่เลือก</span>
+    </section>
+    <section v-else-if="visibleItems.length === 0" class="state-box empty-state">
+      <strong>{{ emptyText || "ไม่มีรายการที่ตรงกับตัวกรองนี้" }}</strong>
+      <span>เมื่อมีรายการใหม่ หรือมีรายการตรงกับสถานะที่เลือก รายการจะแสดงที่นี่</span>
+      <button type="button" @click="loadPayments">รีเฟรช</button>
     </section>
 
     <section v-else class="approval-list">
-      <article v-for="item in visibleItems" :key="itemKey(item)" class="approval-card">
+      <article v-for="item in visibleItems" :key="itemKey(item)" :class="['approval-card', paymentCardStatusClass(item)]">
         <div class="approval-main">
           <div>
             <p class="eyebrow">{{ typeLabel(item.item_type) }}</p>
-            <h2>{{ item.title || item.package_id || typeLabel(item.item_type) }}</h2>
+            <h2>{{ itemTitle(item) }}</h2>
             <span>{{ item.name || item.email || `User ${item.user_id}` }}</span>
           </div>
 
           <div class="amount-box">
             <strong>{{ amountLabel(item) }}</strong>
-            <span>{{ item.payment_status }} / {{ item.item_status || "-" }}</span>
+            <span class="status-badge">{{ itemStatusLabel(item) }}</span>
           </div>
         </div>
 
@@ -258,7 +451,11 @@ onMounted(loadPayments);
           </div>
         </dl>
 
-        <p v-if="item.detail" class="detail">{{ item.detail }}</p>
+        <p v-if="itemDetailLabel(item)" class="detail">{{ itemDetailLabel(item) }}</p>
+
+        <p v-if="false && item.item_type === 'coin_topup' && !hasCompleteTransferEvidence(item)" class="transfer-warning">
+          รายการนี้ยังเป็นรายการที่ผู้ใช้สร้างไว้ แต่ยังไม่ได้แจ้งข้อมูลโอนเงินและแนบสลิปครบถ้วน จึงยังไม่ควรอนุมัติ
+        </p>
 
         <label class="note-field">
           <span>เลขอ้างอิง/หมายเหตุแอดมิน</span>
@@ -273,14 +470,16 @@ onMounted(loadPayments);
           <button
             type="button"
             class="primary"
-            :disabled="savingKey === itemKey(item) || !canApprove(item)"
+            :disabled="savingKey === itemKey(item) || !canUpdatePayment(item, 'paid')"
+            :title="approveDisabledReason(item)"
             @click="updatePayment(item, 'paid')"
           >
             อนุมัติ
           </button>
           <button
             type="button"
-            :disabled="savingKey === itemKey(item) || !canApprove(item)"
+            class="danger"
+            :disabled="savingKey === itemKey(item) || !canUpdatePayment(item, 'failed')"
             @click="updatePayment(item, 'failed')"
           >
             ไม่ผ่าน
@@ -288,12 +487,14 @@ onMounted(loadPayments);
           <button
             type="button"
             class="ghost"
-            :disabled="savingKey === itemKey(item) || !canApprove(item)"
+            :disabled="savingKey === itemKey(item) || !canUpdatePayment(item, 'cancelled')"
             @click="updatePayment(item, 'cancelled')"
           >
             ยกเลิก
           </button>
         </div>
+
+        <p v-if="false" class="processed-note">รายการนี้ดำเนินการเสร็จแล้ว</p>
       </article>
     </section>
   </main>
@@ -302,8 +503,10 @@ onMounted(loadPayments);
 <style scoped>
 .approval-page {
   display: grid;
+  align-content: start;
   gap: 18px;
   margin: 0 auto;
+  min-height: calc(100vh - 180px);
   padding: var(--page-block, 32px) var(--page-gutter, 20px) 56px;
   width: min(1180px, 100%);
 }
@@ -322,7 +525,7 @@ onMounted(loadPayments);
   align-items: center;
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(0, 1fr) 180px;
+  grid-template-columns: minmax(0, 1fr) auto;
   padding: 24px;
 }
 
@@ -356,12 +559,48 @@ dt,
   color: var(--text-muted);
 }
 
+.transfer-warning {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  color: #9a3412;
+  font-weight: 800;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.processed-note {
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  border-radius: 8px;
+  color: #0f766e;
+  font-weight: 900;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.summary-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, 120px);
+}
+
 .summary-card {
   background: #ecfdf5;
   border-radius: 8px;
   color: #047857;
   padding: 16px;
   text-align: center;
+}
+
+.summary-card.total {
+  background: var(--surface-soft);
+  color: var(--text-strong);
+}
+
+.summary-card.paid {
+  background: #eff6ff;
+  color: #2563eb;
 }
 
 .summary-card strong,
@@ -371,6 +610,24 @@ dt,
 
 .summary-card strong {
   font-size: 32px;
+}
+
+.toolbar-meta {
+  display: grid;
+  gap: 3px;
+  margin-left: auto;
+  text-align: right;
+}
+
+.toolbar-meta span {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.toolbar-meta strong {
+  color: var(--text-strong);
+  font-size: 16px;
 }
 
 .message {
@@ -430,6 +687,11 @@ button.primary {
   color: white;
 }
 
+button.danger {
+  background: #dc2626;
+  color: white;
+}
+
 button.ghost {
   background: #fef2f2;
   color: #b42318;
@@ -450,15 +712,104 @@ button:disabled {
   text-align: center;
 }
 
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  min-height: 180px;
+  padding: 30px 18px;
+}
+
+.empty-state strong {
+  color: var(--text-strong);
+  font-size: 20px;
+}
+
+.empty-state span {
+  max-width: 560px;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.empty-state button {
+  margin-top: 2px;
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
 .approval-list {
   display: grid;
   gap: 12px;
 }
 
 .approval-card {
+  --status-color: #94a3b8;
+  --status-text: #1f2937;
+  --status-pill-bg: #f8fafc;
   display: grid;
   gap: 16px;
   padding: 18px;
+  border-left: 6px solid var(--status-color);
+}
+
+.approval-card--paid {
+  --status-color: #10b981;
+  --status-text: #064e3b;
+  --status-pill-bg: #ecfdf5;
+}
+
+.approval-card--pending {
+  --status-color: #06b6d4;
+  --status-text: #164e63;
+  --status-pill-bg: #f0f9ff;
+}
+
+.approval-card--waiting-transfer {
+  --status-color: #f59e0b;
+  --status-text: #78350f;
+  --status-pill-bg: #fffbeb;
+}
+
+.approval-card--failed {
+  --status-color: #ef4444;
+  --status-text: #7f1d1d;
+  --status-pill-bg: #fff1f2;
+}
+
+.approval-card--cancelled {
+  --status-color: #64748b;
+  --status-text: #1f2937;
+  --status-pill-bg: #f8fafc;
+}
+
+:global(:root[data-theme="dark"]) .approval-card--paid {
+  --status-text: #bbf7d0;
+  --status-pill-bg: rgba(16, 185, 129, 0.12);
+}
+
+:global(:root[data-theme="dark"]) .approval-card--pending {
+  --status-text: #a5f3fc;
+  --status-pill-bg: rgba(6, 182, 212, 0.12);
+}
+
+:global(:root[data-theme="dark"]) .approval-card--waiting-transfer {
+  --status-text: #fde68a;
+  --status-pill-bg: rgba(245, 158, 11, 0.14);
+}
+
+:global(:root[data-theme="dark"]) .approval-card--failed {
+  --status-text: #fecaca;
+  --status-pill-bg: rgba(239, 68, 68, 0.14);
+}
+
+:global(:root[data-theme="dark"]) .approval-card--cancelled {
+  --status-text: #e5e7eb;
+  --status-pill-bg: rgba(148, 163, 184, 0.14);
+}
+
+:global(:root[data-accessibility="enabled"][data-contrast="high"]) .approval-card {
+  --status-text: var(--text-strong);
+  --status-pill-bg: var(--surface-soft);
 }
 
 .approval-main {
@@ -480,6 +831,36 @@ button:disabled {
 .amount-box strong {
   color: var(--text-strong);
   font-size: 26px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--status-pill-bg);
+  color: var(--status-text);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.2;
+  padding: 6px 10px;
+  text-align: center;
+}
+
+.status-badge::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--status-color);
+  flex: 0 0 auto;
+}
+
+.amount-box .status-badge {
+  display: inline-flex;
 }
 
 dl {
@@ -562,6 +943,10 @@ dd {
     padding: 9px;
   }
 
+  .summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .summary-card strong {
     font-size: 24px;
   }
@@ -575,6 +960,11 @@ dd {
   .toolbar {
     gap: 8px;
     padding: 10px;
+  }
+
+  .toolbar-meta {
+    margin-left: 0;
+    text-align: left;
   }
 
   label {
@@ -593,6 +983,20 @@ dd {
   .state-box {
     padding: 14px;
     font-size: 12px;
+  }
+
+  .empty-state {
+    min-height: 150px;
+    padding: 18px 12px;
+  }
+
+  .empty-state strong {
+    font-size: 15px;
+  }
+
+  .empty-state span {
+    font-size: 12px;
+    line-height: 1.35;
   }
 
   .approval-list {

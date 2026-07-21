@@ -7,6 +7,6 @@ import PaymentApprovalList from "../../components/admin/PaymentApprovalList.vue"
     type-filter="subscription"
     title="อนุมัติแพ็กเกจสมาชิก"
     description="ตรวจรายการสมัครหรือชำระแพ็กเกจสมาชิกที่รอการยืนยัน เมื่ออนุมัติแล้วระบบจะเปิดสถานะสมาชิกให้บัญชีนั้น"
-    empty-text="ยังไม่มีรายการแพ็กเกจสมาชิกที่ต้องอนุมัติในสถานะนี้"
+    empty-text="ไม่มีรายการแพ็กเกจสมาชิกที่ต้องอนุมัติในสถานะนี้"
   />
 </template>

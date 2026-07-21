@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import api from "../../utils/api";
 
 type Category = {
@@ -39,32 +39,21 @@ type CategoryPreset = {
 
 const toneOptions = [
   { value: "", label: "ไม่เลือกธีม (อัตโนมัติ)" },
-  { value: "story", label: "ม่วงละมุน" },
-  { value: "romance", label: "ชมพูหวาน" },
-  { value: "fantasy", label: "แฟนตาซีม่วงสด" },
-  { value: "mystery", label: "ฟ้าอมเขียว" },
-  { value: "adventure", label: "เขียวธรรมชาติ" },
-  { value: "teen", label: "ฟ้าสดใส" },
-  { value: "drama", label: "ชมพูดราม่า" },
+  { value: "story", label: "ม่วงองุ่น" },
+  { value: "romance", label: "ชมพูสด" },
+  { value: "mystery", label: "เขียวทะเลเข้ม" },
+  { value: "adventure", label: "เขียวป่า" },
+  { value: "teen", label: "น้ำเงินสด" },
   { value: "chinese", label: "แดงทอง" },
   { value: "manga", label: "ส้มสด" },
-  { value: "classic", label: "วรรณกรรมคลาสสิก" },
-  { value: "knowledge", label: "ความรู้ฟ้าใส" },
-  { value: "science", label: "วิทยาศาสตร์" },
-  { value: "technology", label: "เทคโนโลยี" },
-  { value: "study", label: "การศึกษา" },
-  { value: "history", label: "น้ำตาลคลาสสิก" },
-  { value: "language", label: "ภาษา" },
-  { value: "business", label: "ธุรกิจ" },
-  { value: "finance", label: "การเงิน" },
-  { value: "marketing", label: "การตลาด" },
-  { value: "wellness", label: "สุขภาพ" },
-  { value: "food", label: "อาหาร" },
-  { value: "beauty", label: "ความงาม" },
+  { value: "history", label: "น้ำตาลทอง" },
+  { value: "finance", label: "เหลืองทอง" },
+  { value: "marketing", label: "คอรัลแดง" },
   { value: "travel", label: "ฟ้าทะเล" },
-  { value: "wisdom", label: "ธรรมะ" },
-  { value: "kids", label: "สีรุ้งอุ่น" },
-  { value: "audio", label: "น้ำเงิน" },
+  { value: "audio", label: "ครามเข้ม" },
+  { value: "kids", label: "เหลืองอบอุ่น" },
+  { value: "lime", label: "ไลม์สด" },
+  { value: "slate", label: "เทาสเลต" },
 ];
 
 const scopeOptions = [
@@ -75,6 +64,7 @@ const scopeOptions = [
 
 const formNameLimit = 28;
 const homeGridRows = 2;
+const categoryPageSize = 8;
 
 const quickPresets: CategoryPreset[] = [
   { name: "นิยายรัก", nameEn: "Romance", tone: "romance", art: "romance-books", scope: "serial" },
@@ -90,45 +80,60 @@ const quickPresets: CategoryPreset[] = [
 ];
 
 const artOptions = [
+  { value: "category-art-set", label: "ชุดตัวการ์ตูน / รวมหลายคาแรกเตอร์ PNG" },
+  { value: "doctor-reader", label: "หมอ / ตัวการ์ตูนหมอ PNG" },
+  { value: "ghost-reader", label: "ผี / ผีนักอ่าน PNG" },
+  { value: "student-reader", label: "นักเรียน / เด็กนักเรียน PNG" },
+  { value: "cat-reader", label: "สัตว์ / แมวนักอ่าน PNG" },
+  { value: "car-books", label: "รถ / รถขนหนังสือ PNG" },
+  { value: "desk-lamp-notebook", label: "ของใช้ / โคมไฟกับสมุด PNG" },
+  { value: "robot-reader", label: "หุ่นยนต์ / หุ่นยนต์นักอ่าน PNG" },
+  { value: "chef-reader", label: "เชฟ / เชฟถือหนังสือ PNG" },
+  { value: "firefighter-reader", label: "ดับเพลิง / นักดับเพลิง PNG" },
+  { value: "detective-reader", label: "นักสืบ / แว่นขยาย PNG" },
+  { value: "musician-reader", label: "ดนตรี / นักดนตรี PNG" },
+  { value: "dinosaur-reader", label: "ไดโนเสาร์ / นักอ่านเด็ก PNG" },
+  { value: "business-growth", label: "การศึกษา / นักอ่านแว่น PNG" },
+  { value: "chinese-girl", label: "ภาษา / นักอ่านหูฟัง PNG" },
+  { value: "classic-writer", label: "วรรณกรรม / นักพูดหน้าเวที PNG" },
+  { value: "craft-book", label: "กฎหมาย / หนังสือผู้พิพากษา PNG" },
+  { value: "drama-mask", label: "ศิลปะ / นักวาดสีชมพู PNG" },
+  { value: "adventure-book", label: "วิทยาศาสตร์ / นักทดลอง PNG" },
+  { value: "education-graduate", label: "สยองขวัญ / หนังสือปราสาท PNG" },
+  { value: "education-owl", label: "อวกาศ / นักสำรวจ PNG" },
+  { value: "exercise-runner", label: "พัฒนาตนเอง / หนังสือเติบโต PNG" },
+  { value: "fantasy-wizard", label: "อาหาร / เชฟหนังสือ PNG" },
+  { value: "finance-book", label: "การศึกษา / หนังสือบัณฑิต PNG" },
+  { value: "geography-globe", label: "ประวัติศาสตร์ / หนังสือโบราณ PNG" },
+  { value: "horror-book", label: "หนังสือเสียง / นักอ่านหูฟัง PNG" },
+  { value: "kids-rainbow", label: "สุขภาพ / โยคะสีชมพู PNG" },
+  { value: "law-book", label: "คู่มือเรียน / สมุดจด PNG" },
+  { value: "manga-reader", label: "มังงะ / นักอ่านรูปภาพ PNG" },
+  { value: "mystery-book", label: "จิตวิทยา / หนังสือนั่งสมาธิ PNG" },
+  { value: "philosophy-lotus", label: "การเงิน / หนังสือนักธุรกิจ PNG" },
+  { value: "poetry-writer", label: "งานฝีมือ / นักประดิษฐ์ PNG" },
+  { value: "romance-family", label: "ธรรมชาติ / นักปลูกต้นไม้ PNG" },
+  { value: "romance-books", label: "ท่องเที่ยว / นักเดินทาง PNG" },
+  { value: "space-science", label: "เด็ก / อ่านกับของเล่น PNG" },
+  { value: "study-book", label: "นิยายรัก / หนังสือคู่รัก PNG" },
+  { value: "teen-reader", label: "เทคโนโลยี / นักอ่านโค้ด PNG" },
   { value: "travel-book", label: "ต่างประเทศ / หนังสือเดินทาง PNG" },
-  { value: "manga-reader", label: "มังงะ / นักอ่านมังงะ PNG" },
-  { value: "mystery-book", label: "สืบสวน / นักสืบ PNG" },
-  { value: "adventure-book", label: "ผจญภัย / นักสำรวจ PNG" },
-  { value: "teen-reader", label: "วัยรุ่น / นักอ่านหูฟัง PNG" },
-  { value: "drama-mask", label: "ดราม่า / หน้ากากละคร PNG" },
-  { value: "chinese-girl", label: "จีนโบราณ / สาวจีนโบราณ PNG" },
-  { value: "classic-writer", label: "วรรณกรรม / นักเขียน PNG" },
-  { value: "romance-books", label: "นิยายรัก / หนังสือคู่รัก PNG" },
-  { value: "fantasy-wizard", label: "แฟนตาซี / พ่อมด PNG" },
-  { value: "category-art-set", label: "ชุดตัวอย่าง / รวมภาพปุ่ม PNG" },
-  { value: "business-growth", label: "พัฒนาตนเอง / ก้าวสู่ความสำเร็จ PNG" },
-  { value: "finance-book", label: "การเงิน / หนังสือนักธุรกิจ PNG" },
-  { value: "health-yoga", label: "สุขภาพ / โยคะ PNG" },
-  { value: "wisdom-monk", label: "ธรรมะ / สมาธิ PNG" },
-  { value: "kids-rainbow", label: "เด็ก / อ่านกับของเล่น PNG" },
-  { value: "audio-reader", label: "หนังสือเสียง / ไมค์และหูฟัง PNG" },
-  { value: "space-science", label: "วิทยาศาสตร์ / อวกาศ PNG" },
-  { value: "horror-book", label: "สยองขวัญ / บ้านผีสิง PNG" },
-  { value: "education-owl", label: "การศึกษา / นกฮูกนักอ่าน PNG" },
-  { value: "education-graduate", label: "การศึกษา / หมวกบัณฑิต PNG" },
-  { value: "romance-family", label: "ครอบครัว / อ่านอบอุ่น PNG" },
-  { value: "poetry-writer", label: "กวี / เขียนกลอน PNG" },
-  { value: "craft-book", label: "งานฝีมือ / ศิลปะประดิษฐ์ PNG" },
-  { value: "law-book", label: "กฎหมาย / ตราชั่ง PNG" },
-  { value: "study-book", label: "คู่มือเรียน / จดบันทึก PNG" },
-  { value: "wellness-garden", label: "ปลูกต้นไม้ / สวนหนังสือ PNG" },
-  { value: "technology-circuit", label: "เทคโนโลยี / วงจร PNG" },
-  { value: "math-formula", label: "คณิตศาสตร์ / สูตร PNG" },
-  { value: "language-chat", label: "ภาษา / บทสนทนา PNG" },
-  { value: "marketing-megaphone", label: "การตลาด / โทรโข่ง PNG" },
-  { value: "food-cafe", label: "อาหาร / คาเฟ่ PNG" },
-  { value: "beauty-flower", label: "ความงาม / ดอกไม้ PNG" },
-  { value: "exercise-runner", label: "ออกกำลังกาย / นักวิ่ง PNG" },
-  { value: "geography-globe", label: "ภูมิศาสตร์ / ลูกโลก PNG" },
-  { value: "philosophy-lotus", label: "ปรัชญา / ดอกบัว PNG" },
+  { value: "wellness-garden", label: "กวี / นักเขียนสีม่วง PNG" },
 ];
 
 const customArtImages: Record<string, string> = {
+  "doctor-reader": "/category-art/doctor-reader.png",
+  "ghost-reader": "/category-art/ghost-reader.png",
+  "student-reader": "/category-art/student-reader.png",
+  "cat-reader": "/category-art/cat-reader.png",
+  "car-books": "/category-art/car-books.png",
+  "desk-lamp-notebook": "/category-art/desk-lamp-notebook.png",
+  "robot-reader": "/category-art/robot-reader.png",
+  "chef-reader": "/category-art/chef-reader.png",
+  "firefighter-reader": "/category-art/firefighter-reader.png",
+  "detective-reader": "/category-art/detective-reader.png",
+  "musician-reader": "/category-art/musician-reader.png",
+  "dinosaur-reader": "/category-art/dinosaur-reader.png",
   "travel-book": "/category-art/travel-book.png",
   "manga-reader": "/category-art/manga-reader.png",
   "mystery-book": "/category-art/mystery-book.png",
@@ -167,7 +172,55 @@ const customArtImages: Record<string, string> = {
   "philosophy-lotus": "/category-art/philosophy-lotus.png",
 };
 
+const duplicateArtMap: Record<string, string> = {
+  "beauty-flower": "romance-family",
+  "food-cafe": "exercise-runner",
+  "health-yoga": "exercise-runner",
+  "language-chat": "education-owl",
+  "marketing-megaphone": "business-growth",
+  "math-formula": "education-graduate",
+  "technology-circuit": "space-science",
+  "wisdom-monk": "philosophy-lotus",
+};
+
 const legacyArtMap: Record<string, string> = {
+  หมอ: "doctor-reader",
+  doctor: "doctor-reader",
+  แพทย์: "doctor-reader",
+  medical: "doctor-reader",
+  ผี: "ghost-reader",
+  ghost: "ghost-reader",
+  สยอง: "ghost-reader",
+  นักเรียน: "student-reader",
+  student: "student-reader",
+  โรงเรียน: "student-reader",
+  school: "student-reader",
+  สัตว์: "cat-reader",
+  animal: "cat-reader",
+  แมว: "cat-reader",
+  cat: "cat-reader",
+  รถ: "car-books",
+  car: "car-books",
+  ยานพาหนะ: "car-books",
+  vehicle: "car-books",
+  ของใช้: "desk-lamp-notebook",
+  object: "desk-lamp-notebook",
+  เครื่องเขียน: "desk-lamp-notebook",
+  desk: "desk-lamp-notebook",
+  หุ่นยนต์: "robot-reader",
+  robot: "robot-reader",
+  ai: "robot-reader",
+  เชฟ: "chef-reader",
+  chef: "chef-reader",
+  ดับเพลิง: "firefighter-reader",
+  firefighter: "firefighter-reader",
+  นักสืบ: "detective-reader",
+  detective: "detective-reader",
+  ดนตรี: "musician-reader",
+  music: "musician-reader",
+  musician: "musician-reader",
+  ไดโนเสาร์: "dinosaur-reader",
+  dinosaur: "dinosaur-reader",
   story: "romance-family",
   romance: "romance-books",
   fantasy: "fantasy-wizard",
@@ -237,8 +290,14 @@ const loading = ref(false);
 const togglingHomeId = ref<number | null>(null);
 const homeLayoutItems = ref<Category[]>([]);
 const draggedHomeId = ref<number | null>(null);
+const homeLayoutExpanded = ref(false);
+const homeLayoutRail = ref<HTMLElement | null>(null);
+const homeLayoutPreview = ref<HTMLElement | null>(null);
+const highlightedHomeId = ref<number | null>(null);
+const editPanel = ref<HTMLFormElement | null>(null);
 const layoutDirty = ref(false);
 const savingHomeLayout = ref(false);
+let homeHighlightTimer: ReturnType<typeof window.setTimeout> | null = null;
 
 const mainCategories = computed(() =>
   categories.value
@@ -259,8 +318,6 @@ const editingCategory = computed(() =>
 const homeVisibleCount = computed(
   () => categories.value.filter((item) => item.show_on_home !== false && item.show_on_home !== 0).length,
 );
-
-const homeLayoutColumns = computed(() => Math.max(1, Math.ceil(homeLayoutItems.value.length / homeGridRows)));
 
 function toPayload(form: CategoryForm) {
   const nameTh = form.name_th.trim() || form.name.trim();
@@ -322,9 +379,12 @@ async function createCategory() {
   }
 }
 
-function startEdit(item: Category) {
+async function startEdit(item: Category) {
   editingId.value = item.id;
   editForm.value = formFromCategory(item);
+  await nextTick();
+  editPanel.value?.scrollIntoView({ behavior: "smooth", block: "start" });
+  editPanel.value?.focus({ preventScroll: true });
 }
 
 function cancelEdit() {
@@ -334,14 +394,16 @@ function cancelEdit() {
 
 async function updateCategory() {
   if (!editingId.value) return;
+  const updatedId = editingId.value;
 
   try {
     message.value = "";
     errorMessage.value = "";
-    await api.put(`/categories/${editingId.value}`, toPayload(editForm.value));
+    await api.put(`/categories/${updatedId}`, toPayload(editForm.value));
     message.value = "แก้ไขปุ่มหมวดหมู่สำเร็จ";
     cancelEdit();
     await loadCategories();
+    await revealHomeLayoutItem(updatedId);
   } catch (error: any) {
     errorMessage.value = error?.response?.data?.message || "แก้ไขหมวดหมู่ไม่สำเร็จ";
   }
@@ -356,7 +418,7 @@ async function toggleHomeStatus(item: Category) {
     await api.put(`/categories/${item.id}`, {
       name: item.name,
       name_th: getCategoryNameTh(item),
-      name_en: getCategoryNameEn(item) || getCategoryNameTh(item),
+      name_en: getCategoryNameEn(item),
       parent_id: item.parent_id,
       content_scope: item.content_scope || "all",
       display_tone: item.display_tone || null,
@@ -366,7 +428,7 @@ async function toggleHomeStatus(item: Category) {
     });
     item.show_on_home = nextStatus;
     syncHomeLayoutFromCategories();
-    message.value = nextStatus ? "เปิดการแสดงบนหน้า Home แล้ว" : "ปิดการแสดงบนหน้า Home แล้ว";
+    message.value = nextStatus ? "เปิดการแสดงบนหน้าแรกแล้ว" : "ปิดการแสดงบนหน้าแรกแล้ว";
   } catch (error: any) {
     errorMessage.value = error?.response?.data?.message || "เปลี่ยนสถานะการแสดงไม่สำเร็จ";
   } finally {
@@ -396,7 +458,7 @@ function getParentName(item: Category) {
 }
 
 function getCategoryNameTh(item: Category) {
-  return String(item.name_th || item.name || "").trim();
+  return stripSecondaryLanguage(String(item.name_th || item.name || "").trim(), item.name_en);
 }
 
 function getCategoryNameEn(item: Category) {
@@ -404,7 +466,21 @@ function getCategoryNameEn(item: Category) {
 }
 
 function getFormNameTh(form: CategoryForm) {
-  return form.name_th.trim() || form.name.trim();
+  return stripSecondaryLanguage(form.name_th.trim() || form.name.trim(), form.name_en);
+}
+
+function stripSecondaryLanguage(value: string, englishValue?: string | null) {
+  const text = value.trim();
+  if (!text || !/[ก-๙]/.test(text)) return text;
+
+  const english = String(englishValue || "").trim();
+  if (english) {
+    const escapedEnglish = english.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const withoutKnownEnglish = text.replace(new RegExp(`\\s*[-–—/:|]?\\s*${escapedEnglish}$`, "i"), "").trim();
+    if (withoutKnownEnglish) return withoutKnownEnglish;
+  }
+
+  return text.replace(/\s*[A-Za-z][A-Za-z0-9 '&().-]*$/, "").trim() || text;
 }
 
 function isHomeVisible(item: Category) {
@@ -440,8 +516,9 @@ function getPreviewArt(form: CategoryForm) {
 }
 
 function getImageArtValue(value?: string | null) {
+  if (value && duplicateArtMap[value]) return duplicateArtMap[value];
   if (value && customArtImages[value]) return value;
-  if (value && legacyArtMap[value]) return legacyArtMap[value];
+  if (value && legacyArtMap[value]) return duplicateArtMap[legacyArtMap[value]] || legacyArtMap[value];
   return defaultArtValue;
 }
 
@@ -547,6 +624,44 @@ function endHomeDrag() {
   draggedHomeId.value = null;
 }
 
+function toggleHomeLayoutExpanded() {
+  homeLayoutExpanded.value = !homeLayoutExpanded.value;
+}
+
+function scrollHomeLayoutRail(direction: number) {
+  const rail = homeLayoutRail.value;
+  if (!rail) return;
+  rail.scrollBy({ left: direction * Math.max(rail.clientWidth * 0.86, 320), behavior: "smooth" });
+}
+
+async function revealHomeLayoutItem(id: number) {
+  await nextTick();
+  const preview = homeLayoutPreview.value;
+  const rail = homeLayoutRail.value;
+  const target = rail?.querySelector<HTMLElement>(`[data-home-layout-id="${id}"]`) || null;
+
+  if (!target) {
+    preview?.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+
+  preview?.scrollIntoView({ behavior: "smooth", block: "center" });
+
+  if (!homeLayoutExpanded.value && rail) {
+    const nextLeft = target.offsetLeft - rail.clientWidth / 2 + target.clientWidth / 2;
+    rail.scrollTo({ left: Math.max(0, nextLeft), behavior: "smooth" });
+  } else {
+    target.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+  }
+
+  highlightedHomeId.value = id;
+  if (homeHighlightTimer) window.clearTimeout(homeHighlightTimer);
+  homeHighlightTimer = window.setTimeout(() => {
+    highlightedHomeId.value = null;
+    homeHighlightTimer = null;
+  }, 2200);
+}
+
 async function saveHomeLayout() {
   try {
     message.value = "";
@@ -558,7 +673,7 @@ async function saveHomeLayout() {
         api.put(`/categories/${item.id}`, {
           name: item.name,
           name_th: getCategoryNameTh(item),
-          name_en: getCategoryNameEn(item) || getCategoryNameTh(item),
+          name_en: getCategoryNameEn(item),
           parent_id: item.parent_id,
           content_scope: item.content_scope || "all",
           display_tone: item.display_tone || null,
@@ -568,10 +683,10 @@ async function saveHomeLayout() {
         }),
       ),
     );
-    message.value = "บันทึกตำแหน่งปุ่มหน้า Home สำเร็จ";
+    message.value = "บันทึกตำแหน่งปุ่มหน้าแรกสำเร็จ";
     await loadCategories();
   } catch (error: any) {
-    errorMessage.value = error?.response?.data?.message || "บันทึกตำแหน่งปุ่มหน้า Home ไม่สำเร็จ";
+    errorMessage.value = error?.response?.data?.message || "บันทึกตำแหน่งปุ่มหน้าแรกไม่สำเร็จ";
   } finally {
     savingHomeLayout.value = false;
   }
@@ -588,15 +703,19 @@ function applyPreset(form: CategoryForm, preset: CategoryPreset) {
 }
 
 onMounted(loadCategories);
+
+onBeforeUnmount(() => {
+  if (homeHighlightTimer) window.clearTimeout(homeHighlightTimer);
+});
 </script>
 
 <template>
   <div class="page">
     <header class="page-head">
       <div>
-        <span>Admin</span>
-        <h1>จัดการหมวดหมู่และปุ่มหน้า Home</h1>
-        <p>เพิ่มหมวด แก้ชื่อปุ่ม เลือกธีมการ์ตูน เปิด/ปิดการแสดง และจัดลำดับบนหน้า Home</p>
+        <span>แอดมิน</span>
+        <h1>จัดการหมวดหมู่และปุ่มหน้าแรก</h1>
+        <p>เพิ่มหมวด แก้ชื่อปุ่ม เลือกธีมการ์ตูน เปิด/ปิดการแสดง และจัดลำดับบนหน้าแรก</p>
       </div>
     </header>
 
@@ -609,9 +728,9 @@ onMounted(loadCategories);
         <div class="panel-title">
           <div>
             <h2>เพิ่มปุ่มหมวดใหม่</h2>
-            <p>ตั้งชื่อ เลือกโทน และดูตัวอย่างก่อนนำไปแสดงบนหน้า Home</p>
+            <p>ตั้งชื่อ เลือกโทน และดูตัวอย่างก่อนนำไปแสดงบนหน้าแรก</p>
           </div>
-          <span class="home-chip">Home {{ homeVisibleCount }}</span>
+          <span class="home-chip">หน้าแรก {{ homeVisibleCount }}</span>
         </div>
 
         <div class="preset-panel">
@@ -643,9 +762,9 @@ onMounted(loadCategories);
 
         <label>
           ชื่อปุ่มภาษาอังกฤษ
-          <input v-model="newForm.name_en" type="text" placeholder="เช่น Romance" :maxlength="formNameLimit" required />
+          <input v-model="newForm.name_en" type="text" placeholder="เช่น Romance" :maxlength="formNameLimit" />
           <span class="field-hint-row">
-            <small>จะแสดงเมื่อผู้ใช้เลือก English</small>
+            <small>เก็บไว้เป็นข้อมูลเสริม ไม่แสดงบนหน้าแรก</small>
             <small>{{ newForm.name_en.length }}/{{ formNameLimit }}</small>
           </span>
         </label>
@@ -672,14 +791,14 @@ onMounted(loadCategories);
 
           <div class="position-fields">
             <label>
-              แถวบน Home
+              แถวบนหน้าแรก
               <input v-model.number="newForm.home_row" type="number" min="1" :max="homeGridRows" step="1" />
             </label>
             <label>
               คอลัมน์
               <input v-model.number="newForm.home_column" type="number" min="1" step="1" />
             </label>
-            <small class="field-hint">หน้า Home มี 2 แถว แล้วเรียงจากซ้ายไปขวาตามคอลัมน์</small>
+            <small class="field-hint">หน้าแรกมี 2 แถว แล้วเรียงจากซ้ายไปขวาตามคอลัมน์</small>
           </div>
         </div>
 
@@ -714,9 +833,9 @@ onMounted(loadCategories);
           </div>
 
           <div class="art-picker-field">
-            ภาพประกอบปุ่ม Home
+            ภาพประกอบปุ่มหน้าแรก
             <details class="art-picker">
-              <summary :aria-label="`ภาพประกอบปุ่ม Home: ${getSelectedArtLabel(newForm)}`">
+              <summary :aria-label="`ภาพประกอบปุ่มหน้าแรก: ${getSelectedArtLabel(newForm)}`">
                 <img
                   v-if="newForm.display_art"
                   :src="getCustomArtImage(getPreviewArt(newForm))"
@@ -769,7 +888,7 @@ onMounted(loadCategories);
               {{
                 newForm.show_on_home
                   ? `แถว ${newForm.home_row || 1} / คอลัมน์ ${newForm.home_column || 1}`
-                  : "ยังไม่แสดงบนหน้า Home"
+                  : "ยังไม่แสดงบนหน้าแรก"
               }}
             </small>
           </div>
@@ -786,14 +905,13 @@ onMounted(loadCategories);
               @error="hideBrokenImage"
             />
             <strong>{{ getFormNameTh(newForm) || "ชื่อปุ่มหมวด" }}</strong>
-            <small v-if="newForm.name_en">{{ newForm.name_en }}</small>
           </div>
         </div>
 
         <label class="check-row">
           <input v-model="newForm.show_on_home" type="checkbox" />
           <span>
-            แสดงเป็นปุ่มบนหน้า Home
+            แสดงเป็นปุ่มบนหน้าแรก
             <small>ปิดได้ถ้าต้องการเก็บหมวดไว้ใช้ภายในก่อน</small>
           </span>
         </label>
@@ -801,11 +919,17 @@ onMounted(loadCategories);
         <button class="primary-btn" type="submit">เพิ่มหมวดหมู่</button>
       </form>
 
-      <form v-if="editingCategory" class="panel edit-panel" @submit.prevent="updateCategory">
+      <form
+        v-if="editingCategory"
+        ref="editPanel"
+        class="panel edit-panel"
+        tabindex="-1"
+        @submit.prevent="updateCategory"
+      >
         <div class="panel-title">
           <div>
             <h2>แก้ไขปุ่ม: {{ getCategoryNameTh(editingCategory) }}</h2>
-            <p>ปรับหน้าตาปุ่มและสถานะการแสดงบนหน้า Home</p>
+            <p>ปรับหน้าตาปุ่มและสถานะการแสดงบนหน้าแรก</p>
           </div>
         </div>
 
@@ -838,9 +962,9 @@ onMounted(loadCategories);
 
         <label>
           ชื่อปุ่มภาษาอังกฤษ
-          <input v-model="editForm.name_en" type="text" :maxlength="formNameLimit" required />
+          <input v-model="editForm.name_en" type="text" :maxlength="formNameLimit" />
           <span class="field-hint-row">
-            <small>จะแสดงเมื่อผู้ใช้เลือก English</small>
+            <small>เก็บไว้เป็นข้อมูลเสริม ไม่แสดงบนหน้าแรก</small>
             <small>{{ editForm.name_en.length }}/{{ formNameLimit }}</small>
           </span>
         </label>
@@ -871,14 +995,14 @@ onMounted(loadCategories);
 
           <div class="position-fields">
             <label>
-              แถวบน Home
+              แถวบนหน้าแรก
               <input v-model.number="editForm.home_row" type="number" min="1" :max="homeGridRows" step="1" />
             </label>
             <label>
               คอลัมน์
               <input v-model.number="editForm.home_column" type="number" min="1" step="1" />
             </label>
-            <small class="field-hint">หน้า Home มี 2 แถว แล้วเรียงจากซ้ายไปขวาตามคอลัมน์</small>
+            <small class="field-hint">หน้าแรกมี 2 แถว แล้วเรียงจากซ้ายไปขวาตามคอลัมน์</small>
           </div>
         </div>
 
@@ -913,9 +1037,9 @@ onMounted(loadCategories);
           </div>
 
           <div class="art-picker-field">
-            ภาพประกอบปุ่ม Home
+            ภาพประกอบปุ่มหน้าแรก
             <details class="art-picker">
-              <summary :aria-label="`ภาพประกอบปุ่ม Home: ${getSelectedArtLabel(editForm)}`">
+              <summary :aria-label="`ภาพประกอบปุ่มหน้าแรก: ${getSelectedArtLabel(editForm)}`">
                 <img
                   v-if="editForm.display_art"
                   :src="getCustomArtImage(getPreviewArt(editForm))"
@@ -968,7 +1092,7 @@ onMounted(loadCategories);
               {{
                 editForm.show_on_home
                   ? `แถว ${editForm.home_row || 1} / คอลัมน์ ${editForm.home_column || 1}`
-                  : "ยังไม่แสดงบนหน้า Home"
+                  : "ยังไม่แสดงบนหน้าแรก"
               }}
             </small>
           </div>
@@ -985,14 +1109,13 @@ onMounted(loadCategories);
               @error="hideBrokenImage"
             />
             <strong>{{ getFormNameTh(editForm) || "ชื่อปุ่มหมวด" }}</strong>
-            <small v-if="editForm.name_en">{{ editForm.name_en }}</small>
           </div>
         </div>
 
         <label class="check-row">
           <input v-model="editForm.show_on_home" type="checkbox" />
           <span>
-            แสดงเป็นปุ่มบนหน้า Home
+            แสดงเป็นปุ่มบนหน้าแรก
             <small>ปิดได้ถ้าต้องการเก็บหมวดไว้ใช้ภายในก่อน</small>
           </span>
         </label>
@@ -1007,8 +1130,8 @@ onMounted(loadCategories);
       <section class="panel home-layout-panel">
         <div class="panel-title">
           <div>
-            <h2>ตัวอย่างปุ่มหน้า Home ทั้งหมด</h2>
-            <p>ลากปุ่มเพื่อจัดตำแหน่งจริงบนหน้า Home แล้วกดบันทึก</p>
+            <h2>ตัวอย่างปุ่มหน้าแรกทั้งหมด</h2>
+            <p>ยึดรูปแบบจากหน้าแรกจริง ลากปุ่มเพื่อจัดลำดับแล้วกดบันทึก</p>
           </div>
           <div class="layout-actions">
             <button class="ghost-btn" type="button" :disabled="savingHomeLayout || !layoutDirty" @click="syncHomeLayoutFromCategories">
@@ -1020,47 +1143,87 @@ onMounted(loadCategories);
           </div>
         </div>
 
-        <div v-if="homeLayoutItems.length" class="home-layout-stage">
-          <div class="home-layout-ruler">
-            <span>แถว 1</span>
-            <span>แถว 2</span>
-          </div>
-          <div
-            class="home-layout-grid"
-            :style="{ '--home-layout-columns': homeLayoutColumns }"
-            @dragend="endHomeDrag"
-            @drop="endHomeDrag"
-          >
+        <div
+          v-if="homeLayoutItems.length"
+          ref="homeLayoutPreview"
+          class="home-layout-preview category-overview"
+          aria-label="ตัวอย่างหมวดหมู่บนหน้าแรก"
+        >
+          <div class="section-head section-head--stacked home-layout-preview__head">
+            <div>
+              <h2>หมวดหมู่หนังสือ</h2>
+            </div>
             <button
-              v-for="item in homeLayoutItems"
-              :key="item.id"
-              :class="[
-                'category-chip',
-                'home-layout-chip',
-                `category-chip--${getCategoryPreviewTone(item)}`,
-                `category-chip--art-${getCategoryPreviewArt(item)}`,
-                { 'is-dragging': draggedHomeId === item.id },
-              ]"
+              v-if="homeLayoutItems.length > categoryPageSize"
+              class="section-link-button view-all-action"
               type="button"
-              draggable="true"
-              @dragstart="startHomeDrag($event, item)"
-              @dragover="overHomeDrag($event, item)"
+              @click="toggleHomeLayoutExpanded"
+            >
+              {{ homeLayoutExpanded ? "ย่อกลับ" : "ดูทั้งหมด" }}
+            </button>
+          </div>
+          <div class="category-carousel home-layout-carousel">
+            <button
+              v-if="!homeLayoutExpanded && homeLayoutItems.length > categoryPageSize"
+              class="category-arrow category-arrow--left"
+              type="button"
+              aria-label="เลื่อนไปทางซ้าย"
+              @click="scrollHomeLayoutRail(-1)"
+            >
+              &lt;
+            </button>
+            <button
+              v-if="!homeLayoutExpanded && homeLayoutItems.length > categoryPageSize"
+              class="category-arrow category-arrow--right"
+              type="button"
+              aria-label="เลื่อนไปทางขวา"
+              @click="scrollHomeLayoutRail(1)"
+            >
+              &gt;
+            </button>
+            <div
+              ref="homeLayoutRail"
+              class="category-chip-grid home-layout-grid"
+              :class="{ 'category-chip-grid--expanded': homeLayoutExpanded }"
+              data-category-rail
+              @dragend="endHomeDrag"
               @drop="endHomeDrag"
             >
-              <img
-                v-if="item.display_art"
-                class="category-art-image"
-                :src="getCustomArtImage(getCategoryPreviewArt(item))"
-                alt=""
-                aria-hidden="true"
-                @error="hideBrokenImage"
-              />
-              <strong>{{ getCategoryNameTh(item) }}</strong>
-            </button>
+              <button
+                v-for="item in homeLayoutItems"
+                :key="item.id"
+                :class="[
+                  'category-chip',
+                  'home-layout-chip',
+                  `category-chip--${getCategoryPreviewTone(item)}`,
+                  `category-chip--art-${getCategoryPreviewArt(item)}`,
+                  {
+                    'is-dragging': draggedHomeId === item.id,
+                    'is-just-saved': highlightedHomeId === item.id,
+                  },
+                ]"
+                type="button"
+                draggable="true"
+                :data-home-layout-id="item.id"
+                @dragstart="startHomeDrag($event, item)"
+                @dragover="overHomeDrag($event, item)"
+                @drop="endHomeDrag"
+              >
+                <img
+                  v-if="item.display_art"
+                  class="category-art-image"
+                  :src="getCustomArtImage(getCategoryPreviewArt(item))"
+                  alt=""
+                  aria-hidden="true"
+                  @error="hideBrokenImage"
+                />
+                <strong>{{ getCategoryNameTh(item) }}</strong>
+              </button>
+            </div>
           </div>
         </div>
 
-        <p v-else class="empty-home-layout">ยังไม่มีปุ่มที่เปิดแสดงบนหน้า Home</p>
+        <p v-else class="empty-home-layout">ยังไม่มีปุ่มที่เปิดแสดงบนหน้าแรก</p>
       </section>
     </section>
 
@@ -1075,13 +1238,13 @@ onMounted(loadCategories);
           <thead>
             <tr>
               <th>ชื่อปุ่ม</th>
-              <th>English</th>
+              <th>ชื่ออังกฤษ</th>
               <th>ชั้นหมวด</th>
               <th>ใช้กับ</th>
-              <th>Home</th>
+              <th>หน้าแรก</th>
               <th>ธีม</th>
               <th>ภาพประกอบ</th>
-              <th>ตำแหน่ง Home</th>
+              <th>ตำแหน่งหน้าแรก</th>
               <th>จัดการ</th>
             </tr>
           </thead>
@@ -1372,60 +1535,136 @@ h1 {
   overflow: hidden;
 }
 
-.home-layout-stage {
-  position: relative;
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr);
-  gap: 10px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background:
-    linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px),
-    #f8fafc;
-  background-size: 24px 24px;
-  padding: 14px;
+.home-layout-preview {
+  padding: 20px 0 10px;
 }
 
-.home-layout-ruler {
-  display: grid;
-  grid-template-rows: repeat(2, minmax(88px, 1fr));
+.home-layout-preview__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
   gap: 14px;
+  margin-bottom: 0;
+  min-height: 28px;
 }
 
-.home-layout-ruler span {
+.home-layout-preview__head h2 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.section-link-button {
+  border: 0;
+  background: transparent;
+  color: var(--primary-strong);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+  padding: 2px 0;
+  text-decoration: none;
+}
+
+.home-layout-preview__head .view-all-action {
+  flex: 0 0 auto;
+  color: var(--primary-strong);
+}
+
+.home-layout-carousel {
+  position: relative;
+  background: transparent;
+  margin-top: 14px;
+}
+
+.category-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
   display: grid;
   place-items: center;
-  border: 1px dashed var(--border);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.78);
-  color: var(--text-muted);
-  font-size: 14px;
+  width: 40px;
+  height: 40px;
+  min-height: 0;
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.68));
+  color: var(--primary-strong);
+  cursor: pointer;
+  font-size: 24px;
   font-weight: 900;
-  writing-mode: vertical-rl;
+  line-height: 1;
+  padding: 0;
+  box-shadow: 0 12px 30px rgba(15, 118, 110, 0.16);
+  transform: translateY(-50%);
+  backdrop-filter: blur(10px);
+  transition:
+    background 0.18s ease,
+    box-shadow 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.category-arrow:hover {
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: 0 16px 34px rgba(15, 118, 110, 0.24);
+  transform: translateY(-50%) scale(1.04);
+}
+
+.category-arrow--left {
+  left: 10px;
+}
+
+.category-arrow--right {
+  right: 8px;
 }
 
 .home-layout-grid {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(280px, 280px);
+  grid-auto-columns: minmax(280px, calc((100% - 42px) / 4));
   grid-template-rows: repeat(2, minmax(112px, auto));
+  grid-template-columns: none;
   gap: 16px 14px;
   min-width: 0;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
-  padding: 2px 4px 12px 2px;
-  scroll-snap-type: x proximity;
+  padding: 6px 58px 16px 24px;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.home-layout-grid.category-chip-grid--expanded {
+  grid-auto-flow: row;
+  grid-auto-columns: unset;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-rows: none;
+  overflow-x: visible;
+  padding-bottom: 2px;
+  padding-right: 2px;
+  scroll-snap-type: none;
+}
+
+.home-layout-grid::-webkit-scrollbar {
+  display: none;
 }
 
 .home-layout-chip {
+  appearance: none;
   scroll-snap-align: start;
   width: 100%;
   min-height: 112px;
   margin: 0;
+  border-width: 2px;
   text-align: left;
   cursor: grab;
   transition:
+    border-color 0.2s ease,
     box-shadow 0.18s ease,
     opacity 0.18s ease,
     transform 0.18s ease;
@@ -1433,8 +1672,10 @@ h1 {
 
 .home-layout-chip:hover,
 .home-layout-chip:focus-visible {
-  box-shadow: 0 18px 34px color-mix(in srgb, var(--chip-a) 22%, transparent);
-  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.94),
+    0 20px 42px color-mix(in srgb, var(--chip-a) 24%, transparent);
+  transform: translateY(-4px);
 }
 
 .home-layout-chip:active {
@@ -1444,6 +1685,38 @@ h1 {
 .home-layout-chip.is-dragging {
   opacity: 0.52;
   transform: scale(0.98);
+}
+
+.home-layout-chip.is-just-saved {
+  border-color: #0f766e;
+  box-shadow:
+    0 0 0 5px rgba(20, 184, 166, 0.24),
+    0 20px 46px rgba(15, 118, 110, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.96);
+  animation: saved-home-chip-pulse 0.88s ease-in-out 2;
+  transform: translateY(-4px);
+}
+
+@keyframes saved-home-chip-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 5px rgba(20, 184, 166, 0.22),
+      0 20px 46px rgba(15, 118, 110, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.96);
+  }
+
+  50% {
+    box-shadow:
+      0 0 0 9px rgba(20, 184, 166, 0.1),
+      0 24px 54px rgba(15, 118, 110, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.96);
+  }
+}
+
+.home-layout-chip strong {
+  font-size: clamp(14px, 0.95vw, 17px);
+  line-height: 1.2;
 }
 
 .drag-handle,
@@ -2818,50 +3091,46 @@ button {
   --chip-d: #fff8ff;
 }
 
-.category-chip--romance,
-.category-chip--drama,
-.category-chip--beauty {
+.category-chip--romance {
   --chip-a: #ec407a;
   --chip-b: #f9a8d4;
   --chip-c: #fff0f7;
   --chip-d: #fff8fc;
 }
 
-.category-chip--fantasy,
-.category-chip--wisdom,
-.category-chip--psychology {
+.category-chip--fantasy {
   --chip-a: #6d28d9;
   --chip-b: #c084fc;
   --chip-c: #f3e8ff;
   --chip-d: #fbf7ff;
 }
 
-.category-chip--mystery,
-.category-chip--language {
+.category-chip--mystery {
   --chip-a: #0f766e;
   --chip-b: #5eead4;
   --chip-c: #e6fffb;
   --chip-d: #f7fffe;
 }
 
-.category-chip--adventure,
-.category-chip--wellness,
-.category-chip--study {
-  --chip-a: #249c43;
-  --chip-b: #b8e986;
-  --chip-c: #effbdc;
-  --chip-d: #fbfff6;
+.category-chip--adventure {
+  --chip-a: #3f8f2f;
+  --chip-b: #a7f3d0;
+  --chip-c: #eefbdd;
+  --chip-d: #fbfff7;
 }
 
-.category-chip--teen,
-.category-chip--knowledge,
-.category-chip--technology,
-.category-chip--science,
-.category-chip--foreign {
+.category-chip--teen {
   --chip-a: #2563eb;
   --chip-b: #bfdbfe;
   --chip-c: #eaf4ff;
   --chip-d: #f8fcff;
+}
+
+.category-chip--drama {
+  --chip-a: #be185d;
+  --chip-b: #f9a8d4;
+  --chip-c: #fff0f8;
+  --chip-d: #fff8fc;
 }
 
 .category-chip--chinese {
@@ -2871,31 +3140,109 @@ button {
   --chip-d: #fffaf2;
 }
 
-.category-chip--manga,
-.category-chip--food,
-.category-chip--life,
-.category-chip--marketing {
+.category-chip--foreign {
+  --chip-a: #0284c7;
+  --chip-b: #7dd3fc;
+  --chip-c: #e8f8ff;
+  --chip-d: #f8fcff;
+}
+
+.category-chip--manga {
   --chip-a: #f97316;
   --chip-b: #fdba74;
   --chip-c: #fff1df;
   --chip-d: #fffaf4;
 }
 
-.category-chip--history,
-.category-chip--business,
-.category-chip--finance,
+.category-chip--wellness {
+  --chip-a: #249c43;
+  --chip-b: #b8e986;
+  --chip-c: #effbdc;
+  --chip-d: #fbfff6;
+}
+
+.category-chip--science {
+  --chip-a: #0891b2;
+  --chip-b: #67e8f9;
+  --chip-c: #e6fbff;
+  --chip-d: #f7feff;
+}
+
+.category-chip--technology {
+  --chip-a: #0f5bd8;
+  --chip-b: #7dd3fc;
+  --chip-c: #eaf3ff;
+  --chip-d: #f8fbff;
+}
+
+.category-chip--history {
+  --chip-a: #92400e;
+  --chip-b: #fcd34d;
+  --chip-c: #fff2d7;
+  --chip-d: #fffaf2;
+}
+
+.category-chip--language {
+  --chip-a: #0d9488;
+  --chip-b: #99f6e4;
+  --chip-c: #e8fbf8;
+  --chip-d: #f8fffd;
+}
+
 .category-chip--exam {
+  --chip-a: #ca8a04;
+  --chip-b: #fde047;
+  --chip-c: #fff8cc;
+  --chip-d: #fffdf0;
+}
+
+.category-chip--business {
   --chip-a: #d97706;
   --chip-b: #facc15;
   --chip-c: #fff4cf;
   --chip-d: #fffaf0;
 }
 
+.category-chip--finance {
+  --chip-a: #b77900;
+  --chip-b: #fde047;
+  --chip-c: #fff7cc;
+  --chip-d: #fffdf2;
+}
+
+.category-chip--marketing {
+  --chip-a: #ea580c;
+  --chip-b: #fb7185;
+  --chip-c: #fff0df;
+  --chip-d: #fff8f4;
+}
+
+.category-chip--life {
+  --chip-a: #ea580c;
+  --chip-b: #fdba74;
+  --chip-c: #fff0dd;
+  --chip-d: #fffaf4;
+}
+
+.category-chip--psychology {
+  --chip-a: #8b5cf6;
+  --chip-b: #ddd6fe;
+  --chip-c: #f5f0ff;
+  --chip-d: #fcfaff;
+}
+
+.category-chip--food {
+  --chip-a: #f97316;
+  --chip-b: #fed7aa;
+  --chip-c: #fff3e4;
+  --chip-d: #fffaf5;
+}
+
 .category-chip--kids {
-  --chip-a: #e47d13;
-  --chip-b: #ffd166;
-  --chip-c: #fff1c8;
-  --chip-d: #fffaf0;
+  --chip-a: #f5b700;
+  --chip-b: #fde68a;
+  --chip-c: #fff8c7;
+  --chip-d: #fffdf2;
 }
 
 .category-chip--travel {
@@ -2905,11 +3252,77 @@ button {
   --chip-d: #f7feff;
 }
 
+.category-chip--beauty {
+  --chip-a: #db2777;
+  --chip-b: #fbcfe8;
+  --chip-c: #fff0f7;
+  --chip-d: #fff9fc;
+}
+
+.category-chip--study {
+  --chip-a: #168a4b;
+  --chip-b: #86efac;
+  --chip-c: #eafbea;
+  --chip-d: #f8fff8;
+}
+
+.category-chip--knowledge {
+  --chip-a: #1d4ed8;
+  --chip-b: #93c5fd;
+  --chip-c: #eaf6ff;
+  --chip-d: #f8fcff;
+}
+
+.category-chip--wisdom {
+  --chip-a: #7e22ce;
+  --chip-b: #d8b4fe;
+  --chip-c: #f5edff;
+  --chip-d: #fffaff;
+}
+
 .category-chip--audio {
   --chip-a: #4338ca;
   --chip-b: #a5b4fc;
   --chip-c: #edf0ff;
   --chip-d: #f9faff;
+}
+
+.category-chip--lime {
+  --chip-a: #65a30d;
+  --chip-b: #bef264;
+  --chip-c: #f2fbdc;
+  --chip-d: #fcfff4;
+}
+
+.category-chip--slate {
+  --chip-a: #475569;
+  --chip-b: #cbd5e1;
+  --chip-c: #f1f5f9;
+  --chip-d: #ffffff;
+}
+
+.category-chip--accent-1 {
+  --chip-a: #ea580c;
+  --chip-b: #fed7aa;
+  --chip-c: #fff4e8;
+}
+
+.category-chip--accent-2 {
+  --chip-a: #0f766e;
+  --chip-b: #5eead4;
+  --chip-c: #e7fbf7;
+}
+
+.category-chip--accent-3 {
+  --chip-a: #db2777;
+  --chip-b: #fbcfe8;
+  --chip-c: #fff1f7;
+}
+
+.category-chip--accent-4 {
+  --chip-a: #4f46e5;
+  --chip-b: #c7d2fe;
+  --chip-c: #f1f3ff;
 }
 
 .actions,
@@ -3054,14 +3467,6 @@ th {
   .layout-actions {
     justify-content: flex-start;
     width: 100%;
-  }
-
-  .home-layout-stage {
-    grid-template-columns: 1fr;
-  }
-
-  .home-layout-ruler {
-    display: none;
   }
 
   .home-layout-grid {

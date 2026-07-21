@@ -99,8 +99,8 @@ const quickLinks = computed<QuickLink[]>(() => [
     tone: "default",
   },
   {
-    title: "System Data Center",
-    text: "Review login logs, social accounts, reading activity, devices, benefits, and reserved tables.",
+    title: "ศูนย์ข้อมูลระบบ",
+    text: "ตรวจบันทึกเข้าสู่ระบบ บัญชีโซเชียล กิจกรรมอ่าน อุปกรณ์ สิทธิประโยชน์ และตารางสำรอง",
     to: "/admin/system-data",
     tone: "accent",
   },
@@ -177,7 +177,7 @@ onMounted(loadSummary);
         <article class="panel">
           <div class="panel-head">
             <h2>งานที่ควรเช็กเป็นประจำ</h2>
-            <span>Priority Flow</span>
+            <span>งานสำคัญ</span>
           </div>
           <div class="link-grid">
             <button
@@ -197,7 +197,7 @@ onMounted(loadSummary);
         <article class="panel">
           <div class="panel-head">
             <h2>หนังสือขายดีล่าสุด</h2>
-            <span>Top 5</span>
+            <span>5 อันดับแรก</span>
           </div>
 
           <div v-if="summary.popular_books.length" class="popular-list">

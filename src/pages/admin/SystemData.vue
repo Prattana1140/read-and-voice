@@ -17,6 +17,14 @@ type Section = {
   description: string;
 };
 
+type EmptyTableMeta = {
+  title: string;
+  description: string;
+  importance: "core" | "feature" | "optional";
+  route?: string;
+  routeLabel?: string;
+};
+
 type SystemCopy = {
   pageEyebrow: string;
   pageTitle: string;
@@ -150,7 +158,7 @@ const copy: Record<Locale, SystemCopy> = {
   },
   en: {
     pageEyebrow: "Admin reports",
-    pageTitle: "System Data Center",
+    pageTitle: "ศูนย์ข้อมูลระบบ",
     pageDescription:
       "A single place for data that existed in the backend but did not have a clear frontend surface yet.",
     navLabel: "System data sections",
@@ -280,6 +288,75 @@ const loading = ref(false);
 const errorMessage = ref("");
 const payload = ref<any>({ summary: {}, items: [] });
 
+const emptyTableMeta: Record<string, EmptyTableMeta> = {
+  book_files: {
+    title: "ไฟล์หนังสือ",
+    description: "ไฟล์ต้นฉบับหรือไฟล์ที่ระบบใช้สร้างเนื้อหาหนังสือ ถ้าว่างอาจหมายถึงยังไม่มีไฟล์ให้ตรวจ/แปลง",
+    importance: "core",
+    route: "/admin/books",
+    routeLabel: "ไปจัดการหนังสือ",
+  },
+  book_units: {
+    title: "หน่วยเนื้อหา",
+    description: "โครงสร้างบท ตอน หรือหน่วยอ่านของหนังสือ ใช้กับระบบอ่านและเสียง",
+    importance: "core",
+    route: "/admin/books",
+    routeLabel: "ไปจัดการหนังสือ",
+  },
+  book_unit_blocks: {
+    title: "บล็อกเนื้อหา",
+    description: "ย่อหน้า/บล็อกข้อความภายในหนังสือ ใช้สำหรับแสดงผลและเตรียมข้อมูลอ่านออกเสียง",
+    importance: "core",
+    route: "/admin/books",
+    routeLabel: "ไปจัดการหนังสือ",
+  },
+  book_unit_sentences: {
+    title: "ประโยคในหนังสือ",
+    description: "ประโยคที่แยกไว้สำหรับระบบอ่านออกเสียง ไฮไลต์ข้อความ และติดตามตำแหน่งอ่าน",
+    importance: "core",
+    route: "/admin/books",
+    routeLabel: "ไปจัดการหนังสือ",
+  },
+  bookmarks: {
+    title: "บุ๊กมาร์ก",
+    description: "ตำแหน่งหรือหมายเหตุที่ผู้อ่านบันทึกไว้ ว่างได้ถ้ายังไม่มีผู้ใช้กดบันทึก",
+    importance: "optional",
+  },
+  cart: {
+    title: "ตะกร้าสินค้า",
+    description: "รายการหนังสือ/ตอนที่ผู้ใช้นำใส่ตะกร้า ว่างได้ถ้ายังไม่มีคนเลือกซื้อค้างไว้",
+    importance: "feature",
+    route: "/cart",
+    routeLabel: "ไปหน้าตะกร้า",
+  },
+  coin_topup_orders: {
+    title: "รายการเติมเหรียญ",
+    description: "คำขอเติมเหรียญและหลักฐานแจ้งโอน ใช้กับหน้าอนุมัติการชำระเงิน",
+    importance: "feature",
+    route: "/admin/payments?type=coin_topup",
+    routeLabel: "ไปอนุมัติเติมเหรียญ",
+  },
+  episode_comments: {
+    title: "คอมเมนต์รายตอน",
+    description: "ความคิดเห็นของผู้อ่านในแต่ละตอน ว่างได้ถ้ายังไม่มีการสนทนา",
+    importance: "optional",
+  },
+  user_notifications: {
+    title: "การแจ้งเตือนผู้ใช้",
+    description: "ข้อความแจ้งเตือนในบัญชีผู้ใช้ เช่น สถานะคำสั่งซื้อ ระบบ หรือข่าวสาร",
+    importance: "feature",
+    route: "/notifications",
+    routeLabel: "ไปหน้าแจ้งเตือน",
+  },
+  age_verifications: {
+    title: "ยืนยันอายุ",
+    description: "คำขอยืนยันอายุสำหรับเนื้อหาจำกัดอายุ ว่างได้ถ้ายังไม่มีผู้ใช้ส่งคำขอ",
+    importance: "optional",
+    route: "/admin/users",
+    routeLabel: "ไปจัดการผู้ใช้",
+  },
+};
+
 const currentSection = computed(
   () =>
     sections.value.find((section) => section.key === activeSection.value) ||
@@ -350,6 +427,39 @@ function statusClass(value: unknown) {
     ok: ["1", "true", "success", "active", "available", "approved", "paid"].includes(normalized),
     warn: ["pending", "draft", "not_submitted"].includes(normalized),
     bad: ["0", "false", "failed", "banned", "rejected", "cancelled"].includes(normalized),
+  };
+}
+
+function emptyTableInfo(tableName: string) {
+  return (
+    emptyTableMeta[tableName] || {
+      title: tableName,
+      description: "ยังไม่มีคำอธิบายสำหรับตารางนี้",
+      importance: "optional" as const,
+    }
+  );
+}
+
+function emptyTableStatus(item: any) {
+  const meta = emptyTableInfo(item.table);
+  const total = Number(item.total || 0);
+  if (total > 0) return { label: statusText("hasData"), className: "ok" };
+  if (meta.importance === "core") return { label: "ควรตรวจสอบ", className: "bad" };
+  if (meta.importance === "feature") return { label: "รอข้อมูลใช้งาน", className: "warn" };
+  return { label: statusText("empty"), className: "neutral" };
+}
+
+function importanceLabel(value: EmptyTableMeta["importance"]) {
+  if (value === "core") return "สำคัญ";
+  if (value === "feature") return "ฟีเจอร์";
+  return "เสริม";
+}
+
+function importanceClass(value: EmptyTableMeta["importance"]) {
+  return {
+    "importance-core": value === "core",
+    "importance-feature": value === "feature",
+    "importance-optional": value === "optional",
   };
 }
 
@@ -614,26 +724,31 @@ onMounted(() => loadSection());
       </section>
 
       <section v-else class="table-card">
-        <table>
-          <thead>
-            <tr>
-              <th>{{ tableText("table") }}</th>
-              <th>{{ tableText("rows") }}</th>
-              <th>{{ tableText("status") }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in payload.items" :key="item.table">
-              <td>{{ item.table }}</td>
-              <td>{{ item.total }}</td>
-              <td>
-                <span class="pill" :class="item.total > 0 ? 'ok' : 'warn'">
-                  {{ item.total > 0 ? statusText("hasData") : statusText("empty") }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="health-list">
+          <article v-for="item in payload.items" :key="item.table" class="health-row">
+            <div class="health-main">
+              <strong>{{ emptyTableInfo(item.table).title }}</strong>
+              <p>{{ emptyTableInfo(item.table).description }}</p>
+            </div>
+
+            <div class="health-meta">
+              <span class="importance-pill" :class="importanceClass(emptyTableInfo(item.table).importance)">
+                {{ importanceLabel(emptyTableInfo(item.table).importance) }}
+              </span>
+              <span class="row-count">{{ item.total.toLocaleString("th-TH") }} แถว</span>
+              <span class="pill" :class="emptyTableStatus(item).className">
+                {{ emptyTableStatus(item).label }}
+              </span>
+              <router-link
+                v-if="emptyTableInfo(item.table).route"
+                class="related-link"
+                :to="emptyTableInfo(item.table).route || '/'"
+              >
+                {{ emptyTableInfo(item.table).routeLabel }}
+              </router-link>
+            </div>
+          </article>
+        </div>
       </section>
     </template>
   </main>
@@ -829,6 +944,94 @@ th {
   color: #991b1b;
 }
 
+.pill.neutral,
+.neutral {
+  background: var(--surface-soft);
+  color: var(--text-muted);
+}
+
+.health-list {
+  display: grid;
+  gap: 10px;
+}
+
+.health-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, auto);
+  gap: 16px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 14px;
+}
+
+.health-main {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.health-main strong {
+  color: var(--text-strong);
+  font-size: 16px;
+}
+
+.health-main p {
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.health-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.importance-pill,
+.row-count,
+.related-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.2;
+  min-height: 30px;
+  padding: 0 10px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.importance-core {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.importance-feature {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.importance-optional {
+  background: var(--surface-soft);
+  color: var(--text-muted);
+}
+
+.row-count {
+  background: #f0fdfa;
+  color: #0f766e;
+}
+
+.related-link {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
 .state-box {
   border-radius: 18px;
   color: var(--text-muted);
@@ -850,6 +1053,14 @@ th {
   .section-intro {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .health-row {
+    grid-template-columns: 1fr;
+  }
+
+  .health-meta {
+    justify-content: flex-start;
   }
 }
 
@@ -986,6 +1197,36 @@ th {
     border-radius: 10px;
     padding: 10px;
     font-size: 12px;
+  }
+
+  .health-list {
+    gap: 7px;
+  }
+
+  .health-row {
+    gap: 10px;
+    border-radius: 10px;
+    padding: 10px;
+  }
+
+  .health-main strong {
+    font-size: 14px;
+  }
+
+  .health-main p {
+    font-size: 11px;
+  }
+
+  .health-meta {
+    gap: 5px;
+  }
+
+  .importance-pill,
+  .row-count,
+  .related-link {
+    min-height: 24px;
+    font-size: 10px;
+    padding: 0 7px;
   }
 }
 </style>

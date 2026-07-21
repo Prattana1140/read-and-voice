@@ -259,7 +259,7 @@ onMounted(() => {
       </div>
 
       <div class="form-group">
-        <label>Book title (English)</label>
+        <label>ชื่อภาษาอังกฤษ (ไม่บังคับ)</label>
         <input v-model="titleEn" type="text" placeholder="Enter English book title" />
       </div>
 

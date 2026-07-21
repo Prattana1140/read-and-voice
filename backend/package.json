@@ -22,6 +22,7 @@
     "db:init": "node services/scripts/initDatabase.js",
     "db:seed:catalog": "node services/scripts/seedCatalogData.js",
     "db:seed:launch": "node services/scripts/seedLaunchCatalog.js",
+    "db:seed:local-completeness": "node services/scripts/seedLocalCompleteness.js",
     "db:remote:refresh-covers": "node services/scripts/refreshRemoteCatalogCovers.js",
     "db:remote:sync-local": "node services/scripts/syncLocalDatabaseToRemote.js",
     "import:harn-v1-12": "node services/scripts/importHarnThaChataFaPdf.js",

@@ -7,7 +7,10 @@ import { getActiveLocale } from "./i18n";
 const RAW_API_URL =
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_URL ||
-  "http://localhost:3000";
+  (typeof window !== "undefined" &&
+  !["localhost", "127.0.0.1"].includes(window.location.hostname)
+    ? window.location.origin
+    : "http://localhost:3000");
 
 export const API_BASE_URL = RAW_API_URL.replace(/\/api\/?$/, "");
 

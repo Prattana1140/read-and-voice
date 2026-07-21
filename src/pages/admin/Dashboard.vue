@@ -15,6 +15,7 @@ type Book = {
   description?: string;
   cover_image?: string;
   category_name?: string;
+  content_type?: "ebook" | "serial" | string;
   total_pages?: number;
   is_published?: number;
   created_at?: string;
@@ -48,6 +49,14 @@ const filteredBooks = computed(() => {
 });
 
 const totalBooks = computed(() => books.value.length);
+
+const totalEbooks = computed(() => {
+  return books.value.filter((book) => book.content_type !== "serial").length;
+});
+
+const totalSerials = computed(() => {
+  return books.value.filter((book) => book.content_type === "serial").length;
+});
 
 const totalPublished = computed(() => {
   return books.value.filter((book) => Number(book.is_published) === 1).length;
@@ -144,7 +153,7 @@ onMounted(() => {
     <div class="container">
       <div class="page-header">
         <div>
-          <h1>Admin Dashboard</h1>
+          <h1>แดชบอร์ดแอดมิน</h1>
           <p>
             จัดการหนังสือในระบบ ดูรายการทั้งหมด เพิ่ม แก้ไข
             และลบข้อมูลได้จากหน้านี้
@@ -171,24 +180,31 @@ onMounted(() => {
             อนุมัติชำระเงิน
           </button>
           <button class="top-btn secondary" @click="goToSystemData">
-            System Data
+            ข้อมูลระบบ
           </button>
           <button class="top-btn secondary" @click="goToPasswordResets">
             รีเซ็ตรหัสผ่าน
           </button>
           <button class="top-btn secondary" @click="goToSupportTickets">
-            Support Tickets
-          </button>
-          <button class="top-btn primary" @click="goToUpload">
-            + เพิ่มหนังสือใหม่
+            คำขอช่วยเหลือ
           </button>
         </div>
       </div>
 
       <div class="stats-grid">
         <div class="stat-card">
-          <span class="stat-label">หนังสือทั้งหมด</span>
+          <span class="stat-label">ทั้งหมด</span>
           <strong class="stat-value">{{ totalBooks }}</strong>
+        </div>
+
+        <div class="stat-card">
+          <span class="stat-label">อีบุ๊ก</span>
+          <strong class="stat-value">{{ totalEbooks }}</strong>
+        </div>
+
+        <div class="stat-card">
+          <span class="stat-label">รายตอน</span>
+          <strong class="stat-value">{{ totalSerials }}</strong>
         </div>
 
         <div class="stat-card">
@@ -206,14 +222,27 @@ onMounted(() => {
         />
       </div>
 
-      <div v-if="loading" class="state-box">กำลังโหลดข้อมูล...</div>
+      <div v-if="loading" class="state-box empty-state">
+        <strong>กำลังโหลดข้อมูลหนังสือ...</strong>
+        <span>ระบบกำลังดึงรายการหนังสือในคลังแอดมิน</span>
+      </div>
 
       <div v-else-if="error" class="state-box error">
         {{ error }}
       </div>
 
-      <div v-else-if="filteredBooks.length === 0" class="state-box empty">
-        ไม่พบหนังสือในระบบ
+      <div v-else-if="filteredBooks.length === 0" class="state-box empty empty-state">
+        <strong>{{ search.trim() ? "ไม่พบหนังสือที่ตรงกับคำค้นหา" : "ยังไม่มีหนังสือในระบบ" }}</strong>
+        <span>
+          {{
+            search.trim()
+              ? "ลองเปลี่ยนคำค้นหา หรือรีเฟรชข้อมูลอีกครั้ง"
+              : "เมื่อเพิ่มหนังสือใหม่ รายการจะแสดงในตารางนี้"
+          }}
+        </span>
+        <button type="button" class="primary-empty-btn" @click="search.trim() ? fetchBooks() : goToUpload()">
+          {{ search.trim() ? "รีเฟรช" : "เพิ่มหนังสือใหม่" }}
+        </button>
       </div>
 
       <div v-else class="table-wrap">
@@ -363,7 +392,7 @@ onMounted(() => {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
   gap: 16px;
   margin-bottom: 20px;
 }
@@ -374,12 +403,16 @@ onMounted(() => {
   border-radius: 20px;
   padding: 20px;
   box-shadow: var(--shadow);
+  min-width: 0;
 }
 
 .stat-label {
   display: block;
   color: var(--text-muted);
   margin-bottom: 8px;
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
 
 .stat-value {
@@ -423,6 +456,38 @@ onMounted(() => {
   text-align: center;
 }
 
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  min-height: 180px;
+  padding: 30px 18px;
+  text-align: center;
+}
+
+.empty-state strong {
+  color: var(--text-strong);
+  font-size: 20px;
+}
+
+.empty-state span {
+  max-width: 560px;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.primary-empty-btn {
+  min-height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--primary);
+  color: var(--on-primary);
+  cursor: pointer;
+  font-weight: 900;
+  margin-top: 2px;
+  padding: 0 16px;
+}
+
 .table-wrap {
   border: 1px solid var(--border);
   background: var(--admin-card-bg);
@@ -455,6 +520,20 @@ onMounted(() => {
   color: var(--text-strong);
 }
 
+.book-table th:nth-child(3),
+.book-table th:nth-child(4),
+.book-table th:nth-child(5),
+.book-table th:nth-child(6),
+.book-table th:nth-child(7),
+.book-table td:nth-child(3),
+.book-table td:nth-child(4),
+.book-table td:nth-child(5),
+.book-table td:nth-child(6),
+.book-table td:nth-child(7) {
+  text-align: center;
+  vertical-align: middle;
+}
+
 .cover-thumb {
   width: 70px;
   height: 96px;
@@ -479,16 +558,20 @@ onMounted(() => {
 }
 
 .status-badge {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   background: var(--surface-soft);
   color: var(--text-muted);
   border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 18px;
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 14px;
   font-weight: 700;
   min-width: 80px;
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
 
 .status-badge.active {
@@ -499,17 +582,26 @@ onMounted(() => {
 .action-buttons {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn {
   border: 1px solid transparent;
   border-radius: 10px;
-  padding: 10px 12px;
+  min-height: 38px;
+  min-width: 44px;
+  padding: 0 12px;
   cursor: pointer;
+  font-size: 14px;
   font-weight: 700;
+  line-height: 1;
   background: var(--admin-action-bg);
   color: var(--admin-action-text);
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
 
 .btn.edit {
@@ -582,9 +674,31 @@ onMounted(() => {
     box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
   }
 
+  .empty-state {
+    min-height: 150px;
+    padding: 18px 12px;
+  }
+
+  .empty-state strong {
+    font-size: 15px;
+  }
+
+  .empty-state span {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .primary-empty-btn {
+    min-height: 32px;
+    border-radius: 8px;
+    font-size: 12px;
+    padding: 0 10px;
+  }
+
   .stat-label {
     margin-bottom: 2px;
-    font-size: 11px;
+    font-size: 10.5px;
+    line-height: 1.2;
   }
 
   .stat-value {
@@ -653,22 +767,25 @@ onMounted(() => {
   }
 
   .status-badge {
-    min-width: 0;
+    min-height: 28px;
+    min-width: 58px;
     border-radius: 7px;
-    font-size: 8.5px;
-    padding: 3px 4px;
+    font-size: 10px;
+    line-height: 1;
+    padding: 0 7px;
   }
 
   .action-buttons {
-    gap: 5px;
+    gap: 4px;
   }
 
   .btn {
-    min-height: 19px;
+    min-height: 28px;
+    min-width: 34px;
     border-radius: 7px;
-    font-size: 8.5px;
-    line-height: 1.15;
-    padding: 2px 3px;
+    font-size: 10px;
+    line-height: 1;
+    padding: 0 7px;
   }
 }
 

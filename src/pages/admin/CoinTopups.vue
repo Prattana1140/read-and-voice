@@ -7,6 +7,6 @@ import PaymentApprovalList from "../../components/admin/PaymentApprovalList.vue"
     type-filter="coin_topup"
     title="อนุมัติรายการเติมเหรียญ"
     description="ตรวจสอบรายการโอน PromptPay หรือการเติมเหรียญที่รอแอดมินยืนยัน เมื่ออนุมัติแล้วระบบจะเติมเหรียญเข้ากระเป๋าผู้ใช้ทันที"
-    empty-text="ยังไม่มีรายการเติมเหรียญในสถานะนี้"
+    empty-text="ไม่มีรายการเติมเหรียญในสถานะนี้"
   />
 </template>

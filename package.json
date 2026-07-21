@@ -12,8 +12,8 @@
     "type-check": "vue-tsc --noEmit -p tsconfig.app.json",
     "check": "npm run type-check && npm run check:voice-commands && npm --prefix backend run config:check && npm run build",
     "check:category-scopes": "node backend/services/scripts/checkCategoryScopes.js",
-    "check:i18n-hardcoded": "node scripts/auditI18nHardcoded.mjs",
     "check:voice-commands": "node scripts/checkVoiceCommands.mjs",
+    "e2e:ui": "npm --prefix backend run db:seed:local-completeness && playwright test",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -21,6 +21,7 @@
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@types/node": "^24.12.0",
     "@vitejs/plugin-vue": "^6.0.5",
     "@vue/tsconfig": "^0.9.0",

@@ -452,6 +452,18 @@ const bannerShiftPercent = 100 / 3;
 const visibleBannerCount = 3;
 const categoryPageSize = 8;
 const customCategoryArtImages: Record<string, string> = {
+  "doctor-reader": "/category-art/doctor-reader.png",
+  "ghost-reader": "/category-art/ghost-reader.png",
+  "student-reader": "/category-art/student-reader.png",
+  "cat-reader": "/category-art/cat-reader.png",
+  "car-books": "/category-art/car-books.png",
+  "desk-lamp-notebook": "/category-art/desk-lamp-notebook.png",
+  "robot-reader": "/category-art/robot-reader.png",
+  "chef-reader": "/category-art/chef-reader.png",
+  "firefighter-reader": "/category-art/firefighter-reader.png",
+  "detective-reader": "/category-art/detective-reader.png",
+  "musician-reader": "/category-art/musician-reader.png",
+  "dinosaur-reader": "/category-art/dinosaur-reader.png",
   "travel-book": "/category-art/travel-book.png",
   "manga-reader": "/category-art/manga-reader.png",
   "mystery-book": "/category-art/mystery-book.png",
@@ -490,7 +502,54 @@ const customCategoryArtImages: Record<string, string> = {
   "philosophy-lotus": "/category-art/philosophy-lotus.png",
 };
 const defaultCategoryArtImage = customCategoryArtImages["travel-book"];
+const duplicateCategoryArtMap: Record<string, string> = {
+  "beauty-flower": "romance-family",
+  "food-cafe": "exercise-runner",
+  "health-yoga": "exercise-runner",
+  "language-chat": "education-owl",
+  "marketing-megaphone": "business-growth",
+  "math-formula": "education-graduate",
+  "technology-circuit": "space-science",
+  "wisdom-monk": "philosophy-lotus",
+};
 const legacyCategoryArtMap: Record<string, string> = {
+  หมอ: "doctor-reader",
+  doctor: "doctor-reader",
+  แพทย์: "doctor-reader",
+  medical: "doctor-reader",
+  ผี: "ghost-reader",
+  ghost: "ghost-reader",
+  สยอง: "ghost-reader",
+  นักเรียน: "student-reader",
+  student: "student-reader",
+  โรงเรียน: "student-reader",
+  school: "student-reader",
+  สัตว์: "cat-reader",
+  animal: "cat-reader",
+  แมว: "cat-reader",
+  cat: "cat-reader",
+  รถ: "car-books",
+  car: "car-books",
+  ยานพาหนะ: "car-books",
+  vehicle: "car-books",
+  ของใช้: "desk-lamp-notebook",
+  object: "desk-lamp-notebook",
+  เครื่องเขียน: "desk-lamp-notebook",
+  desk: "desk-lamp-notebook",
+  หุ่นยนต์: "robot-reader",
+  robot: "robot-reader",
+  ai: "robot-reader",
+  เชฟ: "chef-reader",
+  chef: "chef-reader",
+  ดับเพลิง: "firefighter-reader",
+  firefighter: "firefighter-reader",
+  นักสืบ: "detective-reader",
+  detective: "detective-reader",
+  ดนตรี: "musician-reader",
+  music: "musician-reader",
+  musician: "musician-reader",
+  ไดโนเสาร์: "dinosaur-reader",
+  dinosaur: "dinosaur-reader",
   story: "romance-family",
   romance: "romance-books",
   fantasy: "fantasy-wizard",
@@ -655,6 +714,18 @@ const getCategoryTone = (name: string, index: number) => {
 const getCategoryArt = (name: string) => {
   const keyword = name.toLowerCase();
 
+  if (/หมอ|แพทย์|สุขภาพ|doctor|medical/.test(keyword)) return "doctor-reader";
+  if (/ผี|สยอง|หลอน|ghost|horror/.test(keyword)) return "ghost-reader";
+  if (/นักเรียน|โรงเรียน|เรียน|student|school/.test(keyword)) return "student-reader";
+  if (/สัตว์|แมว|หมา|animal|cat|pet/.test(keyword)) return "cat-reader";
+  if (/รถ|ยานพาหนะ|เดินทาง|car|vehicle/.test(keyword)) return "car-books";
+  if (/ของใช้|อุปกรณ์|เครื่องเขียน|โคมไฟ|desk|object|stationery/.test(keyword)) return "desk-lamp-notebook";
+  if (/หุ่นยนต์|เอไอ|ปัญญาประดิษฐ์|robot|ai/.test(keyword)) return "robot-reader";
+  if (/เชฟ|ทำอาหาร|cook|chef/.test(keyword)) return "chef-reader";
+  if (/ดับเพลิง|ไฟ|firefighter|fire/.test(keyword)) return "firefighter-reader";
+  if (/นักสืบ|สืบสวน|detective|mystery/.test(keyword)) return "detective-reader";
+  if (/ดนตรี|เพลง|music|musician/.test(keyword)) return "musician-reader";
+  if (/ไดโนเสาร์|dinosaur/.test(keyword)) return "dinosaur-reader";
   if (/หนังสือเสียง|อ่านออกเสียง|เสียง|audio|voice/.test(keyword)) return "audio";
   if (/นิยายรัก|รัก|โรแมนซ์|romance/.test(keyword)) return "romance";
   if (/การ์ตูนเด็ก/.test(keyword)) return "kids";
@@ -702,7 +773,8 @@ const getCategoryArt = (name: string) => {
 
 const getCustomCategoryArtImage = (art?: string | null) => {
   if (!art) return defaultCategoryArtImage;
-  const imageKey = customCategoryArtImages[art] ? art : legacyCategoryArtMap[art];
+  const legacyImageKey = legacyCategoryArtMap[art];
+  const imageKey = duplicateCategoryArtMap[art] || (customCategoryArtImages[art] ? art : duplicateCategoryArtMap[legacyImageKey] || legacyImageKey);
   return imageKey ? customCategoryArtImages[imageKey] || defaultCategoryArtImage : defaultCategoryArtImage;
 };
 
@@ -957,6 +1029,20 @@ async function fetchPageContent() {
   homeBanners.value = Array.isArray(data?.homeBanners) ? data.homeBanners : [];
 }
 
+function stripSecondaryLanguage(value: string, englishValue?: string | null) {
+  const text = value.trim();
+  if (!text || !/[ก-๙]/.test(text)) return text;
+
+  const english = String(englishValue || "").trim();
+  if (english) {
+    const escapedEnglish = english.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const withoutKnownEnglish = text.replace(new RegExp(`\\s*[-–—/:|]?\\s*${escapedEnglish}$`, "i"), "").trim();
+    if (withoutKnownEnglish) return withoutKnownEnglish;
+  }
+
+  return text.replace(/\s*[A-Za-z][A-Za-z0-9 '&().-]*$/, "").trim() || text;
+}
+
 async function fetchHomeCategories() {
   const { data } = await api.get<CategoryResponseItem[]>("/categories?scope=all");
   const seen = new Set<string>();
@@ -967,7 +1053,7 @@ async function fetchHomeCategories() {
     .sort((a, b) => Number(a?.sort_order || 0) - Number(b?.sort_order || 0) || Number(a?.id || 0) - Number(b?.id || 0))
     .map((item) => ({
       name: String(item?.name || "").trim(),
-      nameTh: String(item?.name_th || item?.name || "").trim(),
+      nameTh: stripSecondaryLanguage(String(item?.name_th || item?.name || "").trim(), item?.name_en),
       nameEn: String(item?.name_en || "").trim(),
       tone: String(item?.display_tone || "").trim() || null,
       art: String(item?.display_art || "").trim() || null,
@@ -2061,10 +2147,10 @@ watch(locale, () => {
 }
 
 .category-chip--kids {
-  --chip-a: #e47d13;
-  --chip-b: #ffd166;
-  --chip-c: #fff1c8;
-  --chip-d: #fffaf0;
+  --chip-a: #f5b700;
+  --chip-b: #fde68a;
+  --chip-c: #fff8c7;
+  --chip-d: #fffdf2;
 }
 
 .category-chip--business {
@@ -2149,6 +2235,20 @@ watch(locale, () => {
   --chip-b: #a5b4fc;
   --chip-c: #edf0ff;
   --chip-d: #f9faff;
+}
+
+.category-chip--lime {
+  --chip-a: #65a30d;
+  --chip-b: #bef264;
+  --chip-c: #f2fbdc;
+  --chip-d: #fcfff4;
+}
+
+.category-chip--slate {
+  --chip-a: #475569;
+  --chip-b: #cbd5e1;
+  --chip-c: #f1f5f9;
+  --chip-d: #ffffff;
 }
 
 .category-chip--accent-1 {

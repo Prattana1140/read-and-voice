@@ -54,12 +54,9 @@ const emit = defineEmits<{ (event: "change-theme", theme: ThemeMode): void }>();
 
 const router = useRouter();
 const {
-  currentLanguageName,
   formatLocaleDate,
   formatLocaleDateTime,
   locale,
-  nextLanguageLabel,
-  setLocale,
   t,
 } = useI18n();
 
@@ -195,12 +192,6 @@ const selectTheme = (theme: ThemeMode) => {
   }
 
   closeMenu();
-};
-
-const selectLanguage = (value: "th" | "en") => {
-  setLocale(value);
-  closeMenu();
-  scheduleCompactNavMeasure();
 };
 
 const publicNavItems = computed<NavItem[]>(() => [
@@ -1009,34 +1000,6 @@ watch(isCompactNav, (compact) => {
             </button>
           </div>
         </details>
-
-        <div
-          class="language-switch"
-          :aria-label="`${t('language.label')}: ${currentLanguageName}`"
-          :title="nextLanguageLabel"
-        >
-          <span class="language-switch__label">{{ t("language.label") }}</span>
-
-          <button
-            type="button"
-            :class="{ active: locale === 'th' }"
-            :aria-pressed="locale === 'th'"
-            :aria-label="t('language.switchToTh')"
-            @click="selectLanguage('th')"
-          >
-            {{ t("language.th") }}
-          </button>
-
-          <button
-            type="button"
-            :class="{ active: locale === 'en' }"
-            :aria-pressed="locale === 'en'"
-            :aria-label="t('language.switchToEn')"
-            @click="selectLanguage('en')"
-          >
-            {{ t("language.en") }}
-          </button>
-        </div>
 
         <button
           class="icon-button mobile-accessibility-button"
@@ -1890,57 +1853,6 @@ watch(isCompactNav, (compact) => {
 }
 
 .theme-panel button.active {
-  background: #0f766e;
-  color: #fff;
-}
-
-.language-switch {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 36px;
-  border: 1px solid rgba(15, 118, 110, 0.18);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.82);
-  padding: 3px;
-}
-
-.language-switch__single-btn {
-  min-width: 44px;
-  height: 30px;
-  border: 0;
-  border-radius: 999px;
-  background: #0f766e;
-  color: #fff;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 800;
-  padding: 0 10px;
-}
-
-.language-switch__label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
-.language-switch button {
-  min-width: 31px;
-  height: 30px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: #0f766e;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 800;
-  padding: 0 7px;
-}
-
-.language-switch button.active {
   background: #0f766e;
   color: #fff;
 }
@@ -2883,29 +2795,6 @@ watch(isCompactNav, (compact) => {
     height: 17px;
   }
 
-  .language-switch {
-    min-height: 30px;
-    padding: 2px;
-  }
-
-  .language-switch__label {
-    display: none;
-  }
-
-  .language-switch button {
-    min-width: 26px;
-    height: 24px;
-    font-size: 12px;
-    padding: 0 5px;
-  }
-
-  .language-switch__single-btn {
-    min-width: 38px;
-    height: 24px;
-    font-size: 12px;
-    padding: 0 8px;
-  }
-
   .search-overlay {
     gap: 9px;
     padding: max(12px, env(safe-area-inset-top)) 12px 12px;
@@ -3123,28 +3012,6 @@ watch(isCompactNav, (compact) => {
   .navbar--compact .avatar-button svg {
     width: 15px;
     height: 15px;
-  }
-
-  .language-switch {
-    grid-template-columns: 1fr;
-    gap: 2px;
-    min-height: 28px;
-    padding: 2px;
-  }
-
-  .language-switch button {
-    min-width: 22px;
-    height: 22px;
-    font-size: 10px;
-    line-height: 1;
-    padding: 0 3px;
-  }
-
-  .language-switch__single-btn {
-    min-width: 34px;
-    height: 22px;
-    font-size: 11px;
-    padding: 0 6px;
   }
 
   .search-overlay {

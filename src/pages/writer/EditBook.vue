@@ -340,7 +340,7 @@ onMounted(fetchBook);
             </label>
 
             <label>
-              <span>Book title (English)</span>
+              <span>ชื่อภาษาอังกฤษ (ไม่บังคับ)</span>
               <input v-model="form.title_en" type="text" required />
             </label>
 

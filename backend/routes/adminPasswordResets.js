@@ -101,7 +101,29 @@ router.get("/password-resets", verifyToken, requireAdmin, async (req, res) => {
       params,
     );
 
-    return res.json({ items: rows });
+    const [summaryRows] = await db.query(
+      `SELECT status, COUNT(*) AS count
+       FROM password_reset_requests
+       GROUP BY status`,
+    );
+    const summary = {
+      total: 0,
+      pending: 0,
+      link_created: 0,
+      temporary_password_created: 0,
+      resolved: 0,
+      rejected: 0,
+    };
+    summaryRows.forEach((row) => {
+      const key = String(row.status || "").toLowerCase();
+      const count = Number(row.count || 0);
+      if (Object.prototype.hasOwnProperty.call(summary, key)) {
+        summary[key] = count;
+      }
+      summary.total += count;
+    });
+
+    return res.json({ items: rows, summary });
   } catch (error) {
     console.error("GET /admin/password-resets error:", error);
     return res.status(500).json({ message: "โหลดคำขอรีเซ็ตรหัสผ่านไม่สำเร็จ" });

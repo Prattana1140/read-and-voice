@@ -18,9 +18,26 @@ type ResetRequest = {
   handled_by_name?: string | null;
 };
 
+type ResetSummary = {
+  total: number;
+  pending: number;
+  link_created: number;
+  temporary_password_created: number;
+  resolved: number;
+  rejected: number;
+};
+
 const statusFilter = ref<ResetStatus>("pending");
 const statusOptions: ResetStatus[] = ["pending", "link_created", "temporary_password_created", "resolved", "rejected", "all"];
 const items = ref<ResetRequest[]>([]);
+const summary = ref<ResetSummary>({
+  total: 0,
+  pending: 0,
+  link_created: 0,
+  temporary_password_created: 0,
+  resolved: 0,
+  rejected: 0,
+});
 const loading = ref(true);
 const savingId = ref<number | null>(null);
 const message = ref("");
@@ -29,7 +46,75 @@ const generatedLinks = ref<Record<number, string>>({});
 const temporaryPasswords = ref<Record<number, string>>({});
 const notes = ref<Record<number, string>>({});
 
-const pendingCount = computed(() => items.value.filter((item) => item.status === "pending").length);
+const effectiveResetSummary = computed(() => mergeResetSummary(summary.value, items.value));
+const visibleCount = computed(() => items.value.length);
+const handledCount = computed(
+  () =>
+    effectiveResetSummary.value.link_created +
+    effectiveResetSummary.value.temporary_password_created +
+    effectiveResetSummary.value.resolved,
+);
+const currentFilterLabel = computed(() =>
+  statusFilter.value === "all" ? "ทั้งหมด" : statusLabel(statusFilter.value),
+);
+
+function emptyResetSummary(): ResetSummary {
+  return {
+    total: 0,
+    pending: 0,
+    link_created: 0,
+    temporary_password_created: 0,
+    resolved: 0,
+    rejected: 0,
+  };
+}
+
+function normalizeResetStatus(status?: string | null): Exclude<ResetStatus, "all"> | "" {
+  const value = String(status || "").trim().toLowerCase();
+  if (
+    value === "pending" ||
+    value === "link_created" ||
+    value === "temporary_password_created" ||
+    value === "resolved" ||
+    value === "rejected"
+  ) {
+    return value;
+  }
+  return "";
+}
+
+function summarizeResetRequests(source: ResetRequest[]): ResetSummary {
+  const result = emptyResetSummary();
+  source.forEach((item) => {
+    const status = normalizeResetStatus(item.status);
+    if (!status) return;
+    result[status] += 1;
+    result.total += 1;
+  });
+  return result;
+}
+
+function mergeResetSummary(remoteSummary: any, visibleItems: ResetRequest[]): ResetSummary {
+  const visibleSummary = summarizeResetRequests(visibleItems);
+  const merged = {
+    total: Number(remoteSummary?.total || 0),
+    pending: Number(remoteSummary?.pending || 0),
+    link_created: Number(remoteSummary?.link_created || 0),
+    temporary_password_created: Number(remoteSummary?.temporary_password_created || 0),
+    resolved: Number(remoteSummary?.resolved || 0),
+    rejected: Number(remoteSummary?.rejected || 0),
+  };
+
+  (["pending", "link_created", "temporary_password_created", "resolved", "rejected"] as const).forEach((status) => {
+    merged[status] = Math.max(merged[status], visibleSummary[status]);
+  });
+  merged.total = Math.max(
+    merged.total,
+    visibleSummary.total,
+    merged.pending + merged.link_created + merged.temporary_password_created + merged.resolved + merged.rejected,
+  );
+  return merged;
+}
 
 async function loadItems() {
   loading.value = true;
@@ -40,6 +125,7 @@ async function loadItems() {
       params: { status: statusFilter.value },
     });
     items.value = Array.isArray(data?.items) ? data.items : [];
+    summary.value = mergeResetSummary(data?.summary, items.value);
     notes.value = Object.fromEntries(items.value.map((item) => [item.id, item.admin_note || ""]));
   } catch (error: any) {
     errorMessage.value = error?.response?.data?.message || "โหลดคำขอรีเซ็ตรหัสผ่านไม่สำเร็จ";
@@ -202,16 +288,26 @@ onMounted(loadItems);
   <main class="reset-page">
     <section class="hero">
       <div>
-        <p>Password reset requests</p>
+        <p>คำขอรีเซ็ตรหัสผ่าน</p>
         <h1>คำขอรีเซ็ตรหัสผ่าน</h1>
         <span>
           ใช้หน้านี้เมื่อต้องช่วยผู้ใช้รีเซ็ตรหัสผ่านโดยไม่ต้องมีระบบส่งอีเมลจริง
           กดสร้างลิงก์แล้วส่งให้ผู้ใช้ผ่านช่องทางที่ยืนยันตัวตนได้
         </span>
       </div>
-      <div class="summary-card">
-        <strong>{{ pendingCount }}</strong>
-        <span>รอดำเนินการ</span>
+      <div class="summary-grid">
+        <div class="summary-card total">
+          <strong>{{ effectiveResetSummary.total }}</strong>
+          <span>ทั้งหมด</span>
+        </div>
+        <div class="summary-card">
+          <strong>{{ effectiveResetSummary.pending }}</strong>
+          <span>รอดำเนินการ</span>
+        </div>
+        <div class="summary-card done">
+          <strong>{{ handledCount }}</strong>
+          <span>ดำเนินการแล้ว</span>
+        </div>
       </div>
     </section>
 
@@ -220,7 +316,7 @@ onMounted(loadItems);
 
     <section class="toolbar">
       <label>
-        <span>สถานะ</span>
+        <span>กรองตามสถานะ</span>
         <select class="status-select" v-model="statusFilter" @change="loadItems">
           <option value="pending">รอดำเนินการ</option>
           <option value="link_created">สร้างลิงก์แล้ว</option>
@@ -242,11 +338,23 @@ onMounted(loadItems);
         </div>
       </label>
 
+      <div class="toolbar-meta">
+        <span>กำลังแสดง: {{ currentFilterLabel }}</span>
+        <strong>{{ visibleCount }} รายการ</strong>
+      </div>
+
       <button type="button" @click="loadItems">รีเฟรช</button>
     </section>
 
-    <section v-if="loading" class="state-box">กำลังโหลดคำขอ...</section>
-    <section v-else-if="items.length === 0" class="state-box">ยังไม่มีคำขอในสถานะนี้</section>
+    <section v-if="loading" class="state-box empty-state">
+      <strong>กำลังโหลดคำขอ...</strong>
+      <span>ระบบกำลังตรวจสอบรายการรีเซ็ตรหัสผ่านตามสถานะที่เลือก</span>
+    </section>
+    <section v-else-if="items.length === 0" class="state-box empty-state">
+      <strong>ไม่มีคำขอรีเซ็ตรหัสผ่านในสถานะนี้</strong>
+      <span>เมื่อมีผู้ใช้ส่งคำขอ หรือมีรายการตรงกับตัวกรอง รายการจะแสดงที่นี่</span>
+      <button type="button" @click="loadItems">รีเฟรช</button>
+    </section>
 
     <section v-else class="request-list">
       <article v-for="item in items" :key="item.id" class="request-card">
@@ -264,11 +372,11 @@ onMounted(loadItems);
 
         <dl>
           <div>
-            <dt>User ID</dt>
+            <dt>รหัสผู้ใช้</dt>
             <dd>{{ item.user_id }}</dd>
           </div>
           <div>
-            <dt>Role</dt>
+            <dt>บทบาท</dt>
             <dd>{{ item.role || "-" }}</dd>
           </div>
           <div>
@@ -342,8 +450,10 @@ onMounted(loadItems);
 <style scoped>
 .reset-page {
   display: grid;
+  align-content: start;
   gap: 18px;
   margin: 0 auto;
+  min-height: calc(100vh - 180px);
   padding: var(--page-block, 32px) var(--page-gutter, 20px) 56px;
   width: min(1180px, 100%);
 }
@@ -362,7 +472,7 @@ onMounted(loadItems);
   align-items: center;
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(0, 1fr) 180px;
+  grid-template-columns: minmax(0, 1fr) auto;
   padding: 24px;
 }
 
@@ -394,12 +504,28 @@ dt {
   color: var(--text-muted);
 }
 
+.summary-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, 120px);
+}
+
 .summary-card {
   background: #ecfdf5;
   border-radius: 8px;
   color: #047857;
   padding: 16px;
   text-align: center;
+}
+
+.summary-card.total {
+  background: var(--surface-soft);
+  color: var(--text-strong);
+}
+
+.summary-card.done {
+  background: #eff6ff;
+  color: #2563eb;
 }
 
 .summary-card strong,
@@ -409,6 +535,24 @@ dt {
 
 .summary-card strong {
   font-size: 32px;
+}
+
+.toolbar-meta {
+  display: grid;
+  gap: 3px;
+  margin-left: auto;
+  text-align: right;
+}
+
+.toolbar-meta span {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.toolbar-meta strong {
+  color: var(--text-strong);
+  font-size: 16px;
 }
 
 .message {
@@ -487,6 +631,31 @@ button:disabled {
   color: var(--text-muted);
   padding: 24px;
   text-align: center;
+}
+
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  min-height: 180px;
+  padding: 30px 18px;
+}
+
+.empty-state strong {
+  color: var(--text-strong);
+  font-size: 20px;
+}
+
+.empty-state span {
+  max-width: 520px;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.empty-state button {
+  margin-top: 2px;
+  background: var(--primary);
+  color: var(--on-primary);
 }
 
 .request-list {
@@ -605,6 +774,10 @@ dd {
     padding: 9px;
   }
 
+  .summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .summary-card strong {
     font-size: 24px;
   }
@@ -618,6 +791,11 @@ dd {
   .toolbar {
     gap: 8px;
     padding: 10px;
+  }
+
+  .toolbar-meta {
+    margin-left: 0;
+    text-align: left;
   }
 
   label {
@@ -636,6 +814,20 @@ dd {
   .state-box {
     padding: 14px;
     font-size: 12px;
+  }
+
+  .empty-state {
+    min-height: 150px;
+    padding: 18px 12px;
+  }
+
+  .empty-state strong {
+    font-size: 15px;
+  }
+
+  .empty-state span {
+    font-size: 12px;
+    line-height: 1.35;
   }
 
   .request-list {

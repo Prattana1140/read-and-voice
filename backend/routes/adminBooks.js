@@ -84,7 +84,24 @@ router.get("/pending", verifyToken, requireAdmin, async (_req, res) => {
        ORDER BY b.created_at DESC, b.id DESC`,
     );
 
-    return res.json(rows);
+    const [[summary]] = await db.query(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(COALESCE(approval_status, 'pending') = 'pending') AS pending,
+         SUM(COALESCE(approval_status, 'pending') = 'approved') AS approved,
+         SUM(COALESCE(approval_status, 'pending') = 'rejected') AS rejected
+       FROM books`,
+    );
+
+    return res.json({
+      items: rows,
+      summary: {
+        total: Number(summary?.total || 0),
+        pending: Number(summary?.pending || 0),
+        approved: Number(summary?.approved || 0),
+        rejected: Number(summary?.rejected || 0),
+      },
+    });
   } catch (error) {
     console.error("GET /admin/books/pending error:", error);
     return res.status(500).json({ message: "โหลดรายการหนังสือรออนุมัติไม่สำเร็จ" });

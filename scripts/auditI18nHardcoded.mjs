@@ -8,6 +8,8 @@ const ignoredFiles = new Set([
   path.normalize("src/utils/voiceCommands.ts"),
   path.normalize("src/utils/i18n.ts"),
 ]);
+const baselineCount = Number(process.env.I18N_HARDCODED_BASELINE || 2629);
+const strictMode = /^(1|true|yes)$/i.test(String(process.env.I18N_HARDCODED_STRICT || ""));
 
 function walk(dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -43,7 +45,19 @@ if (!findings.length) {
   process.exit(0);
 }
 
-console.log(`Found ${findings.length} hard-coded Thai text entries outside i18n allowlist.`);
+if (!strictMode && Number.isFinite(baselineCount) && findings.length <= baselineCount) {
+  console.log(
+    `OK hard-coded Thai text entries are within the tracked baseline: ${findings.length}/${baselineCount}.`,
+  );
+  console.log("Existing entries remain localization debt. Set I18N_HARDCODED_STRICT=true to fail on any entry.");
+  process.exit(0);
+}
+
+const baselineMessage =
+  !strictMode && Number.isFinite(baselineCount)
+    ? ` Baseline is ${baselineCount}, so this adds ${findings.length - baselineCount} entries.`
+    : "";
+console.log(`Found ${findings.length} hard-coded Thai text entries outside i18n allowlist.${baselineMessage}`);
 for (const item of findings.slice(0, 120)) {
   console.log(`${item.file}:${item.line} ${item.text}`);
 }

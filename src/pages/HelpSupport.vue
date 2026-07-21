@@ -21,6 +21,12 @@ const email = ref(user?.email || "");
 const subject = ref("");
 const message = ref("");
 const category = ref(mode.value === "report" ? "problem" : "general");
+const pageUrl = ref(typeof window !== "undefined" ? window.location.href : "");
+const stepsToReproduce = ref("");
+const expectedResult = ref("");
+const actualResult = ref("");
+const attachmentFile = ref<File | null>(null);
+const attachmentPreview = ref("");
 const saving = ref(false);
 const statusMessage = ref("");
 const errorMessage = ref("");
@@ -32,10 +38,21 @@ const title = computed(() => {
 });
 
 const intro = computed(() => {
-  if (mode.value === "report") return "บอกปัญหาที่พบ ทีมงานจะใช้ข้อมูลนี้เพื่อตรวจสอบและปรับปรุงระบบ";
-  if (mode.value === "contact") return "ส่งคำถาม ข้อเสนอแนะ หรือเรื่องที่ต้องการให้ทีมงานช่วยดูแล";
-  return "ค้นหาคำตอบเบื้องต้น หรือส่งคำถามให้ทีมงานจากแบบฟอร์มด้านล่าง";
+  if (mode.value === "report") {
+    return "บอกปัญหาที่พบพร้อมขั้นตอนและรูปประกอบ เพื่อให้ทีมงานตรวจสอบได้เร็วขึ้น";
+  }
+  if (mode.value === "contact") {
+    return "ส่งคำถาม ข้อเสนอแนะ หรือเรื่องที่ต้องการให้ทีมงานช่วยดูแล";
+  }
+  return "ค้นหาคำตอบเบื้องต้น หรือส่งคำขอให้ทีมงานจากแบบฟอร์มด้านล่าง";
 });
+
+const detailTips = [
+  "ระบุหน้าหรือเมนูที่พบปัญหา เช่น ชั้นหนังสือ, เติมเหรียญ, อ่านหนังสือ",
+  "เขียนขั้นตอนที่ทำก่อนเกิดปัญหาแบบเรียงลำดับ",
+  "บอกสิ่งที่คาดหวังและสิ่งที่เกิดขึ้นจริงให้ต่างกันชัดเจน",
+  "แนบรูปหน้าจอเมื่อมีข้อความ error หรือหน้าจอแสดงผลผิด",
+];
 
 const faqs = [
   {
@@ -44,11 +61,11 @@ const faqs = [
   },
   {
     question: "เติมเหรียญแล้วไม่ขึ้นต้องทำอย่างไร",
-    answer: "เปิดหน้ากระเป๋าเหรียญแล้วกดรีเฟรช หากยังไม่ขึ้นให้ส่งเลขอ้างอิงผ่านแบบฟอร์มแจ้งปัญหา",
+    answer: "เปิดหน้ากระเป๋าเหรียญแล้วกดรีเฟรช หากยังไม่ขึ้นให้แจ้งเลขอ้างอิงหรือแนบสลิปผ่านฟอร์มนี้",
   },
   {
-    question: "ต้องการใช้โหมดช่วยการเข้าถึง",
-    answer: "กดปุ่มการเข้าถึงด้านล่างหน้าจอเพื่อปรับตัวอักษร สี และการอ่าน UI",
+    question: "ควรแนบข้อมูลอะไรเมื่อแจ้งปัญหา",
+    answer: "แนบหน้าที่พบปัญหา ขั้นตอนที่ทำ ผลลัพธ์ที่คาดหวัง ผลลัพธ์จริง และรูปหน้าจอถ้ามี",
   },
 ];
 
@@ -57,6 +74,76 @@ function saveLocalTicket(payload: Record<string, unknown>) {
   const current = JSON.parse(localStorage.getItem(key) || "[]");
   current.unshift(payload);
   localStorage.setItem(key, JSON.stringify(current.slice(0, 20)));
+}
+
+function onAttachmentChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0] || null;
+
+  errorMessage.value = "";
+  attachmentFile.value = null;
+  attachmentPreview.value = "";
+
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    errorMessage.value = "กรุณาแนบไฟล์รูปภาพเท่านั้น";
+    input.value = "";
+    return;
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    errorMessage.value = "รูปภาพแนบต้องมีขนาดไม่เกิน 5MB";
+    input.value = "";
+    return;
+  }
+
+  attachmentFile.value = file;
+  attachmentPreview.value = URL.createObjectURL(file);
+}
+
+function removeAttachment() {
+  if (attachmentPreview.value) URL.revokeObjectURL(attachmentPreview.value);
+  attachmentFile.value = null;
+  attachmentPreview.value = "";
+}
+
+function buildPayload() {
+  return {
+    name: name.value.trim(),
+    email: email.value.trim(),
+    subject: subject.value.trim(),
+    message: message.value.trim(),
+    category: category.value,
+    path: window.location.pathname,
+    page_url: pageUrl.value.trim(),
+    steps_to_reproduce: stepsToReproduce.value.trim(),
+    expected_result: expectedResult.value.trim(),
+    actual_result: actualResult.value.trim(),
+    browser_info: navigator.userAgent,
+    created_at: new Date().toISOString(),
+    authenticated: isAuthenticated(),
+  };
+}
+
+function buildFormData(payload: ReturnType<typeof buildPayload>) {
+  const formData = new FormData();
+  Object.entries(payload).forEach(([key, value]) => {
+    formData.append(key, String(value || ""));
+  });
+  if (attachmentFile.value) {
+    formData.append("attachment", attachmentFile.value);
+  }
+  return formData;
+}
+
+function resetRequestFields() {
+  subject.value = "";
+  message.value = "";
+  stepsToReproduce.value = "";
+  expectedResult.value = "";
+  actualResult.value = "";
+  removeAttachment();
 }
 
 async function submitSupportRequest() {
@@ -68,23 +155,15 @@ async function submitSupportRequest() {
     return;
   }
 
-  const payload = {
-    name: name.value.trim(),
-    email: email.value.trim(),
-    subject: subject.value.trim(),
-    message: message.value.trim(),
-    category: category.value,
-    path: window.location.pathname,
-    created_at: new Date().toISOString(),
-    authenticated: isAuthenticated(),
-  };
+  const payload = buildPayload();
 
   try {
     saving.value = true;
-    await api.post("/support/tickets", payload);
-    statusMessage.value = "ส่งคำขอถึงทีมงานแล้ว";
+    await api.post("/support/tickets", buildFormData(payload));
+    statusMessage.value = "ส่งคำขอถึงทีมงานแล้ว ทีมงานจะตรวจสอบและติดต่อกลับตามข้อมูลที่ให้ไว้";
+    resetRequestFields();
   } catch {
-    saveLocalTicket(payload);
+    saveLocalTicket({ ...payload, attachment_name: attachmentFile.value?.name || "" });
     statusMessage.value =
       "บันทึกคำขอไว้ในเครื่องนี้แล้ว หากเชื่อมต่อระบบหลังบ้านพร้อม ระบบสามารถนำข้อมูลนี้ไปใช้ต่อได้";
   } finally {
@@ -111,10 +190,20 @@ async function submitSupportRequest() {
           <h3>{{ item.question }}</h3>
           <p>{{ item.answer }}</p>
         </article>
+
+        <div class="tips-box">
+          <h2>ข้อมูลที่ช่วยให้แก้ปัญหาเร็วขึ้น</h2>
+          <ul>
+            <li v-for="tip in detailTips" :key="tip">{{ tip }}</li>
+          </ul>
+        </div>
       </aside>
 
       <form class="support-form" @submit.prevent="submitSupportRequest">
-        <h2>{{ mode === "report" ? "รายละเอียดปัญหา" : "ส่งข้อความถึงทีมงาน" }}</h2>
+        <div>
+          <h2>{{ mode === "report" ? "รายละเอียดปัญหา" : "ส่งข้อความถึงทีมงาน" }}</h2>
+          <p>ข้อมูลเหล่านี้จะแสดงในหน้าแอดมิน เพื่อให้ทั้งสองฝ่ายเห็นเรื่องเดียวกันและติดตามง่ายขึ้น</p>
+        </div>
 
         <label>
           ประเภทเรื่อง
@@ -124,28 +213,64 @@ async function submitSupportRequest() {
             <option value="book">หนังสือหรือการอ่าน</option>
             <option value="accessibility">การช่วยการเข้าถึง</option>
             <option value="problem">แจ้งปัญหา</option>
+            <option value="suggestion">ข้อเสนอแนะ</option>
           </select>
         </label>
 
-        <label>
-          ชื่อ
-          <input v-model="name" type="text" autocomplete="name" />
-        </label>
+        <div class="field-grid">
+          <label>
+            ชื่อ
+            <input v-model="name" type="text" autocomplete="name" />
+          </label>
 
-        <label>
-          อีเมล
-          <input v-model="email" type="email" autocomplete="email" />
-        </label>
+          <label>
+            อีเมลสำหรับติดต่อกลับ
+            <input v-model="email" type="email" autocomplete="email" />
+          </label>
+        </div>
 
         <label>
           หัวข้อ
-          <input v-model="subject" type="text" />
+          <input v-model="subject" type="text" placeholder="เช่น อ่านเสียงของหนังสือไม่ตรง / เติมเหรียญแล้วยังไม่ขึ้น" />
         </label>
 
         <label>
-          รายละเอียด
-          <textarea v-model="message" rows="7" />
+          หน้าหรือลิงก์ที่พบปัญหา
+          <input v-model="pageUrl" type="text" placeholder="เช่น /reader/12 หรือ URL ของหน้าที่พบปัญหา" />
         </label>
+
+        <label>
+          รายละเอียดหลัก
+          <textarea v-model="message" rows="5" placeholder="เล่าว่าเกิดอะไรขึ้น กระทบการใช้งานอย่างไร และต้องการให้ทีมงานช่วยอะไร" />
+        </label>
+
+        <div class="field-grid">
+          <label>
+            ขั้นตอนที่ทำก่อนพบปัญหา
+            <textarea v-model="stepsToReproduce" rows="4" placeholder="1. เปิดหน้า... 2. กดปุ่ม... 3. พบว่า..." />
+          </label>
+
+          <label>
+            สิ่งที่เกิดขึ้นจริง
+            <textarea v-model="actualResult" rows="4" placeholder="เช่น ระบบไม่เล่นเสียง / ปุ่มกดไม่ได้ / มีข้อความ error" />
+          </label>
+        </div>
+
+        <label>
+          สิ่งที่คาดหวัง
+          <textarea v-model="expectedResult" rows="3" placeholder="เช่น ต้องการให้เสียงเล่นต่อเนื่อง หรือรายการเติมเหรียญขึ้นเป็นอนุมัติแล้ว" />
+        </label>
+
+        <label class="attachment-field">
+          แนบรูปภาพประกอบ
+          <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="onAttachmentChange" />
+          <span>รองรับ PNG, JPG, WEBP, GIF ขนาดไม่เกิน 5MB</span>
+        </label>
+
+        <div v-if="attachmentPreview" class="attachment-preview">
+          <img :src="attachmentPreview" alt="ตัวอย่างรูปภาพแนบ" />
+          <button type="button" @click="removeAttachment">ลบรูปแนบ</button>
+        </div>
 
         <p v-if="errorMessage" class="notice error">{{ errorMessage }}</p>
         <p v-if="statusMessage" class="notice success">{{ statusMessage }}</p>
@@ -176,7 +301,9 @@ async function submitSupportRequest() {
 
 .support-head p,
 .support-head h1,
-.support-head span {
+.support-head span,
+.support-form h2,
+.support-form p {
   margin: 0;
 }
 
@@ -192,14 +319,17 @@ async function submitSupportRequest() {
   line-height: 1.2;
 }
 
-.support-head span {
+.support-head span,
+.support-form p,
+.attachment-field span {
   display: block;
   margin-top: 10px;
   color: var(--text-muted);
 }
 
 .support-head button,
-.support-form button {
+.support-form > button,
+.attachment-preview button {
   min-height: 44px;
   border: 0;
   border-radius: 8px;
@@ -227,8 +357,11 @@ async function submitSupportRequest() {
 
 .faq-panel h2,
 .support-form h2 {
-  margin: 0 0 16px;
   color: var(--text-strong);
+}
+
+.faq-panel h2 {
+  margin: 0 0 16px;
 }
 
 .faq-panel article {
@@ -242,14 +375,34 @@ async function submitSupportRequest() {
   font-size: 18px;
 }
 
-.faq-panel p {
+.faq-panel p,
+.tips-box li {
   margin: 0;
   color: var(--text-muted);
+}
+
+.tips-box {
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+  padding-top: 16px;
+}
+
+.tips-box ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
 }
 
 .support-form {
   display: grid;
   gap: 14px;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .support-form label {
@@ -269,6 +422,41 @@ async function submitSupportRequest() {
   color: var(--text-strong);
   font: inherit;
   padding: 10px 12px;
+}
+
+.support-form textarea {
+  resize: vertical;
+}
+
+.attachment-field {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.attachment-field span {
+  margin-top: 0;
+  font-weight: 700;
+}
+
+.attachment-preview {
+  align-items: start;
+  display: grid;
+  gap: 10px;
+}
+
+.attachment-preview img {
+  max-height: 260px;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.attachment-preview button {
+  justify-self: start;
+  background: #fef2f2;
+  color: #b42318;
 }
 
 .notice {
@@ -294,7 +482,8 @@ async function submitSupportRequest() {
 
 @media (max-width: 820px) {
   .support-head,
-  .support-layout {
+  .support-layout,
+  .field-grid {
     grid-template-columns: 1fr;
   }
 

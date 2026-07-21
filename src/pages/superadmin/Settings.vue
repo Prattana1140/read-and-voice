@@ -130,7 +130,7 @@ const passwordResetLabel = computed(() => {
   const reset = operations.value?.password_reset;
   if (reset?.provider === "resend") return "Resend email";
   if (reset?.provider === "webhook") return "Email webhook";
-  if (reset?.admin_fallback_enabled) return "Admin fallback";
+  if (reset?.admin_fallback_enabled) return "ให้แอดมินช่วยรีเซ็ต";
   return "ยังไม่พร้อม";
 });
 const backupSummary = computed(() => {
@@ -143,9 +143,9 @@ const backupSummary = computed(() => {
 const quickLinks = [
   { title: "ผู้ใช้ทั้งหมด", text: "บัญชีและผู้ดูแลระบบ", to: "/superadmin/users" },
   { title: "อนุมัติหนังสือ", text: "คิวงานจากนักเขียน", to: "/admin/approvals" },
-  { title: "Support Tickets", text: "คำร้องจากหน้า support", to: "/admin/support-tickets" },
-  { title: "Password Resets", text: "รีเซ็ตรหัสผ่านแบบ admin-assisted", to: "/admin/password-resets" },
-  { title: "Manual Payments", text: "อนุมัติเติม coin", to: "/admin/payments" },
+  { title: "คำขอช่วยเหลือ", text: "คำร้องจากหน้าช่วยเหลือ", to: "/admin/support-tickets" },
+  { title: "คำขอรีเซ็ตรหัสผ่าน", text: "รีเซ็ตรหัสผ่านโดยแอดมินช่วยดูแล", to: "/admin/password-resets" },
+  { title: "อนุมัติชำระเงิน", text: "อนุมัติรายการเติมเหรียญ", to: "/admin/payments" },
 ];
 
 function applySettings(payload: Partial<SystemSettings>) {
@@ -227,7 +227,7 @@ onMounted(loadAll);
   <main class="settings-page">
     <section class="page-head">
       <div>
-        <p class="eyebrow">Superadmin Settings</p>
+        <p class="eyebrow">ตั้งค่าผู้ดูแลสูงสุด</p>
         <h1>ตั้งค่าระบบ</h1>
         <p>จัดการ launch checklist, operational settings และ readiness ก่อนเปิดให้ผู้ใช้จริง</p>
       </div>
@@ -255,17 +255,17 @@ onMounted(loadAll);
         </article>
         <article>
           <strong>{{ settings.manual_payment_enabled ? "เปิด" : "ปิด" }}</strong>
-          <span>manual payment</span>
+          <span>ชำระเงินแบบตรวจเอง</span>
         </article>
         <article>
           <strong>{{ settings.admin_password_reset_enabled ? "เปิด" : "ปิด" }}</strong>
-          <span>admin password reset</span>
+          <span>รีเซ็ตรหัสผ่านโดยแอดมิน</span>
         </article>
       </section>
 
       <section class="operations-grid" v-if="operations">
         <article class="operation-card" :class="{ failed: !lineConfigured }">
-          <span>LINE Login</span>
+          <span>เข้าสู่ระบบด้วย LINE</span>
           <strong>{{ lineConfigured ? "พร้อม" : "ยังไม่พร้อม" }}</strong>
           <small>
             ID: {{ operations.social_login?.line?.client_id_set ? "ตั้งแล้ว" : "ยังไม่ตั้ง" }}
@@ -275,7 +275,7 @@ onMounted(loadAll);
         </article>
 
         <article class="operation-card" :class="{ failed: !passwordResetReady }">
-          <span>Password Reset Email</span>
+          <span>อีเมลรีเซ็ตรหัสผ่าน</span>
           <strong>{{ passwordResetLabel }}</strong>
           <small>
             From: {{ operations.password_reset?.email_from_set ? "ตั้งแล้ว" : "ยังไม่ตั้ง" }}
@@ -285,21 +285,21 @@ onMounted(loadAll);
         </article>
 
         <article class="operation-card" :class="{ failed: operations.content?.missing_structured_content }">
-          <span>Reader/TTS Content</span>
+          <span>เนื้อหาสำหรับอ่านและเสียง</span>
           <strong>{{ operations.content?.missing_structured_content || 0 }} เล่มต้องจัดโครงสร้าง</strong>
           <small>ทั้งหมด {{ operations.content?.total_books || 0 }} เล่ม</small>
           <code>{{ operations.content?.content_audit_command }}</code>
         </article>
 
         <article class="operation-card">
-          <span>Monitoring</span>
+          <span>ติดตามระบบ</span>
           <strong>พร้อมตั้ง schedule</strong>
           <small>ใช้ daily command สำหรับตรวจระบบ + audit + backup</small>
           <code>{{ operations.monitoring?.daily_command }}</code>
         </article>
 
         <article class="operation-card" :class="{ failed: !operations.backup?.latest_file }">
-          <span>Backup</span>
+          <span>สำรองข้อมูล</span>
           <strong>{{ backupSummary }}</strong>
           <small>Retention {{ operations.backup?.retention_days || 14 }} วัน</small>
           <code>{{ operations.backup?.command }}</code>
@@ -316,7 +316,7 @@ onMounted(loadAll);
         </article>
 
         <article class="operation-card compact">
-          <span>Support tickets</span>
+          <span>คำขอช่วยเหลือ</span>
           <strong>{{ operations.queues?.open_support_tickets || 0 }}</strong>
         </article>
       </section>
@@ -324,7 +324,7 @@ onMounted(loadAll);
       <section class="layout-grid">
         <article class="panel">
           <div class="panel-head">
-            <h2>System Settings</h2>
+            <h2>ตั้งค่าระบบ</h2>
             <button type="button" :disabled="saving" @click="saveSystemSettings">
               {{ saving ? "กำลังบันทึก..." : "บันทึก" }}
             </button>
@@ -369,7 +369,7 @@ onMounted(loadAll);
 
         <article class="panel">
           <div class="panel-head">
-            <h2>Launch Checklist</h2>
+            <h2>เช็กลิสต์ก่อนเปิดใช้งาน</h2>
             <span>{{ checklistItems.filter((item) => checklist[item.key]).length }}/{{ checklistItems.length }}</span>
           </div>
 
@@ -392,7 +392,7 @@ onMounted(loadAll);
       <section class="layout-grid">
         <article class="panel">
           <div class="panel-head">
-            <h2>Production Readiness</h2>
+            <h2>ความพร้อมใช้งานจริง</h2>
             <button type="button" class="ghost-btn" @click="loadAll">รีเฟรช</button>
           </div>
 

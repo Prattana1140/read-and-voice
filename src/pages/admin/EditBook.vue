@@ -142,9 +142,6 @@ onMounted(() => {
     <div class="container">
       <div class="header">
         <h1>แก้ไขหนังสือ</h1>
-        <button class="back-btn" @click="router.push({ name: 'AdminDashboard' })">
-          ← กลับหน้าแอดมิน
-        </button>
       </div>
 
       <div v-if="loading" class="state-box">กำลังโหลดข้อมูล...</div>
@@ -157,7 +154,7 @@ onMounted(() => {
         </div>
 
         <div class="form-group">
-          <label>Book title (English)</label>
+          <label>ชื่อภาษาอังกฤษ (ไม่บังคับ)</label>
           <input v-model="form.title_en" type="text" />
         </div>
 
@@ -251,15 +248,6 @@ onMounted(() => {
   color: #1f2430;
 }
 
-.back-btn {
-  border: none;
-  border-radius: 12px;
-  padding: 12px 16px;
-  background: #e9edf7;
-  font-weight: 700;
-  cursor: pointer;
-}
-
 .state-box,
 .form-card {
   background: var(--surface);
@@ -326,12 +314,10 @@ onMounted(() => {
     line-height: 1.2;
   }
 
-  .back-btn,
   .save-btn {
     width: 100%;
   }
 
-  .back-btn,
   .save-btn {
     min-height: 30px;
     border-radius: 8px;
@@ -381,7 +367,6 @@ onMounted(() => {
     font-size: 18px;
   }
 
-  .back-btn,
   .save-btn {
     min-height: 28px;
     font-size: 11px;

@@ -674,11 +674,54 @@ async function listPaymentApprovals(req, res) {
       return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
     });
 
+    const [[topupSummary]] = await db.query(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(status = 'pending') AS pending,
+         SUM(status = 'paid') AS paid,
+         SUM(status = 'failed') AS failed,
+         SUM(status = 'cancelled') AS cancelled
+       FROM coin_topup_orders`,
+    );
+    const [[orderSummary]] = await db.query(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(payment_status = 'pending') AS pending,
+         SUM(payment_status = 'paid') AS paid,
+         SUM(payment_status = 'failed') AS failed,
+         SUM(payment_status = 'cancelled') AS cancelled
+       FROM orders`,
+    );
+    const [[subscriptionSummary]] = await db.query(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(payment_status = 'pending') AS pending,
+         SUM(payment_status = 'paid') AS paid,
+         SUM(payment_status = 'failed') AS failed,
+         SUM(payment_status = 'cancelled') AS cancelled
+       FROM user_subscriptions`,
+    );
+    const addCounts = (...rows) =>
+      rows.reduce(
+        (acc, row) => ({
+          total: acc.total + Number(row?.total || 0),
+          pending: acc.pending + Number(row?.pending || 0),
+          paid: acc.paid + Number(row?.paid || 0),
+          failed: acc.failed + Number(row?.failed || 0),
+          cancelled: acc.cancelled + Number(row?.cancelled || 0),
+        }),
+        { total: 0, pending: 0, paid: 0, failed: 0, cancelled: 0 },
+      );
+
     return res.json({
       items,
       summary: {
-        total: items.length,
-        pending: items.filter((item) => item.payment_status === "pending").length,
+        ...addCounts(topupSummary, orderSummary, subscriptionSummary),
+        by_type: {
+          coin_topup: addCounts(topupSummary),
+          order: addCounts(orderSummary),
+          subscription: addCounts(subscriptionSummary),
+        },
       },
     });
   } catch (error) {
@@ -770,7 +813,7 @@ async function updateSubscriptionPayment(connection, paymentId, status, note) {
 
 async function updateCoinTopupPayment(connection, paymentId, status, note) {
   const [topups] = await connection.query(
-    `SELECT id, user_id, coins, status
+    `SELECT id, user_id, coins, status, provider_ref, payer_name, transfer_amount, transfer_date, transfer_time, slip_image_url
      FROM coin_topup_orders
      WHERE id = ?
      LIMIT 1
@@ -790,6 +833,20 @@ async function updateCoinTopupPayment(connection, paymentId, status, note) {
   }
 
   if (status === "paid") {
+    const hasTransferEvidence =
+      topup.provider_ref &&
+      topup.payer_name &&
+      Number(topup.transfer_amount || 0) > 0 &&
+      topup.transfer_date &&
+      topup.transfer_time &&
+      topup.slip_image_url;
+
+    if (!hasTransferEvidence) {
+      const error = new Error("TOPUP_TRANSFER_EVIDENCE_REQUIRED");
+      error.status = 400;
+      throw error;
+    }
+
     await connection.query(
       "INSERT IGNORE INTO coin_wallets (user_id, balance) VALUES (?, 0)",
       [topup.user_id],
@@ -875,6 +932,8 @@ async function updatePaymentApproval(req, res) {
             ? "Subscription not found"
             : error.message === "TOPUP_NOT_FOUND"
               ? "Coin topup not found"
+              : error.message === "TOPUP_TRANSFER_EVIDENCE_REQUIRED"
+                ? "ยังอนุมัติเติมเหรียญไม่ได้ เพราะผู้ใช้ยังแจ้งข้อมูลโอนเงินและแนบสลิปไม่ครบ"
             : "Unable to update payment approval",
     });
   } finally {

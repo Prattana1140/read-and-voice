@@ -25,6 +25,20 @@ const loading = ref(false);
 const message = ref("");
 const errorMessage = ref("");
 
+function roleLabel(role: string) {
+  if (role === "user") return "ผู้อ่าน";
+  if (role === "writer") return "นักเขียน";
+  if (role === "admin") return "แอดมิน";
+  if (role === "superadmin") return "ผู้ดูแลสูงสุด";
+  return role || "-";
+}
+
+function statusLabel(status: string) {
+  if (status === "active") return "ใช้งานอยู่";
+  if (status === "banned") return "ถูกระงับ";
+  return status || "-";
+}
+
 async function loadUsers() {
   try {
     loading.value = true;
@@ -62,11 +76,11 @@ onMounted(loadUsers);
       <table>
         <thead>
           <tr>
-            <th>ID</th>
+            <th>รหัส</th>
             <th>ชื่อ</th>
             <th>อีเมล</th>
-            <th>Role</th>
-            <th>Status</th>
+            <th>บทบาท</th>
+            <th>สถานะ</th>
             <th>จัดการ</th>
           </tr>
         </thead>
@@ -76,22 +90,22 @@ onMounted(loadUsers);
             <td>{{ user.id }}</td>
             <td>{{ user.name }}</td>
             <td>{{ user.email }}</td>
-            <td>{{ user.role }}</td>
-            <td>{{ user.status }}</td>
+            <td>{{ roleLabel(user.role) }}</td>
+            <td>{{ statusLabel(user.status) }}</td>
             <td class="actions">
               <button
                 v-if="user.status === 'active'"
                 class="danger"
                 @click="updateStatus(user.id, 'banned')"
               >
-                Ban
+                ระงับ
               </button>
 
               <button
                 v-else
                 @click="updateStatus(user.id, 'active')"
               >
-                Unban
+                ปลดระงับ
               </button>
             </td>
           </tr>

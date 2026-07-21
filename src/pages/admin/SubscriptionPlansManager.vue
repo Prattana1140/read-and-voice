@@ -351,7 +351,7 @@ onMounted(loadAll);
   <main class="subscription-admin">
     <header class="page-hero">
       <div>
-        <p>Membership content</p>
+        <p>จัดการหน้าสมาชิก</p>
         <h1>จัดการหน้าสมาชิกพิเศษ</h1>
         <span>
           แก้แพ็กเกจ ราคา จำนวนวัน รูปภาพ ข้อความ เปรียบเทียบสิทธิ์ และคำถามที่พบบ่อยได้จากหน้านี้
@@ -386,7 +386,7 @@ onMounted(loadAll);
     <section class="admin-card">
       <div class="section-head">
         <div>
-          <p>Plans</p>
+          <p>แพ็กเกจสมาชิก</p>
           <h2>แพ็กเกจสมาชิก</h2>
         </div>
       </div>
@@ -463,7 +463,7 @@ onMounted(loadAll);
       <div class="content-form">
         <div class="section-head">
           <div>
-            <p>Hero image</p>
+            <p>รูปภาพส่วนหัว</p>
             <h2>รูปภาพด้านบน</h2>
           </div>
         </div>
@@ -493,7 +493,7 @@ onMounted(loadAll);
     <section class="admin-card">
       <div class="section-head">
         <div>
-          <p>Page copy</p>
+          <p>ข้อความบนหน้า</p>
           <h2>ข้อความหน้าสมัครสมาชิก</h2>
         </div>
         <button type="button" :disabled="savingContent" @click="saveContent">บันทึกข้อความทั้งหมด</button>
