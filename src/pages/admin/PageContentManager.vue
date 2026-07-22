@@ -2407,46 +2407,48 @@ onUnmounted(() => {
 .compare-preview {
   display: grid;
   align-content: start;
-  gap: 12px;
+  gap: 16px;
   min-width: 0;
   border: 1px solid rgba(20, 184, 166, 0.16);
   border-radius: 8px;
   background: var(--surface);
-  padding: 18px;
+  padding: 22px;
 }
 
 .compare-preview h3 {
   margin: 0;
   color: #073f3a;
-  font-size: 22px;
+  font-size: 24px;
 }
 
 .compare-preview__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 14px;
 }
 
 .compare-preview__grid article {
   display: grid;
-  gap: 7px;
+  align-content: start;
+  gap: 12px;
   min-width: 0;
   border: 1px solid rgba(20, 184, 166, 0.12);
   border-radius: 8px;
   background: var(--surface-soft, #f7f7f7);
-  padding: 14px;
+  padding: 18px;
 }
 
 .compare-preview__grid strong {
   color: #073f3a;
-  font-size: 16px;
+  font-size: 18px;
+  line-height: 1.35;
 }
 
 .compare-preview__grid p,
 .compare-preview__grid li {
   color: #66827e;
-  font-size: 13px;
-  line-height: 1.55;
+  font-size: 15px;
+  line-height: 1.7;
 }
 
 .compare-preview__grid p,
@@ -2456,8 +2458,8 @@ onUnmounted(() => {
 
 .compare-preview__grid ul {
   display: grid;
-  gap: 5px;
-  padding-left: 16px;
+  gap: 10px;
+  padding-left: 18px;
 }
 
 .home-banner-list {
