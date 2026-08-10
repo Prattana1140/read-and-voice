@@ -289,6 +289,19 @@ const toggleContrast = () => {
   announceAccessibilityMessage(accessibilityState.highContrast ? t("a11y.contrastOn") : t("a11y.contrastOff"));
 };
 
+const toggleSpeakUi = () => {
+  updateAccessibilitySettings({ speakUi: !accessibilityState.speakUi });
+  announceAccessibilityMessage(accessibilityState.speakUi ? t("a11y.speechOn") : t("a11y.speechOff"));
+};
+
+const toggleHoverSpeak = () => {
+  updateAccessibilitySettings({
+    hoverSpeak: !accessibilityState.hoverSpeak,
+    speakUi: accessibilityState.hoverSpeak ? accessibilityState.speakUi : true,
+  });
+  announceAccessibilityMessage(accessibilityState.hoverSpeak ? t("a11y.hoverSpeechOn") : t("a11y.hoverSpeechOff"));
+};
+
 onMounted(async () => {
   updateViewportSize();
   await loadPosition();
@@ -357,6 +370,16 @@ onBeforeUnmount(() => {
       <button class="a11y-card" type="button" :aria-pressed="accessibilityState.highContrast" @click="toggleContrast">
         <strong>{{ t("a11y.highContrast") }}</strong>
         <span>{{ accessibilityState.highContrast ? t("a11y.on") : t("a11y.off") }}</span>
+      </button>
+
+      <button class="a11y-card" type="button" :aria-pressed="accessibilityState.speakUi" @click="toggleSpeakUi">
+        <strong>{{ t("a11y.speakMenu") }}</strong>
+        <span>{{ accessibilityState.speakUi ? t("a11y.on") : t("a11y.off") }}</span>
+      </button>
+
+      <button class="a11y-card" type="button" :aria-pressed="accessibilityState.hoverSpeak" @click="toggleHoverSpeak">
+        <strong>{{ t("a11y.hoverSpeak") }}</strong>
+        <span>{{ accessibilityState.hoverSpeak ? t("a11y.on") : t("a11y.off") }}</span>
       </button>
 
       <div class="a11y-control">

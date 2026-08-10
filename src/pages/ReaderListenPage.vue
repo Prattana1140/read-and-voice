@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import api, { API_BASE_URL, resolveAssetUrl } from "../utils/api";
 import { useI18n } from "../utils/i18n";
 import { localizedTitle } from "../utils/localizedContent";
+import type { ReaderVoiceCommand } from "../utils/voiceCommands";
 
 type ReaderResponse = {
   is_locked?: boolean;
@@ -79,10 +80,36 @@ const hasAudioSession = ref(false);
 const serverTtsAvailable = ref(false);
 const currentAudio = ref<HTMLAudioElement | null>(null);
 const currentAudioUrl = ref("");
+const isPreparingAudio = ref(false);
 const shareStatus = ref("");
 const autoPlayNextEpisode = ref(localStorage.getItem("listen-autoplay-next") !== "false");
 const isClosingListenMode = ref(false);
 const LISTEN_SESSION_KEY = "read-voice-listen-session";
+const READER_TTS_ACTIVE_KEY = "read-voice-reader-tts-active";
+const PENDING_LISTEN_COMMAND_KEY = "read-voice-pending-listen-command";
+let playbackRunId = 0;
+let browserSpeakTimer: number | undefined;
+let browserSpeechWatchdogTimer: number | undefined;
+let audioWatchdogTimer: number | undefined;
+let activeServerTtsController: AbortController | null = null;
+const SERVER_TTS_CLIENT_TIMEOUT_MS = 7000;
+
+function getSpeechWatchdogMs(text: string) {
+  const safeRate = Math.max(0.5, Number(rate.value) || 1);
+  return Math.min(120000, Math.max(12000, Math.round((text.length * 220) / safeRate) + 6000));
+}
+
+function clearBrowserSpeechWatchdog() {
+  if (!browserSpeechWatchdogTimer) return;
+  window.clearTimeout(browserSpeechWatchdogTimer);
+  browserSpeechWatchdogTimer = undefined;
+}
+
+function clearAudioWatchdog() {
+  if (!audioWatchdogTimer) return;
+  window.clearTimeout(audioWatchdogTimer);
+  audioWatchdogTimer = undefined;
+}
 
 const currentEpisodeId = computed(() => Number(route.query.episode || 0));
 const isEpisodeMode = computed(() => !!currentEpisodeId.value);
@@ -273,8 +300,9 @@ function publishListenSession(active = true) {
       params: { id: route.params.id },
       query: { ...route.query },
     }).fullPath,
-    isSpeaking: window.speechSynthesis.speaking && !window.speechSynthesis.paused,
-    isPaused: window.speechSynthesis.paused,
+    isSpeaking: isSpeaking.value,
+    isPreparing: isPreparingAudio.value,
+    isPaused: isPaused.value,
     currentIndex: currentIndex.value,
     total: sentences.value.length,
     updatedAt: Date.now(),
@@ -337,7 +365,7 @@ async function loadProgress() {
     currentIndex.value = index;
   }
 
-  if (isEpisodeMode.value || !route.params.id) return;
+  if (isEpisodeMode.value || !route.params.id || !isAuthenticated.value) return;
 
   try {
     const { data } = await api.get(`/reader/books/${route.params.id}/progress`);
@@ -362,7 +390,7 @@ async function loadProgress() {
 function saveProgress() {
   localStorage.setItem(`${readerKey.value}-index`, String(currentIndex.value));
 
-  if (isEpisodeMode.value || !route.params.id || !sentences.value.length) return;
+  if (isEpisodeMode.value || !route.params.id || !sentences.value.length || !isAuthenticated.value) return;
 
   const sentence = activeSentence.value;
   api.post(`/reader/books/${route.params.id}/progress`, {
@@ -381,6 +409,7 @@ function saveProgress() {
 function finishCurrentContent() {
   isSpeaking.value = false;
   isPaused.value = false;
+  localStorage.setItem(READER_TTS_ACTIVE_KEY, "false");
 
   if (isEpisodeMode.value && autoPlayNextEpisode.value && nextEpisode.value) {
     openEpisode(nextEpisode.value);
@@ -428,7 +457,7 @@ async function fetchContent() {
     }
     await loadProgress();
     await nextTick();
-    resume();
+    publishListenSession(true);
   } catch (err: any) {
     error.value = err?.response?.data?.message || "โหลดเนื้อหาสำหรับอ่านให้ฟังไม่สำเร็จ";
   } finally {
@@ -437,6 +466,17 @@ async function fetchContent() {
 }
 
 function stopSpeech() {
+  playbackRunId += 1;
+  if (browserSpeakTimer) {
+    window.clearTimeout(browserSpeakTimer);
+    browserSpeakTimer = undefined;
+  }
+  clearBrowserSpeechWatchdog();
+  clearAudioWatchdog();
+  if (activeServerTtsController) {
+    activeServerTtsController.abort();
+    activeServerTtsController = null;
+  }
   window.speechSynthesis.cancel();
   if (currentAudio.value) {
     currentAudio.value.pause();
@@ -447,13 +487,21 @@ function stopSpeech() {
     URL.revokeObjectURL(currentAudioUrl.value);
     currentAudioUrl.value = "";
   }
+  isPreparingAudio.value = false;
   isSpeaking.value = false;
   isPaused.value = false;
   hasAudioSession.value = false;
+  localStorage.setItem(READER_TTS_ACTIVE_KEY, "false");
   if (isClosingListenMode.value) clearListenSession();
 }
 
-function speakWithBrowser(index: number) {
+function speakWithBrowser(index: number, runId = playbackRunId) {
+  if (!("speechSynthesis" in window)) {
+    error.value = "เบราว์เซอร์นี้ยังไม่รองรับการอ่านออกเสียง กรุณาเปิดด้วย Chrome, Edge หรือ Safari";
+    localStorage.setItem(READER_TTS_ACTIVE_KEY, "false");
+    return;
+  }
+
   const utterance = new SpeechSynthesisUtterance(sentences.value[index]);
   utterance.lang = selectedVoiceObject.value?.lang || "th-TH";
   utterance.voice = selectedVoiceObject.value;
@@ -462,12 +510,33 @@ function speakWithBrowser(index: number) {
   utterance.volume = volume.value;
 
   utterance.onstart = () => {
+    if (runId !== playbackRunId) return;
+    clearBrowserSpeechWatchdog();
+    isPreparingAudio.value = false;
     isSpeaking.value = true;
     isPaused.value = false;
+    localStorage.setItem(READER_TTS_ACTIVE_KEY, "true");
     publishListenSession(true);
+    browserSpeechWatchdogTimer = window.setTimeout(() => {
+      if (runId !== playbackRunId || isPaused.value) return;
+      window.speechSynthesis.cancel();
+      isPreparingAudio.value = false;
+      isSpeaking.value = false;
+      saveProgress();
+      publishListenSession(true);
+      const nextIndex = currentIndex.value + 1;
+      if (nextIndex < sentences.value.length) {
+        void speakFrom(nextIndex);
+        return;
+      }
+      finishCurrentContent();
+    }, getSpeechWatchdogMs(sentences.value[index]));
   };
 
   utterance.onend = () => {
+    if (runId !== playbackRunId) return;
+    clearBrowserSpeechWatchdog();
+    isPreparingAudio.value = false;
     saveProgress();
     publishListenSession(true);
     const nextIndex = currentIndex.value + 1;
@@ -480,17 +549,49 @@ function speakWithBrowser(index: number) {
   };
 
   utterance.onerror = () => {
+    if (runId !== playbackRunId) return;
+    clearBrowserSpeechWatchdog();
+    isPreparingAudio.value = false;
     isSpeaking.value = false;
     isPaused.value = false;
+    localStorage.setItem(READER_TTS_ACTIVE_KEY, "false");
   };
 
-  window.speechSynthesis.speak(utterance);
+  isPreparingAudio.value = true;
+  publishListenSession(true);
+  browserSpeakTimer = window.setTimeout(() => {
+    browserSpeakTimer = undefined;
+    if (runId !== playbackRunId) return;
+    window.speechSynthesis.speak(utterance);
+    window.setTimeout(() => {
+      if (runId !== playbackRunId) return;
+      if (!window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+        isPreparingAudio.value = false;
+        isSpeaking.value = false;
+        localStorage.setItem(READER_TTS_ACTIVE_KEY, "false");
+        publishListenSession(true);
+        const nextIndex = currentIndex.value + 1;
+        if (nextIndex < sentences.value.length) {
+          void speakFrom(nextIndex);
+          return;
+        }
+        finishCurrentContent();
+      }
+    }, 900);
+  }, 60);
 }
 
-async function playServerTts(index: number) {
+async function playServerTts(index: number, runId = playbackRunId) {
   const token = localStorage.getItem("token");
+  const controller = new AbortController();
+  activeServerTtsController = controller;
+  const timeoutId = window.setTimeout(() => controller.abort(), SERVER_TTS_CLIENT_TIMEOUT_MS);
+  isPreparingAudio.value = true;
+  publishListenSession(true);
+
   const response = await fetch(`${API_BASE_URL}/api/tts/synthesize`, {
     method: "POST",
+    signal: controller.signal,
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -501,11 +602,16 @@ async function playServerTts(index: number) {
       pitch: pitch.value,
       volume: volume.value,
     }),
+  }).finally(() => {
+    window.clearTimeout(timeoutId);
+    if (activeServerTtsController === controller) activeServerTtsController = null;
   });
 
   if (!response.ok) throw new Error(`Server TTS failed: ${response.status}`);
+  if (runId !== playbackRunId) return;
 
   const blob = await response.blob();
+  if (runId !== playbackRunId) return;
   if (currentAudioUrl.value) URL.revokeObjectURL(currentAudioUrl.value);
   currentAudioUrl.value = URL.createObjectURL(blob);
 
@@ -514,12 +620,33 @@ async function playServerTts(index: number) {
   currentAudio.value = audio;
 
   audio.onplay = () => {
+    if (runId !== playbackRunId) return;
+    clearAudioWatchdog();
+    isPreparingAudio.value = false;
     isSpeaking.value = true;
     isPaused.value = false;
+    localStorage.setItem(READER_TTS_ACTIVE_KEY, "true");
     publishListenSession(true);
+    audioWatchdogTimer = window.setTimeout(() => {
+      if (runId !== playbackRunId || isPaused.value) return;
+      audio.pause();
+      isPreparingAudio.value = false;
+      isSpeaking.value = false;
+      saveProgress();
+      publishListenSession(true);
+      const nextIndex = currentIndex.value + 1;
+      if (nextIndex < sentences.value.length) {
+        void speakFrom(nextIndex);
+        return;
+      }
+      finishCurrentContent();
+    }, getSpeechWatchdogMs(sentences.value[index]));
   };
 
   audio.onended = () => {
+    if (runId !== playbackRunId) return;
+    clearAudioWatchdog();
+    isPreparingAudio.value = false;
     saveProgress();
     publishListenSession(true);
     const nextIndex = currentIndex.value + 1;
@@ -532,44 +659,57 @@ async function playServerTts(index: number) {
   };
 
   audio.onerror = () => {
+    if (runId !== playbackRunId) return;
+    clearAudioWatchdog();
+    isPreparingAudio.value = false;
     isSpeaking.value = false;
     isPaused.value = false;
     serverTtsAvailable.value = false;
-    speakWithBrowser(index);
+    speakWithBrowser(index, runId);
   };
 
-  await audio.play();
+  await audio.play().catch((playError) => {
+    audio.pause();
+    throw playError;
+  });
 }
 
 async function speakFrom(index: number) {
   if (!sentences.value.length || index < 0 || index >= sentences.value.length) return;
 
   stopSpeech();
+  playbackRunId += 1;
+  const runId = playbackRunId;
   currentIndex.value = index;
   hasAudioSession.value = true;
+  isPreparingAudio.value = false;
   isSpeaking.value = false;
   isPaused.value = false;
+  localStorage.setItem(READER_TTS_ACTIVE_KEY, "true");
   saveProgress();
   publishListenSession(true);
 
   if (serverTtsAvailable.value) {
     try {
-      await playServerTts(index);
+      await playServerTts(index, runId);
       return;
     } catch {
+      if (runId !== playbackRunId) return;
       serverTtsAvailable.value = false;
     }
   }
 
-  speakWithBrowser(index);
+  speakWithBrowser(index, runId);
 }
 
 function pause() {
   if (currentAudio.value && !currentAudio.value.paused) {
     currentAudio.value.pause();
+    clearAudioWatchdog();
     hasAudioSession.value = true;
     isPaused.value = true;
     isSpeaking.value = false;
+    localStorage.setItem(READER_TTS_ACTIVE_KEY, "true");
     saveProgress();
     publishListenSession(true);
     return;
@@ -577,9 +717,11 @@ function pause() {
 
   if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
     window.speechSynthesis.pause();
+    clearBrowserSpeechWatchdog();
     hasAudioSession.value = true;
     isPaused.value = true;
     isSpeaking.value = false;
+    localStorage.setItem(READER_TTS_ACTIVE_KEY, "true");
     saveProgress();
     publishListenSession(true);
   }
@@ -593,15 +735,31 @@ function resume() {
     hasAudioSession.value = true;
     isPaused.value = false;
     isSpeaking.value = true;
+    localStorage.setItem(READER_TTS_ACTIVE_KEY, "true");
     publishListenSession(true);
     return;
   }
 
   if (window.speechSynthesis.paused) {
     window.speechSynthesis.resume();
+    clearBrowserSpeechWatchdog();
+    browserSpeechWatchdogTimer = window.setTimeout(() => {
+      if (!window.speechSynthesis.speaking || isPaused.value) return;
+      window.speechSynthesis.cancel();
+      isSpeaking.value = false;
+      localStorage.setItem(READER_TTS_ACTIVE_KEY, "true");
+      saveProgress();
+      const nextIndex = currentIndex.value + 1;
+      if (nextIndex < sentences.value.length) {
+        void speakFrom(nextIndex);
+        return;
+      }
+      finishCurrentContent();
+    }, getSpeechWatchdogMs(sentences.value[currentIndex.value] || ""));
     hasAudioSession.value = true;
     isPaused.value = false;
     isSpeaking.value = true;
+    localStorage.setItem(READER_TTS_ACTIVE_KEY, "true");
     publishListenSession(true);
     return;
   }
@@ -610,6 +768,12 @@ function resume() {
 }
 
 function toggleAudio() {
+  if (isPreparingAudio.value) {
+    stopSpeech();
+    publishListenSession(true);
+    return;
+  }
+
   if (isSpeaking.value) {
     pause();
     return;
@@ -619,7 +783,7 @@ function toggleAudio() {
 }
 
 function handleVoiceReaderCommand(event: Event) {
-  const command = (event as CustomEvent<string>).detail;
+  const command = (event as CustomEvent<ReaderVoiceCommand>).detail;
 
   if (command === "play") {
     resume();
@@ -643,6 +807,16 @@ function handleVoiceReaderCommand(event: Event) {
 
   if (command === "previous") {
     previousSentence();
+    return;
+  }
+
+  if (command === "faster") {
+    adjustRate(0.1);
+    return;
+  }
+
+  if (command === "slower") {
+    adjustRate(-0.1);
   }
 }
 
@@ -656,10 +830,55 @@ function nextSentence() {
 
 function adjustRate(amount: number) {
   rate.value = Number(Math.min(2, Math.max(0.5, rate.value + amount)).toFixed(1));
+  saveVoiceSettings();
+  publishListenSession(true);
+  if (isSpeaking.value || isPreparingAudio.value) void speakFrom(currentIndex.value);
+}
+
+function readPendingListenCommand(): ReaderVoiceCommand | "" {
+  try {
+    const pending = JSON.parse(localStorage.getItem(PENDING_LISTEN_COMMAND_KEY) || "null");
+    if (!pending?.command || Date.now() - Number(pending.at || 0) > 30000) return "";
+
+    const bookId = String(route.params.id || "");
+    const episodeId = String(route.query.episode || "");
+    if (pending.bookId && pending.bookId !== bookId) return "";
+    if (String(pending.episodeId || "") !== episodeId) return "";
+
+    return pending.command as ReaderVoiceCommand;
+  } catch {
+    return "";
+  }
+}
+
+function consumePendingListenCommand() {
+  const command = readPendingListenCommand();
+  localStorage.removeItem(PENDING_LISTEN_COMMAND_KEY);
+  if (!command) return;
+
+  window.setTimeout(() => {
+    handleVoiceReaderCommand(new CustomEvent("read-voice:reader-command", { detail: command }));
+  }, 120);
 }
 
 function goBackToReader() {
   saveProgress();
+  if (currentAudio.value) {
+    const shouldResumeWithBrowser = !currentAudio.value.paused;
+    const resumeIndex = currentIndex.value;
+    stopSpeech();
+    serverTtsAvailable.value = false;
+
+    if (shouldResumeWithBrowser) {
+      playbackRunId += 1;
+      const runId = playbackRunId;
+      currentIndex.value = resumeIndex;
+      hasAudioSession.value = true;
+      localStorage.setItem(READER_TTS_ACTIVE_KEY, "true");
+      speakWithBrowser(resumeIndex, runId);
+    }
+  }
+
   hasAudioSession.value = window.speechSynthesis.speaking || window.speechSynthesis.paused;
   publishListenSession(true);
   router.replace({
@@ -667,6 +886,24 @@ function goBackToReader() {
     params: { id: route.params.id },
     query: { ...route.query },
   });
+}
+
+function continueBrowserSpeechAcrossRoute() {
+  if (!currentAudio.value) return;
+
+  const shouldResumeWithBrowser = !currentAudio.value.paused;
+  const resumeIndex = currentIndex.value;
+  stopSpeech();
+  serverTtsAvailable.value = false;
+
+  if (!shouldResumeWithBrowser) return;
+
+  playbackRunId += 1;
+  const runId = playbackRunId;
+  currentIndex.value = resumeIndex;
+  hasAudioSession.value = true;
+  localStorage.setItem(READER_TTS_ACTIVE_KEY, "true");
+  speakWithBrowser(resumeIndex, runId);
 }
 
 function closeListenMode() {
@@ -740,8 +977,9 @@ onMounted(async () => {
   loadVoices();
   window.speechSynthesis.onvoiceschanged = loadVoices;
   await Promise.all([loadBookTitle(), loadEpisodes()]);
-  await fetchContent();
   window.addEventListener("read-voice:reader-command", handleVoiceReaderCommand as EventListener);
+  await fetchContent();
+  consumePendingListenCommand();
 });
 
 onBeforeUnmount(() => {
@@ -750,6 +988,7 @@ onBeforeUnmount(() => {
   if (isClosingListenMode.value) {
     stopSpeech();
   } else {
+    continueBrowserSpeechAcrossRoute();
     hasAudioSession.value = window.speechSynthesis.speaking || window.speechSynthesis.paused;
     publishListenSession(true);
   }

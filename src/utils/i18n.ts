@@ -93,8 +93,10 @@ const th: Messages = {
   "listen.closeMini": "ปิดอ่านให้ฟัง",
   "listen.dragMini": "ลากเพื่อย้ายตำแหน่ง",
   "listen.hideMini": "ซ่อนแผ่นอ่านให้ฟัง",
+  "listen.next": "ประโยคถัดไป",
   "listen.pause": "หยุดชั่วคราว",
   "listen.play": "เล่นต่อ",
+  "listen.previous": "ประโยคก่อนหน้า",
   "listen.showMini": "แสดงแผ่นอ่านให้ฟัง",
   "listen.title": "อ่านให้ฟัง",
   "footer.about": "เกี่ยวกับเรา",
@@ -333,6 +335,7 @@ const th: Messages = {
   "a11y.minimizeShort": "ย่อ",
   "a11y.highContrast": "คอนทราสต์สูง",
   "a11y.speakMenu": "อ่านเมนูออกเสียง",
+  "a11y.hoverSpeak": "อ่านเมื่อชี้เมาส์",
   "a11y.on": "เปิดอยู่",
   "a11y.off": "ปิดอยู่",
   "a11y.fontSize": "ขนาดตัวอักษร",
@@ -349,7 +352,9 @@ const th: Messages = {
   "a11y.contrastOn": "เปิดคอนทราสต์สูงแล้ว",
   "a11y.contrastOff": "ปิดคอนทราสต์สูงแล้ว",
   "a11y.speechOn": "เปิดการอ่านออกเสียงเมนูแล้ว",
-  "a11y.speechOff": "ปิดการอ่านออกเสียงเมนูแล้ว"
+  "a11y.speechOff": "ปิดการอ่านออกเสียงเมนูแล้ว",
+  "a11y.hoverSpeechOn": "เปิดการอ่านเมื่อชี้เมาส์แล้ว",
+  "a11y.hoverSpeechOff": "ปิดการอ่านเมื่อชี้เมาส์แล้ว"
 };
 
 const en: Messages = {
@@ -444,8 +449,10 @@ const en: Messages = {
   "listen.closeMini": "Close listen player",
   "listen.dragMini": "Drag to move",
   "listen.hideMini": "Hide listen player",
+  "listen.next": "Next sentence",
   "listen.pause": "Pause",
   "listen.play": "Resume",
+  "listen.previous": "Previous sentence",
   "listen.showMini": "Show listen player",
   "listen.title": "Listen",
   "footer.about": "About us",
@@ -679,6 +686,7 @@ const en: Messages = {
   "a11y.minimizeShort": "Minimize",
   "a11y.highContrast": "High contrast",
   "a11y.speakMenu": "Speak menus",
+  "a11y.hoverSpeak": "Speak on mouse hover",
   "a11y.on": "On",
   "a11y.off": "Off",
   "a11y.fontSize": "Font size",
@@ -695,7 +703,9 @@ const en: Messages = {
   "a11y.contrastOn": "High contrast enabled",
   "a11y.contrastOff": "High contrast disabled",
   "a11y.speechOn": "Menu speech enabled",
-  "a11y.speechOff": "Menu speech disabled"
+  "a11y.speechOff": "Menu speech disabled",
+  "a11y.hoverSpeechOn": "Mouse hover speech enabled",
+  "a11y.hoverSpeechOff": "Mouse hover speech disabled"
 };
 
 const messages: Record<Locale, Messages> = { th, en };

@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "../utils/i18n";
+import type { ReaderVoiceCommand } from "../utils/voiceCommands";
 
 type ListenSession = {
   active?: boolean;
@@ -12,8 +13,12 @@ type ListenSession = {
   route?: string;
   isSpeaking?: boolean;
   isPaused?: boolean;
+  isPreparing?: boolean;
   currentIndex?: number;
   total?: number;
+  bookId?: string;
+  episodeId?: string;
+  updatedAt?: number;
 };
 
 type PlayerPosition = {
@@ -24,6 +29,8 @@ type PlayerPosition = {
 const SESSION_KEY = "read-voice-listen-session";
 const POSITION_KEY = "read-voice-listen-mini-position";
 const HIDDEN_KEY = "read-voice-listen-mini-hidden";
+const READER_TTS_ACTIVE_KEY = "read-voice-reader-tts-active";
+const PENDING_LISTEN_COMMAND_KEY = "read-voice-pending-listen-command";
 const EDGE_PADDING = 12;
 
 const router = useRouter();
@@ -35,7 +42,9 @@ const isSpeaking = ref(false);
 const isPaused = ref(false);
 const position = ref<PlayerPosition>({ x: 24, y: 120 });
 const dragging = ref(false);
+const dragMoved = ref(false);
 let dragOffset = { x: 0, y: 0 };
+let dragStart = { x: 0, y: 0 };
 let statusTimer: number | undefined;
 
 const shouldShow = computed(() => {
@@ -91,8 +100,8 @@ function readSession() {
 }
 
 function syncSpeechStatus() {
-  isPaused.value = window.speechSynthesis.paused;
-  isSpeaking.value = window.speechSynthesis.speaking && !window.speechSynthesis.paused;
+  isPaused.value = Boolean(session.value?.isPaused || window.speechSynthesis.paused);
+  isSpeaking.value = Boolean(session.value?.isSpeaking || session.value?.isPreparing || (window.speechSynthesis.speaking && !window.speechSynthesis.paused));
 }
 
 function updateSession(event: Event) {
@@ -105,20 +114,86 @@ function updateSession(event: Event) {
   syncSpeechStatus();
 }
 
-function togglePlayback() {
-  if (window.speechSynthesis.paused) {
-    window.speechSynthesis.resume();
-  } else if (window.speechSynthesis.speaking) {
-    window.speechSynthesis.pause();
-  } else if (session.value?.route) {
+function updateStoredSession(patch: Partial<ListenSession>) {
+  if (!session.value) return;
+  session.value = { ...session.value, ...patch, updatedAt: Date.now() };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session.value));
+  window.dispatchEvent(new CustomEvent("read-voice:listen-session", { detail: session.value }));
+}
+
+function queueListenCommand(command: ReaderVoiceCommand) {
+  if (!session.value?.route) return;
+  localStorage.setItem(
+    PENDING_LISTEN_COMMAND_KEY,
+    JSON.stringify({
+      command,
+      route: session.value.route,
+      bookId: session.value.bookId || "",
+      episodeId: session.value.episodeId || "",
+      at: Date.now(),
+    }),
+  );
+  if (route.name !== "ReaderListenPage") {
     router.push(session.value.route);
   }
+}
+
+function dispatchReaderCommand(command: ReaderVoiceCommand) {
+  window.dispatchEvent(new CustomEvent("read-voice:reader-command", { detail: command }));
+}
+
+function togglePlayback() {
+  const command: ReaderVoiceCommand = isSpeaking.value ? "pause" : "play";
+
+  if (command === "pause") {
+    dispatchReaderCommand("pause");
+    if ("speechSynthesis" in window && window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+      window.speechSynthesis.pause();
+    }
+    updateStoredSession({ isSpeaking: false, isPaused: true, isPreparing: false });
+    localStorage.setItem(READER_TTS_ACTIVE_KEY, "true");
+    syncSpeechStatus();
+    return;
+  }
+
+  if ("speechSynthesis" in window && window.speechSynthesis.paused) {
+    window.speechSynthesis.resume();
+    dispatchReaderCommand("play");
+    updateStoredSession({ isSpeaking: true, isPaused: false, isPreparing: false });
+    localStorage.setItem(READER_TTS_ACTIVE_KEY, "true");
+    syncSpeechStatus();
+    return;
+  }
+
+  if (route.name === "ReaderListenPage") {
+    dispatchReaderCommand("play");
+    syncSpeechStatus();
+    return;
+  }
+  queueListenCommand("play");
   syncSpeechStatus();
 }
 
+function runListenCommand(command: ReaderVoiceCommand) {
+  if (command === "stop") {
+    closePlayer();
+    return;
+  }
+
+  if (command === "play" || command === "pause") {
+    togglePlayback();
+    return;
+  }
+
+  queueListenCommand(command);
+}
+
 function closePlayer() {
-  window.speechSynthesis.cancel();
+  dispatchReaderCommand("stop");
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   session.value = null;
+  localStorage.setItem(READER_TTS_ACTIVE_KEY, "false");
+  localStorage.removeItem(PENDING_LISTEN_COMMAND_KEY);
   localStorage.setItem(
     SESSION_KEY,
     JSON.stringify({ active: false, isSpeaking: false, isPaused: false }),
@@ -136,6 +211,7 @@ function hidePlayer() {
 }
 
 function showPlayer() {
+  if (dragMoved.value) return;
   hidden.value = false;
   localStorage.setItem(HIDDEN_KEY, "false");
   position.value = clampPosition(position.value);
@@ -143,13 +219,27 @@ function showPlayer() {
 }
 
 function openListenPage() {
+  if (dragMoved.value) return;
   if (session.value?.route) router.push(session.value.route);
 }
 
 function startDrag(event: PointerEvent) {
+  const targetElement = event.target as HTMLElement | null;
+  if (
+    targetElement?.closest("button, a, input, textarea, select")
+    && !targetElement.closest(".listen-mini__bubble")
+  ) {
+    return;
+  }
+
   dragging.value = true;
+  dragMoved.value = false;
   const target = event.currentTarget as HTMLElement;
   target.setPointerCapture(event.pointerId);
+  dragStart = {
+    x: event.clientX,
+    y: event.clientY,
+  };
   dragOffset = {
     x: event.clientX - position.value.x,
     y: event.clientY - position.value.y,
@@ -158,6 +248,9 @@ function startDrag(event: PointerEvent) {
 
 function moveDrag(event: PointerEvent) {
   if (!dragging.value) return;
+  if (Math.abs(event.clientX - dragStart.x) > 4 || Math.abs(event.clientY - dragStart.y) > 4) {
+    dragMoved.value = true;
+  }
   position.value = clampPosition({
     x: event.clientX - dragOffset.x,
     y: event.clientY - dragOffset.y,
@@ -170,6 +263,9 @@ function stopDrag(event: PointerEvent) {
   const target = event.currentTarget as HTMLElement;
   if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId);
   savePosition();
+  window.setTimeout(() => {
+    dragMoved.value = false;
+  }, 120);
 }
 
 function handleResize() {
@@ -199,6 +295,10 @@ onBeforeUnmount(() => {
     class="listen-mini"
     :class="{ 'listen-mini--hidden': hidden, 'is-dragging': dragging }"
     :style="{ left: `${position.x}px`, top: `${position.y}px` }"
+    @pointerdown="startDrag"
+    @pointermove="moveDrag"
+    @pointerup="stopDrag"
+    @pointercancel="stopDrag"
   >
     <button
       v-if="hidden"
@@ -206,10 +306,6 @@ onBeforeUnmount(() => {
       type="button"
       :aria-label="t('listen.showMini')"
       @click="showPlayer"
-      @pointerdown="startDrag"
-      @pointermove="moveDrag"
-      @pointerup="stopDrag"
-      @pointercancel="stopDrag"
     >
       🎧
     </button>
@@ -218,10 +314,6 @@ onBeforeUnmount(() => {
       <div
         class="listen-mini__handle"
         :title="t('listen.dragMini')"
-        @pointerdown="startDrag"
-        @pointermove="moveDrag"
-        @pointerup="stopDrag"
-        @pointercancel="stopDrag"
       >
         <span></span>
         <span></span>
@@ -241,9 +333,13 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="listen-mini__actions">
+        <button type="button" :aria-label="t('listen.previous')" @click="runListenCommand('previous')">‹</button>
         <button type="button" :aria-label="isSpeaking ? t('listen.pause') : t('listen.play')" @click="togglePlayback">
           {{ isSpeaking ? "Ⅱ" : "▶" }}
         </button>
+        <button type="button" :aria-label="t('listen.next')" @click="runListenCommand('next')">›</button>
+        <button type="button" aria-label="ลดความเร็ว" @click="runListenCommand('slower')">−</button>
+        <button type="button" aria-label="เพิ่มความเร็ว" @click="runListenCommand('faster')">+</button>
         <button type="button" :aria-label="t('listen.hideMini')" @click="hidePlayer">−</button>
         <button type="button" :aria-label="t('listen.closeMini')" @click="closePlayer">×</button>
       </div>
@@ -268,6 +364,8 @@ onBeforeUnmount(() => {
   box-shadow: 0 18px 46px rgba(15, 23, 42, 0.24);
   padding: 10px;
   backdrop-filter: blur(16px);
+  cursor: grab;
+  touch-action: none;
   user-select: none;
 }
 
@@ -325,7 +423,7 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 3px;
   min-width: 0;
-  cursor: pointer;
+  cursor: grab;
 }
 
 .listen-mini__copy strong,
@@ -350,7 +448,7 @@ onBeforeUnmount(() => {
 
 .listen-mini__actions {
   display: grid;
-  grid-template-columns: repeat(3, 32px);
+  grid-template-columns: repeat(4, 32px);
   gap: 5px;
 }
 
@@ -370,7 +468,7 @@ onBeforeUnmount(() => {
   padding: 0;
 }
 
-.listen-mini__actions button:first-child {
+.listen-mini__actions button:nth-child(2) {
   background: #55c6bd;
 }
 
@@ -387,7 +485,7 @@ onBeforeUnmount(() => {
 
   .listen-mini__actions {
     grid-column: 1 / -1;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(7, 1fr);
   }
 
   .listen-mini__actions button {

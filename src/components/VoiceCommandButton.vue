@@ -2,7 +2,9 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { announceAccessibilityMessage } from "../utils/accessibility";
+import api from "../utils/api";
 import { getAuthUser, isAuthenticated, type UserRole } from "../utils/auth";
+import { filterBooks, getBookSearchScore, type SearchableBook } from "../utils/bookSearch";
 import {
   normalizeVoiceCommand,
   normalizeVoiceMatchText,
@@ -42,6 +44,10 @@ type VoiceRouteAccess = {
   allowedRoles?: UserRole[];
 };
 
+type VoiceBook = SearchableBook & {
+  id: number;
+};
+
 const router = useRouter();
 const route = useRoute();
 
@@ -64,7 +70,13 @@ const pendingDangerAction = ref<null | (() => void)>(null);
 const pendingNavigation = ref<VoiceNavigationTarget | null>(null);
 
 let recognition: SpeechRecognitionLike | null = null;
+let voiceBooksCache: VoiceBook[] = [];
+let voiceBooksLoadedAt = 0;
+let voiceBooksPromise: Promise<VoiceBook[]> | null = null;
 const ONBOARDING_STORAGE_KEY = "read-voice-voice-command-onboarded";
+const LISTEN_SESSION_KEY = "read-voice-listen-session";
+const PENDING_LISTEN_COMMAND_KEY = "read-voice-pending-listen-command";
+const BOOK_CACHE_TTL_MS = 15_000;
 const hiddenRouteNames = new Set(["Profile", "ProfileSettings"]);
 const continuousBlockedRouteNames = new Set(["Login", "AccountLogin", "Register", "ForgotPassword", ...hiddenRouteNames]);
 const memberRoles: UserRole[] = ["user", "writer", "admin", "superadmin"];
@@ -383,14 +395,82 @@ function dispatchReaderCommand(command: ReaderVoiceCommand) {
   window.dispatchEvent(new CustomEvent("read-voice:reader-command", { detail: command }));
 }
 
+function getActiveListenSession() {
+  try {
+    const session = JSON.parse(localStorage.getItem(LISTEN_SESSION_KEY) || "null");
+    return session?.active && session?.route ? session : null;
+  } catch {
+    return null;
+  }
+}
+
+function queueListenCommand(command: ReaderVoiceCommand) {
+  const session = getActiveListenSession();
+  if (!session?.route) return false;
+
+  localStorage.setItem(
+    PENDING_LISTEN_COMMAND_KEY,
+    JSON.stringify({
+      command,
+      route: session.route,
+      bookId: session.bookId || "",
+      episodeId: session.episodeId || "",
+      at: Date.now(),
+    }),
+  );
+  router.push(session.route);
+  return true;
+}
+
+function updateListenSession(patch: Record<string, unknown>) {
+  const session = getActiveListenSession();
+  if (!session) return;
+
+  const nextSession = { ...session, ...patch, updatedAt: Date.now() };
+  localStorage.setItem(LISTEN_SESSION_KEY, JSON.stringify(nextSession));
+  window.dispatchEvent(new CustomEvent("read-voice:listen-session", { detail: nextSession }));
+}
+
 function runReaderCommand(command: ReaderVoiceCommand, message: string) {
   if (route.name !== "ReaderPage" && route.name !== "ReaderListenPage") {
+    const session = getActiveListenSession();
+    if (session && command === "stop") {
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+      localStorage.setItem(
+        LISTEN_SESSION_KEY,
+        JSON.stringify({ ...session, active: false, isSpeaking: false, isPaused: false, isPreparing: false }),
+      );
+      localStorage.removeItem(PENDING_LISTEN_COMMAND_KEY);
+      window.dispatchEvent(new CustomEvent("read-voice:listen-session", { detail: { active: false } }));
+      speakStatus(message);
+      return;
+    }
+
+    if (session && command === "pause" && "speechSynthesis" in window && window.speechSynthesis.speaking) {
+      window.speechSynthesis.pause();
+      updateListenSession({ isSpeaking: false, isPaused: true, isPreparing: false });
+      announceStatusOnly(message);
+      return;
+    }
+
+    if (session && command === "play" && "speechSynthesis" in window && window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+      updateListenSession({ isSpeaking: true, isPaused: false, isPreparing: false });
+      announceStatusOnly(message);
+      return;
+    }
+
+    if (queueListenCommand(command)) {
+      announceStatusOnly(message);
+      return;
+    }
+
     speakStatus("เปิดหน้าอ่านก่อน แล้วค่อยสั่งเล่นเสียง");
     return;
   }
 
   dispatchReaderCommand(command);
-  if (command === "play" || command === "next" || command === "previous") {
+  if (command === "play" || command === "pause" || command === "next" || command === "previous") {
     announceStatusOnly(message);
     return;
   }
@@ -595,7 +675,70 @@ function choosePendingMatch(index: number) {
   return true;
 }
 
-function openBookByTitle(title: string) {
+function compactVoiceText(value: string) {
+  return normalizeVoiceMatchText(value);
+}
+
+async function loadVoiceBooks(force = false) {
+  const fresh = Date.now() - voiceBooksLoadedAt < BOOK_CACHE_TTL_MS;
+  if (!force && fresh && voiceBooksCache.length) return voiceBooksCache;
+  if (!force && voiceBooksPromise) return voiceBooksPromise;
+
+  voiceBooksPromise = api
+    .get("/books")
+    .then((response) => {
+      const data = response.data;
+      const books = (Array.isArray(data) ? data : Array.isArray(data?.books) ? data.books : []) as VoiceBook[];
+      voiceBooksCache = books.filter((book) => Number.isFinite(Number(book.id)));
+      voiceBooksLoadedAt = Date.now();
+      return voiceBooksCache;
+    })
+    .finally(() => {
+      voiceBooksPromise = null;
+    });
+
+  return voiceBooksPromise;
+}
+
+function getBookVoiceTitles(book: VoiceBook) {
+  return [book.title, book.title_th, book.title_en]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+}
+
+function findBestVoiceBookMatch(books: VoiceBook[], title: string) {
+  const query = normalizeVoiceCommand(title);
+  const compactQuery = compactVoiceText(query);
+  if (!compactQuery) return null;
+
+  const scored = filterBooks(books, query)
+    .map((book) => {
+      const titles = getBookVoiceTitles(book);
+      const compactTitles = titles.map(compactVoiceText);
+      let score = getBookSearchScore(book, query);
+
+      if (compactTitles.some((bookTitle) => bookTitle === compactQuery)) score += 200;
+      if (compactTitles.some((bookTitle) => bookTitle.startsWith(compactQuery))) score += 80;
+      if (compactTitles.some((bookTitle) => bookTitle.includes(compactQuery))) score += 45;
+
+      return { book, score };
+    })
+    .filter((item) => item.score >= 45)
+    .sort((a, b) => b.score - a.score);
+
+  return scored[0]?.book || null;
+}
+
+async function openBookByTitle(title: string) {
+  const books = await loadVoiceBooks(true).catch(() => []);
+  const book = findBestVoiceBookMatch(books, title);
+
+  if (book) {
+    router.push({ name: "BookDetail", params: { id: book.id } });
+    speakStatus(`เปิดหนังสือ ${getBookVoiceTitles(book)[0] || title} แล้ว`);
+    return;
+  }
+
   if (clickVisibleText(title)) return;
 
   router.push({
@@ -907,7 +1050,7 @@ function canAccessNavigation(routeName: string) {
   return { allowed: true };
 }
 
-function requestNavigationConfirmation(action: Extract<VoiceCommandAction, { type: "navigate" }>) {
+function navigateByVoice(action: Extract<VoiceCommandAction, { type: "navigate" }>) {
   const access = canAccessNavigation(action.routeName);
   const label = getNavigationLabel(action);
 
@@ -917,16 +1060,9 @@ function requestNavigationConfirmation(action: Extract<VoiceCommandAction, { typ
     return;
   }
 
-  pendingNavigation.value = {
-    routeName: action.routeName,
-    query: action.query,
-    label,
-  };
-  speakStatus(`ต้องการไปหน้า${label}ใช่หรือไม่ พูดว่ายืนยัน`, () => {
-    if (pendingNavigation.value && !isListening.value) {
-      startListening();
-    }
-  });
+  pendingNavigation.value = null;
+  router.push({ name: action.routeName, query: action.query });
+  speakStatus(routeMessage(action));
 }
 
 function confirmPendingNavigation() {
@@ -968,6 +1104,44 @@ function routeMessage(action: Extract<VoiceCommandAction, { type: "navigate" }>)
   return messages[action.routeName] || `เปิดหน้า${getNavigationLabel(action)}แล้ว`;
 }
 
+function findNavigationBySpokenText(command: string): Extract<VoiceCommandAction, { type: "navigate" }> | null {
+  const compactCommand = compactVoiceText(command);
+  if (!compactCommand) return null;
+
+  for (const [routeName, access] of Object.entries(voiceRouteAccess)) {
+    const compactLabel = compactVoiceText(access.label);
+    if (
+      compactCommand === compactLabel
+      || compactCommand === compactVoiceText(`เปิด${access.label}`)
+      || compactCommand === compactVoiceText(`ไป${access.label}`)
+      || compactCommand === compactVoiceText(`ไปหน้า${access.label}`)
+      || compactCommand === compactVoiceText(routeName)
+    ) {
+      return { type: "navigate", routeName };
+    }
+  }
+
+  return null;
+}
+
+async function resolveUnknownVoiceCommand(command: string) {
+  const navigation = findNavigationBySpokenText(command);
+  if (navigation) {
+    navigateByVoice(navigation);
+    return true;
+  }
+
+  const books = await loadVoiceBooks(true).catch(() => []);
+  const book = findBestVoiceBookMatch(books, command);
+  if (book) {
+    router.push({ name: "BookDetail", params: { id: book.id } });
+    speakStatus(`เปิดหนังสือ ${getBookVoiceTitles(book)[0] || command} แล้ว`);
+    return true;
+  }
+
+  return false;
+}
+
 function readerMessage(command: ReaderVoiceCommand) {
   const messages: Record<ReaderVoiceCommand, string> = {
     play: "เริ่มเล่นเสียงแล้ว",
@@ -975,14 +1149,17 @@ function readerMessage(command: ReaderVoiceCommand) {
     stop: "หยุดเสียงแล้ว",
     next: "เลื่อนไปถัดไปแล้ว",
     previous: "ย้อนกลับแล้ว",
+    faster: "เพิ่มความเร็วแล้ว",
+    slower: "ลดความเร็วแล้ว",
   };
 
   return messages[command];
 }
 
-function executeVoiceAction(action: VoiceCommandAction, normalizedCommand: string) {
+async function executeVoiceAction(action: VoiceCommandAction, normalizedCommand: string) {
   switch (action.type) {
     case "none":
+      if (await resolveUnknownVoiceCommand(normalizedCommand)) return;
       speakStatus("ยังไม่รู้จักคำสั่งนี้ ลองพูดว่า ช่วยเหลือ เพื่อดูตัวอย่างคำสั่ง");
       return;
     case "cancelListening":
@@ -1105,7 +1282,7 @@ function executeVoiceAction(action: VoiceCommandAction, normalizedCommand: strin
       return;
     }
     case "navigate":
-      requestNavigationConfirmation(action);
+      navigateByVoice(action);
       return;
     case "openAccessibility":
       window.dispatchEvent(new CustomEvent("read-voice:open-accessibility-panel"));
@@ -1115,7 +1292,7 @@ function executeVoiceAction(action: VoiceCommandAction, normalizedCommand: strin
       openCategoryByName(action.category, normalizedCommand);
       return;
     case "openBook":
-      openBookByTitle(action.title);
+      await openBookByTitle(action.title);
       return;
     case "search":
       pushSearch(action.keyword, action.contentType);
@@ -1125,6 +1302,12 @@ function executeVoiceAction(action: VoiceCommandAction, normalizedCommand: strin
       runReaderCommand(action.command, readerMessage(action.command));
       return;
   }
+}
+
+function runVoiceAction(action: VoiceCommandAction, normalizedCommand: string) {
+  void executeVoiceAction(action, normalizedCommand).catch(() => {
+    speakStatus("ทำคำสั่งไม่สำเร็จ กรุณาลองอีกครั้ง");
+  });
 }
 
 function handleCommand(rawCommand: string) {
@@ -1143,7 +1326,7 @@ function handleCommand(rawCommand: string) {
   const action = parseVoiceCommand(command);
   if (pendingNavigation.value) {
     if (action.type === "navigate") {
-      executeVoiceAction(action, command);
+      runVoiceAction(action, command);
       return;
     }
 
@@ -1152,7 +1335,7 @@ function handleCommand(rawCommand: string) {
   }
 
   if (handleDangerConfirmation(command)) return;
-  executeVoiceAction(action, command);
+  runVoiceAction(action, command);
 }
 
 onBeforeUnmount(() => {

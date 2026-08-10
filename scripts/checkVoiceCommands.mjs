@@ -15,6 +15,8 @@ const cases = [
   ["หยุดเสียง", { type: "reader", command: "stop" }],
   ["ประโยคถัดไป", { type: "reader", command: "next" }],
   ["ก่อนหน้า", { type: "reader", command: "previous" }],
+  ["เร่งสปีด", { type: "reader", command: "faster" }],
+  ["ลดความเร็ว", { type: "reader", command: "slower" }],
   ["ไปที่ช่อง อีเมล", { type: "focusElement", target: "อีเมล" }],
   ["กรอก อีเมล ว่า test@example.com", { type: "fillNamedField", fieldName: "อีเมล", value: "test@example.com" }],
   ["กดปุ่ม เข้าสู่ระบบ", { type: "clickElement", target: "เข้าสู่ระบบ" }],

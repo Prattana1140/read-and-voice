@@ -1,4 +1,4 @@
-export type ReaderVoiceCommand = "play" | "pause" | "stop" | "next" | "previous";
+export type ReaderVoiceCommand = "play" | "pause" | "stop" | "next" | "previous" | "faster" | "slower";
 
 export type VoiceCommandAction =
   | { type: "none" }
@@ -58,6 +58,7 @@ export const voiceHelpSections = [
       "อ่านให้ฟัง / เริ่มฟัง / เล่นเสียง",
       "หยุดอ่าน / พักก่อน / หยุดเสียง",
       "ถัดไป / ประโยคถัดไป / ก่อนหน้า",
+      "เร่งสปีด / เพิ่มความเร็ว / ลดสปีด / ช้าลง",
     ],
   },
   {
@@ -249,6 +250,8 @@ export function parseVoiceCommand(rawCommand: string): VoiceCommandAction {
   if (/หยุดเสียง|ปิดเสียง|stop|เลิกอ่าน|พอแล้ว|หยุดทั้งหมด/.test(command)) return { type: "reader", command: "stop" };
   if (/ประโยคถัดไป|ย่อหน้าถัดไป|ถัดไป|ต่อไป|ข้ามไปต่อ|อ่านต่อประโยคหน้า/.test(command)) return { type: "reader", command: "next" };
   if (/ก่อนหน้า|ย้อนกลับประโยค|ย้อนกลับย่อหน้า|อ่านก่อนหน้า|กลับประโยคก่อน/.test(command)) return { type: "reader", command: "previous" };
+  if (/เร่งสปีด|เพิ่มสปีด|เพิ่มความเร็ว|เร็วขึ้น|อ่านเร็วขึ้น|เร่งเสียง/.test(command)) return { type: "reader", command: "faster" };
+  if (/ลดสปีด|ลดความเร็ว|ช้าลง|อ่านช้าลง|เสียงช้าลง/.test(command)) return { type: "reader", command: "slower" };
 
   return { type: "none" };
 }

@@ -114,6 +114,20 @@ const isPaused = ref(false);
 const isTocOpen = ref(false);
 const isSettingsOpen = ref(false);
 const isCommentsOpen = ref(false);
+const READER_TTS_ACTIVE_KEY = "read-voice-reader-tts-active";
+let speechRunId = 0;
+let speechWatchdogTimer: number | undefined;
+
+function getSpeechWatchdogMs(text: string) {
+  const safeRate = Math.max(0.5, Number(rate.value) || 1);
+  return Math.min(120000, Math.max(12000, Math.round((text.length * 220) / safeRate) + 6000));
+}
+
+function clearSpeechWatchdog() {
+  if (!speechWatchdogTimer) return;
+  window.clearTimeout(speechWatchdogTimer);
+  speechWatchdogTimer = undefined;
+}
 
 const currentEpisodeId = computed(() => Number(route.query.episode || 0));
 const isEpisodeMode = computed(() => currentEpisodeId.value > 0);
@@ -367,7 +381,7 @@ async function loadProgress() {
     currentIndex.value = index;
   }
 
-  if (isEpisodeMode.value || !route.params.id) return;
+  if (isEpisodeMode.value || !route.params.id || !isAuthenticated.value) return;
 
   try {
     const { data } = await api.get(`/reader/books/${route.params.id}/progress`);
@@ -392,7 +406,7 @@ async function loadProgress() {
 function saveProgress() {
   localStorage.setItem(`${readerKey.value}-index`, String(currentIndex.value));
 
-  if (isEpisodeMode.value || !route.params.id || !sentences.value.length) return;
+  if (isEpisodeMode.value || !route.params.id || !sentences.value.length || !isAuthenticated.value) return;
 
   const sentence = activeSentence.value;
   api.post(`/reader/books/${route.params.id}/progress`, {
@@ -496,9 +510,12 @@ async function loadEpisodeComments() {
 }
 
 function stopSpeech() {
+  speechRunId += 1;
+  clearSpeechWatchdog();
   window.speechSynthesis.cancel();
   isSpeaking.value = false;
   isPaused.value = false;
+  localStorage.setItem(READER_TTS_ACTIVE_KEY, "false");
 }
 
 function toggleSpeechPlayback() {
@@ -506,6 +523,7 @@ function toggleSpeechPlayback() {
 
   if (isSpeaking.value && !isPaused.value && window.speechSynthesis.speaking) {
     window.speechSynthesis.pause();
+    clearSpeechWatchdog();
     isPaused.value = true;
     announceAccessibilityMessage("หยุดการอ่านชั่วคราวแล้ว");
     return;
@@ -513,6 +531,15 @@ function toggleSpeechPlayback() {
 
   if (isPaused.value) {
     window.speechSynthesis.resume();
+    clearSpeechWatchdog();
+    speechWatchdogTimer = window.setTimeout(() => {
+      if (speechRunId < 1 || isPaused.value) return;
+      window.speechSynthesis.cancel();
+      isSpeaking.value = false;
+      isPaused.value = false;
+      localStorage.setItem(READER_TTS_ACTIVE_KEY, "false");
+      saveProgress();
+    }, getSpeechWatchdogMs(sentences.value[currentIndex.value] || ""));
     isPaused.value = false;
     isSpeaking.value = true;
     announceAccessibilityMessage("อ่านต่อจากตำแหน่งเดิมแล้ว");
@@ -525,11 +552,14 @@ function toggleSpeechPlayback() {
 function speakFrom(index: number) {
   if (!sentences.value.length || index < 0 || index >= sentences.value.length) return;
 
+  speechRunId += 1;
+  const runId = speechRunId;
   window.speechSynthesis.cancel();
   isSpeaking.value = false;
   isPaused.value = false;
   currentIndex.value = index;
   saveProgress();
+  localStorage.setItem(READER_TTS_ACTIVE_KEY, "true");
 
   const utterance = new SpeechSynthesisUtterance(sentences.value[index]);
   utterance.lang = selectedVoiceObject.value?.lang || "th-TH";
@@ -539,6 +569,7 @@ function speakFrom(index: number) {
   utterance.volume = volume.value;
 
   utterance.onstart = () => {
+    if (runId !== speechRunId) return;
     isSpeaking.value = true;
     isPaused.value = false;
     scrollToCurrent();
@@ -546,17 +577,32 @@ function speakFrom(index: number) {
   };
 
   utterance.onend = () => {
+    if (runId !== speechRunId) return;
+    clearSpeechWatchdog();
     isSpeaking.value = false;
     isPaused.value = false;
+    localStorage.setItem(READER_TTS_ACTIVE_KEY, "false");
     saveProgress();
   };
 
   utterance.onerror = () => {
+    if (runId !== speechRunId) return;
+    clearSpeechWatchdog();
     isSpeaking.value = false;
     isPaused.value = false;
+    localStorage.setItem(READER_TTS_ACTIVE_KEY, "false");
   };
 
   window.speechSynthesis.speak(utterance);
+  clearSpeechWatchdog();
+  speechWatchdogTimer = window.setTimeout(() => {
+    if (runId !== speechRunId || isPaused.value) return;
+    window.speechSynthesis.cancel();
+    isSpeaking.value = false;
+    isPaused.value = false;
+    localStorage.setItem(READER_TTS_ACTIVE_KEY, "false");
+    saveProgress();
+  }, getSpeechWatchdogMs(sentences.value[index]));
 }
 
 function openListenPage() {
@@ -758,12 +804,22 @@ function handleVoiceReaderCommand(event: Event) {
   }
 
   if (command === "next") {
-    moveReadingFocus(1);
+    const nextIndexValue = Math.min(sentences.value.length - 1, currentIndex.value + 1);
+    if (isSpeaking.value || isPaused.value || window.speechSynthesis.speaking || window.speechSynthesis.paused) {
+      speakFrom(nextIndexValue);
+    } else {
+      moveReadingFocus(1);
+    }
     return;
   }
 
   if (command === "previous") {
-    moveReadingFocus(-1);
+    const previousIndexValue = Math.max(0, currentIndex.value - 1);
+    if (isSpeaking.value || isPaused.value || window.speechSynthesis.speaking || window.speechSynthesis.paused) {
+      speakFrom(previousIndexValue);
+    } else {
+      moveReadingFocus(-1);
+    }
   }
 }
 
